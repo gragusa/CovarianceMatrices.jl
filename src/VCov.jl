@@ -1,5 +1,13 @@
 module VCov
 
-# package code goes here
+
+## Interface
+
+## OLS.pp.chol contains the chol(X'X) matrix
+##
+
+
+vcov(obj, ::Metho)
+
 
 end # module
