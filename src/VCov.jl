@@ -1,4 +1,4 @@
-module VCov
+module VCOV
 
 import StatsBase: confint, stderr, vcov, nobs
 import GLM: LinearModel, GeneralizedLinearModel, ModelMatrix
@@ -30,4 +30,5 @@ type HC5  <: HC end
 include("HAC.jl")
 include("optimalbw.jl")
 include("HC.jl")
+
 end # module

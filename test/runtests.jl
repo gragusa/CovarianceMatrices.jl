@@ -1,4 +1,4 @@
-using VCov
+using VCOV
 using Base.Test
 using DataFrames
 using GLM
