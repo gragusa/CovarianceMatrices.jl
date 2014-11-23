@@ -1,6 +1,6 @@
 # VCOV.jl
 
-[![Build Status](https://travis-ci.org/gragusa/VCov.jl.svg?branch=master)](https://travis-ci.org/gragusa/VCov.jl)
+[![Build Status](https://travis-ci.org/gragusa/VCOV.jl.svg?branch=master)](https://travis-ci.org/gragusa/VCOV.jl)
 
 Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation for Julia.
 
