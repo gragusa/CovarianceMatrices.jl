@@ -1,97 +1,33 @@
 module VCov
 
+import StatsBase: confint, stderr, vcov, nobs
+import GLM: LinearModel, GeneralizedLinearModel, ModelMatrix
+import DataFrames: DataFrameRegressionModel
 
-export vcovHAC
+using PDMats
 
-## Interface
+const π²=π^2
+const sixπ = 6*π
 
-## OLS.pp.chol contains the chol(X'X) matrix
-##
+export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel, 
+       HC0, HC1, HC2, HC3, HC4,
+       vcov, kernel, bread, meat
 
+abstract RobustVariance
+abstract HAC <: RobustVariance
+abstract HC  <: RobustVariance
 
-##vcov(obj, ::Metho)
-
-# abstract SmoothingKernel
-
-# type BandWidth{T}
-#   bw::T
-# end
-
-# type BartlettKernel
-#   bw::BandWidth
-#   kernel::Function
-#   idxs::Indexes
-# end
-
-# function BartlettKernel(bw::BandWidth)
-#   BartlettKernel(bw, )
-
-
-# function vcovHAC{T}(g::AbstractMatrix{T}, sk::SmoothingKernel)
-#   n, m = size(g)
-#   l = int(floor(4*((n/100)^(2/9))))
-#   vcovHAC(g, l)
-# end
-
-# function vcovHAC(g::Array{Float64, 2}, l::Int64)
-#   n, m = size(g)
-#   Q = g'g
-#   for ℓ = 1:l
-#     ω = 1-ℓ/(l+1)
-#     for t = ℓ+1:n
-#       Q += ω * (g[t, :]' * g[t-ℓ,:] + g[t-ℓ, :]' * g[t,:])
-#     end
-#   end
-#   return Q/n
-# end
+type HC0  <: HC end 
+type HC1  <: HC end 
+type HC2  <: HC end 
+type HC3  <: HC end 
+type HC4  <: HC end 
+type HC4m <: HC end 
+type HC5  <: HC end 
 
 
 
-# BartlettKernel() = BartlettKernel(opt_kernel, )
-
-
-# function bartlett_kernel(x::Vector)
-#   nx = length(x)
-#   for j = 1:nx
-#     axj = abs(x[j])
-#     if(axj <=1)
-#       x[j] = 1-axj
-#     end
-#   end
-# end
-
-# function bartlett_kernel(x::Number)
-#   if(x <=1)
-#     return  1-abs(x)
-#   elseif
-#     return 0.0
-#   end
-# end
-
-# function kernelsmooth{T}(g::AbstractMatrix{T}, ker::SmoothingKernel)
-#   nr, nc = dim(g)
-#   M = Array{T, nc, nc}
-#   for j = 1:nr
-
-function vcovHAC(g::Array{Float64, 2})
-  n, m = size(g)
-  l = int(floor(4*((n/100)^(2/9))))
-  vcovHAC(g, l)
-end
-
-function vcovHAC(g::Array{Float64, 2}, l::Int64)
-  n, m = size(g)
-  Q = g'g
-  for ℓ = 1:l
-    ω = 1-ℓ/(l+1)
-    for t = ℓ+1:n
-      Q += ω * (g[t, :]' * g[t-ℓ,:] + g[t-ℓ, :]' * g[t,:])
-    end
-  end
-  return Q/n
-end
-
-
-
-
+include("HAC.jl")
+include("optimalbw.jl")
+include("HC.jl")
 end # module
