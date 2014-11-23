@@ -17,3 +17,5 @@ script:
   - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir("VCOV"))`); Pkg.pin("VCOV"); Pkg.resolve()'
   - julia -e 'using VCOV; @assert isdefined(:VCOV); @assert typeof(VCOV) === Module'
   - julia --code-coverage ./test/runtests.jl
+after_success:
+- julia -e 'cd(Pkg.dir("VCOV")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
