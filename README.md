@@ -17,6 +17,6 @@ using VCOV
 X = randn(100,4)
 ## Quadratic Spectral Kernel with band-width 2
 vcov(X, QuadraticSpectral(2))
-## Quadratic Spectral Kernel with automathic band-width 
+## Quadratic Spectral Kernel with automatic band-width 
 vcov(X, QuadraticSpectral())
 ```
