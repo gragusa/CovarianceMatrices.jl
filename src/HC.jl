@@ -35,7 +35,7 @@ function residuals(LM::GenLinMod, k::HAC)
 end 	
 
 function hatmatrix(LM::GenLinMod) 
-	X = ModelMatrix(LM)
+	X = ModelMatrix(LM).*sqrt(LM.rr.wrkwts)	
 	diag(X*inv(cholfact(LM.pp))*X')
 end 
 
