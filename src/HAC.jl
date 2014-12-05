@@ -119,31 +119,13 @@ function Γ(X::AbstractMatrix, j::Int64)
   return Q
 end 
 
-function Γ!(Q::AbstractMatrix, X::AbstractMatrix, j::Int64)
-  T, p = size(X)  
-  if j>=0
-    for h=1:p, s = 1:h
-     for t = j+1:T    
-      @inbounds Q[s, h] = Q[s, h] + X[t, s]*X[t-j, h]
-     end 
-    end   
-  else
-    for h=1:p, s = 1:h
-     for t = -j+1:T    
-      @inbounds Q[s,h] = Q[s,h] + X[t+j, s]*X[t,h]
-     end 
-    end 
-  end   
-end 
-
-
 function vcov(X::AbstractMatrix, k::HAC)
   ## How to deal with optimal bandwidth?
   bw = bandwidth(k, X)
   T, p = size(X)
-  Q = zeros(p, p)  
+  Q  = zeros(eltype(X), p, p)  
   for j=-bw:bw    
-    #Q += kernel(k, j/bw).*Γ(X, int(j))
+    #Q += kernel(k, j/bw).*Γ(X, int(j))    
     Base.BLAS.axpy!(kernel(k, j/bw), Γ(X, int(j)), Q)
   end 
   return Symmetric(Q/T)
