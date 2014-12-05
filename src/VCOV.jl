@@ -1,7 +1,7 @@
 module VCOV
 
 import StatsBase: confint, stderr, vcov, nobs
-import GLM: LinearModel, GeneralizedLinearModel, ModelMatrix
+import GLM: LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual
 import DataFrames: DataFrameRegressionModel
 
 using PDMats
