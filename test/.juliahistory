@@ -1,0 +1,15 @@
+methods(glm)
+GeneralizedLinearModel
+methods(GeneralizedLinearModel)
+StatsBase.weights
+methods(StatsBase.weights)
+weights
+weights(clotting[:w])
+df_residual
+methods(df_residual)
+workspace()
+OLS
+using VCOV
+q()
+exit()
+exit()
