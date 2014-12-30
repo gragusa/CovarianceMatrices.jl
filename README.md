@@ -8,20 +8,20 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
 ## Status
 
 - [x] Basic interface
-- [x] Implement Type0-Type4 (HC0, HC1, HC2, HC3, HC4) variances 
+- [x] Implement Type0-Type4 (HC0, HC1, HC2, HC3, HC4) variances
 - [ ] Implement Type5-Type5c
 - [x] HAC with manual bandwidth
-- [ ] HAC authomatic bandwidth (Andrews)
+- [ ] HAC automatic bandwidth (Andrews)
   - [x] AR(1) model
   - [x] AR(p) model
   - [ ] MA(p) model
   - [ ] ARMA(p) model
-- [ ] HAC authomatic bandwidth (Newey-West)
-- [ ] Extend API to allow passing option to authomatic bandwidth selection methods
-- [ ] Cluster Robust HC 
+- [ ] HAC automatic bandwidth (Newey-West)
+- [ ] Extend API to allow passing option to automatic bandwidth selection methods
+- [ ] Cluster Robust HC
 - [ ] Two-way cluster robust
 - [x] Interface with GLM.jl
-- [ ] Dropin show method for GLM.jl
+- [ ] Drop-in show method for GLM.jl
 
 ## Install
 
@@ -31,7 +31,7 @@ Pkg.clone("VCOV.jl")
 
 ## Basic usage
 
-### Heteroskedastic Robust
+### Heteroskedasticity Robust
 
 ```
 using VCOV
@@ -65,14 +65,14 @@ stderr(wOLS, HC4())
 ### Heteroskedasticity and Autocorrelation Robust
 
 ```
-## Simulated AR(1) and estimate it using OLS 
+## Simulated AR(1) and estimate it using OLS
 srand(1)
 y = zeros(Float64, 100)
 rho = 0.8
 y[1] = randn()
 for j = 2:100
   y[j] = rho * y[j-1] + randn()
-end 
+end
 
 data = DataFrame(y = y[2:100], yl = y[1:99])
 AR1  = fit(GeneralizedLinearModel, y~yl, data, Normal())
@@ -81,26 +81,26 @@ AR1  = fit(GeneralizedLinearModel, y~yl, data, Normal())
 vcov(AR1)
 ## The truncated kernel (TruncatedKernel)
 vcov(AR1, TruncatedKernel(0)) ## Same as iid because bandwidth = 0
-vcov(AR1, TruncatedKernel(1)) 
+vcov(AR1, TruncatedKernel(1))
 vcov(AR1, TruncatedKernel(2))
-vcov(AR1, TruncatedKernel())  ## Optimal bandwidth 
+vcov(AR1, TruncatedKernel())  ## Optimal bandwidth
 
-## The Bartelett kernel 
+## The Bartelett kernel
 vcov(AR1, BartlettKernel(0)) ## Same as iid because bandwidth = 0
-vcov(AR1, BartlettKernel(1)) 
-vcov(AR1, BartlettKernel(2)) 
+vcov(AR1, BartlettKernel(1))
+vcov(AR1, BartlettKernel(2))
 vcov(AR1, BartlettKernel())  ## Optimal bandwidth
 
-## The Parzent kernel 
+## The Parzent kernel
 vcov(AR1, ParzenKernel(0)) ## Same as iid because bandwidth = 0
-vcov(AR1, ParzenKernel(1)) 
-vcov(AR1, ParzenKernel(2)) 
+vcov(AR1, ParzenKernel(1))
+vcov(AR1, ParzenKernel(2))
 vcov(AR1, ParzenKernel())  ## Optimal bandwidth
 
 ## The quadratic-spectral kernel
 vcov(AR1, QuadraticSpectralKernel(0.1)) ## Same as iid because bandwidth = 0
-vcov(AR1, QuadraticSpectralKernel(.5)) 
-vcov(AR1, QuadraticSpectralKernel(2.)) 
+vcov(AR1, QuadraticSpectralKernel(.5))
+vcov(AR1, QuadraticSpectralKernel(2.))
 vcov(AR1, QuadraticSpectralKernel())  ## Optimal bandwidth
 
 ```
