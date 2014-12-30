@@ -56,5 +56,3 @@ stderr(LM::DataFrameRegressionModel, k::RobustVariance) = sqrt(diag(vcov(LM, k))
 
 
 
-
-
