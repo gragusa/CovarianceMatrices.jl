@@ -16,6 +16,7 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
   - [ ] MA(p) model
   - [ ] ARMA(p) model
 - [ ] HAC authomatic bandwidth (Newey-West)
+- [ ] Extend API to allow passing option to authomatic bandwidth selection methods
 - [ ] Cluster Robust HC 
 - [ ] Two-way cluster robust
 - [x] Interface with GLM.jl
