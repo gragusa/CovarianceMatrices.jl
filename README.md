@@ -26,7 +26,7 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
 ## Install
 
 ```
-Pkg.clone("VCOV.jl")
+Pkg.clone("CovarianceMatrices.jl")
 ```
 
 ## Basic usage
@@ -34,7 +34,7 @@ Pkg.clone("VCOV.jl")
 ### Heteroskedasticity Robust
 
 ```
-using VCOV
+using CovarianceMatrices
 using DataFrames
 using GLM
 
