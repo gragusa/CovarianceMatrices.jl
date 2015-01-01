@@ -26,7 +26,7 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
 ## Install
 
 ```
-Pkg.clone("CovarianceMatrices.jl")
+Pkg.add("CovarianceMatrices")
 ```
 
 ## Basic usage
