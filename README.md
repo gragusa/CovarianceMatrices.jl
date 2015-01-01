@@ -39,7 +39,8 @@ using DataFrames
 using GLM
 
 # A Gamma example, from McCullagh & Nelder (1989, pp. 300-2)
-# The weights are added just to try the full interface.
+# The weights are added just to test the interface and are not part
+# of the original data
 clotting = DataFrame(
     u    = log([5,10,15,20,30,40,60,80,100]),
     lot1 = [118,58,42,35,27,25,21,19,18],
