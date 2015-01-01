@@ -1,4 +1,4 @@
-The VCov.jl package is licensed under the MIT "Expat" License:
+The CovarianceMatrices.jl package is licensed under the MIT "Expat" License:
 
 > Copyright (c) 2014: Giuseppe Ragusa.
 >

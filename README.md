@@ -13,7 +13,7 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
 - [x] HAC with manual bandwidth
 - [ ] HAC automatic bandwidth (Andrews)
   - [x] AR(1) model
-  - [x] AR(p) model
+  - [ ] AR(p) model
   - [ ] MA(p) model
   - [ ] ARMA(p) model
 - [ ] HAC automatic bandwidth (Newey-West)
