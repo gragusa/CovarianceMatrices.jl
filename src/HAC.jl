@@ -61,7 +61,6 @@ type TukeyHanningKernel <: HAC
   bw::Function
 end
 
-
 type QuadraticSpectralKernel <: HAC
   kernel::Function
   bw::Function
@@ -73,16 +72,16 @@ typealias PRK ParzenKernel
 typealias THK ParzenKernel
 typealias QSK QuadraticSpectralKernel
 
-TruncatedKernel()    = TRK(k_tr, optimalbw_ar_one)
-BartlettKernel()     = BTK(k_bt, optimalbw_ar_one)
-ParzenKernel()       = PRK(k_pr, optimalbw_ar_one)
-TukeyHanningKernel() = THK(k_th, optimalbw_ar_one)
-QuadraticSpectralKernel() = QSK(k_qs, optimalbw_ar_one)
+TruncatedKernel()                   = TRK(k_tr, optimalbw_ar_one)
+BartlettKernel()                    = BTK(k_bt, optimalbw_ar_one)
+ParzenKernel()                      = PRK(k_pr, optimalbw_ar_one)
+TukeyHanningKernel()                = THK(k_th, optimalbw_ar_one)
+QuadraticSpectralKernel()           = QSK(k_qs, optimalbw_ar_one)
 
-TruncatedKernel(bw::Number)    = TRK(k_tr, (x, k) -> float(bw))
-BartlettKernel(bw::Number)     = BTK(k_bt, (x, k) -> float(bw))
-ParzenKernel(bw::Number)       = PRK(k_pr, (x, k) -> float(bw))
-TukeyHanningKernel(bw::Number) = THK(k_th, (x, k) -> float(bw))
+TruncatedKernel(bw::Number)         = TRK(k_tr, (x, k) -> float(bw))
+BartlettKernel(bw::Number)          = BTK(k_bt, (x, k) -> float(bw))
+ParzenKernel(bw::Number)            = PRK(k_pr, (x, k) -> float(bw))
+TukeyHanningKernel(bw::Number)      = THK(k_th, (x, k) -> float(bw))
 QuadraticSpectralKernel(bw::Number) = QSK(k_qs, (x, k) -> float(bw))
 
 function bandwidth(k::HAC, X::AbstractMatrix)
