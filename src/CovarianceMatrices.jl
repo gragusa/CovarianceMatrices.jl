@@ -1,4 +1,4 @@
-module VCOV
+module CovarianceMatrics
 
 import StatsBase: confint, stderr, vcov, nobs
 import GLM: LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual
