@@ -100,7 +100,7 @@ vcov(AR1, ParzenKernel(2))
 vcov(AR1, ParzenKernel())  ## Optimal bandwidth
 
 ## The quadratic-spectral kernel
-vcov(AR1, QuadraticSpectralKernel(0.1)) ## Same as iid because bandwidth = 0
+vcov(AR1, QuadraticSpectralKernel(0.1)) 
 vcov(AR1, QuadraticSpectralKernel(.5))
 vcov(AR1, QuadraticSpectralKernel(2.))
 vcov(AR1, QuadraticSpectralKernel())  ## Optimal bandwidth
