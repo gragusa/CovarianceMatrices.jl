@@ -1,7 +1,7 @@
 # CovarianceMatrices.jl
 
-[![Build Status](https://travis-ci.org/gragusa/VCOV.jl.svg?branch=master)](https://travis-ci.org/gragusa/VCOV.jl)
-[![Coverage Status](https://coveralls.io/repos/gragusa/VCOV.jl/badge.png?branch=master)](https://coveralls.io/r/gragusa/VCOV.jl?branch=master)
+[![Build Status](https://travis-ci.org/gragusa/CovarianceMatrics.jl.svg?branch=master)](https://travis-ci.org/gragusa/CovarianceMatrics.jl)
+[![Coverage Status](https://coveralls.io/repos/gragusa/CovarianceMatrics.jl/badge.png?branch=master)](https://coveralls.io/r/gragusa/CovarianceMatrics.jl?branch=master)
 
 Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation for Julia.
 
@@ -20,8 +20,8 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
 - [ ] Extend API to allow passing option to automatic bandwidth selection methods
 - [ ] Cluster Robust HC
 - [ ] Two-way cluster robust
-- [x] Interface with GLM.jl
-- [ ] Drop-in show method for GLM.jl
+- [x] Interface with `GLM.jl`
+- [ ] Drop-in `show` method for `GLM.jl`
 
 ## Install
 
