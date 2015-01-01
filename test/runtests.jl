@@ -1,4 +1,4 @@
-using CovarianceMatrics
+using CovarianceMatrices
 using Base.Test
 using DataFrames
 using GLM
