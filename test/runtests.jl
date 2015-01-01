@@ -1,4 +1,4 @@
-using VCOV
+using CovarianceMatrics
 using Base.Test
 using DataFrames
 using GLM
