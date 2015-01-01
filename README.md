@@ -79,6 +79,7 @@ AR1  = fit(GeneralizedLinearModel, y~yl, data, Normal())
 
 ## Default assume iid (which is correct in this case)
 vcov(AR1)
+
 ## The truncated kernel (TruncatedKernel)
 vcov(AR1, TruncatedKernel(0)) ## Same as iid because bandwidth = 0
 vcov(AR1, TruncatedKernel(1))
