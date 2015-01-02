@@ -16,6 +16,23 @@ function lag!{T}(Yl::Array{T, 2}, Y::Array{T, 1}, p::Int64)
   end
 end
 
+
+
+function olsvar{T}(y::Array{T, 2})
+
+    # Input : data y, lag order p
+    # Output: coefficient estimate β, residual U
+
+    N, K = size(y)
+    Y = y[2:N,:]  # LHS variable
+    X = y[1:N-1,:]
+
+    β = X\Y    # OLS estimator
+    U = Y-X*β  # estimated residuals
+
+    return β, U
+end
+
 function ar{T}(Y::Array{T, 2}, lag::Int64)
 	   N, p = size(Y)
 	   Yl = Array(T, N-lag, lag+1)
@@ -87,9 +104,9 @@ function optimalbw_ar_one(X::AbstractMatrix, k::QuadraticSpectralKernel)
 end
 
 function bwAndrews{T}(X::Array{T, 2}, k::HAC; prewhite::Bool = false, approx::Symbol = :ar)
-    ## if prewhite
-        ## Not yet implemented --- need VAR(1)
-    ## end
+    if prewhite
+        X = olsvar(X)[2]
+    end
     α₁, α₂ = getalpha(X, approx)
     N,  p  = size(X)
     return bw_andrews(k, α₁, α₂, N)
