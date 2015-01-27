@@ -5,53 +5,57 @@ end
 
 typealias GenLinMod GeneralizedLinearModel
 
-adjfactor(LM::GenLinMod, k::HC0) = one(one(Float64))
-adjfactor(LM::GenLinMod, k::HC1) = sqrt(nobs(LM)./df_residual(LM))
-adjfactor(LM::GenLinMod, k::HC2) = sqrt(1./(1.-hatmatrix(LM)))
-adjfactor(LM::GenLinMod, k::HC3) = 1./(1.-hatmatrix(LM))
+adjfactor(lp::LinPredModel, k::HC0) = one(one(Float64))
+adjfactor(lp::LinPredModel, k::HC1) = sqrt(nobs(lp)./df_residual(lp))
+adjfactor(lp::LinPredModel, k::HC2) = sqrt(1./(1.-hatmatrix(lp)))
+adjfactor(lp::LinPredModel, k::HC3) = 1./(1.-hatmatrix(lp))
 
 
-function adjfactor(LM::GenLinMod, k::HC4)
-	hᵢ = hatmatrix(LM)
+function adjfactor(lp::LinPredModel, k::HC4)
+	hᵢ = hatmatrix(lp)
 	h  = mean(hᵢ)
 	δ  = min(4, hᵢ/h)
 	sqrt(1./(1.-hᵢ).^δ)
 end
 
-nobs(LM::GenLinMod) = length(LM.rr.y)
+## To be removed?
+StatsBase.nobs(lp::LinPredModel) = length(lp.rr.y)
 
-function bread(LM::GenLinMod)
-	nobs(LM)*inv(cholfact(LM.pp))
+function bread(lp::LinPredModel)
+	nobs(lp)*inv(cholfact(lp.pp))
 end
 
-function residuals(LM::GenLinMod, k::HC)
-	ε = (LM.rr.wrkresid.*LM.rr.wrkwts).*adjfactor(LM, k)
+function residuals(lp::LinPredModel, k::HC)
+	ε = (lp.rr.wrkresid.*lp.rr.wrkwts).*adjfactor(lp, k)
 	diagm(ε)
 end
 
-function residuals(LM::GenLinMod, k::HAC)
-	ε = (LM.rr.wrkresid.*LM.rr.wrkwts)
+function residuals(lp::LinPredModel, k::HAC)
+	ε = (lp.rr.wrkresid.*lp.rr.wrkwts)
 	diagm(ε)
 end
 
-function hatmatrix(LM::GenLinMod)
-	X = ModelMatrix(LM).*sqrt(LM.rr.wrkwts)
-	diag(X*inv(cholfact(LM.pp))*X')
+function hatmatrix(lp::LinPredModel)
+	X = ModelMatrix(lp).*sqrt(lp.rr.wrkwts)
+	diag(X*inv(cholfact(lp.pp))*X')
 end
 
-function meat(LM::GenLinMod, k::RobustVariance)
-	ε = residuals(LM, k)
-	X = ModelMatrix(LM)
+function meat(lp::LinPredModel, k::RobustVariance)
+	ε = residuals(lp, k)
+	X = ModelMatrix(lp)
 	vcov(ε*X, k)
 end
 
-function vcov(LM::DataFrameRegressionModel, k::RobustVariance)
-	Ω = meat(LM.model, k)
-	Q = bread(LM.model)
-	Q*Ω*Q/nobs(LM)
+function vcov(ll::LinearPredModel, k::RobustVariance)
+	Ω = meat(ll, k)
+	Q = bread(ll)
+	Q*Ω*Q/nobs(ll)
 end
 
-stderr(LM::DataFrameRegressionModel, k::RobustVariance) = sqrt(diag(vcov(LM, k)))
+
+vcov(lp::DataFrameRegressionModel, k::RobustVariance) = vcov(lp.model, k)
+stderr(x::DataFrameRegressionModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
+
 
 
 
