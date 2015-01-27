@@ -1,10 +1,13 @@
 module CovarianceMatrices
 
-import StatsBase: confint, stderr, vcov, nobs
-import GLM: LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual
-import DataFrames: DataFrameRegressionModel
-
+using Reexport
 using PDMats
+@reexport using GLM
+@reexport using DataFrames
+
+import StatsBase: confint, stderr, vcov, nobs
+import GLM: LinPredModel, LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual
+import DataFrames: DataFrameRegressionModel
 
 const π²=π^2
 const sixπ = 6*π
