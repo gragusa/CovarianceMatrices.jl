@@ -20,8 +20,9 @@ export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel,
        HC0, HC1, HC2, HC3, HC4, vcov, kernel, bread, meat, bwAndrews
 
 abstract RobustVariance
-abstract HAC <: RobustVariance
-abstract HC  <: RobustVariance
+abstract HAC  <: RobustVariance
+abstract HC   <: RobustVariance
+abstract CRHC <: HC
 
 type HC0  <: HC end
 type HC1  <: HC end
@@ -30,6 +31,24 @@ type HC3  <: HC end
 type HC4  <: HC end
 type HC4m <: HC end
 type HC5  <: HC end
+
+
+type CRHC0{T<:Int}  <: CRHC
+    cl::ClusStruc
+end
+
+type CRHC1  <: CRHC
+    cl::ClusStruc
+end
+
+type CRHC2  <: CRHC
+    cl::ClusStruc
+end
+
+type CRHC3  <: CRHC
+    cl::ClusStruc
+end
+
 
 include("HAC.jl")
 include("optimalbw.jl")
