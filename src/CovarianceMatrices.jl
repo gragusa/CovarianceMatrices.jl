@@ -17,12 +17,12 @@ const π²=π^2
 const sixπ = 6*π
 
 export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel,
-       HC0, HC1, HC2, HC3, HC4, vcov, kernel, bread, meat, bwAndrews
+       HC0, HC1, HC2, HC3, HC4, CRHC0, CRHC1, CRHC2, CRHC3, vcov, kernel, bread, meat, bwAndrews
 
 abstract RobustVariance
 abstract HAC  <: RobustVariance
 abstract HC   <: RobustVariance
-abstract CRHC <: HC
+abstract CRHC <: RobustVariance
 
 type HC0  <: HC end
 type HC1  <: HC end
@@ -33,20 +33,22 @@ type HC4m <: HC end
 type HC5  <: HC end
 
 
-type CRHC0{T<:Int}  <: CRHC
-    cl::ClusStruc
+typealias CLVector{T<:Integer} DenseArray{T,1}
+
+type CRHC0{V<:CLVector}  <: CRHC
+    cl::V
 end
 
-type CRHC1  <: CRHC
-    cl::ClusStruc
+type CRHC1{V<:CLVector}  <: CRHC
+    cl::V
 end
 
-type CRHC2  <: CRHC
-    cl::ClusStruc
+type CRHC2{V<:CLVector}  <: CRHC
+    cl::V
 end
 
-type CRHC3  <: CRHC
-    cl::ClusStruc
+type CRHC3{V<:CLVector}  <: CRHC
+    cl::V
 end
 
 
