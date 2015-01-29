@@ -131,3 +131,24 @@ GAMMA = glm(lot1~u, clotting, Gamma(),InverseLink())
 Σ4t = [0.002840158946368653 -0.0008474436578800430;
       -0.000847443657880045  0.0002528819761961959]
 @test abs(maximum(Σ4 .- Σ4t)) < 1e-08
+
+
+### Cluster basic interface
+
+using ModelsGenerators
+
+srand(1)
+
+y, x, z = randiv(n = 500, k = 3, m = 15);
+cl = repmat([1:25], 20)
+ww = rand(500)
+
+
+iivv = iv(x,z,reshape(y, 500))
+
+vcov(iivv, HC0())
+
+vcov(iivv, CRHC0(cl))
+vcov(iivv, CRHC1(cl))
+vcov(iivv, CRHC2(cl))
+vcov(iivv, CRHC3(cl))
