@@ -139,12 +139,13 @@ using ModelsGenerators
 
 srand(1)
 
-y, x, z = randiv(n = 500, k = 3, m = 15);
-cl = repmat([1:25], 20)
-ww = rand(500)
+y, x, z = randiv(n = 5000, k = 3, m = 15);
+x = [x randn(5000, 5)]
+cl = repmat([1:25], 200)
+ww = rand(5000)
 
 
-iivv = iv(x,z,reshape(y, 500))
+iivv = iv(x,z,reshape(y, 5000))
 
 vcov(iivv, HC0())
 

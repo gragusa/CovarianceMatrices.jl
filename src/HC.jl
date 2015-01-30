@@ -69,29 +69,72 @@ stderr(x::DataFrameRegressionModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
 
 ## Cluster
 
+function clusterize!(M, U, bstarts)
+    k, k = size(M)
+    s = Array(Float64, k)
+    V = Array(Float64, k, k)
+    for m = 1:length(bstarts)
+        for j = 1:k
+            for i = 1:k
+                @inbounds V[i, j] = zero(Float64)
+            end
+        end
 
-function block_crossprod!(out, X, bstarts)
-    for j in 1:length(bstarts)
-        Base.BLAS.syrk!('U', 'T', 1.,
-                        sub(X, bstarts[j],:), 1., out)
+         for i = 1:k
+             @inbounds s[i] = zero(Float64)
+         end
+
+        for j = 1:k
+            for i = [bstarts[m]]
+                @inbounds s[j] += U[i, j]
+            end 
+        end
+        
+        for j = 1:k
+            for i = 1:k
+                @inbounds V[i, j] += s[i]*s[j]
+            end
+        end 
+        
+        for j = 1:k
+            for i = 1:k
+                @inbounds M[i, j] += V[i, j]
+            end
+        end
     end
-end
+end 
 
 getQ(v::CRHC2, X, ichol) = inv(chol(eye(size(X)[1])-X*ichol*X'))
 getQ(v::CRHC3, X, ichol) = inv(eye(size(X)[1])-X*ichol*X')
 
-function _adjresid!(v::CRHC, X, e, ichol, bstarts)
+function getQ(v::CRHC3, e, X, A, bstarts)
     for j in 1:length(bstarts)        
         rnge = bstarts[j]
-        ## println(rnge)
-        ## es = sub(e, rnge)
-        ## println(length(es))
-        ## QQ = getQ(v, sub(X, rnge, :), ichol)
-        ## println(size(QQ))
-        ## println(es.*QQ)
-        e[rnge] = getQ(v, sub(X, rnge, :), ichol)*sub(e, rnge)
+        se = sub(e, rnge)
+        se = sub(X, rnge, :)
+        e[rnge] = se - sx*A*sx'\se
     end
-    return e
+end
+
+function getQ(v::CRHC3, e, X, A, bstarts)
+    Ai = inv(A)    
+    for j in 1:length(bstarts)
+        rnge = bstarts[j]
+        se = sub(e, rnge)
+        sx = sub(X, rnge,:)
+        In = eye(length(rnge))
+        e[rnge] =  (In - sx*Ai*sx')\se
+    end
+end
+
+function _adjresid!(v::CRHC, X, e, chol, bstarts)
+    getQ(v, e, X, chol, bstarts)
+    
+    ## for j in 1:length(bstarts)        
+    ##     rnge = bstarts[j]
+    ##     e[rnge] = getQ(v, sub(X, rnge, :), ichol)*sub(e, rnge)
+    ## end
+    ## return e
 end 
 
 _adjresid!(v::CRHC, X, e, ichol, bstarts, c::Float64) = scale!(c, _adjresid!(v::CRHC, X, e, ichol, bstarts))
@@ -120,8 +163,9 @@ function meat(x::LinPredModel, v::CRHC)
     bstarts = [searchsorted(cls, j[2]) for j in enumerate(unique(cls))]
     e = wrkresid(x.rr)[idx]
     adjresid!(v, X, e, ichol, bstarts)
-    M = similar(X, size(X)[2], size(X)[2])
-    block_crossprod!(M, e.*X, bstarts)
+    M = zeros(size(X, 2), size(X, 2))
+    #block_crossprod!(M, e.*X, bstarts)
+    clusterize!(M, X.*e, bstarts)
     return M/nobs(x)
 end 
 
@@ -131,11 +175,6 @@ function vcov(x::LinPredModel, v::CRHC)
     B*M*B/nobs(x)
 end
 
-    
-    
-    
-
-    
 
     
         
