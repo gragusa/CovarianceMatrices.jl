@@ -1,7 +1,24 @@
-function vcov(X::AbstractMatrix, k::HC)
-	N, p = size(X)
-	return X'X/N
+function vcov(X::AbstractMatrix, v::HC)
+    N, p = size(X)
+    XX = Base.LinAlg.At_mul_B(X, X)
+    return scale!(XX, 1/N)
 end
+
+
+function Xt_A_X!(x, A)
+    n = length(x)
+    y = 0.0
+    k = 0
+    for i = 1 : n
+        z = 0.0
+        for j = 1 : n
+            z += A[k + j] * x[j];
+            z *= x[i]
+            y += A[k + i] * x[i] * x[i] + z + z;
+            k += n
+        end
+    end 
+end 
 
 typealias GenLinMod GeneralizedLinearModel
 
@@ -10,131 +27,143 @@ adjfactor(l::LinPredModel, k::HC1) = sqrt(nobs(l)./df_residual(l))
 adjfactor(l::LinPredModel, k::HC2) = sqrt(1./(1.-hatmatrix(l)))
 adjfactor(l::LinPredModel, k::HC3) = 1./(1.-hatmatrix(l))
 
-adjfactor(l::LinPredModel, k::CRHC0) = one(Float64)
-adjfactor(l::LinPredModel, k::CRHC1) = ( ( nobs(l)-1 ) / ( nobs(l)-npars(l) ) ) * ( nclus(k)/(nclus(k)-1 ) )
+adjfactor!(u, l::LinPredModel, k::HC0) = u[:] = one(Float64)
+adjfactor!(u, l::LinPredModel, k::HC1) = u[:] = nobs(l)./df_residual(l)
+adjfactor!(u, l::LinPredModel, k::HC2) = u[:] = 1./(1.-hatmatrix(l))
+adjfactor!(u, l::LinPredModel, k::HC3) = u[:] = 1./(1.-hatmatrix(l)).^2
 
 
-function adjfactor(lp::LinPredModel, k::HC4)
-    hᵢ = hatmatrix(lp)
-    h  = mean(hᵢ)
-    δ  = min(4, hᵢ/h)
-    sqrt(1./(1.-hᵢ).^δ)
+function adjfactor!(u, lp::LinPredModel, k::HC4)
+    h     = hatmatrix(lp)
+    hbar  = mean(h)
+    delta = min(4, h/hbar)
+    for j = 1:length(h)
+        @inbounds u[j] = 1/(1-h[j])^delta[j]
+    end
 end
+
+function adjfactor!(u, lp::LinPredModel, k::HC5)
+    h     = hatmatrix(lp)
+    hbar  = mean(h)
+    hmax  = max(4, 0.7*maximum(h)/hbar)
+    for i = 1:length(h)
+        alpha =  min(h[i]/hbar, hmax)
+        @inbounds u[i] = 1/(1-h[i])^alpha
+    end 
+end
+
 
 nclus(k::CRHC) = length(unique(k.cl))
 npars(x::LinPredModel) = length(x.pp.beta0)
 
-
-## To be removed?
-##StatsBase.nobs(lp::LinPredModel) = length(lp.rr.y)
-
 function bread(lp::LinPredModel)
-    nobs(lp)*inv(cholfact(lp.pp))
+    A = inv(cholfact(lp.pp))
+    scale!(A, nobs(lp))
 end
 
-residuals(l::LinPredModel, k::HC)  = diagm(wrkresidwts(l.rr).*adjfactor(l, k))
-residuals(l::LinPredModel, k::HAC) = diagm(wrkresidwts(l.rr))
+function residuals(l::LinPredModel, k::HC)
+    wrkresidwts(l.rr)
+end 
 
-wrkresidwts(r::GLM.ModResp) = r.wrkwts.*r.wrkresid
-wrkresidwts(r::IVResp) = length(r.wts) == 0 ? r.wrkresid : r.wrkresid.*r.wrkwts
+residuals(l::LinPredModel, k::HAC) = wrkresidwts(l.rr)
 
+function wrkresidwts(r::GLM.ModResp)
+    u = r.wrkwts
+    a = r.wrkresid
+    return u.*a
+end
+
+function wrkresidwts(r::IVResp)
+    u = r.wrkresid
+    a = r.wts
+    length(r.wts) == 0 ? u : u.*a
+end
 
 wrkresid(r::GLM.ModResp) = r.wrkresid
-
 wrkwts(r::GLM.ModResp) = r.wrkwts
 wrkwts(r::IVResp) = r.wts
 
-function hatmatrix(l::LinPredModel) 
-    w = wrkwts(l.rr)
-    X = (length(w) == 0 ? ModelMatrix(l) : ModelMatrix(l).*sqrt(w))
-    diag(X*inv(cholfact(l.pp))*X')
+function hatmatrix(l::LinPredModel)
+    w = l.rr.wrkwts
+    z = ModelMatrix(l).*sqrt(w)
+    cf = cholfact(l.pp)[:UL]
+    Base.LinAlg.A_rdiv_B!(z, cf)
+    diag(Base.LinAlg.A_mul_Bt(z, z))
+end
+
+function vcov(ll::LinPredModel, k::HC)
+    B = meat(ll, k)
+    A = bread(ll)
+    scale!(A*B*A, 1/nobs(ll))
 end 
 
-vcov(ll::LinPredModel, k::HC) = (Ω = meat(ll, k); Q = bread(ll); Q*Ω*Q/nobs(ll))
-meat(l::LinPredModel,  k::HC) =  vcov(residuals(l, k)*ModelMatrix(l), k)
-meat(l::LinearIVModel, k::HC) = vcov(residuals(l, k)*l.pp.Xp, k)
-
-function hatmatrix(l::LinearIVModel)
-    w = wrkwts(l.rr)
-    if length(w) == 0
-        Xp = l.pp.Xp
-    else
-        Xp = l.pp.Xp.*sqrt(w)
-    end
-    diag(Xp*inv(cholfact(l.pp))*Xp') 
+function meat(l::LinPredModel,  k::HC)
+    u = residuals(l, k)
+    X = ModelMatrix(l)
+    z = X.*u
+    adjfactor!(u, l, k)
+    scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(l))
 end
 
 vcov(x::DataFrameRegressionModel, k::RobustVariance) = vcov(x.model, k)
 stderr(x::DataFrameRegressionModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
 
+stderr(x::LinPredModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
+
+################################################################################
 ## Cluster
+################################################################################
 
 function clusterize!(M, U, bstarts)
     k, k = size(M)
     s = Array(Float64, k)
     V = Array(Float64, k, k)
     for m = 1:length(bstarts)
-        for j = 1:k
-            for i = 1:k
+        for j = 1:k, i = 1:k
                 @inbounds V[i, j] = zero(Float64)
-            end
         end
-
-         for i = 1:k
-             @inbounds s[i] = zero(Float64)
-         end
-
-        for j = 1:k
-            for i = [bstarts[m]]
-                @inbounds s[j] += U[i, j]
-            end 
+        for i = 1:k
+            @inbounds s[i] = zero(Float64)
         end
-        
-        for j = 1:k
-            for i = 1:k
-                @inbounds V[i, j] += s[i]*s[j]
-            end
-        end 
-        
-        for j = 1:k
-            for i = 1:k
-                @inbounds M[i, j] += V[i, j]
-            end
+        for j = 1:k, i = [bstarts[m]]
+            @inbounds s[j] += U[i, j]
+        end        
+        for j = 1:k, i = 1:k
+            @inbounds V[i, j] += s[i]*s[j]
+        end         
+        for j = 1:k, i = 1:k
+            @inbounds M[i, j] += V[i, j]
         end
     end
 end 
 
-getQ(v::CRHC2, X, ichol) = inv(chol(eye(size(X)[1])-X*ichol*X'))
-getQ(v::CRHC3, X, ichol) = inv(eye(size(X)[1])-X*ichol*X')
-
-function getQ(v::CRHC3, e, X, A, bstarts)
-    for j in 1:length(bstarts)        
-        rnge = bstarts[j]
-        se = sub(e, rnge)
-        se = sub(X, rnge, :)
-        e[rnge] = se - sx*A*sx'\se
-    end
-end
-
-function getQ(v::CRHC3, e, X, A, bstarts)
-    Ai = inv(A)    
+function getqii(v::CRHC3, e, X, A, bstarts)
+    ## A is inv(cholfac())
     for j in 1:length(bstarts)
         rnge = bstarts[j]
         se = sub(e, rnge)
         sx = sub(X, rnge,:)
         In = eye(length(rnge))
-        e[rnge] =  (In - sx*Ai*sx')\se
+        ##gbmv!(trans, m, kl, ku, alpha, A, x, beta, y)
+        e[rnge] =  (In - sx*A*sx')\se
     end
+    return e
+end 
+
+function getqii(v::CRHC2, e, X, A, bstarts)
+    ## A is cholfac()
+    for j in 1:length(bstarts)
+        rnge = bstarts[j]
+        se = sub(e, rnge)
+        sx = sub(X, rnge,:)
+        In = eye(length(rnge))
+        e[rnge] =  chol(In - sx*A*sx')\se
+    end
+    return e
 end
 
 function _adjresid!(v::CRHC, X, e, chol, bstarts)
-    getQ(v, e, X, chol, bstarts)
-    
-    ## for j in 1:length(bstarts)        
-    ##     rnge = bstarts[j]
-    ##     e[rnge] = getQ(v, sub(X, rnge, :), ichol)*sub(e, rnge)
-    ## end
-    ## return e
+    getqii(v, e, X, chol, bstarts)    
 end 
 
 _adjresid!(v::CRHC, X, e, ichol, bstarts, c::Float64) = scale!(c, _adjresid!(v::CRHC, X, e, ichol, bstarts))
@@ -142,7 +171,7 @@ _adjresid!(v::CRHC, X, e, ichol, bstarts, c::Float64) = scale!(c, _adjresid!(v::
 function scalar_adjustment(X, bstarts)
     n, k = size(X);
     g    = length(bstarts);
-    (n-1)/(n-k) * g/(g-1)
+    sqrt((n-1)/(n-k) * g/(g-1))
 end
 
 adjresid!(v::CRHC0, X, e, ichol, bstarts) = identity(e)
@@ -150,29 +179,28 @@ adjresid!(v::CRHC1, X, e, ichol, bstarts) = e[:] = scalar_adjustment(X, bstarts)
 adjresid!(v::CRHC2, X, e, ichol, bstarts) = _adjresid!(v, X, e, ichol, bstarts, 1.0)
 adjresid!(v::CRHC3, X, e, ichol, bstarts) = _adjresid!(v, X, e, ichol, bstarts, scalar_adjustment(X, bstarts))
 
-
 function meat(x::LinPredModel, v::CRHC)
     idx = sortperm(v.cl)
     cls = v.cl[idx]
     ichol = inv(x.pp.chol)
     X = ModelMatrix(x)[idx,:]
-    w = wrkwts(x.rr)
+    e = wrkresid(x.rr)[idx]
+    w = wrkwts(x.rr)[idx]
     if length(w) > 0
-        X = X[idx,:].*sqrt(w[idx])
+        X = X.*sqrt(w)
+        e = e.*sqrt(w)
     end
     bstarts = [searchsorted(cls, j[2]) for j in enumerate(unique(cls))]
-    e = wrkresid(x.rr)[idx]
     adjresid!(v, X, e, ichol, bstarts)
     M = zeros(size(X, 2), size(X, 2))
-    #block_crossprod!(M, e.*X, bstarts)
     clusterize!(M, X.*e, bstarts)
-    return M/nobs(x)
+    return scale!(M, 1/nobs(x))
 end 
 
 function vcov(x::LinPredModel, v::CRHC)
     B = bread(x)
     M = meat(x, v)
-    B*M*B/nobs(x)
+    scale!(B*M*B, 1/nobs(x))
 end
 
 

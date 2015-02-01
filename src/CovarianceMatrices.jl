@@ -17,7 +17,9 @@ const π²=π^2
 const sixπ = 6*π
 
 export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel,
-       HC0, HC1, HC2, HC3, HC4, CRHC0, CRHC1, CRHC2, CRHC3, vcov, kernel, bread, meat, bwAndrews
+       HC0, HC1, HC2, HC3, HC4, HC5,
+       CRHC0, CRHC1, CRHC2, CRHC3,
+       vcov, kernel, bread, meat, bwAndrews
 
 abstract RobustVariance
 abstract HAC  <: RobustVariance

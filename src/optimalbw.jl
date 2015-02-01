@@ -80,25 +80,25 @@ function getalpha(X::AbstractMatrix, approx::Symbol)
 end
 
 function optimalbw_ar_one(X::AbstractMatrix, k::TruncatedKernel)
-	   α₁, α₂ = getalpha(X)
+	   α₁, α₂ = getalpha(X, :ar)
 	   T, p   = size(X)
 	   return .6611*(α₂*T)^(1/5)
 end
 
 function optimalbw_ar_one(X::AbstractMatrix, k::BartlettKernel)
-	   α₁, α₂ = getalpha(X)
+	   α₁, α₂ = getalpha(X, :ar)
 	   T, p   = size(X)
 	   return 1.1447*(α₁*T)^(1/3)
 end
 
 function optimalbw_ar_one(X::AbstractMatrix, k::ParzenKernel)
-	   α₁, α₂ = getalpha(X)
+	   α₁, α₂ = getalpha(X, :ar)
 	   T, p   = size(X)
 	   return 2.6614*(α₂*T)^(1/5)
 end
 
 function optimalbw_ar_one(X::AbstractMatrix, k::QuadraticSpectralKernel)
-	   α₁, α₂ = getalpha(X)
+	   α₁, α₂ = getalpha(X, :ar)
 	   T, p = size(X)
 	   return 1.3221*(α₂*T)^(1/5)
 end
