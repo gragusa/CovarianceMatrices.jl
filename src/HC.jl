@@ -4,7 +4,6 @@ function vcov(X::AbstractMatrix, v::HC)
     return scale!(XX, 1/N)
 end
 
-
 function Xt_A_X!(x, A)
     n = length(x)
     y = 0.0
@@ -22,36 +21,41 @@ end
 
 typealias GenLinMod GeneralizedLinearModel
 
-adjfactor(l::LinPredModel, k::HC0) = one(Float64)
-adjfactor(l::LinPredModel, k::HC1) = sqrt(nobs(l)./df_residual(l))
-adjfactor(l::LinPredModel, k::HC2) = sqrt(1./(1.-hatmatrix(l)))
-adjfactor(l::LinPredModel, k::HC3) = 1./(1.-hatmatrix(l))
-
 adjfactor!(u, l::LinPredModel, k::HC0) = u[:] = one(Float64)
 adjfactor!(u, l::LinPredModel, k::HC1) = u[:] = nobs(l)./df_residual(l)
 adjfactor!(u, l::LinPredModel, k::HC2) = u[:] = 1./(1.-hatmatrix(l))
 adjfactor!(u, l::LinPredModel, k::HC3) = u[:] = 1./(1.-hatmatrix(l)).^2
 
-
 function adjfactor!(u, lp::LinPredModel, k::HC4)
-    h     = hatmatrix(lp)
-    hbar  = mean(h)
-    delta = min(4, h/hbar)
-    for j = 1:length(h)
-        @inbounds u[j] = 1/(1-h[j])^delta[j]
+    h = hatmatrix(lp)
+    n = nobs(lp)
+    p = npars(lp)    
+    for j = 1:n
+        delta = min(4, n*h[j]/p)
+        @inbounds u[j] = 1/(1-h[j])^delta
+    end
+end
+
+function adjfactor!(u, lp::LinPredModel, k::HC4m)
+    h = hatmatrix(lp)
+    n = nobs(lp)
+    p = npars(lp)    
+    for j = 1:n
+        delta = min(1.0, n*h[j]/p) + min(1.5, n*h[j]/p)
+        @inbounds u[j] = 1/(1-h[j])^delta
     end
 end
 
 function adjfactor!(u, lp::LinPredModel, k::HC5)
     h     = hatmatrix(lp)
-    hbar  = mean(h)
-    hmax  = max(4, 0.7*maximum(h)/hbar)
-    for i = 1:length(h)
-        alpha =  min(h[i]/hbar, hmax)
-        @inbounds u[i] = 1/(1-h[i])^alpha
+    n     = nobs(lp)
+    p     = npars(lp)
+    mx    = max(n*0.7*maximum(h)/p, 4)
+    for j = 1:n
+        alpha =  min(n*h[j]/p, mx)
+        @inbounds u[j] = 1/(1-h[j])^alpha
     end 
 end
-
 
 nclus(k::CRHC) = length(unique(k.cl))
 npars(x::LinPredModel) = length(x.pp.beta0)
@@ -68,15 +72,15 @@ end
 residuals(l::LinPredModel, k::HAC) = wrkresidwts(l.rr)
 
 function wrkresidwts(r::GLM.ModResp)
-    u = r.wrkwts
-    a = r.wrkresid
+    a = r.wrkwts
+    u = r.wrkresid
     return u.*a
 end
 
 function wrkresidwts(r::IVResp)
-    u = r.wrkresid
     a = r.wts
-    length(r.wts) == 0 ? u : u.*a
+    u = copy(r.wrkresid)
+    length(r.wts) == 0 ? u : broadcast!(*, u, a)
 end
 
 wrkresid(r::GLM.ModResp) = r.wrkresid
@@ -86,6 +90,13 @@ wrkwts(r::IVResp) = r.wts
 function hatmatrix(l::LinPredModel)
     w = l.rr.wrkwts
     z = ModelMatrix(l).*sqrt(w)
+    cf = cholfact(l.pp)[:UL]
+    Base.LinAlg.A_rdiv_B!(z, cf)
+    diag(Base.LinAlg.A_mul_Bt(z, z))
+end
+
+function hatmatrix(l::LinearIVModel)
+    z = copy(ModelMatrix(l))
     cf = cholfact(l.pp)[:UL]
     Base.LinAlg.A_rdiv_B!(z, cf)
     diag(Base.LinAlg.A_mul_Bt(z, z))
@@ -105,9 +116,29 @@ function meat(l::LinPredModel,  k::HC)
     scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(l))
 end
 
+## function meat(l::LinearIVModel,  k::HC)
+##     u = l.rr.wrkresid.*sqrt(l.rr.wts)
+##     X = ModelMatrix(l)
+##     z = X.*u
+##     adjfactor!(u, l, k)
+##     scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(l))
+## end
+
+function meat(l::LinearIVModel,  k::HC)
+    u = copy(l.rr.wrkresid)
+    w = l.rr.wts
+    if length(w) > 0
+        u = u.*sqrt(w)
+    end
+    X = ModelMatrix(l)
+    z = X.*u
+    adjfactor!(u, l, k)
+    scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(l))
+end
+
+
 vcov(x::DataFrameRegressionModel, k::RobustVariance) = vcov(x.model, k)
 stderr(x::DataFrameRegressionModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
-
 stderr(x::LinPredModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
 
 ################################################################################
@@ -196,6 +227,24 @@ function meat(x::LinPredModel, v::CRHC)
     clusterize!(M, X.*e, bstarts)
     return scale!(M, 1/nobs(x))
 end 
+
+function meat(x::LinearIVModel, v::CRHC)
+    idx = sortperm(v.cl)
+    cls = v.cl[idx]
+    ichol = inv(x.pp.chol)
+    X = ModelMatrix(x)[idx,:]
+    e = wrkresid(x.rr)[idx]
+    w = wrkwts(x.rr)[idx]
+    if length(w) > 0
+        e = e.*sqrt(w)
+    end
+    bstarts = [searchsorted(cls, j[2]) for j in enumerate(unique(cls))]
+    adjresid!(v, X, e, ichol, bstarts)
+    M = zeros(size(X, 2), size(X, 2))
+    clusterize!(M, X.*e, bstarts)
+    return scale!(M, 1/nobs(x))
+end 
+
 
 function vcov(x::LinPredModel, v::CRHC)
     B = bread(x)
