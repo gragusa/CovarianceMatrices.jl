@@ -300,3 +300,16 @@ iivv = ivreg(x,z,reshape(y, 500), wts = ww)
 @test_approx_eq sqrt(vcov(iivv, CRHC2(cl)))  [0.18100382220522054]
 @test_approx_eq sqrt(vcov(iivv, CRHC3(cl)))  [0.18961072793672662]
 
+
+
+
+srand(1)
+y, x, z = randiv(n = 2500, k = 3, m = 15);
+add_x = randn(2500, 20)
+x = [x add_x]
+z = [z add_x]
+cl = repmat([1:50], 50)
+ww = rand(2500)
+
+println("Timing of ivreg")
+@time iivv = ivreg(x,z,reshape(y, 2500), wts = ww)

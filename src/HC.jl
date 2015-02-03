@@ -116,14 +116,6 @@ function meat(l::LinPredModel,  k::HC)
     scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(l))
 end
 
-## function meat(l::LinearIVModel,  k::HC)
-##     u = l.rr.wrkresid.*sqrt(l.rr.wts)
-##     X = ModelMatrix(l)
-##     z = X.*u
-##     adjfactor!(u, l, k)
-##     scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(l))
-## end
-
 function meat(l::LinearIVModel,  k::HC)
     u = copy(l.rr.wrkresid)
     w = l.rr.wts
@@ -135,7 +127,6 @@ function meat(l::LinearIVModel,  k::HC)
     adjfactor!(u, l, k)
     scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(l))
 end
-
 
 vcov(x::DataFrameRegressionModel, k::RobustVariance) = vcov(x.model, k)
 stderr(x::DataFrameRegressionModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
@@ -182,7 +173,7 @@ function getqii(v::CRHC3, e, X, A, bstarts)
 end 
 
 function getqii(v::CRHC2, e, X, A, bstarts)
-    ## A is cholfac()
+    ## A is inv(cholfac())
     for j in 1:length(bstarts)
         rnge = bstarts[j]
         se = sub(e, rnge)
