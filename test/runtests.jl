@@ -251,68 +251,8 @@ St1 = [0.042839848169137905,0.04927285387211425,
 
 
 ############################################################
-## Instrumental Variables
+## HAC
 ############################################################
 
-using ModelsGenerators
-
-srand(1)
-y, x, z = randiv(n = 500, k = 3, m = 15);
-cl = repmat([1:25], 20)
-ww = rand(500)
-
-iivv = ivreg(x,z,reshape(y, 500))
-
-mut = [0.18402423026700765,-0.18069781054811473,-0.10666434926774973,
-       0.1716025154131859,-0.0794834970843437,0.1728389042278303,
-       -0.19455903354864845,-0.04328538690391654,0.3573882542662863]
-
-mu = predict(iivv)
-@test maximum(mu[1:9] - mut)<1e-10
-
-ut = [0.06743220393049221,-0.33965003523101844,-0.2636323254480044,
-      0.41789439202294165,0.09369677251530516,1.357234945075299,
-      -1.1479591516308787,-0.34120715739919666,0.012435837904900104]
-
-u = residuals(iivv)
-@test maximum(u[1:9] - ut) < 1e-10
-
-
-betat = [0.26050875643847554]
-@test maximum(betat - coef(iivv)) < 1e-09
-
-@test_approx_eq stderr(iivv) [0.15188237754059922]
-@test_approx_eq stderr(iivv, HC1()) [0.16119631706495913]
-@test_approx_eq stderr(iivv, HC2()) [0.16159542810823724]
-@test_approx_eq stderr(iivv, HC3()) [0.16216172762549416]
-@test_approx_eq stderr(iivv, HC4()) [0.16295579476374497]
-@test_approx_eq stderr(iivv, HC4m()) [0.16242050216392523]
-@test_approx_eq stderr(iivv, HC5()) [0.16437294390550466]
-
-iivv = ivreg(x,z,reshape(y, 500), wts = ww)
-
-@test_approx_eq sqrt(vcov(iivv, HC1()))  [0.16634761896913675]
-@test_approx_eq sqrt(vcov(iivv, HC3()))  [0.16786988598366934]
-
-
-@test_approx_eq sqrt(vcov(iivv, CRHC0(cl)))  [0.17650498286330474]
-@test_approx_eq sqrt(vcov(iivv, CRHC1(cl)))  [0.18014464378074402]
-@test_approx_eq sqrt(vcov(iivv, CRHC2(cl)))  [0.18100382220522054]
-@test_approx_eq sqrt(vcov(iivv, CRHC3(cl)))  [0.18961072793672662]
-
-@test coeftable(iivv)
-@test coeftable(iivv, HC1())
-@test coeftable(iivv, CRHC1(cl))
-
-srand(1)
-y, x, z = randiv(n = 2500, k = 3, m = 15);
-add_x = randn(2500, 20)
-x = [x add_x]
-z = [z add_x]
-cl = repmat([1:50], 50)
-ww = rand(2500)
-
-println("Timing of ivreg")
-@time iivv = ivreg(x,z,reshape(y, 2500), wts = ww)
 
 include("ols_hac.jl")
