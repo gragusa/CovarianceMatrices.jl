@@ -300,8 +300,9 @@ iivv = ivreg(x,z,reshape(y, 500), wts = ww)
 @test_approx_eq sqrt(vcov(iivv, CRHC2(cl)))  [0.18100382220522054]
 @test_approx_eq sqrt(vcov(iivv, CRHC3(cl)))  [0.18961072793672662]
 
-
-
+@test coeftable(iivv)
+@test coeftable(iivv, HC1())
+@test coeftable(iivv, CRHC1(cl))
 
 srand(1)
 y, x, z = randiv(n = 2500, k = 3, m = 15);
@@ -313,3 +314,5 @@ ww = rand(2500)
 
 println("Timing of ivreg")
 @time iivv = ivreg(x,z,reshape(y, 2500), wts = ww)
+
+include("ols_hac.jl")

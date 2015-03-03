@@ -4,6 +4,12 @@ using Reexport
 using PDMats
 
 
+abstract RobustVariance
+abstract HAC  <: RobustVariance
+abstract HC   <: RobustVariance
+abstract CRHC <: RobustVariance
+
+
 @reexport using GLM
 @reexport using DataFrames
 @reexport using InstrumentalVariables
@@ -17,14 +23,8 @@ const π²=π^2
 const sixπ = 6*π
 
 export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel,
-       HC0, HC1, HC2, HC3, HC4, HC4m, HC5,
-       CRHC0, CRHC1, CRHC2, CRHC3,
-       vcov, kernel, bread, meat, bwAndrews
-
-abstract RobustVariance
-abstract HAC  <: RobustVariance
-abstract HC   <: RobustVariance
-abstract CRHC <: RobustVariance
+       TukeyHanningKernel, HC0, HC1, HC2, HC3, HC4, HC4m, HC5, CRHC0, CRHC1,
+       CRHC2, CRHC3, vcov, kernel, bread, meat, bwAndrews
 
 type HC0  <: HC end
 type HC1  <: HC end

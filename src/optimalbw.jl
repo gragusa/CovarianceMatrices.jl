@@ -16,21 +16,15 @@ function lag!{T}(Yl::Array{T, 2}, Y::Array{T, 1}, p::Int64)
   end
 end
 
-
-
 function olsvar{T}(y::Array{T, 2})
-
-    # Input : data y, lag order p
+    # Input : data y, lag order 1
     # Output: coefficient estimate β, residual U
-
     N, K = size(y)
     Y = y[2:N,:]  # LHS variable
     X = y[1:N-1,:]
-
-    β = X\Y    # OLS estimator
-    U = Y-X*β  # estimated residuals
-
-    return β, U
+    A = X\Y    # OLS estimator
+    U = Y-X*A  # estimated residuals
+    return U, A'
 end
 
 function ar{T}(Y::Array{T, 2}, lag::Int64)
@@ -64,9 +58,11 @@ for tty in [:TruncatedKernel, :BartlettKernel, :ParzenKernel, :QuadraticSpectral
     @eval  $:(bw_andrews)(k::($tty), α₁, α₂, N) = $(d_bw_andrews[tty])
 end 
 
+pre_white(X::AbstractMatrix) = olsvar(X)
+
 function getalpha(X::AbstractMatrix, approx::Symbol)
-    ## @assert approx == :ar ## || approx == :arma
-    if approx == :ar
+    ## @assert approx == :ar ## || approx == :arma        
+    if approx == :ar        
         ρ, σ² = ar(X)
         σ⁴    = (σ²).^2
         nm    = 4.*ρ.^2.*σ⁴./((1-ρ).^6.*(1+ρ).^2)
@@ -80,33 +76,30 @@ function getalpha(X::AbstractMatrix, approx::Symbol)
 end
 
 function optimalbw_ar_one(X::AbstractMatrix, k::TruncatedKernel)
-	   α₁, α₂ = getalpha(X, :ar)
-	   T, p   = size(X)
-	   return .6611*(α₂*T)^(1/5)
+    α₁, α₂ = getalpha(X, :ar)
+    T, p   = size(X)
+    return .6611*(α₂*T)^(1/5)
 end
 
 function optimalbw_ar_one(X::AbstractMatrix, k::BartlettKernel)
-	   α₁, α₂ = getalpha(X, :ar)
-	   T, p   = size(X)
-	   return 1.1447*(α₁*T)^(1/3)
+    α₁, α₂ = getalpha(X, :ar)
+    T, p   = size(X)
+    return 1.1447*(α₁*T)^(1/3)
 end
 
 function optimalbw_ar_one(X::AbstractMatrix, k::ParzenKernel)
-	   α₁, α₂ = getalpha(X, :ar)
-	   T, p   = size(X)
-	   return 2.6614*(α₂*T)^(1/5)
+    α₁, α₂ = getalpha(X, :ar)
+    T, p   = size(X)
+    return 2.6614*(α₂*T)^(1/5)
 end
 
 function optimalbw_ar_one(X::AbstractMatrix, k::QuadraticSpectralKernel)
-	   α₁, α₂ = getalpha(X, :ar)
-	   T, p = size(X)
-	   return 1.3221*(α₂*T)^(1/5)
+    α₁, α₂ = getalpha(X, :ar)
+    T, p = size(X)
+    return 1.3221*(α₂*T)^(1/5)
 end
 
 function bwAndrews{T}(X::Array{T, 2}, k::HAC; prewhite::Bool = false, approx::Symbol = :ar)
-    if prewhite
-        X = olsvar(X)[2]
-    end
     α₁, α₂ = getalpha(X, approx)
     N,  p  = size(X)
     return bw_andrews(k, α₁, α₂, N)
