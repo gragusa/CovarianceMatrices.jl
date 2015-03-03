@@ -1,4 +1,5 @@
-df = readtable("testing_hac.csv")
+nf = string(Pkg.dir("CovarianceMatrices"), "/test/ols_hac.csv")
+df = readtable(nf)
 lm1 = glm(y~x+w, df, Normal(), IdentityLink())
 
 V = vcov(lm1, TruncatedKernel(1.0), prewhite = false)
