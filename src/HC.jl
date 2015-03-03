@@ -77,26 +77,14 @@ function wrkresidwts(r::GLM.ModResp)
     return u.*a
 end
 
-function wrkresidwts(r::IVResp)
-    a = r.wts
-    u = copy(r.wrkresid)
-    length(r.wts) == 0 ? u : broadcast!(*, u, a)
-end
 
 wrkresid(r::GLM.ModResp) = r.wrkresid
 wrkwts(r::GLM.ModResp) = r.wrkwts
-wrkwts(r::IVResp) = r.wts
+
 
 function hatmatrix(l::LinPredModel)
     w = l.rr.wrkwts
     z = ModelMatrix(l).*sqrt(w)
-    cf = cholfact(l.pp)[:UL]
-    Base.LinAlg.A_rdiv_B!(z, cf)
-    diag(Base.LinAlg.A_mul_Bt(z, z))
-end
-
-function hatmatrix(l::LinearIVModel)
-    z = copy(ModelMatrix(l))
     cf = cholfact(l.pp)[:UL]
     Base.LinAlg.A_rdiv_B!(z, cf)
     diag(Base.LinAlg.A_mul_Bt(z, z))
@@ -116,17 +104,6 @@ function meat(l::LinPredModel,  k::HC)
     scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(l))
 end
 
-function meat(l::LinearIVModel,  k::HC)
-    u = copy(l.rr.wrkresid)
-    w = l.rr.wts
-    if length(w) > 0
-        u = u.*sqrt(w)
-    end
-    X = ModelMatrix(l)
-    z = X.*u
-    adjfactor!(u, l, k)
-    scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(l))
-end
 
 vcov(x::DataFrameRegressionModel, k::RobustVariance) = vcov(x.model, k)
 stderr(x::DataFrameRegressionModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
@@ -219,22 +196,6 @@ function meat(x::LinPredModel, v::CRHC)
     return scale!(M, 1/nobs(x))
 end 
 
-function meat(x::LinearIVModel, v::CRHC)
-    idx = sortperm(v.cl)
-    cls = v.cl[idx]
-    ichol = inv(x.pp.chol)
-    X = ModelMatrix(x)[idx,:]
-    e = wrkresid(x.rr)[idx]
-    w = wrkwts(x.rr)[idx]
-    if length(w) > 0
-        e = e.*sqrt(w)
-    end
-    bstarts = [searchsorted(cls, j[2]) for j in enumerate(unique(cls))]
-    adjresid!(v, X, e, ichol, bstarts)
-    M = zeros(size(X, 2), size(X, 2))
-    clusterize!(M, X.*e, bstarts)
-    return scale!(M, 1/nobs(x))
-end 
 
 
 function vcov(x::LinPredModel, v::CRHC)

@@ -12,12 +12,12 @@ abstract CRHC <: RobustVariance
 
 @reexport using GLM
 @reexport using DataFrames
-@reexport using InstrumentalVariables
+#@reexport using InstrumentalVariables
 
 import StatsBase: confint, stderr, vcov, nobs, residuals
 import GLM: LinPredModel, LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual
 import DataFrames: DataFrameRegressionModel
-import InstrumentalVariables: IVResp, LinearIVModel, residuals
+#import InstrumentalVariables: IVResp, LinearIVModel, residuals
 
 const π²=π^2
 const sixπ = 6*π
