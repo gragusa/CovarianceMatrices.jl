@@ -124,7 +124,7 @@ function clusterize!(M, U, bstarts)
         for i = 1:k
             @inbounds s[i] = zero(Float64)
         end
-        for j = 1:k, i = [bstarts[m]]
+        for j = 1:k, i = bstarts[m]
             @inbounds s[j] += U[i, j]
         end        
         for j = 1:k, i = 1:k
