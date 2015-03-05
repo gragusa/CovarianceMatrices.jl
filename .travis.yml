@@ -1,21 +1,14 @@
-language: cpp
-compiler:
-  - clang
+language: julia
+os:
+  - linux
+  - osx
+julia:
+  - release
+  - nightly
 notifications:
   email: false
-env:
-  matrix:
-    - JULIAVERSION="juliareleases"
-    - JULIAVERSION="julianightlies"
-before_install:
-  - sudo add-apt-repository ppa:staticfloat/julia-deps -y
-  - sudo add-apt-repository ppa:staticfloat/${JULIAVERSION} -y
-  - sudo apt-get update -qq -y
-  - sudo apt-get install libpcre3-dev julia -y
-  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
 script:
-  - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir("CovarianceMatrices"))`); Pkg.pin("CovarianceMatrices"); Pkg.resolve()'
-  - julia -e 'using CovarianceMatrices; @assert isdefined(:CovarianceMatrices); @assert typeof(CovarianceMatrices) === Module'
-  - julia --code-coverage ./test/runtests.jl
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.build("CovarianceMatrices"); Pkg.test("CovarianceMatrices"; coverage=true)'
 after_success:
-- julia -e 'cd(Pkg.dir("CovarianceMatrices")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+  - julia -e 'cd(Pkg.dir("CovarianceMatrices")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
