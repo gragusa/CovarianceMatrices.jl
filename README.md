@@ -18,15 +18,15 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
   - [ ] ARMA(p) model
 - [ ] HAC automatic bandwidth (Newey-West)
 - [ ] Extend API to allow passing option to automatic bandwidth selection methods
-- [ ] Cluster Robust HC
+- [x] Cluster Robust HC
 - [ ] Two-way cluster robust
 - [x] Interface with `GLM.jl`
-- [ ] Drop-in `show` method for `GLM.jl`
+
 
 ## Install
 
 ```
-Pkg.clone("CovarianceMatrices.jl")
+Pkg.add("CovarianceMatrices.jl")
 ```
 
 ## Basic usage
@@ -91,6 +91,7 @@ vcov(AR1, BartlettKernel(0)) ## Same as iid because bandwidth = 0
 vcov(AR1, BartlettKernel(1))
 vcov(AR1, BartlettKernel(2))
 vcov(AR1, BartlettKernel())  ## Optimal bandwidth
+vcov(AR1, BartlettKernel(), prewhite = true)
 
 ## The Parzent kernel
 vcov(AR1, ParzenKernel(0)) ## Same as iid because bandwidth = 0
