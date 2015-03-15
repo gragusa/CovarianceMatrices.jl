@@ -1,25 +1,36 @@
 function k_tr{T}(x::T)
-    if(abs(x)<= one(T))
-        return one(T)
+    if(isnan(x) || abs(x)<= one(T))
+        return one(Float64)
     else
-        return zero(T)
+        return zero(Float64)
     end
 end
 
-k_bt{T}(x::T) = max(one(T)-abs(x), zero(T))
+function k_bt{T}(x::T)
+    if isnan(x)
+        return(one(Float64))
+    end
+    float(max(one(T)-abs(x), zero(T)))
+end
 
 function k_pr{T}(x::T)
+    if isnan(x)
+        return(one(Float64))
+    end
     ax = abs(x)
     if(ax>one(T))
         return(zero(Float64))
     elseif ax<=.5
-        return(1-6*x^2+6*ax^3)
+        return(float(1-6*x^2+6*ax^3))
     else
-        return(2*(1-ax)^3)
+        return(float(2*(1-ax)^3))
     end
 end
 
 function k_qs{T <: Number}(x::T)
+    if isnan(x)
+        return(one(Float64))
+    end
     if(isequal(x, zero(eltype(x))))
         return one(Float64)
     else
@@ -28,11 +39,14 @@ function k_qs{T <: Number}(x::T)
 end
 
 function k_th{T <: Number}(x::T)
+    if isnan(x)
+        return(one(Float64))
+    end
     ax = abs(x)
     if(ax < one(T))
         return (1 + cos(π*x))/2
     else
-        return zero(T)
+        return zero(Float64)
     end
 end
 
@@ -113,28 +127,13 @@ function Γ(X::AbstractMatrix, j::Int64)
     return Q
 end
 
-## function checkGamma(X::AbstractMatrix, j::Int64)
-##     T, p = size(X)
-##     Q = zeros(p,p)
-##     if j>=0
-##         for t = j+1:T
-##             Q = Q + X[t,:]'*X[t-j,:]
-##         end
-##     else
-##         for t = -j+1:T
-##             Q = Q + X[t+j,:]'*X[t,:]
-##         end
-##     end
-##     return(Q)
-## end 
-
 function vcov(X::AbstractMatrix, k::HAC; prewhite=true)
     n, p = size(X)
-    if prewhite
-        pw = pre_white(X)
-        X  = pw[1]
-        D = inv(eye(p)-pw[2])
-    end 
+    !prewhite || ((X, D) = pre_white(X))
+       ##  pw = pre_white(X)
+    ##     X  = pw[1]
+    ##     D = inv(eye(p)-pw[2])
+    ## end
     bw = bandwidth(k, X)
     Q  = zeros(eltype(X), p, p)
     for j=-bw:bw
@@ -143,27 +142,28 @@ function vcov(X::AbstractMatrix, k::HAC; prewhite=true)
     Base.LinAlg.copytri!(Q, 'U')
     if prewhite
         Q[:] = D*Q*D'
-    end 
+    end
     return scale!(Q, 1/n)
 end
 
 function vcov(X::AbstractMatrix, k::QuadraticSpectralKernel; prewhite=true)
     ## How to deal with optimal bandwidth?
     n, p = size(X)
-    if prewhite
-        pw = pre_white(X)
-        X  = pw[1]
-        D = inv(eye(p)-pw[2])
-    end 
+    ## if prewhite
+    ##     pw = pre_white(X)
+    ##     X  = pw[1]
+    ##     D = inv(eye(p)-pw[2])
+    ## end
+    !prewhite || ((X, D) = pre_white(X))
     bw = bandwidth(k, X)
-    Q = zeros(eltype(X), p, p)    
+    Q = zeros(eltype(X), p, p)
     for j=-n:n
         Base.BLAS.axpy!(kernel(k, j/bw), Γ(X, int(j)), Q)
     end
     Base.LinAlg.copytri!(Q, 'U')
     if prewhite
         Q[:] = D*Q*D'
-    end 
+    end
     return scale!(Q, 1/n)
 end
 
@@ -173,8 +173,7 @@ function vcov(ll::LinPredModel, k::HAC; args...)
     B = meat(ll, k; args...)
     A = bread(ll)
     scale!(A*B*A, 1/nobs(ll))
-end 
-
+end
 
 function meat(l::LinPredModel,  k::HAC; args...)
     u = wrkresidwts(l.rr)
@@ -182,8 +181,6 @@ function meat(l::LinPredModel,  k::HAC; args...)
     z = X.*u
     vcov(z, k; args...)
 end
-
-
 
 ## using DataFrames
 ## using GLM

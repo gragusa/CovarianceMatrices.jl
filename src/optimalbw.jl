@@ -45,31 +45,28 @@ end
 
 function arma{T}(Y::Array{T,2})
     ## Estimate an ARMA(1,1) for each column of Y
-end 
+end
 
 ar{T}(Y::Array{T, 2}) = ar(Y, 1)
 
-## d_bw_andrews = [:TruncatedKernel         => :(0.6611*(α₂*N)^(0.2)),
-##                 :BartlettKernel          => :(1.1447*(α₁*N)^(1/3)),
-##                 :ParzenKernel            => :(2.6614*(α₂*N)^(0.2)),
-##                 :QuadraticSpectralKernel => :(1.3221*(α₂*N)^(0.2))]
+d_bw_andrews = @compat Dict(:TruncatedKernel         => :(0.6611*(a2*N)^(0.2)),
+                            :BartlettKernel          => :(1.1447*(a1*N)^(1/3)),
+                            :ParzenKernel            => :(2.6614*(a2*N)^(0.2)),
+                            :QuadraticSpectralKernel => :(1.3221*(a2*N)^(0.2)))
 
-
-d_bw_andrews = @compat Dict(:TruncatedKernel         => :(0.6611*(α₂*N)^(0.2)),
-                            :BartlettKernel          => :(1.1447*(α₁*N)^(1/3)),
-                            :ParzenKernel            => :(2.6614*(α₂*N)^(0.2)),
-                            :QuadraticSpectralKernel => :(1.3221*(α₂*N)^(0.2)))
-                            
 
 for tty in [:TruncatedKernel, :BartlettKernel, :ParzenKernel, :QuadraticSpectralKernel]
-    @eval  $:(bw_andrews)(k::($tty), α₁, α₂, N) = $(d_bw_andrews[tty])
-end 
+    @eval  $:(bw_andrews)(k::($tty), a1, a2, N) = $(d_bw_andrews[tty])
+end
 
-pre_white(X::AbstractMatrix) = olsvar(X)
+function pre_white(X::AbstractMatrix)
+    X, D = olsvar(X)
+    (X, inv(eye(size(X, 2))-D))
+end
 
 function getalpha(X::AbstractMatrix, approx::Symbol)
-    ## @assert approx == :ar ## || approx == :arma        
-    if approx == :ar        
+    ## @assert approx == :ar ## || approx == :arma
+    ## if approx == :ar
         ρ, σ² = ar(X)
         σ⁴    = (σ²).^2
         nm    = 4.*ρ.^2.*σ⁴./((1-ρ).^6.*(1+ρ).^2)
@@ -77,39 +74,38 @@ function getalpha(X::AbstractMatrix, approx::Symbol)
         α₁    = sum(nm)/sum(dn)
         nm    = 4.*ρ.^2.*σ⁴./(1-ρ).^8
         α₂    = sum(nm)/sum(dn)
-    # elseif approx == :arma  [TODO]
-    end 
+    ## elseif approx == :arma  [TODO]
+    ## end
     return α₁, α₂
 end
 
 function optimalbw_ar_one(X::AbstractMatrix, k::TruncatedKernel)
-    α₁, α₂ = getalpha(X, :ar)
+    a1, a2 = getalpha(X, :ar)
     T, p   = size(X)
-    return .6611*(α₂*T)^(1/5)
+    return .6611*(a2*T)^(1/5)
 end
 
 function optimalbw_ar_one(X::AbstractMatrix, k::BartlettKernel)
-    α₁, α₂ = getalpha(X, :ar)
+    a1, a2 = getalpha(X, :ar)
     T, p   = size(X)
-    return 1.1447*(α₁*T)^(1/3)
+    return 1.1447*(a1*T)^(1/3)
 end
 
 function optimalbw_ar_one(X::AbstractMatrix, k::ParzenKernel)
-    α₁, α₂ = getalpha(X, :ar)
+    a1, a2 = getalpha(X, :ar)
     T, p   = size(X)
-    return 2.6614*(α₂*T)^(1/5)
+    return 2.6614*(a2*T)^(1/5)
 end
 
 function optimalbw_ar_one(X::AbstractMatrix, k::QuadraticSpectralKernel)
-    α₁, α₂ = getalpha(X, :ar)
-    T, p = size(X)
-    return 1.3221*(α₂*T)^(1/5)
+    a1, a2 = getalpha(X, :ar)
+    T, p   = size(X)
+    return 1.3221*(a2*T)^(1/5)
 end
 
 function bwAndrews{T}(X::Array{T, 2}, k::HAC; prewhite::Bool = false, approx::Symbol = :ar)
-    α₁, α₂ = getalpha(X, approx)
-    N,  p  = size(X)
-    return bw_andrews(k, α₁, α₂, N)
-end 
-    
-    
+    N, p  = size(X)
+    !prewhite || ((X, D) = pre_white(X))
+    a1, a2 = getalpha(X, approx)
+    return bw_andrews(k, a1, a2, N)
+end
