@@ -9,7 +9,7 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
 
 - [x] Basic interface
 - [x] Implement Type0-Type4 (HC0, HC1, HC2, HC3, HC4) variances
-- [ ] Implement Type5-Type5c
+- [x] Implement Type5-Type5c
 - [x] HAC with manual bandwidth
 - [ ] HAC automatic bandwidth (Andrews)
   - [x] AR(1) model
@@ -18,7 +18,7 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
   - [ ] ARMA(p) model
 - [ ] HAC automatic bandwidth (Newey-West)
 - [ ] Extend API to allow passing option to automatic bandwidth selection methods
-- [ ] Cluster Robust HC
+- [x] Cluster Robust HC
 - [ ] Two-way cluster robust
 - [x] Interface with `GLM.jl`
 - [ ] Drop-in `show` method for `GLM.jl`
