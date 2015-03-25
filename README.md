@@ -1,6 +1,7 @@
 # CovarianceMatrices.jl
 
 [![Build Status](https://travis-ci.org/gragusa/CovarianceMatrices.jl.svg?branch=master)](https://travis-ci.org/gragusa/CovarianceMatrices.jl)
+ [![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_release.svg)](http://pkg.julialang.org/?pkg=CovarianceMatrices&ver=release)
 [![Coverage Status](https://img.shields.io/coveralls/gragusa/CovarianceMatrices.jl.svg)](https://coveralls.io/r/gragusa/CovarianceMatrices.jl?branch=master)
 
 Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation for Julia.
