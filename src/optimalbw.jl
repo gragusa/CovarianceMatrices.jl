@@ -1,5 +1,5 @@
 function lag!{T}(Yl::Array{T, 2}, Y::Array{T, 1}, p::Int64)
-  ## Given an Array, return the matrix
+    ## Given an Array, return the matrix
   ## of lagged values of Y
   ## [y_t-p, y_{t-p-1}, ..., y_{t-1}]
   N  = length(Y)
@@ -28,8 +28,8 @@ function olsvar{T}(y::Array{T, 2})
 end
 
 function ar{T}(Y::Array{T, 2}, lag::Int64)
-	   N, p = size(Y)
-	   Yl = Array(T, N-lag, lag+1)
+    N, p = size(Y)
+    Yl = Array(T, N-lag, lag+1)
 	   ρ  = Array(T, p, lag)
 	   σ² = Array(T, p)
 	   for j = 1:p
@@ -67,15 +67,15 @@ end
 function getalpha(X::AbstractMatrix, approx::Symbol)
     ## @assert approx == :ar ## || approx == :arma
     ## if approx == :ar
-        ρ, σ² = ar(X)
-        σ⁴    = (σ²).^2
-        nm    = 4.*ρ.^2.*σ⁴./((1-ρ).^6.*(1+ρ).^2)
-        dn    = σ⁴./(1-ρ).^4
-        α₁    = sum(nm)/sum(dn)
-        nm    = 4.*ρ.^2.*σ⁴./(1-ρ).^8
-        α₂    = sum(nm)/sum(dn)
-    ## elseif approx == :arma  [TODO]
-    ## end
+    ρ, σ² = ar(X)
+    σ⁴    = (σ²).^2
+    nm    = 4.*ρ.^2.*σ⁴./((1-ρ).^6.*(1+ρ).^2)
+    dn    = σ⁴./(1-ρ).^4
+    α₁    = sum(nm)/sum(dn)
+    nm    = 4.*ρ.^2.*σ⁴./(1-ρ).^8
+    α₂    = sum(nm)/sum(dn)
+## elseif approx == :arma  [TODO]
+## end
     return α₁, α₂
 end
 
