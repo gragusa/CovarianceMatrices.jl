@@ -9,7 +9,6 @@ abstract HAC  <: RobustVariance
 abstract HC   <: RobustVariance
 abstract CRHC <: RobustVariance
 
-
 @reexport using GLM
 @reexport using DataFrames
 #@reexport using InstrumentalVariables
@@ -23,8 +22,8 @@ const π²=π^2
 const sixπ = 6*π
 
 export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel,
-       TukeyHanningKernel, HC0, HC1, HC2, HC3, HC4, HC4m, HC5, CRHC0, CRHC1,
-       CRHC2, CRHC3, vcov, kernel, bread, meat, bwAndrews
+       TukeyHanningKernel, VARHAC, HC0, HC1, HC2, HC3, HC4, HC4m, HC5, CRHC0, CRHC1,
+       CRHC2, CRHC3, RobustVariance, vcov, kernel, bread, meat, bwAndrews
 
 type HC0  <: HC end
 type HC1  <: HC end
@@ -33,7 +32,6 @@ type HC3  <: HC end
 type HC4  <: HC end
 type HC4m <: HC end
 type HC5  <: HC end
-
 
 typealias CLVector{T<:Integer} DenseArray{T,1}
 
@@ -53,7 +51,7 @@ type CRHC3{V<:CLVector}  <: CRHC
     cl::V
 end
 
-
+include("varhac.jl")
 include("HAC.jl")
 include("optimalbw.jl")
 include("HC.jl")
