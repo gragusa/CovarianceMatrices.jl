@@ -80,6 +80,12 @@ type QuadraticSpectralKernel <: HAC
   bw::Function
 end
 
+type VARHAC <: HAC
+    imax::Int64
+    ilag::Int64
+    imodel::Int64
+end
+
 typealias TRK TruncatedKernel
 typealias BTK BartlettKernel
 typealias PRK ParzenKernel
@@ -97,6 +103,9 @@ BartlettKernel(bw::Number)          = BTK(k_bt, (x, k) -> float(bw))
 ParzenKernel(bw::Number)            = PRK(k_pr, (x, k) -> float(bw))
 TukeyHanningKernel(bw::Number)      = THK(k_th, (x, k) -> float(bw))
 QuadraticSpectralKernel(bw::Number) = QSK(k_qs, (x, k) -> float(bw))
+
+VARHAC()                            = VARHAC(2, 2, 1)
+VARHAC(imax::Int64)                 = VARHAC(imax, 2, 1)
 
 function bandwidth(k::HAC, X::AbstractMatrix)
   return floor(k.bw(X, k))
@@ -126,6 +135,8 @@ function Γ(X::AbstractMatrix, j::Int64)
     end
     return Q
 end
+
+vcov(X::AbstractMatrix, k::VARHAC) = varhac(X, k.imax, k.ilag, k.imodel)
 
 function vcov(X::AbstractMatrix, k::HAC; prewhite=true)
     n, p = size(X)
