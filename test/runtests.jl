@@ -205,7 +205,7 @@ df = DataFrame( Y = randn(500),
                X4 = randn(500),
                X5 = randn(500),
                w  = rand(500),
-               cl = repmat([1:25], 20))
+               cl = repmat(collect(1:25), 20))
 
 OLS = fit(GeneralizedLinearModel, Y~X1+X2+X3+X4+X5, df,
           Normal(), IdentityLink())
