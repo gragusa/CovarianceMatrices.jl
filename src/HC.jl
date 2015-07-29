@@ -4,21 +4,6 @@ function vcov(X::AbstractMatrix, v::HC)
     return scale!(XX, 1/N)
 end
 
-function Xt_A_X!(x, A)
-    n = length(x)
-    y = 0.0
-    k = 0
-    for i = 1 : n
-        z = 0.0
-        for j = 1 : n
-            z += A[k + j] * x[j];
-            z *= x[i]
-            y += A[k + i] * x[i] * x[i] + z + z;
-            k += n
-        end
-    end 
-end 
-
 typealias GenLinMod GeneralizedLinearModel
 
 adjfactor!(u, l::LinPredModel, k::HC0) = u[:] = one(Float64)
@@ -29,7 +14,7 @@ adjfactor!(u, l::LinPredModel, k::HC3) = u[:] = 1./(1.-hatmatrix(l)).^2
 function adjfactor!(u, lp::LinPredModel, k::HC4)
     h = hatmatrix(lp)
     n = nobs(lp)
-    p = npars(lp)    
+    p = npars(lp)
     for j = 1:n
         delta = min(4, n*h[j]/p)
         @inbounds u[j] = 1/(1-h[j])^delta
@@ -39,7 +24,7 @@ end
 function adjfactor!(u, lp::LinPredModel, k::HC4m)
     h = hatmatrix(lp)
     n = nobs(lp)
-    p = npars(lp)    
+    p = npars(lp)
     for j = 1:n
         delta = min(1.0, n*h[j]/p) + min(1.5, n*h[j]/p)
         @inbounds u[j] = 1/(1-h[j])^delta
@@ -54,7 +39,7 @@ function adjfactor!(u, lp::LinPredModel, k::HC5)
     for j = 1:n
         alpha =  min(n*h[j]/p, mx)
         @inbounds u[j] = 1/(1-h[j])^alpha
-    end 
+    end
 end
 
 nclus(k::CRHC) = length(unique(k.cl))
@@ -67,14 +52,15 @@ end
 
 function residuals(l::LinPredModel, k::HC)
     wrkresidwts(l.rr)
-end 
+end
 
 residuals(l::LinPredModel, k::HAC) = wrkresidwts(l.rr)
 
 function wrkresidwts(r::GLM.ModResp)
-    a = r.wrkwts
-    u = r.wrkresid
-    return u.*a
+    a = wrkwts(r)
+    u = copy(wrkresid(r))
+    length(a) == 0 ? u : broadcast!(*, u, u, a)
+    #return u.*a
 end
 
 
@@ -83,7 +69,7 @@ wrkwts(r::GLM.ModResp) = r.wrkwts
 
 
 function hatmatrix(l::LinPredModel)
-    w = l.rr.wrkwts
+    w = wrkwts(l.rr)
     z = ModelMatrix(l).*sqrt(w)
     cf = cholfact(l.pp)[:UL]
     Base.LinAlg.A_rdiv_B!(z, cf)
@@ -94,7 +80,7 @@ function vcov(ll::LinPredModel, k::HC)
     B = meat(ll, k)
     A = bread(ll)
     scale!(A*B*A, 1/nobs(ll))
-end 
+end
 
 function meat(l::LinPredModel,  k::HC)
     u = residuals(l, k)
@@ -103,7 +89,6 @@ function meat(l::LinPredModel,  k::HC)
     adjfactor!(u, l, k)
     scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(l))
 end
-
 
 vcov(x::DataFrameRegressionModel, k::RobustVariance) = vcov(x.model, k)
 stderr(x::DataFrameRegressionModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
@@ -126,15 +111,15 @@ function clusterize!(M, U, bstarts)
         end
         for j = 1:k, i = bstarts[m]
             @inbounds s[j] += U[i, j]
-        end        
+        end
         for j = 1:k, i = 1:k
             @inbounds V[i, j] += s[i]*s[j]
-        end         
+        end
         for j = 1:k, i = 1:k
             @inbounds M[i, j] += V[i, j]
         end
     end
-end 
+end
 
 function getqii(v::CRHC3, e, X, A, bstarts)
     ## A is inv(cholfac())
@@ -147,7 +132,7 @@ function getqii(v::CRHC3, e, X, A, bstarts)
         e[rnge] =  (In - sx*A*sx')\se
     end
     return e
-end 
+end
 
 function getqii(v::CRHC2, e, X, A, bstarts)
     ## A is inv(cholfac())
@@ -162,8 +147,8 @@ function getqii(v::CRHC2, e, X, A, bstarts)
 end
 
 function _adjresid!(v::CRHC, X, e, chol, bstarts)
-    getqii(v, e, X, chol, bstarts)    
-end 
+    getqii(v, e, X, chol, bstarts)
+end
 
 _adjresid!(v::CRHC, X, e, ichol, bstarts, c::Float64) = scale!(c, _adjresid!(v::CRHC, X, e, ichol, bstarts))
 
@@ -184,31 +169,23 @@ function meat(x::LinPredModel, v::CRHC)
     ichol = inv(x.pp.chol)
     X = ModelMatrix(x)[idx,:]
     e = wrkresid(x.rr)[idx]
-    w = wrkwts(x.rr)[idx]
-    if length(w) > 0
-        X = X.*sqrt(w)
-        e = e.*sqrt(w)
+    w = wrkwts(x.rr)
+    if !isempty(w)
+        w = w[idx]
+        broadcast!(*, X, X, sqrt(w))
+        broadcast!(*, e, e, sqrt(w))
+        ## X = X.*sqrt(w)
+        ## e = e.*sqrt(w)
     end
     bstarts = [searchsorted(cls, j[2]) for j in enumerate(unique(cls))]
     adjresid!(v, X, e, ichol, bstarts)
     M = zeros(size(X, 2), size(X, 2))
     clusterize!(M, X.*e, bstarts)
     return scale!(M, 1/nobs(x))
-end 
-
-
+end
 
 function vcov(x::LinPredModel, v::CRHC)
     B = bread(x)
     M = meat(x, v)
     scale!(B*M*B, 1/nobs(x))
 end
-
-
-    
-        
-        
-
-
-
-
