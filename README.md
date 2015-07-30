@@ -1,8 +1,7 @@
 # CovarianceMatrices.jl
 
 [![Build Status](https://travis-ci.org/gragusa/CovarianceMatrices.jl.svg?branch=master)](https://travis-ci.org/gragusa/CovarianceMatrices.jl)
- [![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_release.svg)](http://pkg.julialang.org/?pkg=CovarianceMatrices&ver=release)
-[![Coverage Status](https://img.shields.io/coveralls/gragusa/CovarianceMatrices.jl.svg)](https://coveralls.io/r/gragusa/CovarianceMatrices.jl?branch=master)
+[![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_0.3.svg)](http://pkg.julialang.org/?pkg=CovarianceMatrices&ver=release) [![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_release.svg)](http://pkg.julialang.org/?pkg=CovarianceMatrices&ver=release)[![Coverage Status](https://img.shields.io/coveralls/gragusa/CovarianceMatrices.jl.svg)](https://coveralls.io/r/gragusa/CovarianceMatrices.jl?branch=master)[![codecov.io](http://codecov.io/github/gragusa/CovarianceMatrices.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/CovarianceMatrices.jl?branch=master)
 
 Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation for Julia.
 
@@ -12,12 +11,15 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
 - [x] Implement Type0-Type4 (HC0, HC1, HC2, HC3, HC4) variances
 - [x] Implement Type5-Type5c
 - [x] HAC with manual bandwidth
-- [ ] HAC automatic bandwidth (Andrews)
+- [x] HAC automatic bandwidth (Andrews)
   - [x] AR(1) model
   - [ ] AR(p) model
   - [ ] MA(p) model
   - [ ] ARMA(p) model
+
 - [ ] HAC automatic bandwidth (Newey-West)
+- [ ] De-meaned versions: E[(X-\mu)(X-\mu)']
+- [x] VARHAC
 - [ ] Extend API to allow passing option to automatic bandwidth selection methods
 - [x] Cluster Robust HC
 - [ ] Two-way cluster robust
