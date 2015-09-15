@@ -88,7 +88,7 @@ S4 = vcov(OLS, HC4())
 
 ## Weighted OLS though GLM interface
 wOLS = fit(GeneralizedLinearModel, lot1~u,clotting, Normal(),
-           IdentityLink(), wts = array(clotting[:w]))
+           IdentityLink(), wts = convert(Array, clotting[:w]))
 S0 = vcov(wOLS, HC0())
 S1 = vcov(wOLS, HC1())
 S2 = vcov(wOLS, HC2())
@@ -153,7 +153,7 @@ St5 = St4
 
 ## Weighted Gamma
 
-GAMMA = glm(lot1~u, clotting, Gamma(),InverseLink(), wts = array(clotting[:w]))
+GAMMA = glm(lot1~u, clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[:w]))
 
 S0 = vcov(GAMMA, HC0())
 S1 = vcov(GAMMA, HC1())
@@ -220,7 +220,7 @@ S3 = vcov(OLS, HC3())
 S4 = vcov(OLS, HC4())
 S5 = vcov(OLS, HC5())
 
-cl = array(df[:cl])
+cl = convert(Array, df[:cl])
 S0 = stderr(OLS, CRHC0(cl))
 S1 = stderr(OLS, CRHC1(cl))
 S2 = stderr(OLS, CRHC2(cl))
@@ -237,7 +237,7 @@ St1 = [.0374668, .0497666, .0472636, .0437952, .0513613, .0435369]
 
 
 wOLS = fit(GeneralizedLinearModel, Y~X1+X2+X3+X4+X5, df,
-          Normal(), IdentityLink(), wts = array(df[:w]))
+          Normal(), IdentityLink(), wts = convert(Array, df[:w]))
 
 S0 = stderr(wOLS, CRHC0(cl))
 S1 = stderr(wOLS, CRHC1(cl))
