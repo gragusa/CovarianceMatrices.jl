@@ -22,21 +22,17 @@ function varhac(dat,imax,ilag,imodel)
 
     global ex, ex1, ex2, dat2, dep
     
-    nt   = size(dat, 1);
-    kdim = size(dat, 2);
+    nt   = size(dat, 1)
+    kdim = size(dat, 2)
     
-    ddd    = dat[imax+1:nt, :];
-    minres = ddd;
-    aic     = log(sum(minres.^2, 1));
+    ddd      = dat[imax+1:nt, :]
+    minres   = ddd
+    aic      = log(sum(minres.^2, 1))
+    minorder = zeros(kdim, 2)
+
     
-    if ilag==2;
-        minorder = zeros(kdim, 2)
-    else;
-        minorder = zeros(kdim, 2)
-    end;
-        
     if imax>0    
-        minpar = zeros(kdim, kdim*imax)
+        minpar   = zeros(kdim, kdim*imax)        
         ## ALL ELEMENTS ENTER WITH THE SAME LAG (ILAG = 1)
         if ilag==1            
             for k = 1:kdim
@@ -45,7 +41,7 @@ function varhac(dat,imax,ilag,imodel)
                 
                 for iorder = 1:imax
                     if iorder==1
-                        ex = dat[imax:nt-1, :];
+                        ex = dat[imax:nt-1, :]
                     else
                         ex = [ex dat[imax+1-iorder:nt-iorder, :]]
                     end
@@ -93,7 +89,7 @@ function varhac(dat,imax,ilag,imodel)
                     
                     if imodel!=3;
                         ## Run the VAR
-                        b = (dep\ex)'
+                        b = ex\dep
                         resid = dep-ex[:,:]*b
                         ## Compute the model selection criterion
                         npar = iorder
@@ -148,7 +144,6 @@ function varhac(dat,imax,ilag,imodel)
                         if iorder2 == 1
                             ex2 = dat2[imax:nt-1, :]
                         elseif iorder2 > 1
-                            #@bp
                             ex2 = [ex2 dat2[imax+1-iorder2:nt-iorder2, :]]
                         end
         
@@ -162,10 +157,10 @@ function varhac(dat,imax,ilag,imodel)
                             ex = [ex1 ex2]
                         end
                         ## Run the VAR            
-                        b = dep\ex
+                        b = ex\dep
                         #println(size(b))
                         #println(size(ex))
-                        resid = dep.-ex[:,:]*b'
+                        resid = dep.-ex[:,:]*b
                         ## Compute the model selection criterion
 
                         npar = iorder+iorder2*(kdim-1)
@@ -210,7 +205,6 @@ function varhac(dat,imax,ilag,imodel)
 
 
     ## COMPUTE THE VARHAC ESTIMATOR
-
     cov = minres'minres/(nt-imax)
     
     bbb = eye(kdim)
