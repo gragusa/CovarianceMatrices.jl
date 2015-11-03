@@ -50,17 +50,13 @@ function bread(lp::LinPredModel)
     scale!(A, nobs(lp))
 end
 
-function residuals(l::LinPredModel, k::HC)
-    wrkresidwts(l.rr)
-end
-
+residuals(l::LinPredModel, k::HC)  = wrkresidwts(l.rr)
 residuals(l::LinPredModel, k::HAC) = wrkresidwts(l.rr)
 
 function wrkresidwts(r::GLM.ModResp)
     a = wrkwts(r)
     u = copy(wrkresid(r))
     length(a) == 0 ? u : broadcast!(*, u, u, a)
-    #return u.*a
 end
 
 
