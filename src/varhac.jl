@@ -5,7 +5,7 @@ function varhac(dat,imax,ilag,imodel)
     ## INPUT:
 
     ## dat:        input matrix where each row corresponds to a different observation
-    ## imax:       maximum lag order considered 
+    ## imax:       maximum lag order considered
     ##             0 = no correction for serial correlation will be made
     ## ilag:       1 = all elements enter with the same lag
     ##             2 = own element can enter with a different lag
@@ -21,42 +21,42 @@ function varhac(dat,imax,ilag,imodel)
 
 
     global ex, ex1, ex2, dat2, dep
-    
+
     nt   = size(dat, 1)
     kdim = size(dat, 2)
-    
+
     ddd      = dat[imax+1:nt, :]
     minres   = ddd
     aic      = log(sum(minres.^2, 1))
     minorder = zeros(kdim, 2)
 
-    
-    if imax>0    
-        minpar   = zeros(kdim, kdim*imax)        
+
+    if imax>0
+        minpar   = zeros(kdim, kdim*imax)
         ## ALL ELEMENTS ENTER WITH THE SAME LAG (ILAG = 1)
-        if ilag==1            
+        if ilag==1
             for k = 1:kdim
                 dep = ddd[:, k]
                 ex = dat[imax:nt-1, :];
-                
+
                 for iorder = 1:imax
                     if iorder==1
                         ex = dat[imax:nt-1, :]
                     else
                         ex = [ex dat[imax+1-iorder:nt-iorder, :]]
                     end
-        
+
                     if imodel!=3
                         ## Run the VAR
                         b = (dep\ex)'
-                        resid = dep-ex[:,:]*b                        
-                        ## Compute the model selection criterion                        
+                        resid = dep-ex[:,:]*b
+                        ## Compute the model selection criterion
                         npar = kdim*iorder
                         if imodel==1
                             aicnew = log(sum(resid.^2, 1))+2*npar/(nt-imax)
                         else
                             aicnew = log(sum(resid.^2, 1))+log(nt-imax)*npar/(nt-imax)
-                        end        
+                        end
                         if aicnew[1]<aic[k]
                             aic[k] = aicnew[1]
                             minpar[k, 1:kdim*iorder] = b'
@@ -66,27 +66,27 @@ function varhac(dat,imax,ilag,imodel)
                     end
 
                     if imodel==3
-                        b = dep/ex
+                        b = (dep\ex)'
                         resid = dep-ex*b
                         minpar[k, :] = b'
                         minres[: ,k] = resid
                         minorder[k]  = imax
                     end
                 end
-            end 
+            end
                 ## ONLY THE OWN LAG ENTERS (ILAG = 3
         elseif ilag==3
-            
+
             for k = 1:kdim
                 dep = ddd[:, k]
-                
+
                 for iorder = 1:imax
                     if iorder == 1
                         ex = dat[imax:nt-1, k]
                     else
                         ex = [ex dat[imax+1-iorder:nt-iorder,k]]
                     end
-                    
+
                     if imodel!=3;
                         ## Run the VAR
                         b = ex\dep
@@ -98,7 +98,7 @@ function varhac(dat,imax,ilag,imodel)
                         else
                             aicnew = log(sum(resid.^2, 1))+log(nt-imax)*npar/(nt-imax);
                         end
-                        
+
                         if aicnew[1] < aic[k]
                             aic[k] = aicnew[1]
                             for i = 1:iorder
@@ -109,7 +109,7 @@ function varhac(dat,imax,ilag,imodel)
                         end
                     end
                 end
-                
+
                 if imodel==3
                     b = (dep\ex)'
                     resid = dep-ex[:,:]*b
@@ -139,14 +139,14 @@ function varhac(dat,imax,ilag,imodel)
                     elseif iorder>1
                         ex1 = [ex1 dat[imax+1-iorder:nt-iorder,k]]
                     end
-                    
+
                     for iorder2 = 0:imax
                         if iorder2 == 1
                             ex2 = dat2[imax:nt-1, :]
                         elseif iorder2 > 1
                             ex2 = [ex2 dat2[imax+1-iorder2:nt-iorder2, :]]
                         end
-        
+
                         if iorder+iorder2==0
                             break
                         elseif iorder==0
@@ -156,7 +156,7 @@ function varhac(dat,imax,ilag,imodel)
                         else
                             ex = [ex1 ex2]
                         end
-                        ## Run the VAR            
+                        ## Run the VAR
                         b = ex\dep
                         #println(size(b))
                         #println(size(ex))
@@ -177,7 +177,7 @@ function varhac(dat,imax,ilag,imodel)
                             for i = 1:iorder
                                 minpar[k,k+(i-1)*kdim] = b[i]
                             end
-                            
+
                             for i = 1:iorder2
                                 if k==1
                                     minpar[k,2+(i-1)*kdim:kdim+(i-1)*kdim] =
@@ -191,14 +191,14 @@ function varhac(dat,imax,ilag,imodel)
                                     minpar[k,k+1+(i-1)*kdim:kdim+(i-1)*kdim] =
                                         b[iorder+k+(i-1)*(kdim-1):iorder+i*(kdim-1)]';
                                 end
-                            end           
+                            end
                             minres[:, k]   = resid
                             minorder[k, :] = [iorder iorder2]
                         end
                     end
                 end
             end
-            end 
+            end
         end
     end
 
@@ -206,7 +206,7 @@ function varhac(dat,imax,ilag,imodel)
 
     ## COMPUTE THE VARHAC ESTIMATOR
     cov = minres'minres/(nt-imax)
-    
+
     bbb = eye(kdim)
 
     if imax>0
@@ -216,5 +216,5 @@ function varhac(dat,imax,ilag,imodel)
     end
 
     inv(bbb)*cov*inv(bbb')
-    
+
 end
