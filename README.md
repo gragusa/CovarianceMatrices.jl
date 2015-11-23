@@ -1,7 +1,10 @@
 # CovarianceMatrices.jl
 
 [![Build Status](https://travis-ci.org/gragusa/CovarianceMatrices.jl.svg?branch=master)](https://travis-ci.org/gragusa/CovarianceMatrices.jl)
-[![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_0.3.svg)](http://pkg.julialang.org/?pkg=CovarianceMatrices&ver=release) [![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_release.svg)](http://pkg.julialang.org/?pkg=CovarianceMatrices&ver=release)[![Coverage Status](https://img.shields.io/coveralls/gragusa/CovarianceMatrices.jl.svg)](https://coveralls.io/r/gragusa/CovarianceMatrices.jl?branch=master)[![codecov.io](http://codecov.io/github/gragusa/CovarianceMatrices.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/CovarianceMatrices.jl?branch=master)
+[![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_0.3.svg)](http://pkg.julialang.org/?pkg=CovarianceMatrices&ver=release) [![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_0.4.svg)](http://pkg.julialang.org/?pkg=CovarianceMatrices&ver=release)
+
+[![Coverage Status](https://coveralls.io/repos/gragusa/CovarianceMatrices.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/gragusa/CovarianceMatrices.jl?branch=master)
+[![codecov.io](http://codecov.io/github/gragusa/CovarianceMatrices.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/CovarianceMatrices.jl?branch=master)
 
 Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation for Julia.
 
@@ -103,7 +106,7 @@ vcov(AR1, ParzenKernel(2))
 vcov(AR1, ParzenKernel())  ## Optimal bandwidth
 
 ## The quadratic-spectral kernel
-vcov(AR1, QuadraticSpectralKernel(0.1)) 
+vcov(AR1, QuadraticSpectralKernel(0.1))
 vcov(AR1, QuadraticSpectralKernel(.5))
 vcov(AR1, QuadraticSpectralKernel(2.))
 vcov(AR1, QuadraticSpectralKernel())  ## Optimal bandwidth
