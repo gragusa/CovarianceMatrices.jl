@@ -62,6 +62,17 @@ Vt =  [ 0.004193163452767 -0.000126916717674  0.000412982604681;
        0.000412982604681 -0.000409693229837  0.003445964499879]
 @test_approx_eq V Vt
 
+V = vcov(lm1, VARHAC(1,1,1))
+V = vcov(lm1, VARHAC(1,2,1))
+V = vcov(lm1, VARHAC(1,3,1))
+
+V = vcov(lm1, VARHAC(1,1,2))
+V = vcov(lm1, VARHAC(1,2,2))
+V = vcov(lm1, VARHAC(1,3,2))
+
+V = vcov(lm1, VARHAC(1,1,3))
+V = vcov(lm1, VARHAC(1,2,3))
+V = vcov(lm1, VARHAC(1,3,3))
 
 
 ## X = CovarianceMatrices.ModelMatrix(lm1.model);
