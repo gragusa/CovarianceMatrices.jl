@@ -50,8 +50,16 @@ function bread(lp::LinPredModel)
     scale!(A, nobs(lp))
 end
 
-residuals(l::LinPredModel, k::HC)  = wrkresidwts(l.rr)
-residuals(l::LinPredModel, k::HAC) = wrkresidwts(l.rr)
+residuals(l::LinPredModel, k::HC) = residuals(l)
+residuals(l::LinPredModel, k::HAC) = residuals(l)
+#residuals(l::LinPredModel, k::HC)  = wrkresidwts(l.rr)
+#residuals(l::LinPredModel, k::HAC) = wrkresidwts(l.rr)
+
+function residuals(r::GLM.ModResp)
+    a = wrkwts(r)
+    u = copy(wrkresid(r))
+    length(a) == 0 ? u : broadcast!(*, u, u, a)
+end
 
 function wrkresidwts(r::GLM.ModResp)
     a = wrkwts(r)
@@ -59,14 +67,20 @@ function wrkresidwts(r::GLM.ModResp)
     length(a) == 0 ? u : broadcast!(*, u, u, a)
 end
 
-
 wrkresid(r::GLM.ModResp) = r.wrkresid
 wrkwts(r::GLM.ModResp) = r.wrkwts
+wrkwts(r::GLM.LmResp) = r.wts
+wrkresid(r::GLM.LmResp) = r.y-r.mu
 
+function weightedModelMatrix(l::LinPredModel)
+    w = wrkwts(l.rr)
+    length(w) > 0 ? ModelMatrix(l).*sqrt(w) : copy(ModelMatrix(l))
+end
 
 function hatmatrix(l::LinPredModel)
-    w = wrkwts(l.rr)
-    z = ModelMatrix(l).*sqrt(w)
+    # w = wrkwts(l.rr)
+    # z = ModelMatrix(l).*sqrt(w)
+    z = weightedModelMatrix(l)
     cf = cholfact(l.pp)[:UL]
     Base.LinAlg.A_rdiv_B!(z, cf)
     diag(Base.LinAlg.A_mul_Bt(z, z))
@@ -162,7 +176,8 @@ adjresid!(v::CRHC3, X, e, ichol, bstarts) = _adjresid!(v, X, e, ichol, bstarts, 
 function meat(x::LinPredModel, v::CRHC)
     idx = sortperm(v.cl)
     cls = v.cl[idx]
-    ichol = inv(x.pp.chol)
+    #ichol = inv(x.pp.chol)
+    ichol  = inv(cholfact(x.pp))
     X = ModelMatrix(x)[idx,:]
     e = wrkresid(x.rr)[idx]
     w = wrkwts(x.rr)
