@@ -87,25 +87,25 @@ AR1  = fit(GeneralizedLinearModel, y~yl, data, Normal())
 ## Default assume iid (which is correct in this case)
 vcov(AR1)
 
-## The truncated kernel (TruncatedKernel)
+## Truncated kernel (TruncatedKernel)
 vcov(AR1, TruncatedKernel(0)) ## Same as iid because bandwidth = 0
 vcov(AR1, TruncatedKernel(1))
 vcov(AR1, TruncatedKernel(2))
 vcov(AR1, TruncatedKernel())  ## Optimal bandwidth
 
-## The Bartelett kernel
+## Bartelett kernel
 vcov(AR1, BartlettKernel(0)) ## Same as iid because bandwidth = 0
 vcov(AR1, BartlettKernel(1))
 vcov(AR1, BartlettKernel(2))
 vcov(AR1, BartlettKernel())  ## Optimal bandwidth
 
-## The Parzent kernel
+## Parzen kernel
 vcov(AR1, ParzenKernel(0)) ## Same as iid because bandwidth = 0
 vcov(AR1, ParzenKernel(1))
 vcov(AR1, ParzenKernel(2))
 vcov(AR1, ParzenKernel())  ## Optimal bandwidth
 
-## The quadratic-spectral kernel
+## Quadratic-Spectral kernel
 vcov(AR1, QuadraticSpectralKernel(0.1))
 vcov(AR1, QuadraticSpectralKernel(.5))
 vcov(AR1, QuadraticSpectralKernel(2.))
