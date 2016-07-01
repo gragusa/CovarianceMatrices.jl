@@ -7,13 +7,17 @@ end
 typealias GenLinMod GeneralizedLinearModel
 
 adjfactor!(u, l::LinPredModel, k::HC0) = u[:] = one(Float64)
-adjfactor!(u, l::LinPredModel, k::HC1) = u[:] = nobs(l)./df_residual(l)
+adjfactor!(u, l::LinPredModel, k::HC1) = u[:] = _nobs(l)./_df_residual(l)
 adjfactor!(u, l::LinPredModel, k::HC2) = u[:] = 1./(1.-hatmatrix(l))
 adjfactor!(u, l::LinPredModel, k::HC3) = u[:] = 1./(1.-hatmatrix(l)).^2
 
+
+_nobs(l::LinPredModel) = length(l.rr.y)
+_df_residual(l::LinPredModel) = _nobs(l) - length(coef(l))
+
 function adjfactor!(u, lp::LinPredModel, k::HC4)
     h = hatmatrix(lp)
-    n = nobs(lp)
+    n = _nobs(lp)
     p = npars(lp)
     for j = 1:n
         delta = min(4, n*h[j]/p)
@@ -23,7 +27,7 @@ end
 
 function adjfactor!(u, lp::LinPredModel, k::HC4m)
     h = hatmatrix(lp)
-    n = nobs(lp)
+    n = _nobs(lp)
     p = npars(lp)
     for j = 1:n
         delta = min(1.0, n*h[j]/p) + min(1.5, n*h[j]/p)
@@ -33,7 +37,7 @@ end
 
 function adjfactor!(u, lp::LinPredModel, k::HC5)
     h     = hatmatrix(lp)
-    n     = nobs(lp)
+    n     = _nobs(lp)
     p     = npars(lp)
     mx    = max(n*0.7*maximum(h)/p, 4)
     for j = 1:n
