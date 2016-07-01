@@ -87,8 +87,8 @@ S3 = vcov(OLS, HC3())
 S4 = vcov(OLS, HC4())
 
 ## Weighted OLS though GLM interface
-wOLS = fit(GeneralizedLinearModel, lot1~u,clotting, Normal(),
-           IdentityLink(), wts = convert(Array, clotting[:w]))
+wOLS = fit(GeneralizedLinearModel, lot1~u, clotting, Normal(),
+           IdentityLink(), wts = Vector{Float64}(clotting[:w]))
 S0 = vcov(wOLS, HC0())
 S1 = vcov(wOLS, HC1())
 S2 = vcov(wOLS, HC2())
