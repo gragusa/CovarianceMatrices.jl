@@ -205,7 +205,7 @@ function varhac(dat,imax,ilag,imodel)
 
 
     ## COMPUTE THE VARHAC ESTIMATOR
-    cov = minres'minres/(nt-imax)
+    covar = minres'minres/(nt-imax)
 
     bbb = eye(kdim)
 
@@ -215,6 +215,6 @@ function varhac(dat,imax,ilag,imodel)
         end
     end
 
-    inv(bbb)*cov*inv(bbb')
+    inv(bbb)*covar*inv(bbb')
 
 end
