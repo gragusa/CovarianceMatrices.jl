@@ -5,6 +5,8 @@ using Reexport
 using PDMats
 using Compat
 
+import Compat.view
+
 abstract RobustVariance
 abstract HAC  <: RobustVariance
 abstract HC   <: RobustVariance
