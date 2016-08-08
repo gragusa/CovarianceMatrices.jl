@@ -8,31 +8,31 @@ end
 
 function k_bt{T}(x::T)
     if isnan(x)
-        return(one(Float64))
+        one(Float64)
     end
     float(max(one(T)-abs(x), zero(T)))
 end
 
 function k_pr{T}(x::T)
     if isnan(x)
-        return(one(Float64))
+        one(Float64)
     end
     ax = abs(x)
-    if(ax>one(T))
-        return(zero(Float64))
-    elseif ax<=.5
-        return(float(1-6*x^2+6*ax^3))
+    if(ax > one(T))
+        zero(Float64)
+    elseif ax <= .5
+        float(1 - 6 * x^2 + 6 * ax^3)
     else
-        return(float(2*(1-ax)^3))
+        float(2 * (1-ax)^3)
     end
 end
 
 function k_qs{T <: Number}(x::T)
     if isnan(x)
-        return(one(Float64))
+        one(Float64)
     end
     if(isequal(x, zero(eltype(x))))
-        return one(Float64)
+        one(Float64)
     else
         return (25/(12*π²*x^2))*(sin(sixπ*x/5)/(sixπ*x/5)-cos(sixπ*x/5))
     end
@@ -40,13 +40,13 @@ end
 
 function k_th{T <: Number}(x::T)
     if isnan(x)
-        return(one(Float64))
+        one(Float64)
     end
     ax = abs(x)
     if(ax < one(T))
-        return (1 + cos(π*x))/2
+        (1 + cos(π*x))/2
     else
-        return zero(Float64)
+        zero(Float64)
     end
 end
 
@@ -141,10 +141,6 @@ vcov(X::AbstractMatrix, k::VARHAC) = varhac(X, k.imax, k.ilag, k.imodel)
 function vcov(X::AbstractMatrix, k::HAC; prewhite=true)
     n, p = size(X)
     !prewhite || ((X, D) = pre_white(X))
-       ##  pw = pre_white(X)
-    ##     X  = pw[1]
-    ##     D = inv(eye(p)-pw[2])
-    ## end
     bw = bandwidth(k, X)
     Q  = zeros(eltype(X), p, p)
     for j=-bw:bw
@@ -158,13 +154,7 @@ function vcov(X::AbstractMatrix, k::HAC; prewhite=true)
 end
 
 function vcov(X::AbstractMatrix, k::QuadraticSpectralKernel; prewhite=true)
-    ## How to deal with optimal bandwidth?
     n, p = size(X)
-    ## if prewhite
-    ##     pw = pre_white(X)
-    ##     X  = pw[1]
-    ##     D = inv(eye(p)-pw[2])
-    ## end
     !prewhite || ((X, D) = pre_white(X))
     bw = bandwidth(k, X)
     Q = zeros(eltype(X), p, p)
@@ -192,50 +182,3 @@ function meat(l::LinPredModel,  k::HAC; args...)
     z = X.*u
     vcov(z, k; args...)
 end
-
-## using DataFrames
-## using GLM
-## df = readtable("testing_hac.csv")
-## lm1 = glm(y~x+w, df, Normal(), IdentityLink())
-
-## vcov(lm1, BartlettKernel(1.0))
-
-## X = CovarianceMatrices.ModelMatrix(lm1.model);
-## u = CovarianceMatrices.wrkresidwts(lm1.model.rr);
-## z = X.*u;
-
-## vcov(lm1, TruncatedKernel(1.0), prewhite = false)
-
-## k = TruncatedKernel(1)
-## n, p = size(z)
-## X  = pw[1]
-## bw = CovarianceMatrices.bandwidth(k, X)
-
-## Q = zeros(eltype(X), p, p)
-## Base.LinAlg.copytri!(Q, 'U')
-## for j=-n:n
-##     Base.BLAS.axpy!(CovarianceMatrices.kernel(k, j/bw), CovarianceMatrices.Γ(z, int(j)), Q)
-## end
-## Base.LinAlg.copytri!(Q, 'U')
-
-## A = bread(lm1.model)
-## scale!(A*(Q/200)*A, 1/200)
-
-
-
-## pw = CovarianceMatrices.pre_white(z)
-## k = TruncatedKernel(1)
-## pz  = pw[1]
-## bw = CovarianceMatrices.bandwidth(k, X)
-
-## n, p = size(pz)
-
-## Q = zeros(eltype(X), p, p)
-## Base.LinAlg.copytri!(Q, 'U')
-## for j=-n:n
-##     Base.BLAS.axpy!(CovarianceMatrices.kernel(k, j/bw), CovarianceMatrices.Γ(pz, int(j)), Q)
-## end
-## Base.LinAlg.copytri!(Q, 'U')
-
-## A = bread(lm1.model)
-## scale!(A*(Q/200)*A, 1/200)

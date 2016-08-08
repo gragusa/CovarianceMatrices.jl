@@ -139,8 +139,8 @@ function getqii(v::CRHC3, e, X, A, bstarts)
     ## A is inv(cholfac())
     for j in 1:length(bstarts)
         rnge = bstarts[j]
-        se = sub(e, rnge)
-        sx = sub(X, rnge,:)
+        se = view(e, rnge)
+        sx = view(X, rnge, :)
         In = eye(length(rnge))
         ##gbmv!(trans, m, kl, ku, alpha, A, x, beta, y)
         e[rnge] =  (In - sx*A*sx')\se
