@@ -155,7 +155,7 @@ function getqii(v::CRHC2, e, X, A, bstarts)
         se = sub(e, rnge)
         sx = sub(X, rnge,:)
         In = eye(length(rnge))
-        e[rnge] =  chol(In - sx*A*sx')\se
+        e[rnge] =  cholfact(In - sx*A*sx')\se
     end
     return e
 end
