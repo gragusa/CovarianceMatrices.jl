@@ -136,25 +136,23 @@ function clusterize!(M, U, bstarts)
 end
 
 function getqii(v::CRHC3, e, X, A, bstarts)
-    ## A is inv(cholfac())
     for j in 1:length(bstarts)
         rnge = bstarts[j]
         se = view(e, rnge)
         sx = view(X, rnge, :)
         In = eye(length(rnge))
-        ##gbmv!(trans, m, kl, ku, alpha, A, x, beta, y)
         e[rnge] =  (In - sx*A*sx')\se
     end
     return e
 end
 
 function getqii(v::CRHC2, e, X, A, bstarts)
-    ## A is inv(cholfac())
     for j in 1:length(bstarts)
         rnge = bstarts[j]
         se = sub(e, rnge)
         sx = sub(X, rnge,:)
         In = eye(length(rnge))
+        BB = Symmetric(In - sx*A*sx')
         e[rnge] =  cholfact(In - sx*A*sx')\se
     end
     return e
@@ -189,8 +187,6 @@ function meat(x::LinPredModel, v::CRHC)
         w = w[idx]
         broadcast!(*, X, X, sqrt(w))
         broadcast!(*, e, e, sqrt(w))
-        ## X = X.*sqrt(w)
-        ## e = e.*sqrt(w)
     end
     bstarts = [searchsorted(cls, j[2]) for j in enumerate(unique(cls))]
     adjresid!(v, X, e, ichol, bstarts)
