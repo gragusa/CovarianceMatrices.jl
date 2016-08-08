@@ -153,7 +153,7 @@ function getqii(v::CRHC2, e, X, A, bstarts)
         sx = view(X, rnge,:)
         In = eye(length(rnge))
         BB = Symmetric(In - sx*A*sx')
-        e[rnge] =  cholfact(In - sx*A*sx')\se
+        e[rnge] =  cholfact(BB)\se
     end
     return e
 end
