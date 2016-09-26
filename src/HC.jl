@@ -50,7 +50,7 @@ nclus(k::CRHC) = length(unique(k.cl))
 npars(x::LinPredModel) = length(x.pp.beta0)
 
 function bread(lp::LinPredModel)
-    A = inv(cholfact(lp.pp))
+    A = inv(cholfact(lp.pp))::Array{Float64,2}
     scale!(A, nobs(lp))
 end
 
@@ -136,12 +136,13 @@ function clusterize!(M, U, bstarts)
 end
 
 function getqii(v::CRHC3, e, X, A, bstarts)
-    for j in 1:length(bstarts)
+    @inbounds for j in 1:length(bstarts)
         rnge = bstarts[j]
         se = view(e, rnge)
         sx = view(X, rnge, :)
-        In = eye(length(rnge))
-        e[rnge] =  (In - sx*A*sx')\se
+        #In = eye(length(rnge))
+        #e[rnge] =  (In - sx*A*sx')\se
+        e[rnge] =  (I - sx*A*sx')\se
     end
     return e
 end
@@ -151,20 +152,19 @@ if VERSION < v"0.5.0"
 end
 
 function getqii(v::CRHC2, e, X, A, bstarts)
-    for j in 1:length(bstarts)
+    @inbounds for j in 1:length(bstarts)
         rnge = bstarts[j]
         se = view(e, rnge)
         sx = view(X, rnge,:)
-        In = eye(length(rnge))
-        BB = Symmetric(In - sx*A*sx')
+        #In = eye(length(rnge))
+        BB = Symmetric(I - sx*A*sx')
         e[rnge] =  cholfact(BB)\se
     end
     return e
 end
 
-function _adjresid!(v::CRHC, X, e, chol, bstarts)
-    getqii(v, e, X, chol, bstarts)
-end
+@noinline _adjresid!(v::CRHC, X, e, chol, bstarts) =  getqii(v, e, X, chol, bstarts)
+
 
 _adjresid!(v::CRHC, X, e, ichol, bstarts, c::Float64) = scale!(c, _adjresid!(v::CRHC, X, e, ichol, bstarts))
 
@@ -183,7 +183,7 @@ function meat(x::LinPredModel, v::CRHC)
     idx = sortperm(v.cl)
     cls = v.cl[idx]
     #ichol = inv(x.pp.chol)
-    ichol  = inv(cholfact(x.pp))
+    ichol  = inv(cholfact(x.pp))::Array{Float64,2}
     X = ModelMatrix(x)[idx,:]
     e = wrkresid(x.rr)[idx]
     w = wrkwts(x.rr)
@@ -201,6 +201,6 @@ end
 
 function vcov(x::LinPredModel, v::CRHC)
     B = bread(x)
-    M = meat(x, v)
+    M = meat(x, v)::Array{Float64,2}
     scale!(B*M*B, 1/nobs(x))
 end
