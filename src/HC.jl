@@ -115,23 +115,25 @@ stderr(x::LinPredModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
 function clusterize!(M, U, bstarts)
     k, k = size(M)
     s = Array(Float64, k)
-    V = Array(Float64, k, k)
+    #V = Array(Float64, k, k)
     for m = 1:length(bstarts)
-        for j = 1:k, i = 1:k
-                @inbounds V[i, j] = zero(Float64)
-        end
-        for i = 1:k
+        #fill!(V, 0.0)
+        #fill!(s, 0.0)
+        # for j = 1:k, i = 1:k
+        #     @inbounds V[i, j] = zero(Float64)
+        # end
+        @simd for i = 1:k
             @inbounds s[i] = zero(Float64)
         end
         for j = 1:k, i = bstarts[m]
             @inbounds s[j] += U[i, j]
         end
         for j = 1:k, i = 1:k
-            @inbounds V[i, j] += s[i]*s[j]
+            @inbounds M[i, j] += s[i]*s[j]
         end
-        for j = 1:k, i = 1:k
-            @inbounds M[i, j] += V[i, j]
-        end
+        # for j = 1:k, i = 1:k
+        #     @inbounds M[i, j] += V[i, j]
+        # end
     end
 end
 
@@ -140,8 +142,6 @@ function getqii(v::CRHC3, e, X, A, bstarts)
         rnge = bstarts[j]
         se = view(e, rnge)
         sx = view(X, rnge, :)
-        #In = eye(length(rnge))
-        #e[rnge] =  (In - sx*A*sx')\se
         e[rnge] =  (I - sx*A*sx')\se
     end
     return e
@@ -156,16 +156,13 @@ function getqii(v::CRHC2, e, X, A, bstarts)
         rnge = bstarts[j]
         se = view(e, rnge)
         sx = view(X, rnge,:)
-        #In = eye(length(rnge))
         BB = Symmetric(I - sx*A*sx')
         e[rnge] =  cholfact(BB)\se
     end
     return e
 end
 
-@noinline _adjresid!(v::CRHC, X, e, chol, bstarts) =  getqii(v, e, X, chol, bstarts)
-
-
+_adjresid!(v::CRHC, X, e, chol, bstarts) =  getqii(v, e, X, chol, bstarts)
 _adjresid!(v::CRHC, X, e, ichol, bstarts, c::Float64) = scale!(c, _adjresid!(v::CRHC, X, e, ichol, bstarts))
 
 function scalar_adjustment(X, bstarts)
@@ -200,7 +197,7 @@ function meat(x::LinPredModel, v::CRHC)
 end
 
 function vcov(x::LinPredModel, v::CRHC)
-    B = bread(x)
+    B = bread(x)::Array{Float64,2}
     M = meat(x, v)::Array{Float64,2}
     scale!(B*M*B, 1/nobs(x))
 end
