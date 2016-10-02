@@ -56,8 +56,6 @@ end
 
 residuals(l::LinPredModel, k::HC) = residuals(l)
 residuals(l::LinPredModel, k::HAC) = residuals(l)
-#residuals(l::LinPredModel, k::HC)  = wrkresidwts(l.rr)
-#residuals(l::LinPredModel, k::HAC) = wrkresidwts(l.rr)
 
 function residuals(r::GLM.ModResp)
     a = wrkwts(r)
