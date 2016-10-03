@@ -19,9 +19,9 @@ function adjfactor!(u, lp::LinPredModel, k::HC4)
     h = hatmatrix(lp)
     n = _nobs(lp)
     p = npars(lp)
-    for j = 1:n
+    @inbounds for j in eachindex(h)
         delta = min(4, n*h[j]/p)
-        @inbounds u[j] = 1/(1-h[j])^delta
+        u[j] = 1/(1-h[j])^delta
     end
 end
 
@@ -29,9 +29,9 @@ function adjfactor!(u, lp::LinPredModel, k::HC4m)
     h = hatmatrix(lp)
     n = _nobs(lp)
     p = npars(lp)
-    for j = 1:n
+    @inbounds for j in eachindex(h)
         delta = min(1.0, n*h[j]/p) + min(1.5, n*h[j]/p)
-        @inbounds u[j] = 1/(1-h[j])^delta
+        u[j] = 1/(1-h[j])^delta
     end
 end
 
@@ -40,9 +40,9 @@ function adjfactor!(u, lp::LinPredModel, k::HC5)
     n     = _nobs(lp)
     p     = npars(lp)
     mx    = max(n*0.7*maximum(h)/p, 4)
-    for j = 1:n
+    @inbounds for j in eachindex(h)
         alpha =  min(n*h[j]/p, mx)
-        @inbounds u[j] = 1/(1-h[j])^alpha
+        u[j] = 1/(1-h[j])^alpha
     end
 end
 
@@ -80,8 +80,6 @@ function weightedModelMatrix(l::LinPredModel)
 end
 
 function hatmatrix(l::LinPredModel)
-    # w = wrkwts(l.rr)
-    # z = ModelMatrix(l).*sqrt(w)
     z = weightedModelMatrix(l)
     cf = cholfact(l.pp)[:UL]
     Base.LinAlg.A_rdiv_B!(z, cf)
@@ -113,13 +111,7 @@ stderr(x::LinPredModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
 function clusterize!(M, U, bstarts)
     k, k = size(M)
     s = Array(Float64, k)
-    #V = Array(Float64, k, k)
     for m = 1:length(bstarts)
-        #fill!(V, 0.0)
-        #fill!(s, 0.0)
-        # for j = 1:k, i = 1:k
-        #     @inbounds V[i, j] = zero(Float64)
-        # end
         @simd for i = 1:k
             @inbounds s[i] = zero(Float64)
         end
@@ -129,9 +121,6 @@ function clusterize!(M, U, bstarts)
         for j = 1:k, i = 1:k
             @inbounds M[i, j] += s[i]*s[j]
         end
-        # for j = 1:k, i = 1:k
-        #     @inbounds M[i, j] += V[i, j]
-        # end
     end
 end
 
@@ -164,8 +153,8 @@ _adjresid!(v::CRHC, X, e, chol, bstarts) =  getqii(v, e, X, chol, bstarts)
 _adjresid!(v::CRHC, X, e, ichol, bstarts, c::Float64) = scale!(c, _adjresid!(v::CRHC, X, e, ichol, bstarts))
 
 function scalar_adjustment(X, bstarts)
-    n, k = size(X);
-    g    = length(bstarts);
+    n, k = size(X)
+    g    = length(bstarts)
     sqrt((n-1)/(n-k) * g/(g-1))
 end
 
