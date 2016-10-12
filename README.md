@@ -1,12 +1,11 @@
 # CovarianceMatrices.jl
 
-[![Build Status](https://travis-ci.org/gragusa/CovarianceMatrices.jl.svg?branch=master)](https://travis-ci.org/gragusa/CovarianceMatrices.jl)
+[![Build Status](https://travis-ci.org/gragusa/CovarianceMatrices.jl.svg?branch=v0.4)](https://travis-ci.org/gragusa/CovarianceMatrices.jl)
 
 [![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_0.4.svg)](http://pkg.julialang.org/?pkg=CovarianceMatrices&ver=0.4)
-[![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_0.5.svg)](http://pkg.julialang.org/?pkg=CovarianceMatrices&ver=0.5)
 
-[![Coverage Status](https://coveralls.io/repos/gragusa/CovarianceMatrices.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/gragusa/CovarianceMatrices.jl?branch=master)
-[![codecov.io](http://codecov.io/github/gragusa/CovarianceMatrices.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/CovarianceMatrices.jl?branch=master)
+[![Coverage Status](https://coveralls.io/repos/gragusa/CovarianceMatrices.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/gragusa/CovarianceMatrices.jl?branch=v0.4)
+[![codecov.io](http://codecov.io/github/gragusa/CovarianceMatrices.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/CovarianceMatrices.jl?branch=v0.4)
 
 Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation for Julia.
 
