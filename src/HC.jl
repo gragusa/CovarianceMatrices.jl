@@ -70,7 +70,7 @@ function wrkresidwts(r::GLM.ModResp)
 end
 
 wrkresid(r::GLM.ModResp) = r.wrkresid
-wrkwts(r::GLM.ModResp) = r.wrkwts
+wrkwts(r::GLM.ModResp) = r.wrkwt
 wrkwts(r::GLM.LmResp) = r.wts
 wrkresid(r::GLM.LmResp) = r.y-r.mu
 
