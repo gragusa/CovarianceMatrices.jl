@@ -49,11 +49,10 @@ end
 
 ar{T}(Y::Array{T, 2}) = ar(Y, 1)
 
-d_bw_andrews = @compat Dict(:TruncatedKernel         => :(0.6611*(a2*N)^(0.2)),
-                            :BartlettKernel          => :(1.1447*(a1*N)^(1/3)),
-                            :ParzenKernel            => :(2.6614*(a2*N)^(0.2)),
-                            :QuadraticSpectralKernel => :(1.3221*(a2*N)^(0.2)))
-
+d_bw_andrews = Dict(:TruncatedKernel         => :(0.6611*(a2*N)^(0.2)),
+                    :BartlettKernel          => :(1.1447*(a1*N)^(1/3)),
+                    :ParzenKernel            => :(2.6614*(a2*N)^(0.2)),
+                    :QuadraticSpectralKernel => :(1.3221*(a2*N)^(0.2)))
 
 for tty in [:TruncatedKernel, :BartlettKernel, :ParzenKernel, :QuadraticSpectralKernel]
     @eval  $:(bw_andrews)(k::($tty), a1, a2, N) = $(d_bw_andrews[tty])
