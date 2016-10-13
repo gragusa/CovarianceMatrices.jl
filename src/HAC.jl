@@ -144,7 +144,7 @@ function vcov(X::AbstractMatrix, k::HAC; prewhite=true)
     bw = bandwidth(k, X)
     Q  = zeros(eltype(X), p, p)
     for j=-bw:bw
-        Base.BLAS.axpy!(kernel(k, j/bw), Γ(X, @compat Int(j)), Q)
+        Base.BLAS.axpy!(kernel(k, j/bw), Γ(X, Int(j)), Q)
     end
     Base.LinAlg.copytri!(Q, 'U')
     if prewhite
@@ -159,7 +159,7 @@ function vcov(X::AbstractMatrix, k::QuadraticSpectralKernel; prewhite=true)
     bw = bandwidth(k, X)
     Q = zeros(eltype(X), p, p)
     for j=-n:n
-        Base.BLAS.axpy!(kernel(k, j/bw), Γ(X, @compat Int(j)), Q)
+        Base.BLAS.axpy!(kernel(k, j/bw), Γ(X, Int(j)), Q)
     end
     Base.LinAlg.copytri!(Q, 'U')
     if prewhite

@@ -3,7 +3,7 @@ module CovarianceMatrices
 
 using Reexport
 using PDMats
-using Compat
+
 
 import Compat.view
 
