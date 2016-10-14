@@ -4,9 +4,6 @@ module CovarianceMatrices
 using Reexport
 using PDMats
 
-
-import Compat.view
-
 abstract RobustVariance
 abstract HAC  <: RobustVariance
 abstract HC   <: RobustVariance
