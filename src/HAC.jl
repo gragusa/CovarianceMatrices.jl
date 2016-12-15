@@ -138,7 +138,7 @@ end
 
 vcov(X::AbstractMatrix, k::VARHAC) = varhac(X, k.imax, k.ilag, k.imodel)
 
-function vcov(X::AbstractMatrix, k::HAC; prewhite=true)
+function vcov(X::AbstractMatrix, k::HAC; prewhite::Bool = true)
     n, p = size(X)
     !prewhite || ((X, D) = pre_white(X))
     bw = bandwidth(k, X)
@@ -153,7 +153,7 @@ function vcov(X::AbstractMatrix, k::HAC; prewhite=true)
     return scale!(Q, 1/n)
 end
 
-function vcov(X::AbstractMatrix, k::QuadraticSpectralKernel; prewhite=true)
+function vcov(X::AbstractMatrix, k::QuadraticSpectralKernel; prewhite::Bool = true)
     n, p = size(X)
     !prewhite || ((X, D) = pre_white(X))
     bw = bandwidth(k, X)
