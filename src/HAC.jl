@@ -55,29 +55,29 @@ end
 ## Optimal band-width
 ##
 ##############################################################################
-type TruncatedKernel <: HAC
-  kernel::Function
-  bw::Function
+type TruncatedKernel{F<:Function, G<:Function} <: HAC
+  kernel::F
+  bw::G
 end
 
-type BartlettKernel <: HAC
-  kernel::Function
-  bw::Function
+type BartlettKernel{F<:Function, G<:Function} <: HAC
+  kernel::F
+  bw::G
 end
 
-type ParzenKernel <: HAC
-  kernel::Function
-  bw::Function
+type ParzenKernel{F<:Function, G<:Function} <: HAC
+  kernel::F
+  bw::G
 end
 
-type TukeyHanningKernel <: HAC
-  kernel::Function
-  bw::Function
+type TukeyHanningKernel{F<:Function, G<:Function} <: HAC
+  kernel::F
+  bw::G
 end
 
-type QuadraticSpectralKernel <: HAC
-  kernel::Function
-  bw::Function
+type QuadraticSpectralKernel{F<:Function, G<:Function} <: HAC
+  kernel::F
+  bw::G
 end
 
 type VARHAC <: HAC
@@ -108,11 +108,11 @@ VARHAC()                            = VARHAC(2, 2, 1)
 VARHAC(imax::Int64)                 = VARHAC(imax, 2, 1)
 
 function bandwidth(k::HAC, X::AbstractMatrix)
-  return floor(k.bw(X, k))
+  return floor(k.bw(X, k))::Float64
 end
 
 function bandwidth(k::QuadraticSpectralKernel, X::AbstractMatrix)
-    return k.bw(X, k)
+    return k.bw(X, k)::Float64
 end
 
 kernel(k::HAC, x::Real) = k.kernel(x)
