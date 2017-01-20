@@ -1,4 +1,4 @@
-function lag!{T}(Yl::Array{T, 2}, Y::AbstractArray{T, 1}, p::Int64)
+function lag!{T, F}(Yl::Array{T, 2}, Y::AbstractArray{F, 1}, p::Int64)
     ## Given an Array, return the matrix
   ## of lagged values of Y
   ## [y_t-p, y_{t-p-1}, ..., y_{t-1}]
@@ -28,19 +28,20 @@ function olsvar{T}(y::AbstractArray{T, 2})
 end
 
 function ar{T}(Y::AbstractArray{T, 2}, lag::Int64)
-    N, p = size(Y)
-    Yl = Array(T, N-lag, lag+1)
-	   ρ  = Array(T, p, lag)
-	   σ² = Array(T, p)
-	   for j = 1:p
-		      lag!(Yl, Y[:,j], lag)
-		      Yt          = Y[lag+1:end,j]
-		      θ           = (Yl\Yt)
-		      ρ[j, 1:lag] = θ[1:lag]
-		      ε           = Yt - Yl*θ
-		      σ²[j]       = (ε'ε/N)[1]
-	   end
-	   return ρ, σ²
+  N, p = size(Y)
+  Yl = Array{Float64}(N-lag, lag+1)
+  ρ  = Array{Float64}(p, lag)
+  σ² = Array{Float64}(p)
+  ε  = Array{Float64}(N-lag)
+  for j in 1:p
+    lag!(Yl, view(Y, :,j), lag)
+    Yt          = view(Y, lag+1:N, j)
+    θ           = Yl\Yt
+    ρ[j, 1:lag] = θ[1:lag]
+    ε           .= Yt - Yl*θ
+    σ²[j]       = dot(Yt, Yt)/N
+  end
+  return ρ, σ²
 end
 
 function arma{T}(Y::Array{T,2})
