@@ -1,4 +1,4 @@
-function lag!{T}(Yl::Array{T, 2}, Y::Array{T, 1}, p::Int64)
+function lag!{T}(Yl::Array{T, 2}, Y::AbstractArray{T, 1}, p::Int64)
     ## Given an Array, return the matrix
   ## of lagged values of Y
   ## [y_t-p, y_{t-p-1}, ..., y_{t-1}]
@@ -16,7 +16,7 @@ function lag!{T}(Yl::Array{T, 2}, Y::Array{T, 1}, p::Int64)
   end
 end
 
-function olsvar{T}(y::Array{T, 2})
+function olsvar{T}(y::AbstractArray{T, 2})
     # Input : data y, lag order 1
     # Output: coefficient estimate β, residual U
     N, K = size(y)
@@ -27,7 +27,7 @@ function olsvar{T}(y::Array{T, 2})
     return U, A'
 end
 
-function ar{T}(Y::Array{T, 2}, lag::Int64)
+function ar{T}(Y::AbstractArray{T, 2}, lag::Int64)
     N, p = size(Y)
     Yl = Array(T, N-lag, lag+1)
 	   ρ  = Array(T, p, lag)
@@ -47,7 +47,7 @@ function arma{T}(Y::Array{T,2})
     ## Estimate an ARMA(1,1) for each column of Y
 end
 
-ar{T}(Y::Array{T, 2}) = ar(Y, 1)
+ar{T}(Y::AbstractArray{T, 2}) = ar(Y, 1)
 
 d_bw_andrews = Dict(:TruncatedKernel         => :(0.6611*(a2*N)^(0.2)),
                     :BartlettKernel          => :(1.1447*(a1*N)^(1/3)),
