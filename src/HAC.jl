@@ -108,11 +108,11 @@ VARHAC()                            = VARHAC(2, 2, 1)
 VARHAC(imax::Int64)                 = VARHAC(imax, 2, 1)
 
 function bandwidth(k::HAC, X::AbstractMatrix)
-  return floor(k.bw(X, k))::Float64
+  return floor(k.bw(X, k))
 end
 
 function bandwidth(k::QuadraticSpectralKernel, X::AbstractMatrix)
-    return k.bw(X, k)::Float64
+    return k.bw(X, k)
 end
 
 kernel(k::HAC, x::Real) = k.kernel(x)
