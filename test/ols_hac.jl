@@ -62,6 +62,18 @@ Vt =  [ 0.004193163452767 -0.000126916717674  0.000412982604681;
        0.000412982604681 -0.000409693229837  0.003445964499879]
 @test_approx_eq V Vt
 
+@test CovarianceMatrices.bwAndrews(lm1, BartlettKernel()) ≈ 1.79655260917
+@test CovarianceMatrices.bwAndrews(lm1, TruncatedKernel()) ≈ 0.923095757094
+@test CovarianceMatrices.bwAndrews(lm1, ParzenKernel()) ≈ 3.71612017536
+@test CovarianceMatrices.bwAndrews(lm1, QuadraticSpectralKernel()) ≈ 1.84605188391
+
+@test CovarianceMatrices.bwAndrews(lm1, BartlettKernel(), prewhite = true) ≈ 0.547399170212
+@test CovarianceMatrices.bwAndrews(lm1, TruncatedKernel(), prewhite = true) ≈ 0.422530519468
+@test CovarianceMatrices.bwAndrews(lm1, ParzenKernel(), prewhite = true) ≈ 1.70098733098
+@test CovarianceMatrices.bwAndrews(lm1, QuadraticSpectralKernel(), prewhite = true) ≈ 0.844997125683
+
+
+
 V = vcov(lm1, VARHAC(1,1,1))
 V = vcov(lm1, VARHAC(1,2,1))
 V = vcov(lm1, VARHAC(1,3,1))

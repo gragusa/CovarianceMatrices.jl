@@ -1,11 +1,11 @@
-VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
+__precompile__(true)
 module CovarianceMatrices
 
 using Reexport
 using PDMats
 
 abstract RobustVariance
-abstract HAC  <: RobustVariance
+abstract HAC{G}  <: RobustVariance
 abstract HC   <: RobustVariance
 abstract CRHC <: RobustVariance
 
