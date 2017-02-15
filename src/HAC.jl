@@ -121,6 +121,16 @@ ParzenKernel()                      = PRK(k_pr, Optimal(), Array{Float64}(1), Ar
 TukeyHanningKernel()                = THK(k_th, Optimal(), Array{Float64}(1), Array{Float64}(0))
 QuadraticSpectralKernel()           = QSK(k_qs, Optimal(), Array{Float64}(1), Array{Float64}(0))
 
+BartlettKernel(x::Type{NeweyWest})          = BTK(k_bt, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
+ParzenKernel(x::Type{NeweyWest})            = PRK(k_pr, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
+TukeyHanningKernel(x::Type{NeweyWest})      = THK(k_th, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
+QuadraticSpectralKernel(x::Type{NeweyWest}) = QSK(k_qs, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
+
+BartlettKernel(x::Type{Andrews})          = BTK(k_bt, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+ParzenKernel(x::Type{Andrews})            = PRK(k_pr, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+TukeyHanningKernel(x::Type{Andrews})      = THK(k_th, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+QuadraticSpectralKernel(x::Type{Andrews}) = QSK(k_qs, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+
 TruncatedKernel(bw::Number)         = TRK(k_tr, Fixed(), [float(bw)], Array{Float64}(0))
 BartlettKernel(bw::Number)          = BTK(k_bt, Fixed(), [float(bw)], Array{Float64}(0))
 ParzenKernel(bw::Number)            = PRK(k_pr, Fixed(), [float(bw)], Array{Float64}(0))
@@ -205,6 +215,16 @@ function vcov(X::AbstractMatrix, k::HAC{Optimal{Andrews}}; prewhite=true)
     bw = bwAndrews(X, k, prewhite)
     vcov(X, k, bw, D, prewhite)
 end
+
+function vcov(X::AbstractMatrix, k::HAC{Optimal{NeweyWest}}; prewhite=true)
+    p = size(X, 2)
+    D = I
+    !prewhite || ((X, D) = pre_white(X))
+    isempty(k.weights) && (k.weights = ones(p))
+    bw = bwNeweyWest(X, k, prewhite)
+    vcov(X, k, bw, D, prewhite)
+end
+
 
 function vcov(r::DataFrameRegressionModel, k::HAC; args...)
   p = size(r.model.pp.X, 2)

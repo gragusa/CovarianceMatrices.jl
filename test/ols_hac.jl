@@ -62,6 +62,26 @@ Vt =  [ 0.004193163452767 -0.000126916717674  0.000412982604681;
        0.000412982604681 -0.000409693229837  0.003445964499879]
 @test_approx_eq V Vt
 
+
+V = vcov(lm1, BartlettKernel(NeweyWest), prewhite = false)
+Vt = [0.00425404   -0.000402832   0.000285714
+     -0.000402832   0.00282219   -0.000261739
+      0.000285714  -0.000261739   0.00306664 ]
+@test_approx_eq_eps V Vt 1e-8
+
+V = vcov(lm1, QuadraticSpectralKernel(NeweyWest), prewhite = false)
+Vt = [0.00370396   -0.000265251   0.000162278
+     -0.000265251   0.0033624    -0.000175805
+      0.000162278  -0.000175805   0.00315178 ]
+@test_approx_eq_eps V Vt 1e-8
+
+V = vcov(lm1, ParzenKernel(NeweyWest), prewhite = false)
+Vt = [0.00384234   -0.000305152   0.000189532
+     -0.000305152   0.00323359   -0.000215547
+      0.000189532  -0.000215547   0.00314338 ]
+@test_approx_eq_eps V Vt 1e-8
+
+
 @test CovarianceMatrices.bwAndrews(lm1, BartlettKernel()) ≈ 1.79655260917
 @test CovarianceMatrices.bwAndrews(lm1, TruncatedKernel()) ≈ 0.923095757094
 @test CovarianceMatrices.bwAndrews(lm1, ParzenKernel()) ≈ 3.71612017536
@@ -72,6 +92,13 @@ Vt =  [ 0.004193163452767 -0.000126916717674  0.000412982604681;
 @test CovarianceMatrices.bwAndrews(lm1, ParzenKernel(), prewhite = true) ≈ 1.70098733098
 @test CovarianceMatrices.bwAndrews(lm1, QuadraticSpectralKernel(), prewhite = true) ≈ 0.844997125683
 
+@test CovarianceMatrices.bwNeweyWest(lm1, BartlettKernel(), prewhite = false) ≈ 3.23964297272935
+@test CovarianceMatrices.bwNeweyWest(lm1, ParzenKernel(), prewhite = false) ≈ 2.7987360579390486
+@test CovarianceMatrices.bwNeweyWest(lm1, QuadraticSpectralKernel(), prewhite = false) ≈ 1.390324243706777
+
+@test CovarianceMatrices.bwNeweyWest(lm1, BartlettKernel(), prewhite = true) ≈ 2.2830418148034246
+@test CovarianceMatrices.bwNeweyWest(lm1, ParzenKernel(), prewhite = true) ≈ 3.390825323658861
+@test CovarianceMatrices.bwNeweyWest(lm1, QuadraticSpectralKernel(), prewhite = true) ≈ 1.6844556099832346
 
 
 V = vcov(lm1, VARHAC(1,1,1))

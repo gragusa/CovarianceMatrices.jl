@@ -141,7 +141,21 @@ bwnw(k::ParzenKernel, s0, s1, s2) = 2.6614*((s2/s0)^2)^growthrate(k)
 bwnw(k::QuadraticSpectralKernel, s0, s1, s2) = 1.3221*((s2/s0)^2)^growthrate(k)
 
 
-function bwNeweyWest{T}(X::Array{T, 2}, k::HAC; prewhite::Bool = false)
+
+function bwNeweyWest(r::DataFrameRegressionModel, k::HAC; prewhite::Bool = false)
+    u = wrkresidwts(r.model.rr)
+    X = ModelMatrix(r.model)
+    z = X.*u
+    p = size(z, 2)
+    w = ones(p)
+    "(Intercept)" ∈ coefnames(r.mf) &&
+    (w[find("(Intercept)" .== coefnames(r.mf))] = 0)
+    bwNeweyWest(z, k, w, prewhite)
+end
+
+bwNeweyWest{T}(X::Array{T, 2}, k::HAC, prewhite::Bool) = bwNeweyWest(X, k, k.weights, prewhite)
+
+function bwNeweyWest{T}(X::Array{T, 2}, k::HAC, w::Vector, prewhite::Bool)
     N, p = size(X)
     lrate = lagtruncation(k)
     adj = prewhite ? 3 : 4
@@ -149,16 +163,15 @@ function bwNeweyWest{T}(X::Array{T, 2}, k::HAC; prewhite::Bool = false)
 
     ## Prewhite if necessary
     !prewhite || ((X, D) = pre_white(X))
+    !prewhite || (N -= 1)
+    xm = X*w
 
     ## Calculate truncated variance
-    a0 = CovarianceMatrices.Γ(X, 0)
-    a1 = zeros(a0)
-    a2 = zeros(a0)
-    for j in 1:l
-        γ = 2.*CovarianceMatrices.Γ(X, j)
-        a0 .= a0 + γ
-        a1 .= a1 + j*γ
-        a2 .= a2 + j^2*γ
-    end
-    bwnw(k, s0, s1, s2)*N^growthrate(k)
+    a = map(j -> dot(xm[1:N-j], xm[j+1:N])/N, 0:l)
+
+    a0 = a[1] + 2*sum(a[2:end])
+    a1 = 2*sum((1:l) .* a[2:end])
+    a2 = 2*sum((1:l).^2 .* a[2:end])
+
+    bwnw(k, a0, a1, a2)*(N + ifelse(prewhite, 1, 0))^growthrate(k)
 end
