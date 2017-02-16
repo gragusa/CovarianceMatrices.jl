@@ -16,7 +16,7 @@ function lag!{T, F}(Yl::Array{T, 2}, Y::AbstractArray{F, 1}, p::Int64)
   end
 end
 
-function olsvar{T}(y::AbstractArray{T, 2})
+function olsvar{T<:Number}(y::Matrix{T})
     # Input : data y, lag order 1
     # Output: coefficient estimate β, residual U
     N, K = size(y)
@@ -27,7 +27,7 @@ function olsvar{T}(y::AbstractArray{T, 2})
     return U, A'
 end
 
-function ar{T}(Y::AbstractArray{T, 2}, lag::Int64)
+function ar{T<:Number}(Y::Matrix{T}, lag::Int)
   N, p = size(Y)
   Yl = Array{Float64}(N-lag, lag+1)
   ρ  = Array{Float64}(p, lag)
@@ -44,14 +44,9 @@ function ar{T}(Y::AbstractArray{T, 2}, lag::Int64)
   return ρ, σ²
 end
 
-function arma{T}(Y::Array{T,2})
-    ## Estimate an ARMA(1,1) for each column of Y
-end
+ar{T<:Number}(Y::Matrix{T}) = ar(Y, 1)
 
-ar{T}(Y::AbstractArray{T, 2}) = ar(Y, 1)
-
-
-function pre_white(X::AbstractMatrix)
+function pre_white(X::Matrix)
     X, D = olsvar(X)
     (X, inv(I-D))
 end
@@ -99,12 +94,12 @@ bwnw(k::QuadraticSpectralKernel, s0, s1, s2) = 1.3221*((s2/s0)^2)^growthrate(k)
 
 
 
-function bwAndrews{T}(X::Array{T, 2}, k::HAC, prewhite::Bool)
+function bwAndrews{T}(X::Matrix{T}, k::HAC, prewhite::Bool)
   isempty(k.weights) && (k.weights = ones(p))
   bwAndrews(X, k, k.weights, prewhite)
 end
 
-function bwAndrews{T}(X::Array{T, 2}, k::HAC, w::Vector, prewhite::Bool)
+function bwAndrews{T}(X::Matrix{T}, k::HAC, w::Vector, prewhite::Bool)
     !prewhite || ((X, D) = pre_white(X))
     N, p  = size(X)
     a1, a2 = getalpha(X, :ar, w)
@@ -117,9 +112,6 @@ function bwAndrews(r::DataFrameRegressionModel, k::HAC, w::Array, prewhite::Bool
     X = ModelMatrix(r.model)
     z = X.*u
     p = size(z, 2)
-    # w = ones(p)
-    # "(Intercept)" ∈ coefnames(r.mf) &&
-    # (w[find("(Intercept)" .== coefnames(r.mf))] = 0)
     bwAndrews(z, k, w, prewhite)
 end
 
@@ -138,32 +130,48 @@ function bwNeweyWest{T}(X::Array{T, 2}, k::HAC, prewhite::Bool)
   bwAndrews(X, k, k.weights, prewhite)
 end
 
-function bwNeweyWest{T}(X::Array{T, 2}, k::HAC, w::Vector, prewhite::Bool)
-    N, p = size(X)
-    lrate = lagtruncation(k)
-    adj = prewhite ? 3 : 4
-    l = floor(Int, adj*(N/100)^lrate)
+function getrates(X, k, prewhite)
+  N, p = size(X)
+  lrate = lagtruncation(k)
+  adj = prewhite ? 3 : 4
+  l = floor(Int, adj*(N/100)^lrate)
+  n = ifelse(prewhite, N-1, N)::Int
+  n, l
+end
 
+function bwNeweyWest{F<:Number}(X::Matrix, k::HAC, w::Vector{F}, prewhite::Bool)
+    # N, p = size(X)
+    # n = ifelse(prewhite, N-1, N)::Int
+    # lrate = lagtruncation(k)
+    # adj = prewhite ? 3 : 4
+    # l = floor(Int, adj*(N/100)^lrate)
+    n, l = getrates(X, k, prewhite)
     ## Prewhite if necessary
-    !prewhite || ((X, D) = pre_white(X))
-    !prewhite || (N -= 1)
-    xm = X*w
+    !prewhite || ((X::Array{Float64,2}, D) = pre_white(X))
+    gr = growthrate(k)
+    N = n + ifelse(prewhite, 1, 0)
+    bw_neweywest(k, X, w, l, gr, n, N)
+  end
+
+  function bw_neweywest(k, X, w, l, gr, n, N)
+    #!prewhite || (n = (N - 1)::Int)
+    xm = Array{Float64}(n)
+    A_mul_B!(xm, X, w)
 
     ## Calculate truncated variance
-    a = map(j -> dot(xm[1:N-j], xm[j+1:N])/N, 0:l)
-
-    a0 = a[1] + 2*sum(a[2:end])
-    a1 = 2*sum((1:l) .* a[2:end])
-    a2 = 2*sum((1:l).^2 .* a[2:end])
-
-    bwnw(k, a0, a1, a2)*(N + ifelse(prewhite, 1, 0))^growthrate(k)
+    a = map(j -> dot(xm[1:n-j], xm[j+1:n])/n, 0:l)::Array{Float64, 1}
+    aa = view(a, 2:l+1)
+    a0 = a[1] + 2*sum(aa)
+    a1 = 2*sum((1:l) .* aa)
+    a2 = 2*sum((1:l).^2 .* aa)
+    bwnw(k, a0, a1, a2)*N^gr
 end
 
 
 ## -> Optimal bandwidth API
 
 function stdregweights(r::DataFrameRegressionModel)
-  nc = length(coef(r))
+  nc = length(coef(r))::Int
   w = ones(nc)
   "(Intercept)" ∈ coefnames(r.mf) &&
   (w[find("(Intercept)" .== coefnames(r.mf))] = 0)
