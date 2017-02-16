@@ -1,5 +1,5 @@
 function k_tr{T}(x::T)
-    if(isnan(x) || abs(x)<= one(T))
+    if(isnan(x) || abs(x)<= one(1))
         return one(Float64)
     else
         return zero(Float64)
@@ -10,7 +10,7 @@ function k_bt{T}(x::T)
     if isnan(x)
         one(Float64)
     end
-    float(max(one(T)-abs(x), zero(T)))
+    float(max(one(1)-abs(x), zero(1)))
 end
 
 function k_pr{T}(x::T)
@@ -52,35 +52,56 @@ end
 
 ##############################################################################
 ##
-## Optimal band-width
+## Optimal bandwidth
 ##
 ##############################################################################
-type TruncatedKernel <: HAC
-  kernel::Function
-  bw::Function
+
+abstract BandwidthType{G}
+abstract OptimalBandwidth
+
+immutable NeweyWest <: OptimalBandwidth end
+immutable Andrews <: OptimalBandwidth end
+
+
+immutable Fixed   <: BandwidthType end
+immutable Optimal{G<:OptimalBandwidth} <: BandwidthType{G} end
+
+immutable TruncatedKernel{G<:BandwidthType, F<:Function} <: HAC{G}
+  kernel::F
+  bwtype::G
+  bw::Array{Float64, 1}
+  weights::Array{Float64,1}
 end
 
-type BartlettKernel <: HAC
-  kernel::Function
-  bw::Function
+immutable BartlettKernel{G<:BandwidthType, F<:Function} <: HAC{G}
+    kernel::F
+    bwtype::G
+    bw::Array{Float64, 1}
+    weights::Array{Float64,1}
 end
 
-type ParzenKernel <: HAC
-  kernel::Function
-  bw::Function
+immutable ParzenKernel{G<:BandwidthType, F<:Function} <: HAC{G}
+    kernel::F
+    bwtype::G
+    bw::Array{Float64, 1}
+    weights::Array{Float64,1}
 end
 
-type TukeyHanningKernel <: HAC
-  kernel::Function
-  bw::Function
+immutable TukeyHanningKernel{G<:BandwidthType, F<:Function} <: HAC{G}
+    kernel::F
+    bwtype::G
+    bw::Array{Float64, 1}
+    weights::Array{Float64,1}
 end
 
-type QuadraticSpectralKernel <: HAC
-  kernel::Function
-  bw::Function
+immutable QuadraticSpectralKernel{G<:BandwidthType, F<:Function} <: HAC{G}
+    kernel::F
+    bwtype::G
+    bw::Array{Float64, 1}
+    weights::Array{Float64,1}
 end
 
-type VARHAC <: HAC
+immutable VARHAC <: HAC
     imax::Int64
     ilag::Int64
     imodel::Int64
@@ -92,24 +113,40 @@ typealias PRK ParzenKernel
 typealias THK TukeyHanningKernel
 typealias QSK QuadraticSpectralKernel
 
-TruncatedKernel()                   = TRK(k_tr, optimalbw_ar_one)
-BartlettKernel()                    = BTK(k_bt, optimalbw_ar_one)
-ParzenKernel()                      = PRK(k_pr, optimalbw_ar_one)
-TukeyHanningKernel()                = THK(k_th, optimalbw_ar_one)
-QuadraticSpectralKernel()           = QSK(k_qs, optimalbw_ar_one)
+Optimal() = Optimal{Andrews}()
 
-TruncatedKernel(bw::Number)         = TRK(k_tr, (x, k) -> float(bw))
-BartlettKernel(bw::Number)          = BTK(k_bt, (x, k) -> float(bw))
-ParzenKernel(bw::Number)            = PRK(k_pr, (x, k) -> float(bw))
-TukeyHanningKernel(bw::Number)      = THK(k_th, (x, k) -> float(bw))
-QuadraticSpectralKernel(bw::Number) = QSK(k_qs, (x, k) -> float(bw))
+TruncatedKernel() = TRK(k_tr, Optimal(), Array{Float64}(1), Array{Float64}(0))
+BartlettKernel() = BTK(k_bt, Optimal(), Array{Float64}(1), Array{Float64}(0))
+ParzenKernel() = PRK(k_pr, Optimal(), Array{Float64}(1), Array{Float64}(0))
+TukeyHanningKernel() = THK(k_th, Optimal(), Array{Float64}(1), Array{Float64}(0))
+QuadraticSpectralKernel() = QSK(k_qs, Optimal(), Array{Float64}(1), Array{Float64}(0))
 
-VARHAC()                            = VARHAC(2, 2, 1)
-VARHAC(imax::Int64)                 = VARHAC(imax, 2, 1)
 
-function bandwidth(k::HAC, X::AbstractMatrix)
-  return floor(k.bw(X, k))
-end
+BartlettKernel(x::Type{NeweyWest}) = BTK(k_bt, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
+ParzenKernel(x::Type{NeweyWest}) = PRK(k_pr, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
+QuadraticSpectralKernel(x::Type{NeweyWest}) = QSK(k_qs, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
+TukeyHanningKernel(x::Type{NeweyWest}) = error("Newey-West optimal bandwidth does not support TukeyHanningKernel")
+TruncatedKernel(x::Type{NeweyWest}) = error("Newey-West optimal bandwidth does not support TuncatedKernel")
+
+TruncatedKernel(x::Type{Andrews}) = TRK(k_tr, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+BartlettKernel(x::Type{Andrews}) = BTK(k_bt, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+ParzenKernel(x::Type{Andrews}) = PRK(k_pr, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+TukeyHanningKernel(x::Type{Andrews}) = THK(k_th, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+QuadraticSpectralKernel(x::Type{Andrews}) = QSK(k_qs, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+
+
+TruncatedKernel(bw::Number) = TRK(k_tr, Fixed(), [float(bw)], Array{Float64}(0))
+BartlettKernel(bw::Number) = BTK(k_bt, Fixed(), [float(bw)], Array{Float64}(0))
+ParzenKernel(bw::Number) = PRK(k_pr, Fixed(), [float(bw)], Array{Float64}(0))
+TukeyHanningKernel(bw::Number) = THK(k_th, Fixed(), [float(bw)], Array{Float64}(0))
+QuadraticSpectralKernel(bw::Number) = QSK(k_qs, Fixed(), [float(bw)], Array{Float64}(0))
+
+VARHAC() = VARHAC(2, 2, 1)
+VARHAC(imax::Int64) = VARHAC(imax, 2, 1)
+
+
+bandwidth{G<:Fixed}(k::HAC{G}, X::AbstractMatrix) = k.bw
+bandwidth{G<:Andrews}(k::HAC{Optimal{G}}, X::AbstractMatrix) = bwAndrews(k, )
 
 function bandwidth(k::QuadraticSpectralKernel, X::AbstractMatrix)
     return k.bw(X, k)
@@ -137,48 +174,105 @@ function Γ(X::AbstractMatrix, j::Int64)
 end
 
 vcov(X::AbstractMatrix, k::VARHAC) = varhac(X, k.imax, k.ilag, k.imodel)
-
-function vcov(X::AbstractMatrix, k::HAC; prewhite::Bool = true)
+ 
+function vcov(X::AbstractMatrix, k::HAC, bw, D, prewhite::Bool)
     n, p = size(X)
-    !prewhite || ((X, D) = pre_white(X))
-    bw = bandwidth(k, X)
-    Q  = zeros(eltype(X), p, p)
-    for j=-bw:bw
-        Base.BLAS.axpy!(kernel(k, j/bw), Γ(X, Int(j)), Q)
+    Q  = zeros(p, p)
+    for j in -floor(Int, bw):floor(Int, bw)
+        Base.BLAS.axpy!(kernel(k, j/bw), Γ(X, j), Q)
     end
     Base.LinAlg.copytri!(Q, 'U')
     if prewhite
         Q[:] = D*Q*D'
+        n += 1
     end
     return scale!(Q, 1/n)
 end
 
-function vcov(X::AbstractMatrix, k::QuadraticSpectralKernel; prewhite::Bool = true)
+function vcov(X::AbstractMatrix, k::QuadraticSpectralKernel, bw, D, prewhite::Bool)
     n, p = size(X)
-    !prewhite || ((X, D) = pre_white(X))
-    bw = bandwidth(k, X)
-    Q = zeros(eltype(X), p, p)
-    for j=-n:n
-        Base.BLAS.axpy!(kernel(k, j/bw), Γ(X, Int(j)), Q)
+    Q  = zeros(p, p)
+    for j in -n:n
+        Base.BLAS.axpy!(kernel(k, j/bw), Γ(X, j), Q)
     end
     Base.LinAlg.copytri!(Q, 'U')
     if prewhite
         Q[:] = D*Q*D'
+        n += 1
     end
     return scale!(Q, 1/n)
 end
 
-vcov(x::DataFrameRegressionModel, k::HAC; args...) = vcov(x.model, k; args...)
-
-function vcov(ll::LinPredModel, k::HAC; args...)
-    B = meat(ll, k; args...)
-    A = bread(ll)
-    scale!(A*B*A, 1/nobs(ll))
+function vcov(X::AbstractMatrix, k::HAC{Fixed}; prewhite::Bool=true)
+    D = I
+    !prewhite || ((X, D) = pre_white(X))
+    bw = k.bw[1]
+    vcov(X, k, bw, D, prewhite)
 end
 
-function meat(l::LinPredModel,  k::HAC; args...)
+function vcov{T<:Fixed}(X::AbstractMatrix, k::HAC{Optimal{T}}; prewhite::Bool=true)
+    p = size(X, 2)
+    D = I
+    !prewhite || ((X, D) = pre_white(X))
+    #isempty(k.weights) && (k.weights = ones(p))
+    bw = optimal_bw(X, k, T(), ones(p), prewhite)
+    vcov(X, k, bw, D, prewhite)
+end
+
+function vcov{T<:OptimalBandwidth}(X::AbstractMatrix, k::HAC{Optimal{T}}; prewhite::Bool=true)
+    p = size(X, 2)
+    D = I
+    !prewhite || ((X, D) = pre_white(X))
+    if isempty(k.weights)
+        for j in 1:p
+            push!(k.weights, 1.0)
+        end
+    end
+    bw = optimal_bw(X, k, T(), k.weights, prewhite)
+    vcov(X, k, bw, D, prewhite)
+end
+
+function vcov{T<:OptimalBandwidth}(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...)
+    p = size(r.model.pp.X, 2)
+    for j in coefnames(r.mf)
+        if j == "(Intercept)"
+            push!(k.weights, 0.0)
+        else
+            push!(k.weights, 1.0)
+        end
+    end
+    # w = ones(p)
+    # "(Intercept)" ∈ coefnames(r.mf) && (w[find("(Intercept)" .== coefnames(r.mf))] = 0)
+    # k.weights = w
+    vcov(r.model, k; args...)
+end
+
+vcov{T<:Fixed}(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...) = vcov(r.model, k; args...)
+
+vcov(r::DataFrameRegressionModel, k::VARHAC) = vcov(r.model, k)
+
+function vcov(l::LinPredModel, k::VARHAC)
+    B = meat(l, k)
+    A = bread(l)
+    scale!(A*B*A, 1/nobs(l))
+end
+
+function vcov(l::LinPredModel, k::HAC; args...)
+    B = meat(l, k; args...)
+    A = bread(l)
+    scale!(A*B*A, 1/nobs(l))
+end
+
+function meat(l::LinPredModel, k::HAC; args...)
     u = wrkresidwts(l.rr)
     X = ModelMatrix(l)
     z = X.*u
     vcov(z, k; args...)
+end
+
+function meat(l::LinPredModel, k::VARHAC)
+    u = wrkresidwts(l.rr)
+    X = ModelMatrix(l)
+    z = X.*u
+    vcov(z, k)
 end

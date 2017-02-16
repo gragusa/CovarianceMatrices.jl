@@ -25,7 +25,7 @@ clotting = DataFrame(
     u    = log([5,10,15,20,30,40,60,80,100]),
     lot1 = [118,58,42,35,27,25,21,19,18],
     lot2 = [69,35,26,21,18,16,13,12,12],
-    w    = [1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
+    w    = 9.*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
 )
 
 ## Unweighted OLS though GLM interface
@@ -54,13 +54,13 @@ St5 = St4
 @test abs(maximum(S4m .- St4m)) < 1e-03
 @test abs(maximum(S5 .- St5)) < 1e-03
 
-M0 = meat(OLS.model, HC0())
-M1 = meat(OLS.model, HC1())
-M2 = meat(OLS.model, HC2())
-M3 = meat(OLS.model, HC3())
-M4 = meat(OLS.model, HC4())
-M4m = meat(OLS.model, HC4m())
-M5 = meat(OLS.model, HC5())
+M0 = CovarianceMatrices.meat(OLS.model, HC0())
+M1 = CovarianceMatrices.meat(OLS.model, HC1())
+M2 = CovarianceMatrices.meat(OLS.model, HC2())
+M3 = CovarianceMatrices.meat(OLS.model, HC3())
+M4 = CovarianceMatrices.meat(OLS.model, HC4())
+M4m = CovarianceMatrices.meat(OLS.model, HC4m())
+M5 = CovarianceMatrices.meat(OLS.model, HC5())
 
 Mt0 = [206.6103 518.7871; 518.7871 1531.173]
 Mt1 = [265.6418 667.012;  667.012 1968.651]
