@@ -200,14 +200,14 @@ function vcov(X::AbstractMatrix, k::QuadraticSpectralKernel, bw, D, prewhite::Bo
   return scale!(Q, 1/n)
 end
 
-function vcov(X::AbstractMatrix, k::HAC{Fixed}; prewhite=true)
+function vcov(X::AbstractMatrix, k::HAC{Fixed}; prewhite::Bool=true)
     D = I
     !prewhite || ((X, D) = pre_white(X))
     bw = k.bw[1]
     vcov(X, k, bw, D, prewhite)
 end
 
-function vcov(X::AbstractMatrix, k::HAC{Optimal{Andrews}}; prewhite=true)
+function vcov(X::AbstractMatrix, k::HAC{Optimal{Andrews}}; prewhite::Bool=true)
     p = size(X, 2)
     D = I
     !prewhite || ((X, D) = pre_white(X))
@@ -216,7 +216,7 @@ function vcov(X::AbstractMatrix, k::HAC{Optimal{Andrews}}; prewhite=true)
     vcov(X, k, bw, D, prewhite)
 end
 
-function vcov(X::AbstractMatrix, k::HAC{Optimal{NeweyWest}}; prewhite=true)
+function vcov(X::AbstractMatrix, k::HAC{Optimal{NeweyWest}}; prewhite::Bool=true)
     p = size(X, 2)
     D = I
     !prewhite || ((X, D) = pre_white(X))
