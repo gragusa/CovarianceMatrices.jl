@@ -83,8 +83,8 @@ lagtruncation(k::BartlettKernel) = 2/9
 lagtruncation(k::ParzenKernel) = 4/25
 lagtruncation(k::QuadraticSpectralKernel) = 2/25
 
-bwnw(k::TruncatedKernel, s0, s1, s2) = error("Newey-West optimal bandwidth does not support TuncatedKernel")
-bwnw(k::TukeyHanningKernel, s0, s1, s2) = error("Newey-West optimal bandwidth does not support TukeyHanningKernel")
+# bwnw(k::TruncatedKernel, s0, s1, s2) = error("Newey-West optimal bandwidth does not support TuncatedKernel")
+# bwnw(k::TukeyHanningKernel, s0, s1, s2) = error("Newey-West optimal bandwidth does not support TukeyHanningKernel")
 bwnw(k::BartlettKernel, s0, s1, s2) = 1.1447*((s1/s0)^2)^growthrate(k)
 bwnw(k::ParzenKernel, s0, s1, s2) = 2.6614*((s2/s0)^2)^growthrate(k)
 bwnw(k::QuadraticSpectralKernel, s0, s1, s2) = 1.3221*((s2/s0)^2)^growthrate(k)

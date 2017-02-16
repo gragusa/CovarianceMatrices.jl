@@ -121,15 +121,19 @@ ParzenKernel() = PRK(k_pr, Optimal(), Array{Float64}(1), Array{Float64}(0))
 TukeyHanningKernel() = THK(k_th, Optimal(), Array{Float64}(1), Array{Float64}(0))
 QuadraticSpectralKernel() = QSK(k_qs, Optimal(), Array{Float64}(1), Array{Float64}(0))
 
+
 BartlettKernel(x::Type{NeweyWest}) = BTK(k_bt, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
 ParzenKernel(x::Type{NeweyWest}) = PRK(k_pr, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
-TukeyHanningKernel(x::Type{NeweyWest}) = THK(k_th, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
 QuadraticSpectralKernel(x::Type{NeweyWest}) = QSK(k_qs, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
+TukeyHanningKernel(x::Type{NeweyWest}) = error("Newey-West optimal bandwidth does not support TukeyHanningKernel")
+TruncatedKernel(x::Type{NeweyWest}) = error("Newey-West optimal bandwidth does not support TuncatedKernel")
 
+TruncatedKernel(x::Type{Andrews}) = TRK(k_tr, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
 BartlettKernel(x::Type{Andrews}) = BTK(k_bt, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
 ParzenKernel(x::Type{Andrews}) = PRK(k_pr, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
 TukeyHanningKernel(x::Type{Andrews}) = THK(k_th, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
 QuadraticSpectralKernel(x::Type{Andrews}) = QSK(k_qs, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+
 
 TruncatedKernel(bw::Number) = TRK(k_tr, Fixed(), [float(bw)], Array{Float64}(0))
 BartlettKernel(bw::Number) = BTK(k_bt, Fixed(), [float(bw)], Array{Float64}(0))
