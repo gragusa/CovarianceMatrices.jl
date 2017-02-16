@@ -174,8 +174,7 @@ function Γ(X::AbstractMatrix, j::Int64)
 end
 
 vcov(X::AbstractMatrix, k::VARHAC) = varhac(X, k.imax, k.ilag, k.imodel)
-
-
+ 
 function vcov(X::AbstractMatrix, k::HAC, bw, D, prewhite::Bool)
     n, p = size(X)
     Q  = zeros(p, p)
@@ -249,9 +248,6 @@ function vcov{T<:OptimalBandwidth}(r::DataFrameRegressionModel, k::HAC{Optimal{T
 end
 
 vcov{T<:Fixed}(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...) = vcov(r.model, k; args...)
-
-
-
 
 vcov(r::DataFrameRegressionModel, k::VARHAC) = vcov(r.model, k)
 
