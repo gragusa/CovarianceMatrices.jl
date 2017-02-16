@@ -82,23 +82,25 @@ Vt = [0.00384234   -0.000305152   0.000189532
 @test_approx_eq_eps V Vt 1e-8
 
 
-@test CovarianceMatrices.bwAndrews(lm1, BartlettKernel()) ≈ 1.79655260917
-@test CovarianceMatrices.bwAndrews(lm1, TruncatedKernel()) ≈ 0.923095757094
-@test CovarianceMatrices.bwAndrews(lm1, ParzenKernel()) ≈ 3.71612017536
-@test CovarianceMatrices.bwAndrews(lm1, QuadraticSpectralKernel()) ≈ 1.84605188391
 
-@test CovarianceMatrices.bwAndrews(lm1, BartlettKernel(), prewhite = true) ≈ 0.547399170212
-@test CovarianceMatrices.bwAndrews(lm1, TruncatedKernel(), prewhite = true) ≈ 0.422530519468
-@test CovarianceMatrices.bwAndrews(lm1, ParzenKernel(), prewhite = true) ≈ 1.70098733098
-@test CovarianceMatrices.bwAndrews(lm1, QuadraticSpectralKernel(), prewhite = true) ≈ 0.844997125683
 
-@test CovarianceMatrices.bwNeweyWest(lm1, BartlettKernel(), prewhite = false) ≈ 3.23964297272935
-@test CovarianceMatrices.bwNeweyWest(lm1, ParzenKernel(), prewhite = false) ≈ 2.7987360579390486
-@test CovarianceMatrices.bwNeweyWest(lm1, QuadraticSpectralKernel(), prewhite = false) ≈ 1.390324243706777
+@test optimalbw(Andrews, BartlettKernel, lm1) ≈ 1.79655260917
+@test optimalbw(Andrews, TruncatedKernel, lm1) ≈ 0.923095757094
+@test optimalbw(Andrews, ParzenKernel, lm1) ≈ 3.71612017536
+@test optimalbw(Andrews, QuadraticSpectralKernel, lm1) ≈ 1.84605188391
 
-@test CovarianceMatrices.bwNeweyWest(lm1, BartlettKernel(), prewhite = true) ≈ 2.2830418148034246
-@test CovarianceMatrices.bwNeweyWest(lm1, ParzenKernel(), prewhite = true) ≈ 3.390825323658861
-@test CovarianceMatrices.bwNeweyWest(lm1, QuadraticSpectralKernel(), prewhite = true) ≈ 1.6844556099832346
+@test optimalbw(Andrews, BartlettKernel, lm1, prewhite = true) ≈ 0.547399170212
+@test optimalbw(Andrews, TruncatedKernel, lm1, prewhite = true) ≈ 0.422530519468
+@test optimalbw(Andrews, ParzenKernel, lm1, prewhite = true) ≈ 1.70098733098
+@test optimalbw(Andrews, QuadraticSpectralKernel, lm1, prewhite = true) ≈ 0.844997125683
+
+@test optimalbw(NeweyWest, BartlettKernel, lm1, prewhite = false) ≈ 3.23964297272935
+@test optimalbw(NeweyWest, ParzenKernel, lm1, prewhite = false) ≈ 2.7987360579390486
+@test optimalbw(NeweyWest, QuadraticSpectralKernel, lm1, prewhite = false) ≈ 1.390324243706777
+
+@test optimalbw(NeweyWest, BartlettKernel, lm1, prewhite = true) ≈ 2.2830418148034246
+@test optimalbw(NeweyWest, ParzenKernel, lm1, prewhite = true) ≈ 3.390825323658861
+@test optimalbw(NeweyWest, QuadraticSpectralKernel, lm1, prewhite = true) ≈ 1.6844556099832346
 
 
 V = vcov(lm1, VARHAC(1,1,1))

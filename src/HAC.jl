@@ -52,7 +52,7 @@ end
 
 ##############################################################################
 ##
-## Optimal band-width
+## Optimal bandwidth
 ##
 ##############################################################################
 
@@ -207,24 +207,23 @@ function vcov(X::AbstractMatrix, k::HAC{Fixed}; prewhite::Bool=true)
     vcov(X, k, bw, D, prewhite)
 end
 
-function vcov(X::AbstractMatrix, k::HAC{Optimal{Andrews}}; prewhite::Bool=true)
+function vcov{T<:OptimalBandwidth}(X::AbstractMatrix, k::HAC{Optimal{T}}; prewhite::Bool=true)
     p = size(X, 2)
     D = I
     !prewhite || ((X, D) = pre_white(X))
     isempty(k.weights) && (k.weights = ones(p))
-    bw = bwAndrews(X, k, prewhite)
+    bw = optimal_bw(X, k, T(), k.weights, prewhite)
     vcov(X, k, bw, D, prewhite)
 end
 
-function vcov(X::AbstractMatrix, k::HAC{Optimal{NeweyWest}}; prewhite::Bool=true)
-    p = size(X, 2)
-    D = I
-    !prewhite || ((X, D) = pre_white(X))
-    isempty(k.weights) && (k.weights = ones(p))
-    bw = bwNeweyWest(X, k, prewhite)
-    vcov(X, k, bw, D, prewhite)
-end
-
+# function vcov(X::AbstractMatrix, k::HAC{Optimal{NeweyWest}}; prewhite::Bool=true)
+#     p = size(X, 2)
+#     D = I
+#     !prewhite || ((X, D) = pre_white(X))
+#     isempty(k.weights) && (k.weights = ones(p))
+#     bw = bwNeweyWest(X, k, prewhite)
+#     vcov(X, k, bw, D, prewhite)
+# end
 
 function vcov(r::DataFrameRegressionModel, k::HAC; args...)
   p = size(r.model.pp.X, 2)
@@ -233,6 +232,7 @@ function vcov(r::DataFrameRegressionModel, k::HAC; args...)
   vcov(r.model, k; args...)
 end
 
+
 vcov(r::DataFrameRegressionModel, k::VARHAC) = vcov(r.model, k)
 
 function vcov(l::LinPredModel, k::VARHAC)
@@ -240,7 +240,6 @@ function vcov(l::LinPredModel, k::VARHAC)
   A = bread(l)
   scale!(A*B*A, 1/nobs(l))
 end
-
 
 function vcov(l::LinPredModel, k::HAC; args...)
   B = meat(l, k; args...)

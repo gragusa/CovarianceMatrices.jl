@@ -23,7 +23,7 @@ const sixπ = 6*π
 
 export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel,
        TukeyHanningKernel, VARHAC, HC0, HC1, HC2, HC3, HC4, HC4m, HC5, CRHC0, CRHC1,
-       CRHC2, CRHC3, RobustVariance, vcov, kernel, bread, meat, bwAndrews, NeweyWest, Andrews
+       CRHC2, CRHC3, vcov, NeweyWest, Andrews, optimalbw
 
 type HC0  <: HC end
 type HC1  <: HC end

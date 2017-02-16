@@ -54,13 +54,13 @@ St5 = St4
 @test abs(maximum(S4m .- St4m)) < 1e-03
 @test abs(maximum(S5 .- St5)) < 1e-03
 
-M0 = meat(OLS.model, HC0())
-M1 = meat(OLS.model, HC1())
-M2 = meat(OLS.model, HC2())
-M3 = meat(OLS.model, HC3())
-M4 = meat(OLS.model, HC4())
-M4m = meat(OLS.model, HC4m())
-M5 = meat(OLS.model, HC5())
+M0 = CovarianceMatrices.meat(OLS.model, HC0())
+M1 = CovarianceMatrices.meat(OLS.model, HC1())
+M2 = CovarianceMatrices.meat(OLS.model, HC2())
+M3 = CovarianceMatrices.meat(OLS.model, HC3())
+M4 = CovarianceMatrices.meat(OLS.model, HC4())
+M4m = CovarianceMatrices.meat(OLS.model, HC4m())
+M5 = CovarianceMatrices.meat(OLS.model, HC5())
 
 Mt0 = [206.6103 518.7871; 518.7871 1531.173]
 Mt1 = [265.6418 667.012;  667.012 1968.651]

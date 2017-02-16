@@ -50,23 +50,26 @@ end
 
 ar{T}(Y::AbstractArray{T, 2}) = ar(Y, 1)
 
-d_bw_andrews = Dict(:TruncatedKernel         => :(0.6611*(a2*N)^(0.2)),
-                    :BartlettKernel          => :(1.1447*(a1*N)^(1/3)),
-                    :ParzenKernel            => :(2.6614*(a2*N)^(0.2)),
-                    :QuadraticSpectralKernel => :(1.3221*(a2*N)^(0.2)))
-
-for tty in [:TruncatedKernel, :BartlettKernel, :ParzenKernel, :QuadraticSpectralKernel]
-    @eval $:(bw_andrews)(k::($tty), a1, a2, N) = $(d_bw_andrews[tty])
-end
 
 function pre_white(X::AbstractMatrix)
     X, D = olsvar(X)
     (X, inv(I-D))
 end
 
+
+## ---> Andrews Optimal bandwidth <---
+
+d_bw_andrews = Dict(:TruncatedKernel         => :(0.6611*(a2*N)^(0.2)),
+                    :BartlettKernel          => :(1.1447*(a1*N)^(1/3)),
+                    :ParzenKernel            => :(2.6614*(a2*N)^(0.2)),
+                    :TukeyHanningKernel      => :(1.7462*(a2*N)^(0.2)),
+                    :QuadraticSpectralKernel => :(1.3221*(a2*N)^(0.2)))
+
+for tty in [:TruncatedKernel, :BartlettKernel, :ParzenKernel, :TukeyHanningKernel, :QuadraticSpectralKernel]
+    @eval $:(bw_andrews)(k::($tty), a1, a2, N) = $(d_bw_andrews[tty])
+end
+
 function getalpha(X::AbstractMatrix, approx::Symbol, w::Vector)
-    ## @assert approx == :ar ## || approx == :arma
-    ## if approx == :ar
     ρ, σ² = ar(X)
     σ⁴ = (σ²).^2
     nm = 4.*ρ.^2.*σ⁴./((1-ρ).^6.*(1+ρ).^2)
@@ -74,41 +77,31 @@ function getalpha(X::AbstractMatrix, approx::Symbol, w::Vector)
     α₁ = sum(w.*nm)/sum(w.*dn)
     nm = 4.*ρ.^2.*σ⁴./(1-ρ).^8
     α₂ = sum(w.*nm)/sum(w.*dn)
-    ## elseif approx == :arma  [TODO]
-    ## end
     return α₁, α₂
 end
 
-function optimalbw_ar_one(X::AbstractMatrix, k::TruncatedKernel)
-    T, p = size(X)
-    a1, a2 = getalpha(X, :ar, ones(p))
-    return .6611*(a2*T)^(1/5)
-end
 
-function optimalbw_ar_one(X::AbstractMatrix, k::BartlettKernel)
-    T, p = size(X)
-    a1, a2 = getalpha(X, :ar, ones(p))
-    return 1.1447*(a1*T)^(1/3)
-end
+## --> Newey-West Optimal bandwidth <---
+growthrate(k::HAC) = 1/5
+growthrate(k::BartlettKernel) = 1/3
+lagtruncation(k::BartlettKernel) = 2/9
+lagtruncation(k::ParzenKernel) = 4/25
+lagtruncation(k::QuadraticSpectralKernel) = 2/25
 
-function optimalbw_ar_one(X::AbstractMatrix, k::ParzenKernel)
-    T, p = size(X)
-    a1, a2 = getalpha(X, :ar, ones(p))
-    return 2.6614*(a2*T)^(1/5)
-end
+bwnw(k::TruncatedKernel, s0, s1, s2) = error("Newey-West optimal bandwidth does not support TuncatedKernel")
+bwnw(k::TukeyHanningKernel, s0, s1, s2) = error("Newey-West optimal bandwidth does not support TukeyHanningKernel")
+bwnw(k::BartlettKernel, s0, s1, s2) = 1.1447*((s1/s0)^2)^growthrate(k)
+bwnw(k::ParzenKernel, s0, s1, s2) = 2.6614*((s2/s0)^2)^growthrate(k)
+bwnw(k::QuadraticSpectralKernel, s0, s1, s2) = 1.3221*((s2/s0)^2)^growthrate(k)
 
-function optimalbw_ar_one(X::AbstractMatrix, k::QuadraticSpectralKernel)
-    T, p = size(X)
-    a1, a2 = getalpha(X, :ar, ones(p))
-    return 1.3221*(a2*T)^(1/5)
-end
+## --> Interface
+
+
+
 
 function bwAndrews{T}(X::Array{T, 2}, k::HAC, prewhite::Bool)
-    !prewhite || ((X, D) = pre_white(X))
-    N, p  = size(X)
-    isempty(k.weights) && (k.weights = ones(p))
-    a1, a2 = getalpha(X, :ar, k.weights)
-    return bw_andrews(k, a1, a2, N)
+  isempty(k.weights) && (k.weights = ones(p))
+  bwAndrews(X, k, k.weights, prewhite)
 end
 
 function bwAndrews{T}(X::Array{T, 2}, k::HAC, w::Vector, prewhite::Bool)
@@ -118,42 +111,32 @@ function bwAndrews{T}(X::Array{T, 2}, k::HAC, w::Vector, prewhite::Bool)
     return bw_andrews(k, a1, a2, N)
 end
 
-function bwAndrews(r::DataFrameRegressionModel, k::HAC; prewhite::Bool = false)
+
+function bwAndrews(r::DataFrameRegressionModel, k::HAC, w::Array, prewhite::Bool)
     u = wrkresidwts(r.model.rr)
     X = ModelMatrix(r.model)
     z = X.*u
     p = size(z, 2)
-    w = ones(p)
-    "(Intercept)" ∈ coefnames(r.mf) &&
-    (w[find("(Intercept)" .== coefnames(r.mf))] = 0)
+    # w = ones(p)
+    # "(Intercept)" ∈ coefnames(r.mf) &&
+    # (w[find("(Intercept)" .== coefnames(r.mf))] = 0)
     bwAndrews(z, k, w, prewhite)
 end
 
-growthrate(k::HAC) = 1/5
-growthrate(k::BartlettKernel) = 1/3
-lagtruncation(k::BartlettKernel) = 2/9
-lagtruncation(k::ParzenKernel) = 4/25
-lagtruncation(k::QuadraticSpectralKernel) = 2/25
-
-bwnw(k::TruncatedKernel, s0, s1, s2) = error("truncatd kernel not supported")
-bwnw(k::BartlettKernel, s0, s1, s2) = 1.1447*((s1/s0)^2)^growthrate(k)
-bwnw(k::ParzenKernel, s0, s1, s2) = 2.6614*((s2/s0)^2)^growthrate(k)
-bwnw(k::QuadraticSpectralKernel, s0, s1, s2) = 1.3221*((s2/s0)^2)^growthrate(k)
 
 
-
-function bwNeweyWest(r::DataFrameRegressionModel, k::HAC; prewhite::Bool = false)
+function bwNeweyWest(r::DataFrameRegressionModel, k::HAC, w::Array, prewhite::Bool)
     u = wrkresidwts(r.model.rr)
     X = ModelMatrix(r.model)
     z = X.*u
     p = size(z, 2)
-    w = ones(p)
-    "(Intercept)" ∈ coefnames(r.mf) &&
-    (w[find("(Intercept)" .== coefnames(r.mf))] = 0)
     bwNeweyWest(z, k, w, prewhite)
 end
 
-bwNeweyWest{T}(X::Array{T, 2}, k::HAC, prewhite::Bool) = bwNeweyWest(X, k, k.weights, prewhite)
+function bwNeweyWest{T}(X::Array{T, 2}, k::HAC, prewhite::Bool)
+  isempty(k.weights) && (k.weights = ones(p))
+  bwAndrews(X, k, k.weights, prewhite)
+end
 
 function bwNeweyWest{T}(X::Array{T, 2}, k::HAC, w::Vector, prewhite::Bool)
     N, p = size(X)
@@ -175,3 +158,33 @@ function bwNeweyWest{T}(X::Array{T, 2}, k::HAC, w::Vector, prewhite::Bool)
 
     bwnw(k, a0, a1, a2)*(N + ifelse(prewhite, 1, 0))^growthrate(k)
 end
+
+
+## -> Optimal bandwidth API
+
+function stdregweights(r::DataFrameRegressionModel)
+  nc = length(coef(r))
+  w = ones(nc)
+  "(Intercept)" ∈ coefnames(r.mf) &&
+  (w[find("(Intercept)" .== coefnames(r.mf))] = 0)
+  w
+end
+
+optimal_bw(X::Matrix, k::HAC, t::NeweyWest, w::Array, prewhite::Bool) = bwNeweyWest(X, k, w, prewhite)
+optimal_bw(X::Matrix, k::HAC, t::Andrews, w::Array, prewhite::Bool) = bwAndrews(X, k, w, prewhite)
+
+optimal_bw(r::DataFrame, k::HAC, t::NeweyWest, w::Array, prewhite::Bool) = bwNeweyWest(r, k, w, prewhite)
+optimal_bw(r::DataFrame, k::HAC, t::Andrews, w::Array, prewhite::Bool) = bwAndrews(r, k, w, prewhite)
+
+
+optimalbw{K<:HAC, T}(t::Type{NeweyWest}, k::Type{K}, X::Matrix{T};
+                      prewhite::Bool = false, weights = ones(size(X,2))) = bwNeweyWest(X, k(), weights, prewhite)
+
+optimalbw{K<:HAC, T}(t::Type{Andrews}, k::Type{K}, X::Matrix{T};
+                      prewhite::Bool = false, weights = ones(size(X,2))) = bwAndrews(X, k(), weights, prewhite)
+
+optimalbw{K<:HAC}(t::Type{NeweyWest}, k::Type{K}, r::DataFrameRegressionModel;
+                      prewhite::Bool = false, weights = stdregweights(r)) = bwNeweyWest(r, k(), weights, prewhite)
+
+optimalbw{K<:HAC}(t::Type{Andrews}, k::Type{K}, r::DataFrameRegressionModel;
+                      prewhite::Bool = false, weights = stdregweights(r)) = bwAndrews(r, k(), weights, prewhite)
