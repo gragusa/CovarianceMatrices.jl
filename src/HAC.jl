@@ -252,9 +252,6 @@ stderr(x::DataFrameRegressionModel, k::HAC; kwargs...) = sqrt.(diag(vcov(x, k; k
 
 
 
-
-
-
 vcov(r::DataFrameRegressionModel, k::VARHAC) = vcov(r.model, k)
 
 function vcov(l::LinPredModel, k::VARHAC)
