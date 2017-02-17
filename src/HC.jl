@@ -100,9 +100,17 @@ function meat(l::LinPredModel,  k::HC)
     scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(l))
 end
 
-vcov(x::DataFrameRegressionModel, k::RobustVariance) = vcov(x.model, k)
-stderr(x::DataFrameRegressionModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
-stderr(x::LinPredModel, k::RobustVariance) = sqrt(diag(vcov(x, k)))
+vcov(x::DataFrameRegressionModel, k::HC) = vcov(x.model, k)
+
+vcov{T<:RobustVariance}(x::DataFrameRegressionModel, k::Type{T}) = vcov(x.model, k())
+
+stderr{T<:HC}(x::DataFrameRegressionModel, k::Type{T}) = sqrt(diag(vcov(x, k())))
+
+stderr{T<:CRHC}(x::DataFrameRegressionModel, k::T) = sqrt(diag(vcov(x, k)))
+
+stderr(x::DataFrameRegressionModel, k::HC) = sqrt(diag(vcov(x, k)))
+
+stderr(x::LinPredModel, k::HC) = sqrt(diag(vcov(x, k)))
 
 ################################################################################
 ## Cluster
