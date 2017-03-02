@@ -9,7 +9,7 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
 
 ## Installation
 
-The package is registered on [METADATA](http::/github.com/JuliaLang/METADATA.jl), so installing it amounts to issue
+The package is registered on [METADATA](http::/github.com/JuliaLang/METADATA.jl), so to install
 ```julia
 Pkg.add("CovarianceMatrices")
 ```
@@ -20,11 +20,11 @@ This package provides types and methods useful to obtain consistent estimates of
 
 Three classes of estimators are considered:
 
-1. **HAC** - heteroskedasticity and autocorrelation consistent (Andrews, 1996; Newey and West)
+1. **HAC** - heteroskedasticity and autocorrelation consistent (Andrews, 1996; Newey and West, 1994)
 2. **HC**  - hetheroskedasticity (White, 1982)
 3. **CRVE** - cluster robust (Arellano, 1986)
 
-The typical application of these estimators is in inference about the parameters of a models. Accordingly, this package extends methods defined in [StatsBase.jl](http://github.com/JuliaStat/StatsBase.jl) and [GLM.jl](http://github.com/JuliaStat/GLM.jl) to make it easy obtaining inference that is robust to heteroskedasticity and/or autocorrelation, or presence of cluster components.
+The typical application of these estimators is to conduct robust inference about parameters of a model. This is accomplished by extending methods defined in [StatsBase.jl](http://github.com/JuliaStat/StatsBase.jl) and [GLM.jl](http://github.com/JuliaStat/GLM.jl).
 
 # Quick tour
 
@@ -40,16 +40,16 @@ Available kernel types are:
 
 For example, `ParzenKernel(NeweyWest)` return an instance of `TruncatedKernel` parametrized by `NeweyWest`, the type that corresponds to the optimal bandwidth calculated following Newey and West (1994).  Similarly, `ParzenKernel(Andrews)` corresponds to the optimal bandwidth obtained in Andrews (1991). If the bandwidth is known, it can be directly passed, i.e. `TruncatedKernel(2)`.
 
-The examples below hopefully clarify the API, that is however relatively simple to use.
+The examples below clarify the API, that is however relatively easy to use.
 
 ### Long run variance of the regression coefficient
 
-In the regression context, the function `vcov` does all the work. Its API` is
+In the regression context, the function `vcov` does all the work:
 ```julia
 vcov(::DataFrameRegressionModel, ::HAC; prewhite = true)
 ```
 
-The example below, describe a typical call to it on a regression model on generated data (a regression with autoregressive error component):
+Consider the following artificial data (a regression with autoregressive error component):
 ```julia
 using CovarianceMatrices
 using DataFrames
@@ -76,11 +76,11 @@ Using the data in `df`, the coefficient of the regression can be estimated using
 lm1 = glm(y~x1+x2+x3+x4+x5, df, Normal(), IdentityLink())
 ```
 
-To get a consistent estimate of the long run variance of the estimated coefficient using a Quadratic Spectral kernel with automatic bandwidth selection a la' Andrews
+To get a consistent estimate of the long run variance of the estimated coefficients using a Quadratic Spectral kernel with automatic bandwidth selection  _à la_ Andrews
 ```julia
 vcov(lm1, QuadraticSpectralKernel(Andrews), prewhite = false)
 ```
-If one wants to estimate the long-time variance using the same kernel, but with a bandwidth selected a la' Newey-West
+If one wants to estimate the long-time variance using the same kernel, but with a bandwidth selected _à la_ Newey-West
 ```julia
 vcov(lm1, QuadraticSpectralKernel(NeweyWest), prewhite = false)
 ```
@@ -88,7 +88,7 @@ The standard errors can be obtained by the `stderr` function
 ```julia
 vcov(::DataFrameRegressionModel, ::HAC; prewhite = true)
 ```
-Sometime is useful to access the bandwidth automatically selected. This can be done using the `optimalbw`
+Sometime is useful to access the bandwidth selected by the automatic procedures. This can be done using the `optimalbw` function
 ```julia
 optimalbw(NeweyWest, QuadraticSpectralKernel, lm1; prewhite = false)
 optimalbw(Andrews, QuadraticSpectralKernel, lm1; prewhite = false)
@@ -96,7 +96,7 @@ optimalbw(Andrews, QuadraticSpectralKernel, lm1; prewhite = false)
 
 ### Long run variance of the average of the process
 
-Sometime is of interest estimating the long-run variance of the average of the process. At the moment this can be done by carrying out a regression on a constant (the sample mean of the realization of the process) and using `vcov` or `stderr` to obtain a consistent variance.
+Sometime interest lies in estimating the long-run variance of the average of the process. At the moment this can be done by carrying out a regression on a constant (the sample mean of the realization of the process) and using `vcov` or `stderr` to obtain a consistent variance.
 
 ```julia
 lm2 = glm(u~1, df, Normal(), IdentityLink())
@@ -147,7 +147,7 @@ vcov(wOLS, HC5)
 ```
 
 ## CRHC (Cluster robust heteroskedasticty consistent)
-The API of this class of variance estimators is subject to change, so please use with care. In particular, since the `CRHC` type needs to know with variable is used for clustering---a good way pass it must be thought out. For the moment, the following approach works --- as long as no missing values are present in the original dataframe.
+The API of this class of variance estimators is subject to change, so please use with care. The difficulty is that `CRHC` type needs to have access to the variable along which dimension the clustering mast take place. For the moment, the following approach works --- as long as no missing values are present in the original dataframe.
 
 ```julia
 using RDatasets
