@@ -14,6 +14,18 @@ The package is registered on [METADATA](http::/github.com/JuliaLang/METADATA.jl)
 Pkg.add("CovarianceMatrices")
 ```
 
+---
+
+### v0.6 version
+
+A version compatible with the upcoming release of Julia is available but is not registered yet. You can use it by checking it out using the following sequence of commands:
+
+```julia
+Pkg.add("CovarianceMatrices")
+Pkg.checkout("CovarianceMatrices", "v0.6")
+
+---
+
 ## Introduction
 
 This package provides types and methods useful to obtain consistent estimates of the long run covariance matrix of a random process.
@@ -84,11 +96,11 @@ If one wants to estimate the long-time variance using the same kernel, but with 
 ```julia
 vcov(lm1, QuadraticSpectralKernel(NeweyWest), prewhite = false)
 ```
-The standard errors can be obtained by the `stderr` function
+The standard errors can be obtained by the `stderr` method
 ```julia
-vcov(::DataFrameRegressionModel, ::HAC; prewhite = true)
+stderr(::DataFrameRegressionModel, ::HAC; prewhite::Bool)
 ```
-Sometime is useful to access the bandwidth selected by the automatic procedures. This can be done using the `optimalbw` function
+Sometime is useful to access the bandwidth selected by the automatic procedures. This can be done using the `optimalbw` method
 ```julia
 optimalbw(NeweyWest, QuadraticSpectralKernel, lm1; prewhite = false)
 optimalbw(Andrews, QuadraticSpectralKernel, lm1; prewhite = false)
