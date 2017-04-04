@@ -62,7 +62,7 @@ end
 immutable NeweyWest <: OptimalBandwidth end
 immutable Andrews <: OptimalBandwidth end
 
-immutable Fixed <: BandwidthType end
+immutable Fixed{G} <: BandwidthType{G} end
 immutable Optimal{G<:OptimalBandwidth} <: BandwidthType{G} end
 
 immutable TruncatedKernel{G<:BandwidthType, F<:Function} <: HAC{G}
