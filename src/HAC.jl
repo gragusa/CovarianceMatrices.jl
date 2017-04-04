@@ -100,7 +100,7 @@ immutable QuadraticSpectralKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     weights::Array{Float64,1}
 end
 
-immutable VARHAC <: HAC{G}
+immutable VARHAC <: HAC{G<:BandwidthType}
     imax::Int64
     ilag::Int64
     imodel::Int64
