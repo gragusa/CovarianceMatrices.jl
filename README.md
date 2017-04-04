@@ -23,7 +23,7 @@ A version compatible with the upcoming release of Julia is available but is not 
 ```julia
 Pkg.add("CovarianceMatrices")
 Pkg.checkout("CovarianceMatrices", "v0.6")
-
+```
 ---
 
 ## Introduction
