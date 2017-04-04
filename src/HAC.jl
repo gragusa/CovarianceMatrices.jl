@@ -56,13 +56,13 @@ end
 ##
 ##############################################################################
 
-@compat type abstract BandwidthType{G} end
-@compat type abstract OptimalBandwidth end
+@compat abstract type BandwidthType{G} end
+@compat abstract type OptimalBandwidth end
 
 immutable NeweyWest <: OptimalBandwidth end
 immutable Andrews <: OptimalBandwidth end
 
-immutable Fixed   <: BandwidthType end
+immutable Fixed <: BandwidthType end
 immutable Optimal{G<:OptimalBandwidth} <: BandwidthType{G} end
 
 immutable TruncatedKernel{G<:BandwidthType, F<:Function} <: HAC{G}
