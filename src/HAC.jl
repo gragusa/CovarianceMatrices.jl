@@ -62,8 +62,8 @@ end
 immutable NeweyWest <: OptimalBandwidth end
 immutable Andrews <: OptimalBandwidth end
 
-immutable Fixed{G} <: BandwidthType{G} end
-immutable Optimal{G<:OptimalBandwidth} <: BandwidthType{G} end
+immutable Fixed <: BandwidthType{G where G} end
+immutable Optimal{G<:OptimalBandwidth} <: BandwidthType{G where G<:OptimalBandwidth} end
 
 immutable TruncatedKernel{G<:BandwidthType, F<:Function} <: HAC{G}
   kernel::F
@@ -100,7 +100,7 @@ immutable QuadraticSpectralKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     weights::Array{Float64,1}
 end
 
-immutable VARHAC{G} 
+immutable VARHAC{G}
     imax::Int64
     ilag::Int64
     imodel::Int64
