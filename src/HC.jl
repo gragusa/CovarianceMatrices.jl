@@ -104,13 +104,13 @@ vcov(x::DataFrameRegressionModel, k::HC) = vcov(x.model, k)
 
 vcov{T<:RobustVariance}(x::DataFrameRegressionModel, k::Type{T}) = vcov(x.model, k())
 
-stderr{T<:HC}(x::DataFrameRegressionModel, k::Type{T}) = sqrt(diag(vcov(x, k())))
+stderr{T<:HC}(x::DataFrameRegressionModel, k::Type{T}) = sqrt.(diag(vcov(x, k())))
 
-stderr{T<:CRHC}(x::DataFrameRegressionModel, k::T) = sqrt(diag(vcov(x, k)))
+stderr{T<:CRHC}(x::DataFrameRegressionModel, k::T) = sqrt.(diag(vcov(x, k)))
 
-stderr(x::DataFrameRegressionModel, k::HC) = sqrt(diag(vcov(x, k)))
+stderr(x::DataFrameRegressionModel, k::HC) = sqrt.(diag(vcov(x, k)))
 
-stderr(x::LinPredModel, k::HC) = sqrt(diag(vcov(x, k)))
+stderr(x::LinPredModel, k::HC) = sqrt.(diag(vcov(x, k)))
 
 ################################################################################
 ## Cluster
