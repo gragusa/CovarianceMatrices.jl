@@ -230,10 +230,10 @@ S3 = stderr(OLS, CRHC3(cl))
 ## STATA
 St1 = [.0374668, .0497666, .0472636, .0437952, .0513613, .0435369]
 
-@test maximum(abs(S0 .- St1)) < 1e-02
-@test maximum(abs(S1 .- St1)) < 1e-04
-@test maximum(abs(S2 .- St1)) < 1e-02
-@test maximum(abs(S3 .- St1)) < 1e-02
+@test maximum(abs.(S0 .- St1)) < 1e-02
+@test maximum(abs.(S1 .- St1)) < 1e-04
+@test maximum(abs.(S2 .- St1)) < 1e-02
+@test maximum(abs.(S3 .- St1)) < 1e-02
 
 
 wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
@@ -248,7 +248,7 @@ St1 = [0.042839848169137905,0.04927285387211425,
        0.05229519531359171,0.041417170723876025,
        0.04748115282615204,0.04758615959662984]
 
-@test maximum(abs(S1 .- St1)) < 1e-10
+@test maximum(abs.(S1 .- St1)) < 1e-10
 
 ############################################################
 ## Linear Model

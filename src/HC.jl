@@ -50,7 +50,7 @@ nclus(k::CRHC) = length(unique(k.cl))
 npars(x::LinPredModel) = length(x.pp.beta0)
 
 function bread(lp::LinPredModel)
-    A = inv(cholfact(lp.pp))::Array{Float64,2}
+    A = inv(cholfact(lp.pp))::Array{Float64}(2)
     scale!(A, nobs(lp))
 end
 
@@ -118,7 +118,7 @@ stderr(x::LinPredModel, k::HC) = sqrt.(diag(vcov(x, k)))
 
 function clusterize!(M, U, bstarts)
     k, k = size(M)
-    s = Array(Float64, k)
+    s = Array{Float64}{k)
     for m = 1:length(bstarts)
         @simd for i = 1:k
             @inbounds s[i] = zero(Float64)
@@ -175,7 +175,7 @@ function meat(x::LinPredModel, v::CRHC)
     idx = sortperm(v.cl)
     cls = v.cl[idx]
     #ichol = inv(x.pp.chol)
-    ichol  = inv(cholfact(x.pp))::Array{Float64,2}
+    ichol  = inv(cholfact(x.pp))::Array{Float64}(2)
     X = ModelMatrix(x)[idx,:]
     e = wrkresid(x.rr)[idx]
     w = wrkwts(x.rr)
@@ -192,7 +192,7 @@ function meat(x::LinPredModel, v::CRHC)
 end
 
 function vcov(x::LinPredModel, v::CRHC)
-    B = bread(x)::Array{Float64,2}
-    M = meat(x, v)::Array{Float64,2}
+    B = bread(x)::Array{Float64}(2)
+    M = meat(x, v)::Array{Float64}(2)
     scale!(B*M*B, 1/nobs(x))
 end
