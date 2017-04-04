@@ -4,7 +4,7 @@ function vcov(X::AbstractMatrix, v::HC)
     return scale!(XX, 1/N)
 end
 
-typealias GenLinMod GeneralizedLinearModel
+const GenLinMod=GeneralizedLinearModel
 
 adjfactor!(u, l::LinPredModel, k::HC0) = u[:] = one(Float64)
 adjfactor!(u, l::LinPredModel, k::HC1) = u[:] = _nobs(l)./_df_residual(l)
