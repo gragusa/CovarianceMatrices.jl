@@ -46,13 +46,13 @@ St4 = [2538.746 -667.9597; -667.9597 177.2631]
 St4m= [3221.095 -849.648 ; -849.648 226.1705]
 St5 = St4
 
-@test abs(maximum(S0 .- St0)) < 1e-04
-@test abs(maximum(S1 .- St1)) < 1e-04
-@test abs(maximum(S2 .- St2)) < 1e-04
-@test abs(maximum(S3 .- St3)) < 1e-04
-@test abs(maximum(S4 .- St4)) < 1e-03
-@test abs(maximum(S4m .- St4m)) < 1e-03
-@test abs(maximum(S5 .- St5)) < 1e-03
+@test abs.(maximum(S0 .- St0)) < 1e-04
+@test abs.(maximum(S1 .- St1)) < 1e-04
+@test abs.(maximum(S2 .- St2)) < 1e-04
+@test abs.(maximum(S3 .- St3)) < 1e-04
+@test abs.(maximum(S4 .- St4)) < 1e-03
+@test abs.(maximum(S4m .- St4m)) < 1e-03
+@test abs.(maximum(S5 .- St5)) < 1e-03
 
 M0 = CovarianceMatrices.meat(OLS.model, HC0())
 M1 = CovarianceMatrices.meat(OLS.model, HC1())
@@ -70,13 +70,13 @@ Mt4 = [531.1047 1110.762; 1110.762 2783.269]
 Mt4m= [669.8647 1412.227; 1412.227 3603.247]
 Mt5 = Mt4
 
-@test abs(maximum(M0 .- Mt0)) < 1e-04
-@test abs(maximum(M1 .- Mt1)) < 1e-04
-@test abs(maximum(M2 .- Mt2)) < 1e-04
-@test abs(maximum(M3 .- Mt3)) < 1e-03
-@test abs(maximum(M4 .- Mt4)) < 1e-03
-@test abs(maximum(M4m .- Mt4m)) < 1e-03
-@test abs(maximum(M5 .- Mt5)) < 1e-03
+@test abs.(maximum(M0 .- Mt0)) < 1e-04
+@test abs.(maximum(M1 .- Mt1)) < 1e-04
+@test abs.(maximum(M2 .- Mt2)) < 1e-04
+@test abs.(maximum(M3 .- Mt3)) < 1e-03
+@test abs.(maximum(M4 .- Mt4)) < 1e-03
+@test abs.(maximum(M4m .- Mt4m)) < 1e-03
+@test abs.(maximum(M5 .- Mt5)) < 1e-03
 
 ## Unweighted
 OLS = glm(@formula(lot1~u),clotting, Normal(), IdentityLink())
@@ -105,13 +105,13 @@ St4 = [3969.913 -1131.358; -1131.358 342.2859]
 St4m= [4111.626 -1103.174; -1103.174   310.194]
 St5 = St4
 
-@test abs(maximum(S0 .- St0)) < 1e-04
-@test abs(maximum(S1 .- St1)) < 1e-04
-@test abs(maximum(S2 .- St2)) < 1e-03
-@test abs(maximum(S3 .- St3)) < 1e-03
-@test abs(maximum(S4 .- St4)) < 1e-03
-@test abs(maximum(S4m .- St4m)) < 1e-03
-@test abs(maximum(S5 .- St5)) < 1e-03
+@test abs.(maximum(S0 .- St0)) < 1e-04
+@test abs.(maximum(S1 .- St1)) < 1e-04
+@test abs.(maximum(S2 .- St2)) < 1e-03
+@test abs.(maximum(S3 .- St3)) < 1e-03
+@test abs.(maximum(S4 .- St4)) < 1e-03
+@test abs.(maximum(S4m .- St4m)) < 1e-03
+@test abs.(maximum(S5 .- St5)) < 1e-03
 
 ## Unweighted GLM - Gamma
 GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
@@ -143,13 +143,13 @@ St4m= [8.49306e-05 -2.43618e-05; -2.43618e-05  7.04210e-06]
 
 St5 = St4
 
-@test abs(maximum(S0 .- St0)) < 1e-06
-@test abs(maximum(S1 .- St1)) < 1e-06
-@test abs(maximum(S2 .- St2)) < 1e-06
-@test abs(maximum(S3 .- St3)) < 1e-06
-@test abs(maximum(S4 .- St4)) < 1e-06
-@test abs(maximum(S4m .- St4m)) < 1e-05
-@test abs(maximum(S5 .- St5)) < 1e-05
+@test abs.(maximum(S0 .- St0)) < 1e-06
+@test abs.(maximum(S1 .- St1)) < 1e-06
+@test abs.(maximum(S2 .- St2)) < 1e-06
+@test abs.(maximum(S3 .- St3)) < 1e-06
+@test abs.(maximum(S4 .- St4)) < 1e-06
+@test abs.(maximum(S4m .- St4m)) < 1e-05
+@test abs.(maximum(S5 .- St5)) < 1e-05
 
 ## Weighted Gamma
 
@@ -183,13 +183,13 @@ St4m = [8.493064e-05 -2.436180e-05; -2.436180e-05  7.042101e-06]
 St5 = St4
 
 
-@test abs(maximum(S0 .- St0)) < 1e-06
-@test abs(maximum(S1 .- St1)) < 1e-06
-@test abs(maximum(S2 .- St2)) < 1e-06
-@test abs(maximum(S3 .- St3)) < 1e-06
-@test abs(maximum(S4 .- St4)) < 1e-06
-@test abs(maximum(S4m .- St4m)) < 1e-05
-@test abs(maximum(S5 .- St5)) < 1e-05
+@test abs.(maximum(S0 .- St0)) < 1e-06
+@test abs.(maximum(S1 .- St1)) < 1e-06
+@test abs.(maximum(S2 .- St2)) < 1e-06
+@test abs.(maximum(S3 .- St3)) < 1e-06
+@test abs.(maximum(S4 .- St4)) < 1e-06
+@test abs.(maximum(S4m .- St4m)) < 1e-05
+@test abs.(maximum(S5 .- St5)) < 1e-05
 
 
 ### Cluster basic interface
@@ -258,8 +258,8 @@ y = randn(100);
 x = randn(100, 5);
 
 lm1 = lm(x, y)
-@test_approx_eq_eps stderr(lm1, HC0()) [0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651] 1e-06
-@test_approx_eq_eps diag(vcov(lm1, HC0())) [0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651].^2 1e-06
+@test stderr(lm1, HC0())≈[0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651] atol=1e-06
+@test diag(vcov(lm1, HC0()))≈[0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651].^2 atol=1e-06
 
 ############################################################
 ## HAC

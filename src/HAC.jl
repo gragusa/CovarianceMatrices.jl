@@ -68,36 +68,36 @@ immutable Optimal{G<:OptimalBandwidth} <: BandwidthType{G where G<:OptimalBandwi
 immutable TruncatedKernel{G<:BandwidthType, F<:Function} <: HAC{G}
   kernel::F
   bwtype::G
-  bw::Array{Float64, 1}
-  weights::Array{Float64,1}
+  bw::Array{Float64}{1}
+  weights::Array{Float64}{1}
 end
 
 immutable BartlettKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     kernel::F
     bwtype::G
-    bw::Array{Float64, 1}
-    weights::Array{Float64,1}
+    bw::Array{Float64}{1}
+    weights::Array{Float64}{1}
 end
 
 immutable ParzenKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     kernel::F
     bwtype::G
-    bw::Array{Float64, 1}
-    weights::Array{Float64,1}
+    bw::Array{Float64}{1}
+    weights::Array{Float64}{1}
 end
 
 immutable TukeyHanningKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     kernel::F
     bwtype::G
-    bw::Array{Float64, 1}
-    weights::Array{Float64,1}
+    bw::Array{Float64}{1}
+    weights::Array{Float64}{1}
 end
 
 immutable QuadraticSpectralKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     kernel::F
     bwtype::G
-    bw::Array{Float64, 1}
-    weights::Array{Float64,1}
+    bw::Array{Float64}{1}
+    weights::Array{Float64}{1}
 end
 
 immutable VARHAC{G}
