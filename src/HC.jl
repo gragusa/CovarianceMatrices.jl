@@ -76,7 +76,7 @@ wrkresid(r::GLM.LmResp) = r.y-r.mu
 
 function weightedModelMatrix(l::LinPredModel)
     w = wrkwts(l.rr)
-    length(w) > 0 ? ModelMatrix(l).*sqrt(w) : copy(ModelMatrix(l))
+    length(w) > 0 ? ModelMatrix(l).*sqrt.(w) : copy(ModelMatrix(l))
 end
 
 function hatmatrix(l::LinPredModel)
@@ -163,7 +163,7 @@ _adjresid!(v::CRHC, X, e, ichol, bstarts, c::Float64) = scale!(c, _adjresid!(v::
 function scalar_adjustment(X, bstarts)
     n, k = size(X)
     g    = length(bstarts)
-    sqrt((n-1)/(n-k) * g/(g-1))
+    sqrt.((n-1)/(n-k) * g/(g-1))
 end
 
 adjresid!(v::CRHC0, X, e, ichol, bstarts) = identity(e)
@@ -181,8 +181,8 @@ function meat(x::LinPredModel, v::CRHC)
     w = wrkwts(x.rr)
     if !isempty(w)
         w = w[idx]
-        broadcast!(*, X, X, sqrt(w))
-        broadcast!(*, e, e, sqrt(w))
+        broadcast!(*, X, X, sqrt.(w))
+        broadcast!(*, e, e, sqrt.(w))
     end
     bstarts = [searchsorted(cls, j[2]) for j in enumerate(unique(cls))]
     adjresid!(v, X, e, ichol, bstarts)
