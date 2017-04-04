@@ -22,14 +22,14 @@ X = randn(100, 5);
 
 # A Gamma example, from McCullagh & Nelder (1989, pp. 300-2)
 clotting = DataFrame(
-    u    = log([5,10,15,20,30,40,60,80,100]),
+    u    = log.([5,10,15,20,30,40,60,80,100]),
     lot1 = [118,58,42,35,27,25,21,19,18],
     lot2 = [69,35,26,21,18,16,13,12,12],
     w    = 9.*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
 )
 
 ## Unweighted OLS though GLM interface
-OLS = fit(GeneralizedLinearModel, lot1~u,clotting, Normal(), IdentityLink())
+OLS = fit(GeneralizedLinearModel, @formula(lot1~u),clotting, Normal(), IdentityLink())
 S0 = vcov(OLS, HC0())
 S1 = vcov(OLS, HC1())
 S2 = vcov(OLS, HC2())
@@ -79,7 +79,7 @@ Mt5 = Mt4
 @test abs(maximum(M5 .- Mt5)) < 1e-03
 
 ## Unweighted
-OLS = glm(lot1~u,clotting, Normal(), IdentityLink())
+OLS = glm(@formula(lot1~u),clotting, Normal(), IdentityLink())
 S0 = vcov(OLS, HC0())
 S1 = vcov(OLS, HC1())
 S2 = vcov(OLS, HC2())
@@ -87,7 +87,7 @@ S3 = vcov(OLS, HC3())
 S4 = vcov(OLS, HC4())
 
 ## Weighted OLS though GLM interface
-wOLS = fit(GeneralizedLinearModel, lot1~u, clotting, Normal(),
+wOLS = fit(GeneralizedLinearModel, @formula(lot1~u), clotting, Normal(),
            IdentityLink(), wts = Vector{Float64}(clotting[:w]))
 S0 = vcov(wOLS, HC0())
 S1 = vcov(wOLS, HC1())
@@ -114,7 +114,7 @@ St5 = St4
 @test abs(maximum(S5 .- St5)) < 1e-03
 
 ## Unweighted GLM - Gamma
-GAMMA = glm(lot1~u, clotting, Gamma(),InverseLink())
+GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
 
 S0 = vcov(GAMMA, HC0())
 S1 = vcov(GAMMA, HC1())
@@ -153,7 +153,7 @@ St5 = St4
 
 ## Weighted Gamma
 
-GAMMA = glm(lot1~u, clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[:w]))
+GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[:w]))
 
 S0 = vcov(GAMMA, HC0())
 S1 = vcov(GAMMA, HC1())
@@ -209,7 +209,7 @@ St5 = St4
 
 df = readtable("wols_test.csv")
 
-OLS = fit(GeneralizedLinearModel, Y~X1+X2+X3+X4+X5, df,
+OLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
           Normal(), IdentityLink())
 
 
@@ -236,7 +236,7 @@ St1 = [.0374668, .0497666, .0472636, .0437952, .0513613, .0435369]
 @test maximum(abs(S3 .- St1)) < 1e-02
 
 
-wOLS = fit(GeneralizedLinearModel, Y~X1+X2+X3+X4+X5, df,
+wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
           Normal(), IdentityLink(), wts = convert(Array, df[:w]))
 
 S0 = stderr(wOLS, CRHC0(cl))
