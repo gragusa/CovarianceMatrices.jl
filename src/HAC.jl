@@ -56,8 +56,8 @@ end
 ##
 ##############################################################################
 
-abstract BandwidthType{G}
-abstract OptimalBandwidth
+@compat abstract BandwidthType{G}
+@compat abstract OptimalBandwidth
 
 immutable NeweyWest <: OptimalBandwidth end
 immutable Andrews <: OptimalBandwidth end
@@ -107,11 +107,11 @@ immutable VARHAC <: HAC
     imodel::Int64
 end
 
-typealias TRK TruncatedKernel
-typealias BTK BartlettKernel
-typealias PRK ParzenKernel
-typealias THK TukeyHanningKernel
-typealias QSK QuadraticSpectralKernel
+const TRK=TruncatedKernel
+const BTK=BartlettKernel
+const PRK=ParzenKernel
+const THK=TukeyHanningKernel
+const QSK=QuadraticSpectralKernel
 
 Optimal() = Optimal{Andrews}()
 
