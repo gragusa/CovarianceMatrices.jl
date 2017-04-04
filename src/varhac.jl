@@ -27,7 +27,7 @@ function varhac(dat,imax,ilag,imodel)
 
     ddd      = dat[imax+1:nt, :]
     minres   = ddd
-    aic      = log(sum(minres.^2, 1))
+    aic      = log.(sum(minres.^2, 1))
     minorder = zeros(kdim, 2)
 
 
@@ -53,9 +53,9 @@ function varhac(dat,imax,ilag,imodel)
                         ## Compute the model selection criterion
                         npar = kdim*iorder
                         if imodel==1
-                            aicnew = log(sum(resid.^2, 1))+2*npar/(nt-imax)
+                            aicnew = log.(sum(resid.^2, 1))+2*npar/(nt-imax)
                         else
-                            aicnew = log(sum(resid.^2, 1))+log(nt-imax)*npar/(nt-imax)
+                            aicnew = log.(sum(resid.^2, 1))+log(nt-imax)*npar/(nt-imax)
                         end
                         if aicnew[1]<aic[k]
                             aic[k] = aicnew[1]
@@ -94,9 +94,9 @@ function varhac(dat,imax,ilag,imodel)
                         ## Compute the model selection criterion
                         npar = iorder
                         if imodel==1
-                            aicnew = log(sum(resid.^2, 1))+2*npar/(nt-imax);
+                            aicnew = log.(sum(resid.^2, 1))+2*npar/(nt-imax);
                         else
-                            aicnew = log(sum(resid.^2, 1))+log(nt-imax)*npar/(nt-imax);
+                            aicnew = log.(sum(resid.^2, 1))+log(nt-imax)*npar/(nt-imax);
                         end
 
                         if aicnew[1] < aic[k]
@@ -166,9 +166,9 @@ function varhac(dat,imax,ilag,imodel)
                         npar = iorder+iorder2*(kdim-1)
 
                         if imodel==1
-                            aicnew = log(sum(resid.^2, 1))+2*npar/(nt-imax);
+                            aicnew = log.(sum(resid.^2, 1))+2*npar/(nt-imax);
                         else
-                            aicnew = log(sum(resid.^2, 1))+log(nt-imax)*npar/(nt-imax);
+                            aicnew = log.(sum(resid.^2, 1))+log(nt-imax)*npar/(nt-imax);
                         end
                         #println(aic[k])
                         if aicnew[1]<aic[k]
@@ -201,8 +201,6 @@ function varhac(dat,imax,ilag,imodel)
             end
         end
     end
-
-
 
     ## COMPUTE THE VARHAC ESTIMATOR
     covar = minres'minres/(nt-imax)
