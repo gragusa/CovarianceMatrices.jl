@@ -118,7 +118,7 @@ stderr(x::LinPredModel, k::HC) = sqrt.(diag(vcov(x, k)))
 
 function clusterize!(M, U, bstarts)
     k, k = size(M)
-    s = Array{Float64}{k)
+    s = Array{Float64}(k)
     for m = 1:length(bstarts)
         @simd for i = 1:k
             @inbounds s[i] = zero(Float64)
