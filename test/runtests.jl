@@ -22,14 +22,14 @@ X = randn(100, 5);
 
 # A Gamma example, from McCullagh & Nelder (1989, pp. 300-2)
 clotting = DataFrame(
-    u    = log([5,10,15,20,30,40,60,80,100]),
+    u    = log.([5,10,15,20,30,40,60,80,100]),
     lot1 = [118,58,42,35,27,25,21,19,18],
     lot2 = [69,35,26,21,18,16,13,12,12],
     w    = 9.*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
 )
 
 ## Unweighted OLS though GLM interface
-OLS = fit(GeneralizedLinearModel, lot1~u,clotting, Normal(), IdentityLink())
+OLS = fit(GeneralizedLinearModel, @formula(lot1~u),clotting, Normal(), IdentityLink())
 S0 = vcov(OLS, HC0())
 S1 = vcov(OLS, HC1())
 S2 = vcov(OLS, HC2())
@@ -46,13 +46,13 @@ St4 = [2538.746 -667.9597; -667.9597 177.2631]
 St4m= [3221.095 -849.648 ; -849.648 226.1705]
 St5 = St4
 
-@test abs(maximum(S0 .- St0)) < 1e-04
-@test abs(maximum(S1 .- St1)) < 1e-04
-@test abs(maximum(S2 .- St2)) < 1e-04
-@test abs(maximum(S3 .- St3)) < 1e-04
-@test abs(maximum(S4 .- St4)) < 1e-03
-@test abs(maximum(S4m .- St4m)) < 1e-03
-@test abs(maximum(S5 .- St5)) < 1e-03
+@test abs.(maximum(S0 .- St0)) < 1e-04
+@test abs.(maximum(S1 .- St1)) < 1e-04
+@test abs.(maximum(S2 .- St2)) < 1e-04
+@test abs.(maximum(S3 .- St3)) < 1e-04
+@test abs.(maximum(S4 .- St4)) < 1e-03
+@test abs.(maximum(S4m .- St4m)) < 1e-03
+@test abs.(maximum(S5 .- St5)) < 1e-03
 
 M0 = CovarianceMatrices.meat(OLS.model, HC0())
 M1 = CovarianceMatrices.meat(OLS.model, HC1())
@@ -70,16 +70,16 @@ Mt4 = [531.1047 1110.762; 1110.762 2783.269]
 Mt4m= [669.8647 1412.227; 1412.227 3603.247]
 Mt5 = Mt4
 
-@test abs(maximum(M0 .- Mt0)) < 1e-04
-@test abs(maximum(M1 .- Mt1)) < 1e-04
-@test abs(maximum(M2 .- Mt2)) < 1e-04
-@test abs(maximum(M3 .- Mt3)) < 1e-03
-@test abs(maximum(M4 .- Mt4)) < 1e-03
-@test abs(maximum(M4m .- Mt4m)) < 1e-03
-@test abs(maximum(M5 .- Mt5)) < 1e-03
+@test abs.(maximum(M0 .- Mt0)) < 1e-04
+@test abs.(maximum(M1 .- Mt1)) < 1e-04
+@test abs.(maximum(M2 .- Mt2)) < 1e-04
+@test abs.(maximum(M3 .- Mt3)) < 1e-03
+@test abs.(maximum(M4 .- Mt4)) < 1e-03
+@test abs.(maximum(M4m .- Mt4m)) < 1e-03
+@test abs.(maximum(M5 .- Mt5)) < 1e-03
 
 ## Unweighted
-OLS = glm(lot1~u,clotting, Normal(), IdentityLink())
+OLS = glm(@formula(lot1~u),clotting, Normal(), IdentityLink())
 S0 = vcov(OLS, HC0())
 S1 = vcov(OLS, HC1())
 S2 = vcov(OLS, HC2())
@@ -87,7 +87,7 @@ S3 = vcov(OLS, HC3())
 S4 = vcov(OLS, HC4())
 
 ## Weighted OLS though GLM interface
-wOLS = fit(GeneralizedLinearModel, lot1~u, clotting, Normal(),
+wOLS = fit(GeneralizedLinearModel, @formula(lot1~u), clotting, Normal(),
            IdentityLink(), wts = Vector{Float64}(clotting[:w]))
 S0 = vcov(wOLS, HC0())
 S1 = vcov(wOLS, HC1())
@@ -105,16 +105,16 @@ St4 = [3969.913 -1131.358; -1131.358 342.2859]
 St4m= [4111.626 -1103.174; -1103.174   310.194]
 St5 = St4
 
-@test abs(maximum(S0 .- St0)) < 1e-04
-@test abs(maximum(S1 .- St1)) < 1e-04
-@test abs(maximum(S2 .- St2)) < 1e-03
-@test abs(maximum(S3 .- St3)) < 1e-03
-@test abs(maximum(S4 .- St4)) < 1e-03
-@test abs(maximum(S4m .- St4m)) < 1e-03
-@test abs(maximum(S5 .- St5)) < 1e-03
+@test abs.(maximum(S0 .- St0)) < 1e-04
+@test abs.(maximum(S1 .- St1)) < 1e-04
+@test abs.(maximum(S2 .- St2)) < 1e-03
+@test abs.(maximum(S3 .- St3)) < 1e-03
+@test abs.(maximum(S4 .- St4)) < 1e-03
+@test abs.(maximum(S4m .- St4m)) < 1e-03
+@test abs.(maximum(S5 .- St5)) < 1e-03
 
 ## Unweighted GLM - Gamma
-GAMMA = glm(lot1~u, clotting, Gamma(),InverseLink())
+GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
 
 S0 = vcov(GAMMA, HC0())
 S1 = vcov(GAMMA, HC1())
@@ -143,17 +143,17 @@ St4m= [8.49306e-05 -2.43618e-05; -2.43618e-05  7.04210e-06]
 
 St5 = St4
 
-@test abs(maximum(S0 .- St0)) < 1e-06
-@test abs(maximum(S1 .- St1)) < 1e-06
-@test abs(maximum(S2 .- St2)) < 1e-06
-@test abs(maximum(S3 .- St3)) < 1e-06
-@test abs(maximum(S4 .- St4)) < 1e-06
-@test abs(maximum(S4m .- St4m)) < 1e-05
-@test abs(maximum(S5 .- St5)) < 1e-05
+@test abs.(maximum(S0 .- St0)) < 1e-06
+@test abs.(maximum(S1 .- St1)) < 1e-06
+@test abs.(maximum(S2 .- St2)) < 1e-06
+@test abs.(maximum(S3 .- St3)) < 1e-06
+@test abs.(maximum(S4 .- St4)) < 1e-06
+@test abs.(maximum(S4m .- St4m)) < 1e-05
+@test abs.(maximum(S5 .- St5)) < 1e-05
 
 ## Weighted Gamma
 
-GAMMA = glm(lot1~u, clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[:w]))
+GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[:w]))
 
 S0 = vcov(GAMMA, HC0())
 S1 = vcov(GAMMA, HC1())
@@ -183,13 +183,13 @@ St4m = [8.493064e-05 -2.436180e-05; -2.436180e-05  7.042101e-06]
 St5 = St4
 
 
-@test abs(maximum(S0 .- St0)) < 1e-06
-@test abs(maximum(S1 .- St1)) < 1e-06
-@test abs(maximum(S2 .- St2)) < 1e-06
-@test abs(maximum(S3 .- St3)) < 1e-06
-@test abs(maximum(S4 .- St4)) < 1e-06
-@test abs(maximum(S4m .- St4m)) < 1e-05
-@test abs(maximum(S5 .- St5)) < 1e-05
+@test abs.(maximum(S0 .- St0)) < 1e-06
+@test abs.(maximum(S1 .- St1)) < 1e-06
+@test abs.(maximum(S2 .- St2)) < 1e-06
+@test abs.(maximum(S3 .- St3)) < 1e-06
+@test abs.(maximum(S4 .- St4)) < 1e-06
+@test abs.(maximum(S4m .- St4m)) < 1e-05
+@test abs.(maximum(S5 .- St5)) < 1e-05
 
 
 ### Cluster basic interface
@@ -209,7 +209,7 @@ St5 = St4
 
 df = readtable("wols_test.csv")
 
-OLS = fit(GeneralizedLinearModel, Y~X1+X2+X3+X4+X5, df,
+OLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
           Normal(), IdentityLink())
 
 
@@ -230,13 +230,13 @@ S3 = stderr(OLS, CRHC3(cl))
 ## STATA
 St1 = [.0374668, .0497666, .0472636, .0437952, .0513613, .0435369]
 
-@test maximum(abs(S0 .- St1)) < 1e-02
-@test maximum(abs(S1 .- St1)) < 1e-04
-@test maximum(abs(S2 .- St1)) < 1e-02
-@test maximum(abs(S3 .- St1)) < 1e-02
+@test maximum(abs.(S0 .- St1)) < 1e-02
+@test maximum(abs.(S1 .- St1)) < 1e-04
+@test maximum(abs.(S2 .- St1)) < 1e-02
+@test maximum(abs.(S3 .- St1)) < 1e-02
 
 
-wOLS = fit(GeneralizedLinearModel, Y~X1+X2+X3+X4+X5, df,
+wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
           Normal(), IdentityLink(), wts = convert(Array, df[:w]))
 
 S0 = stderr(wOLS, CRHC0(cl))
@@ -248,7 +248,7 @@ St1 = [0.042839848169137905,0.04927285387211425,
        0.05229519531359171,0.041417170723876025,
        0.04748115282615204,0.04758615959662984]
 
-@test maximum(abs(S1 .- St1)) < 1e-10
+@test maximum(abs.(S1 .- St1)) < 1e-10
 
 ############################################################
 ## Linear Model
@@ -258,8 +258,8 @@ y = randn(100);
 x = randn(100, 5);
 
 lm1 = lm(x, y)
-@test_approx_eq_eps stderr(lm1, HC0()) [0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651] 1e-06
-@test_approx_eq_eps diag(vcov(lm1, HC0())) [0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651].^2 1e-06
+@test stderr(lm1, HC0())≈[0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651] atol=1e-06
+@test diag(vcov(lm1, HC0()))≈[0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651].^2 atol=1e-06
 
 ############################################################
 ## HAC

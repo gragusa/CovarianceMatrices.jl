@@ -3,11 +3,12 @@ module CovarianceMatrices
 
 using Reexport
 using PDMats
+using Compat
 
-abstract RobustVariance
-abstract HAC{G}  <: RobustVariance
-abstract HC   <: RobustVariance
-abstract CRHC <: RobustVariance
+@compat abstract type RobustVariance end
+@compat abstract type HAC{G} <: RobustVariance end
+@compat abstract type HC <: RobustVariance end
+@compat abstract type CRHC <: RobustVariance end
 
 @reexport using GLM
 @reexport using DataFrames
@@ -33,7 +34,7 @@ type HC4  <: HC end
 type HC4m <: HC end
 type HC5  <: HC end
 
-typealias CLVector{T<:Integer} DenseArray{T,1}
+@compat CLVector{T<:Integer} = DenseArray{T,1}
 
 type CRHC0{V<:CLVector}  <: CRHC
     cl::V

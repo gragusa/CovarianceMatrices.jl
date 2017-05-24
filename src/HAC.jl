@@ -56,62 +56,61 @@ end
 ##
 ##############################################################################
 
-abstract BandwidthType{G}
-abstract OptimalBandwidth
+@compat abstract type BandwidthType{G} end
+@compat abstract type OptimalBandwidth end
 
 immutable NeweyWest <: OptimalBandwidth end
 immutable Andrews <: OptimalBandwidth end
 
-
-immutable Fixed   <: BandwidthType end
-immutable Optimal{G<:OptimalBandwidth} <: BandwidthType{G} end
+immutable Fixed <: BandwidthType{G where G} end
+immutable Optimal{G<:OptimalBandwidth} <: BandwidthType{G where G<:OptimalBandwidth} end
 
 immutable TruncatedKernel{G<:BandwidthType, F<:Function} <: HAC{G}
   kernel::F
   bwtype::G
-  bw::Array{Float64, 1}
-  weights::Array{Float64,1}
+  bw::Array{Float64}{1}
+  weights::Array{Float64}{1}
 end
 
 immutable BartlettKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     kernel::F
     bwtype::G
-    bw::Array{Float64, 1}
-    weights::Array{Float64,1}
+    bw::Array{Float64}{1}
+    weights::Array{Float64}{1}
 end
 
 immutable ParzenKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     kernel::F
     bwtype::G
-    bw::Array{Float64, 1}
-    weights::Array{Float64,1}
+    bw::Array{Float64}{1}
+    weights::Array{Float64}{1}
 end
 
 immutable TukeyHanningKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     kernel::F
     bwtype::G
-    bw::Array{Float64, 1}
-    weights::Array{Float64,1}
+    bw::Array{Float64}{1}
+    weights::Array{Float64}{1}
 end
 
 immutable QuadraticSpectralKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     kernel::F
     bwtype::G
-    bw::Array{Float64, 1}
-    weights::Array{Float64,1}
+    bw::Array{Float64}{1}
+    weights::Array{Float64}{1}
 end
 
-immutable VARHAC <: HAC
+immutable VARHAC
     imax::Int64
     ilag::Int64
     imodel::Int64
 end
 
-typealias TRK TruncatedKernel
-typealias BTK BartlettKernel
-typealias PRK ParzenKernel
-typealias THK TukeyHanningKernel
-typealias QSK QuadraticSpectralKernel
+const TRK=TruncatedKernel
+const BTK=BartlettKernel
+const PRK=ParzenKernel
+const THK=TukeyHanningKernel
+const QSK=QuadraticSpectralKernel
 
 Optimal() = Optimal{Andrews}()
 
