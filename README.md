@@ -16,16 +16,6 @@ Pkg.add("CovarianceMatrices")
 
 ---
 
-### v0.6 version
-
-A version compatible with the upcoming release of Julia is available but is not registered yet. You can use it by checking it out using the following sequence of commands:
-
-```julia
-Pkg.add("CovarianceMatrices")
-Pkg.checkout("CovarianceMatrices", "v0.6")
-```
----
-
 ## Introduction
 
 This package provides types and methods useful to obtain consistent estimates of the long run covariance matrix of a random process.
