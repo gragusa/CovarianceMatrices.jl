@@ -3,21 +3,19 @@ module CovarianceMatrices
 
 using Reexport
 using PDMats
-using Compat
 
-@compat abstract type RobustVariance end
-@compat abstract type HAC{G} <: RobustVariance end
-@compat abstract type HC <: RobustVariance end
-@compat abstract type CRHC <: RobustVariance end
+abstract type RobustVariance end
+abstract type HAC{G} <: RobustVariance end
+abstract type HC <: RobustVariance end
+abstract type CRHC <: RobustVariance end
 
 @reexport using GLM
 @reexport using DataFrames
-#@reexport using InstrumentalVariables
 
 import StatsBase: confint, stderr, vcov, nobs, residuals
 import GLM: LinPredModel, LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual
 import DataFrames: DataFrameRegressionModel
-#import InstrumentalVariables: IVResp, LinearIVModel, residuals
+
 
 const π²=π^2
 const sixπ = 6*π
@@ -34,21 +32,21 @@ type HC4  <: HC end
 type HC4m <: HC end
 type HC5  <: HC end
 
-@compat CLVector{T<:Integer} = DenseArray{T,1}
+#const CLVector{T<:Integer} = DenseArray{T,1}
 
-type CRHC0{V<:CLVector}  <: CRHC
+type CRHC0{V<:AbstractVector}  <: CRHC
     cl::V
 end
 
-type CRHC1{V<:CLVector}  <: CRHC
+type CRHC1{V<:AbstractVector}  <: CRHC
     cl::V
 end
 
-type CRHC2{V<:CLVector}  <: CRHC
+type CRHC2{V<:AbstractVector}  <: CRHC
     cl::V
 end
 
-type CRHC3{V<:CLVector}  <: CRHC
+type CRHC3{V<:AbstractVector}  <: CRHC
     cl::V
 end
 

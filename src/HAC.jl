@@ -56,8 +56,8 @@ end
 ##
 ##############################################################################
 
-@compat abstract type BandwidthType{G} end
-@compat abstract type OptimalBandwidth end
+abstract type BandwidthType{G} end
+abstract type OptimalBandwidth end
 
 immutable NeweyWest <: OptimalBandwidth end
 immutable Andrews <: OptimalBandwidth end
