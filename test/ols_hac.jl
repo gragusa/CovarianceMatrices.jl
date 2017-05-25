@@ -1,4 +1,4 @@
-nf = string(Pkg.dir("CovarianceMatrices"), "/test/ols_hac.csv")
+nf = joinpath(dirname(@__FILE__), "ols_hac.csv")
 df = readtable(nf)
 lm1 = glm(@formula(y~x+w), df, Normal(), IdentityLink())
 
