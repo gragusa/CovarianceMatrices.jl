@@ -142,9 +142,6 @@ function getqii(v::CRHC3, e, X, A, bstarts)
     return e
 end
 
-if VERSION < v"0.5.0"
-    Base.cholfact(A::Symmetric, args...) = cholfact(A.data, Symbol(A.uplo), args...)
-end
 
 function getqii(v::CRHC2, e, X, A, bstarts)
     @inbounds for j in 1:length(bstarts)
