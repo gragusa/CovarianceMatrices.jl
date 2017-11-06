@@ -1,4 +1,4 @@
-function k_tr{T}(x::T)
+function k_tr(x::T) where T
     if(isnan(x) || abs(x)<= one(1))
         return one(Float64)
     else
@@ -6,14 +6,14 @@ function k_tr{T}(x::T)
     end
 end
 
-function k_bt{T}(x::T)
+function k_bt(x::T) where T
     if isnan(x)
         one(Float64)
     end
     float(max(one(1)-abs(x), zero(1)))
 end
 
-function k_pr{T}(x::T)
+function k_pr(x::T) where T
     if isnan(x)
         one(Float64)
     end
@@ -27,7 +27,7 @@ function k_pr{T}(x::T)
     end
 end
 
-function k_qs{T <: Number}(x::T)
+function k_qs(x::T) where T <: Number
     if isnan(x)
         one(Float64)
     end
@@ -38,7 +38,7 @@ function k_qs{T <: Number}(x::T)
     end
 end
 
-function k_th{T <: Number}(x::T)
+function k_th(x::T) where T <: Number
     if isnan(x)
         one(Float64)
     end
@@ -59,48 +59,48 @@ end
 abstract type BandwidthType{G} end
 abstract type OptimalBandwidth end
 
-immutable NeweyWest <: OptimalBandwidth end
-immutable Andrews <: OptimalBandwidth end
+struct NeweyWest <: OptimalBandwidth end
+struct Andrews <: OptimalBandwidth end
 
-immutable Fixed <: BandwidthType{G where G} end
-immutable Optimal{G<:OptimalBandwidth} <: BandwidthType{G where G<:OptimalBandwidth} end
+struct Fixed <: BandwidthType{G where G} end
+struct Optimal{G<:OptimalBandwidth} <: BandwidthType{G where G<:OptimalBandwidth} end
 
-immutable TruncatedKernel{G<:BandwidthType, F<:Function} <: HAC{G}
+struct TruncatedKernel{G<:BandwidthType, F<:Function} <: HAC{G}
   kernel::F
   bwtype::G
   bw::Array{Float64}{1}
   weights::Array{Float64}{1}
 end
 
-immutable BartlettKernel{G<:BandwidthType, F<:Function} <: HAC{G}
+struct BartlettKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     kernel::F
     bwtype::G
     bw::Array{Float64}{1}
     weights::Array{Float64}{1}
 end
 
-immutable ParzenKernel{G<:BandwidthType, F<:Function} <: HAC{G}
+struct ParzenKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     kernel::F
     bwtype::G
     bw::Array{Float64}{1}
     weights::Array{Float64}{1}
 end
 
-immutable TukeyHanningKernel{G<:BandwidthType, F<:Function} <: HAC{G}
+struct TukeyHanningKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     kernel::F
     bwtype::G
     bw::Array{Float64}{1}
     weights::Array{Float64}{1}
 end
 
-immutable QuadraticSpectralKernel{G<:BandwidthType, F<:Function} <: HAC{G}
+struct QuadraticSpectralKernel{G<:BandwidthType, F<:Function} <: HAC{G}
     kernel::F
     bwtype::G
     bw::Array{Float64}{1}
     weights::Array{Float64}{1}
 end
 
-immutable VARHAC
+struct VARHAC
     imax::Int64
     ilag::Int64
     imodel::Int64
@@ -144,8 +144,8 @@ VARHAC() = VARHAC(2, 2, 1)
 VARHAC(imax::Int64) = VARHAC(imax, 2, 1)
 
 
-bandwidth{G<:Fixed}(k::HAC{G}, X::AbstractMatrix) = k.bw
-bandwidth{G<:Andrews}(k::HAC{Optimal{G}}, X::AbstractMatrix) = bwAndrews(k, )
+bandwidth(k::HAC{G}, X::AbstractMatrix) where {G<:Fixed} = k.bw
+bandwidth(k::HAC{Optimal{G}}, X::AbstractMatrix) where {G<:Andrews} = bwAndrews(k, )
 
 function bandwidth(k::QuadraticSpectralKernel, X::AbstractMatrix)
     return k.bw(X, k)
@@ -209,7 +209,7 @@ function vcov(X::AbstractMatrix, k::HAC{Fixed}; prewhite::Bool=true)
     vcov(X, k, bw, D, prewhite)
 end
 
-function vcov{T<:Fixed}(X::AbstractMatrix, k::HAC{Optimal{T}}; prewhite::Bool=true)
+function vcov(X::AbstractMatrix, k::HAC{Optimal{T}}; prewhite::Bool=true) where T<:Fixed
     p = size(X, 2)
     D = I
     !prewhite || ((X, D) = pre_white(X))
@@ -218,7 +218,7 @@ function vcov{T<:Fixed}(X::AbstractMatrix, k::HAC{Optimal{T}}; prewhite::Bool=tr
     vcov(X, k, bw, D, prewhite)
 end
 
-function vcov{T<:OptimalBandwidth}(X::AbstractMatrix, k::HAC{Optimal{T}}; prewhite::Bool=true)
+function vcov(X::AbstractMatrix, k::HAC{Optimal{T}}; prewhite::Bool=true) where T<:OptimalBandwidth
     p = size(X, 2)
     D = I
     !prewhite || ((X, D) = pre_white(X))
@@ -231,7 +231,7 @@ function vcov{T<:OptimalBandwidth}(X::AbstractMatrix, k::HAC{Optimal{T}}; prewhi
     vcov(X, k, bw, D, prewhite)
 end
 
-function vcov{T<:OptimalBandwidth}(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...)
+function vcov(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...) where T<:OptimalBandwidth
     p = size(r.model.pp.X, 2)
     for j in coefnames(r.mf)
         if j == "(Intercept)"
@@ -246,7 +246,7 @@ function vcov{T<:OptimalBandwidth}(r::DataFrameRegressionModel, k::HAC{Optimal{T
     vcov(r.model, k; args...)
 end
 
-vcov{T<:Fixed}(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...) = vcov(r.model, k; args...)
+vcov(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...) where {T<:Fixed} = vcov(r.model, k; args...)
 stderr(x::DataFrameRegressionModel, k::HAC; kwargs...) = sqrt.(diag(vcov(x, k; kwargs...)))
 
 

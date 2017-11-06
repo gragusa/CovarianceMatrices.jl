@@ -1,4 +1,4 @@
-function lag!{T, F}(Yl::Array{T, 2}, Y::AbstractArray{F, 1}, p::Int64)
+function lag!(Yl::Array{T, 2}, Y::AbstractArray{F, 1}, p::Int64) where {T, F}
     ## Given an Array, return the matrix
     ## of lagged values of Y
     ## [y_t-p, y_{t-p-1}, ..., y_{t-1}]
@@ -16,7 +16,7 @@ function lag!{T, F}(Yl::Array{T, 2}, Y::AbstractArray{F, 1}, p::Int64)
     end
 end
 
-function olsvar{T<:Number}(y::Matrix{T})
+function olsvar(y::Matrix{T}) where T<:Number
     # Input : data y, lag order 1
     # Output: coefficient estimate β, residual U
     N, K = size(y)
@@ -27,7 +27,7 @@ function olsvar{T<:Number}(y::Matrix{T})
     return U, A'
 end
 
-function ar{T<:Number}(Y::Matrix{T}, lag::Int)
+function ar(Y::Matrix{T}, lag::Int) where T<:Number
     N, p = size(Y)
     Yl = Array{Float64}(N-lag, lag+1)
     ρ  = Array{Float64}(p, lag)
@@ -44,7 +44,7 @@ function ar{T<:Number}(Y::Matrix{T}, lag::Int)
     return ρ, σ²
 end
 
-ar{T<:Number}(Y::Matrix{T}) = ar(Y, 1)
+ar(Y::Matrix{T}) where {T<:Number} = ar(Y, 1)
 
 function pre_white(X::Matrix)
     X, D = olsvar(X)
@@ -133,7 +133,7 @@ function getrates(X, k, prewhite)
     n, l
 end
 
-function bwNeweyWest{F<:Number}(X::Matrix, k::HAC, w::Vector{F}, prewhite::Bool)
+function bwNeweyWest(X::Matrix, k::HAC, w::Vector{F}, prewhite::Bool) where F<:Number
     n, l = getrates(X, k, prewhite)
     ## Prewhite if necessary
     !prewhite || ((X::Array{Float64,2}, D) = pre_white(X))
@@ -170,14 +170,14 @@ optimal_bw(r::DataFrame, k::HAC, t::NeweyWest, w::Array, prewhite::Bool) = bwNew
 optimal_bw(r::DataFrame, k::HAC, t::Andrews, w::Array, prewhite::Bool) = bwAndrews(r, k, w, prewhite)
 
 
-optimalbw{K<:HAC, T}(t::Type{NeweyWest}, k::Type{K}, X::Matrix{T};
-                      prewhite::Bool = false, weights = ones(size(X,2))) = bwNeweyWest(X, k(), weights, prewhite)
+optimalbw(t::Type{NeweyWest}, k::Type{K}, X::Matrix{T};
+           prewhite::Bool = false, weights = ones(size(X,2))) where {K<:HAC, T} = bwNeweyWest(X, k(), weights, prewhite)
 
-optimalbw{K<:HAC, T}(t::Type{Andrews}, k::Type{K}, X::Matrix{T};
-                      prewhite::Bool = false, weights = ones(size(X,2))) = bwAndrews(X, k(), weights, prewhite)
+optimalbw(t::Type{Andrews}, k::Type{K}, X::Matrix{T};
+           prewhite::Bool = false, weights = ones(size(X,2))) where {K<:HAC, T} = bwAndrews(X, k(), weights, prewhite)
 
-optimalbw{K<:HAC}(t::Type{NeweyWest}, k::Type{K}, r::DataFrameRegressionModel;
-                      prewhite::Bool = false, weights = stdregweights(r)) = bwNeweyWest(r, k(), weights, prewhite)
+optimalbw(t::Type{NeweyWest}, k::Type{K}, r::DataFrameRegressionModel;
+              prewhite::Bool = false, weights = stdregweights(r)) where {K<:HAC} = bwNeweyWest(r, k(), weights, prewhite)
 
-optimalbw{K<:HAC}(t::Type{Andrews}, k::Type{K}, r::DataFrameRegressionModel;
-                      prewhite::Bool = false, weights = stdregweights(r)) = bwAndrews(r, k(), weights, prewhite)
+optimalbw(t::Type{Andrews}, k::Type{K}, r::DataFrameRegressionModel;
+              prewhite::Bool = false, weights = stdregweights(r)) where {K<:HAC} = bwAndrews(r, k(), weights, prewhite)
