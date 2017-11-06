@@ -1,8 +1,8 @@
-abstract LinModTestStat
+abstract type LinModTestStat end
 
 
 
-type AndersonRubinStat <: LinModTestStat
+mutable struct AndersonRubinStat <: LinModTestStat
     stat::Float64
     pval::Float64
 end
