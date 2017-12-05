@@ -4,6 +4,9 @@
 ##
 ##############################################################################
 
+const π²=π^2
+const sixπ = 6*π
+
 abstract type BandwidthType{G} end
 abstract type OptimalBandwidth end
 
@@ -58,9 +61,9 @@ const QSK=QuadraticSpectralKernel
 
 kernel(k::HAC, x) = isnan(x) ? (return 1.0) : kernel(k, float(x))
 
-kernel(k::TruncatedKernel, x::Float64)    = (abs(x) < 1.0) ? 1.0 : 0.0
-kernel(k::BartlettKernel, x::Float64)     = (abs(x) < 1.0) ? (1.0 - abs(x)) : 0.0
-kernel(k::TukeyHanningKernel, x::Float64) = (abs(x) < 1.0) ? 0.5 * (1.0 + cospi(x)) : 0.0
+kernel(k::TruncatedKernel, x::Float64)    = (abs(x) <= 1.0) ? 1.0 : 0.0
+kernel(k::BartlettKernel, x::Float64)     = (abs(x) <= 1.0) ? (1.0 - abs(x)) : 0.0
+kernel(k::TukeyHanningKernel, x::Float64) = (abs(x) <= 1.0) ? 0.5 * (1.0 + cospi(x)) : 0.0
 
 function kernel(k::ParzenKernel, x::Float64)
     ax = abs(x)
@@ -74,7 +77,8 @@ function kernel(k::ParzenKernel, x::Float64)
 end
 
 function kernel(k::QuadraticSpectralKernel, x::Float64)
-    iszero(x) ? 1.0 : (- cosc(1.2 * x) * fivetoπ² / x)
+    #iszero(x) ? 1.0 : (- cosc(1.2 * x) * fivetoπ² / x)
+    iszero(x) ? 1.0 : (25/(12*π²*x^2))*(sin(sixπ*x/5)/(sixπ*x/5)-cos(sixπ*x/5))
 end
 
 
