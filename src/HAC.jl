@@ -1,53 +1,22 @@
-function k_tr(x::T) where T
-    if(isnan(x) || abs(x)<= one(1))
-        return one(Float64)
-    else
-        return zero(Float64)
-    end
-end
+kernel(k::HAC, x) = isnan(x) ? (return 1.0) : kernel(k, float(x))
 
-function k_bt(x::T) where T
-    if isnan(x)
-        one(Float64)
-    end
-    float(max(one(1)-abs(x), zero(1)))
-end
+kernel(k::TruncatedKernel, x::Float64)    = (abs(x) < 1.0) ? 1.0 : 0.0
+kernel(k::BartlettKernel, x::Float64)     = (abs(x) < 1.0) ? (1.0 - abs(x)) : 0.0
+kernel(k::TukeyHanningKernel, x::Float64) = (abs(x) < 1.0) ? 0.5 * (1.0 + cospi(x)) : 0.0
 
-function k_pr(x::T) where T
-    if isnan(x)
-        one(Float64)
-    end
+function kernel(k::ParzenKernel, x::Float64)
     ax = abs(x)
-    if(ax > one(T))
-        zero(Float64)
-    elseif ax <= .5
-        float(1 - 6 * x^2 + 6 * ax^3)
+    if ax >= 1.0
+        0.0
+    elseif ax <= 0.5
+        1.0 - 6.0 * x^2 + 6.0 * ax^3
     else
-        float(2 * (1-ax)^3)
+        2.0 * (1.0 - ax)^3
     end
 end
 
-function k_qs(x::T) where T <: Number
-    if isnan(x)
-        one(Float64)
-    end
-    if(isequal(x, zero(eltype(x))))
-        one(Float64)
-    else
-        return (25/(12*π²*x^2))*(sin(sixπ*x/5)/(sixπ*x/5)-cos(sixπ*x/5))
-    end
-end
-
-function k_th(x::T) where T <: Number
-    if isnan(x)
-        one(Float64)
-    end
-    ax = abs(x)
-    if(ax < one(T))
-        (1 + cos(π*x))/2
-    else
-        zero(Float64)
-    end
+function kernel(k::QuadraticSpectralKernel, x::Float64)
+    iszero(x) ? 1.0 : (- cosc(1.2 * x) * fivetoπ² / x)
 end
 
 ##############################################################################
@@ -65,39 +34,34 @@ struct Andrews <: OptimalBandwidth end
 struct Fixed <: BandwidthType{G where G} end
 struct Optimal{G<:OptimalBandwidth} <: BandwidthType{G where G<:OptimalBandwidth} end
 
-struct TruncatedKernel{G<:BandwidthType, F<:Function} <: HAC{G}
-  kernel::F
+struct TruncatedKernel{G <: BandwidthType} <: HAC{G}
   bwtype::G
-  bw::Array{Float64}{1}
-  weights::Array{Float64}{1}
+  bw::Vector{Float64}
+  weights::Vector{Float64}
 end
 
-struct BartlettKernel{G<:BandwidthType, F<:Function} <: HAC{G}
-    kernel::F
+struct BartlettKernel{G <: BandwidthType} <: HAC{G}
     bwtype::G
-    bw::Array{Float64}{1}
-    weights::Array{Float64}{1}
+    bw::Vector{Float64}
+    weights::Vector{Float64}
 end
 
-struct ParzenKernel{G<:BandwidthType, F<:Function} <: HAC{G}
-    kernel::F
+struct ParzenKernel{G <: BandwidthType} <: HAC{G}
     bwtype::G
-    bw::Array{Float64}{1}
-    weights::Array{Float64}{1}
+    bw::Vector{Float64}
+    weights::Vector{Float64}
 end
 
-struct TukeyHanningKernel{G<:BandwidthType, F<:Function} <: HAC{G}
-    kernel::F
+struct TukeyHanningKernel{G <: BandwidthType} <: HAC{G}
     bwtype::G
-    bw::Array{Float64}{1}
-    weights::Array{Float64}{1}
+    bw::Vector{Float64}
+    weights::Vector{Float64}
 end
 
-struct QuadraticSpectralKernel{G<:BandwidthType, F<:Function} <: HAC{G}
-    kernel::F
+struct QuadraticSpectralKernel{G <: BandwidthType} <: HAC{G}
     bwtype::G
-    bw::Array{Float64}{1}
-    weights::Array{Float64}{1}
+    bw::Vector{Float64}
+    weights::Vector{Float64}
 end
 
 struct VARHAC
@@ -114,31 +78,31 @@ const QSK=QuadraticSpectralKernel
 
 Optimal() = Optimal{Andrews}()
 
-TruncatedKernel() = TRK(k_tr, Optimal(), Array{Float64}(1), Array{Float64}(0))
-BartlettKernel() = BTK(k_bt, Optimal(), Array{Float64}(1), Array{Float64}(0))
-ParzenKernel() = PRK(k_pr, Optimal(), Array{Float64}(1), Array{Float64}(0))
-TukeyHanningKernel() = THK(k_th, Optimal(), Array{Float64}(1), Array{Float64}(0))
-QuadraticSpectralKernel() = QSK(k_qs, Optimal(), Array{Float64}(1), Array{Float64}(0))
+TruncatedKernel() = TRK(Optimal(), Array{Float64}(1), Array{Float64}(0))
+BartlettKernel() = BTK(Optimal(), Array{Float64}(1), Array{Float64}(0))
+ParzenKernel() = PRK(Optimal(), Array{Float64}(1), Array{Float64}(0))
+TukeyHanningKernel() = THK(Optimal(), Array{Float64}(1), Array{Float64}(0))
+QuadraticSpectralKernel() = QSK(Optimal(), Array{Float64}(1), Array{Float64}(0))
 
 
-BartlettKernel(x::Type{NeweyWest}) = BTK(k_bt, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
-ParzenKernel(x::Type{NeweyWest}) = PRK(k_pr, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
-QuadraticSpectralKernel(x::Type{NeweyWest}) = QSK(k_qs, Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
+BartlettKernel(x::Type{NeweyWest}) = BTK(Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
+ParzenKernel(x::Type{NeweyWest}) = PRK(Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
+QuadraticSpectralKernel(x::Type{NeweyWest}) = QSK(Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
 TukeyHanningKernel(x::Type{NeweyWest}) = error("Newey-West optimal bandwidth does not support TukeyHanningKernel")
 TruncatedKernel(x::Type{NeweyWest}) = error("Newey-West optimal bandwidth does not support TuncatedKernel")
 
-TruncatedKernel(x::Type{Andrews}) = TRK(k_tr, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
-BartlettKernel(x::Type{Andrews}) = BTK(k_bt, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
-ParzenKernel(x::Type{Andrews}) = PRK(k_pr, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
-TukeyHanningKernel(x::Type{Andrews}) = THK(k_th, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
-QuadraticSpectralKernel(x::Type{Andrews}) = QSK(k_qs, Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+TruncatedKernel(x::Type{Andrews}) = TRK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+BartlettKernel(x::Type{Andrews}) = BTK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+ParzenKernel(x::Type{Andrews}) = PRK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+TukeyHanningKernel(x::Type{Andrews}) = THK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+QuadraticSpectralKernel(x::Type{Andrews}) = QSK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
 
 
-TruncatedKernel(bw::Number) = TRK(k_tr, Fixed(), [float(bw)], Array{Float64}(0))
-BartlettKernel(bw::Number) = BTK(k_bt, Fixed(), [float(bw)], Array{Float64}(0))
-ParzenKernel(bw::Number) = PRK(k_pr, Fixed(), [float(bw)], Array{Float64}(0))
-TukeyHanningKernel(bw::Number) = THK(k_th, Fixed(), [float(bw)], Array{Float64}(0))
-QuadraticSpectralKernel(bw::Number) = QSK(k_qs, Fixed(), [float(bw)], Array{Float64}(0))
+TruncatedKernel(bw::Number) = TRK(Fixed(), [float(bw)], Array{Float64}(0))
+BartlettKernel(bw::Number) = BTK(Fixed(), [float(bw)], Array{Float64}(0))
+ParzenKernel(bw::Number) = PRK(Fixed(), [float(bw)], Array{Float64}(0))
+TukeyHanningKernel(bw::Number) = THK(Fixed(), [float(bw)], Array{Float64}(0))
+QuadraticSpectralKernel(bw::Number) = QSK(Fixed(), [float(bw)], Array{Float64}(0))
 
 VARHAC() = VARHAC(2, 2, 1)
 VARHAC(imax::Int64) = VARHAC(imax, 2, 1)
@@ -150,8 +114,6 @@ bandwidth(k::HAC{Optimal{G}}, X::AbstractMatrix) where {G<:Andrews} = bwAndrews(
 function bandwidth(k::QuadraticSpectralKernel, X::AbstractMatrix)
     return k.bw(X, k)
 end
-
-kernel(k::HAC, x::Real) = k.kernel(x)
 
 function Γ(X::AbstractMatrix, j::Int64)
     T, p = size(X)
