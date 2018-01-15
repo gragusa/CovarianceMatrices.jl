@@ -14,7 +14,7 @@ abstract type CRHC <: RobustVariance end
 
 import StatsBase: confint, stderr, vcov, nobs, residuals
 import GLM: LinPredModel, LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual
-import DataFrames: DataFrameRegressionModel
+import StatsModels: DataFrameRegressionModel
 
 
 const π²=π^2

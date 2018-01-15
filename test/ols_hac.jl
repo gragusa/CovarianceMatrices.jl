@@ -1,11 +1,11 @@
 nf = joinpath(dirname(@__FILE__), "ols_hac.csv")
-df = readtable(nf)
+df = CSV.read(nf)
 lm1 = glm(@formula(y~x+w), df, Normal(), IdentityLink())
 
 V = vcov(lm1, TruncatedKernel(1.0), prewhite = false)
 Vt = [0.004124066084299 -0.000125870872864  0.000353984580059;
       -0.000125870872864  0.003123789970617 -0.000376282603066;
-       0.000353984580059 -0.000376282603066  0.003395555576658]
+             0.000353984580059 -0.000376282603066  0.003395555576658]
 @test V≈Vt
 
 V = vcov(lm1, QuadraticSpectralKernel(1.0), prewhite = false)
@@ -174,17 +174,17 @@ Vt = [0.00422525037811967 -0.000131637826271777 0.000413149700377485
 
 
 
-V = vcov(lm1, VARHAC(1,1,1))
-V = vcov(lm1, VARHAC(1,2,1))
-V = vcov(lm1, VARHAC(1,3,1))
+# V = vcov(lm1, VARHAC(1,1,1))
+# V = vcov(lm1, VARHAC(1,2,1))
+# V = vcov(lm1, VARHAC(1,3,1))
 
-V = vcov(lm1, VARHAC(1,1,2))
-V = vcov(lm1, VARHAC(1,2,2))
-V = vcov(lm1, VARHAC(1,3,2))
+# V = vcov(lm1, VARHAC(1,1,2))
+# V = vcov(lm1, VARHAC(1,2,2))
+# V = vcov(lm1, VARHAC(1,3,2))
 
-V = vcov(lm1, VARHAC(1,1,3))
-V = vcov(lm1, VARHAC(1,2,3))
-V = vcov(lm1, VARHAC(1,3,3))
+# V = vcov(lm1, VARHAC(1,1,3))
+# V = vcov(lm1, VARHAC(1,2,3))
+# V = vcov(lm1, VARHAC(1,3,3))
 
 
 ## X = CovarianceMatrices.ModelMatrix(lm1.model);

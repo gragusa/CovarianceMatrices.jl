@@ -6,39 +6,38 @@ end
 
 const GenLinMod=GeneralizedLinearModel
 
-adjfactor!(u, l::LinPredModel, k::HC0) = u[:] = one(Float64)
-adjfactor!(u, l::LinPredModel, k::HC1) = u[:] = _nobs(l)./_df_residual(l)
-adjfactor!(u, l::LinPredModel, k::HC2) = u[:] = 1./(1.-hatmatrix(l))
-adjfactor!(u, l::LinPredModel, k::HC3) = u[:] = 1./(1.-hatmatrix(l)).^2
+_nobs(r::DataFrameRegressionModel) = size(r.model.pp.X, 1)
+_df_residual(r::DataFrameRegressionModel) = _nobs(r) - length(coef(r))
 
 
-_nobs(l::LinPredModel) = length(l.rr.y)
-_df_residual(l::LinPredModel) = _nobs(l) - length(coef(l))
-
-function adjfactor!(u, lp::LinPredModel, k::HC4)
-    h = hatmatrix(lp)
-    n = _nobs(lp)
-    p = npars(lp)
+adjfactor!(u, r::DataFrameRegressionModel, k::HC0) = u[:] = one(Float64)
+adjfactor!(u, r::DataFrameRegressionModel, k::HC1) = u[:] = _nobs(r)./_df_residual(r)
+adjfactor!(u, r::DataFrameRegressionModel, k::HC2) = u[:] = 1./(1.-hatmatrix(r))
+adjfactor!(u, r::DataFrameRegressionModel, k::HC3) = u[:] = 1./(1.-hatmatrix(r)).^2
+function adjfactor!(u, r::DataFrameRegressionModel, k::HC4)
+    h = hatmatrix(r)
+    n = _nobs(r)
+    p = npars(r)
     @inbounds for j in eachindex(h)
         delta = min(4, n*h[j]/p)
         u[j] = 1/(1-h[j])^delta
     end
 end
 
-function adjfactor!(u, lp::LinPredModel, k::HC4m)
-    h = hatmatrix(lp)
-    n = _nobs(lp)
-    p = npars(lp)
+function adjfactor!(u, r::DataFrameRegressionModel, k::HC4m)
+    h = hatmatrix(r)
+    n = _nobs(r)
+    p = npars(r)
     @inbounds for j in eachindex(h)
         delta = min(1.0, n*h[j]/p) + min(1.5, n*h[j]/p)
         u[j] = 1/(1-h[j])^delta
     end
 end
 
-function adjfactor!(u, lp::LinPredModel, k::HC5)
-    h     = hatmatrix(lp)
-    n     = _nobs(lp)
-    p     = npars(lp)
+function adjfactor!(u, r::DataFrameRegressionModel, k::HC5)
+    h     = hatmatrix(r)
+    n     = _nobs(r)
+    p     = npars(r)
     mx    = max(n*0.7*maximum(h)/p, 4)
     @inbounds for j in eachindex(h)
         alpha =  min(n*h[j]/p, mx)
@@ -47,80 +46,107 @@ function adjfactor!(u, lp::LinPredModel, k::HC5)
 end
 
 nclus(k::CRHC) = length(unique(k.cl))
-npars(x::LinPredModel) = length(x.pp.beta0)
+npars(r::DataFrameRegressionModel) = length(coef(r))
 
-function bread(lp::LinPredModel)
-    A = inv(cholfact(lp.pp))::Array{Float64, 2}
-    scale!(A, nobs(lp))
-end
 
-residuals(l::LinPredModel, k::HC) = residuals(l)
-residuals(l::LinPredModel, k::HAC) = residuals(l)
+# residuals(l::LinPredModel, k::HC) = residuals(l)
+# residuals(l::LinPredModel, k::HAC) = residuals(l)
 
 function residuals(r::GLM.ModResp)
-    a = wrkwts(r)
-    u = copy(wrkresid(r))
-    length(a) == 0 ? u : broadcast!(*, u, u, a)
+    a = r.wrkwt
+    u = copy(r.wrkresid)
+    broadcast!(*, u, u, a)    
 end
 
-function wrkresidwts(r::GLM.ModResp)
-    a = wrkwts(r)
-    u = copy(wrkresid(r))
-    length(a) == 0 ? u : broadcast!(*, u, u, a)
+# function wrkresidwts(r::DataFrameRegressionModel)
+#     a = r.model.rr.wrkwt
+#     u = copy(wrkresid(r))
+#     broadcast!(*, u, u, a)
+# end
+
+function weightedModelMatrix(r::DataFrameRegressionModel)
+    w = r.model.rr.wrkwt
+    (r.mm.m).*sqrt.(w)
 end
 
-wrkresid(r::GLM.ModResp) = r.wrkresid
-wrkwts(r::GLM.ModResp) = r.wrkwt
-wrkwts(r::GLM.LmResp) = r.wts
-wrkresid(r::GLM.LmResp) = r.y-r.mu
-
-function weightedModelMatrix(l::LinPredModel)
-    w = wrkwts(l.rr)
-    length(w) > 0 ? ModelMatrix(l).*sqrt.(w) : copy(ModelMatrix(l))
-end
-
-function hatmatrix(l::LinPredModel)
-    z = weightedModelMatrix(l)
-    cf = cholfact(l.pp)[:UL]
+function hatmatrix(r::DataFrameRegressionModel)
+    z = weightedModelMatrix(r)
+    cf = cholfact(r.model.pp)[:UL]
     Base.LinAlg.A_rdiv_B!(z, cf)
     diag(Base.LinAlg.A_mul_Bt(z, z))
 end
 
-function vcov(ll::LinPredModel, k::HC)
-    B = meat(ll, k)
-    A = bread(ll)
-    scale!(A*B*A, 1/nobs(ll))
+
+## Entry point
+
+vcov(r::DataFrameRegressionModel, k::HC) = variance(r, k)
+vcov(r::DataFrameRegressionModel, k::Type{T}) where {T<:RobustVariance} = variance(r, k())
+
+stderr(r::DataFrameRegressionModel, k::Type{T}) where {T<:HC} = sqrt.(diag(vcov(r, k())))
+stderr(r::DataFrameRegressionModel, k::T) where {T<:CRHC} = sqrt.(diag(vcov(r, k)))
+
+function variance(r::DataFrameRegressionModel, k::HC)
+    B = meat(r, k)
+    A = bread(r)
+    scale!(A*B*A, 1/nobs(r))
 end
 
-function meat(l::LinPredModel,  k::HC)
-    u = residuals(l, k)
-    X = ModelMatrix(l)
+## Note to myself: the function residuals(r::DataFrameRegressoinModel) returns 
+## the weighted residualds
+
+function meat(r::DataFrameRegressionModel, k::HC)
+    u = residuals(r)
+    X = r.mm.m
     z = X.*u
-    adjfactor!(u, l, k)
-    scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(l))
+    adjfactor!(u, r, k)
+    scale!(Base.LinAlg.At_mul_B(z, z.*u), 1/nobs(r))
 end
 
-vcov(x::DataFrameRegressionModel, k::HC) = vcov(x.model, k)
+function bread(r::DataFrameRegressionModel)
+    A = inv(cholfact(r.model.pp))::Array{Float64, 2}
+    scale!(A, nobs(r))
+end
 
-vcov(x::DataFrameRegressionModel, k::Type{T}) where {T<:RobustVariance} = vcov(x.model, k())
-
-stderr(x::DataFrameRegressionModel, k::Type{T}) where {T<:HC} = sqrt.(diag(vcov(x, k())))
-
-stderr(x::DataFrameRegressionModel, k::T) where {T<:CRHC} = sqrt.(diag(vcov(x, k)))
-
-stderr(x::DataFrameRegressionModel, k::HC) = sqrt.(diag(vcov(x, k)))
-
-stderr(x::LinPredModel, k::HC) = sqrt.(diag(vcov(x, k)))
 
 ################################################################################
 ## Cluster
 ################################################################################
 
+vcov(r::DataFrameRegressionModel, k::CRHC) = variance(r, k)
+
+function variance(r::DataFrameRegressionModel, k::CRHC)   
+    M = meat(r, k)::Array{Float64,2}
+    B = bread(r)::Array{Float64, 2}    
+    scale!(B*M*B, 1/nobs(r))
+end
+
+function meat(r::DataFrameRegressionModel, k::CRHC)
+    idx   = sortperm(k.cl)
+    cls   = k.cl[idx]
+    ichol = inv(cholfact(r.model.pp))::Array{Float64, 2}
+    X     = r.mm.m[idx,:]
+    e     = GLM.residuals(r)[idx]
+    w     = r.model.rr.wts
+    
+    # if !isempty(w)
+    #     w = w[idx]
+    #     broadcast!(*, X, X, sqrt.(w))
+    #     broadcast!(*, e, e, sqrt.(w))
+    # end
+    bstarts = [searchsorted(cls, j[2]) for j in enumerate(unique(cls))]
+    adjresid!(k, X, e, ichol, bstarts)
+    M = zeros(size(X, 2), size(X, 2))
+    clusterize!(M, X.*e, bstarts)
+    return scale!(M, 1/nobs(r))
+end
+
+
+
 function clusterize!(M, U, bstarts)
     k, k = size(M)
     s = Array{Float64}(k)
     for m = 1:length(bstarts)
-        @simd for i = 1:k
+        for i = 1:k
             @inbounds s[i] = zero(Float64)
         end
         for j = 1:k, i = bstarts[m]
@@ -168,28 +194,3 @@ adjresid!(v::CRHC1, X, e, ichol, bstarts) = e[:] = scalar_adjustment(X, bstarts)
 adjresid!(v::CRHC2, X, e, ichol, bstarts) = _adjresid!(v, X, e, ichol, bstarts, 1.0)
 adjresid!(v::CRHC3, X, e, ichol, bstarts) = _adjresid!(v, X, e, ichol, bstarts, scalar_adjustment(X, bstarts))
 
-function meat(x::LinPredModel, v::CRHC)
-    idx = sortperm(v.cl)
-    cls = v.cl[idx]
-    #ichol = inv(x.pp.chol)
-    ichol  = inv(cholfact(x.pp))::Array{Float64, 2}
-    X = ModelMatrix(x)[idx,:]
-    e = wrkresid(x.rr)[idx]
-    w = wrkwts(x.rr)
-    if !isempty(w)
-        w = w[idx]
-        broadcast!(*, X, X, sqrt.(w))
-        broadcast!(*, e, e, sqrt.(w))
-    end
-    bstarts = [searchsorted(cls, j[2]) for j in enumerate(unique(cls))]
-    adjresid!(v, X, e, ichol, bstarts)
-    M = zeros(size(X, 2), size(X, 2))
-    clusterize!(M, X.*e, bstarts)
-    return scale!(M, 1/nobs(x))
-end
-
-function vcov(x::LinPredModel, v::CRHC)
-    B = bread(x)::Array{Float64, 2}
-    M = meat(x, v)::Array{Float64,2}
-    scale!(B*M*B, 1/nobs(x))
-end

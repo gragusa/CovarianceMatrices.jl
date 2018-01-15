@@ -243,38 +243,29 @@ function vcov(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...) where T<
     # w = ones(p)
     # "(Intercept)" ∈ coefnames(r.mf) && (w[find("(Intercept)" .== coefnames(r.mf))] = 0)
     # k.weights = w
-    vcov(r.model, k; args...)
+    variance(r, k; args...)
 end
 
-vcov(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...) where {T<:Fixed} = vcov(r.model, k; args...)
+vcov(r::DataFrameRegressionModel, k::HAC{T}; args...) where {T<:Fixed} = variance(r, k; args...)
+
 stderr(x::DataFrameRegressionModel, k::HAC; kwargs...) = sqrt.(diag(vcov(x, k; kwargs...)))
 
 
 
-vcov(r::DataFrameRegressionModel, k::VARHAC) = vcov(r.model, k)
-
-function vcov(l::LinPredModel, k::VARHAC)
-    B = meat(l, k)
-    A = bread(l)
-    scale!(A*B*A, 1/nobs(l))
+function variance(r::DataFrameRegressionModel, k::HAC; args...) 
+    B = meat(r, k; args...)
+    A = bread(r, k)
+    scale!(A*B*A, 1/nobs(r))
 end
 
-function vcov(l::LinPredModel, k::HAC; args...)
-    B = meat(l, k; args...)
-    A = bread(l)
-    scale!(A*B*A, 1/nobs(l))
-end
-
-function meat(l::LinPredModel, k::HAC; args...)
-    u = wrkresidwts(l.rr)
-    X = ModelMatrix(l)
+function meat(r::DataFrameRegressionModel, k::HAC; args...)
+    u = residuals(r)    
+    X = r.mm.m
     z = X.*u
     vcov(z, k; args...)
 end
 
-function meat(l::LinPredModel, k::VARHAC)
-    u = wrkresidwts(l.rr)
-    X = ModelMatrix(l)
-    z = X.*u
-    vcov(z, k)
+function bread(r::DataFrameRegressionModel, k::HAC; arg...)
+    A = inv(cholfact(r.model.pp))::Array{Float64, 2}
+    scale!(A, nobs(r))
 end
