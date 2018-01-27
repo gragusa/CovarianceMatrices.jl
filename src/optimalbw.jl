@@ -104,16 +104,16 @@ function bwAndrews(X::Matrix, k::HAC, w::Vector, prewhite::Bool)
 end
 
 function bwAndrews(r::DataFrameRegressionModel, k::HAC, w::Array, prewhite::Bool)
-    u = residuals(r)
-    X = r.mm.m
+    u = modelresiduals(r)
+    X = modelmatrix(r)
     z = X.*u
     p = size(z, 2)
     bwAndrews(z, k, w, prewhite)
 end
 
 function bwNeweyWest(r::DataFrameRegressionModel, k::HAC, w::Array, prewhite::Bool)
-    u = residuals(r.model.rr)
-    X = r.mm.m
+    u = modelresiduals(r)
+    X = modelmatrix(r)
     z = X.*u
     p = size(z, 2)
     bwNeweyWest(z, k, w, prewhite)

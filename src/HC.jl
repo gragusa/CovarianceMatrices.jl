@@ -96,9 +96,9 @@ function meat(r::CovarianceModels, k::CRHC)
     idx   = sortperm(k.cl)
     cls   = k.cl[idx]
     ichol = invXX(r)
-    X     = modelmatrix(r)[idx,:]
-    e     = modelresiduals(r)[idx]
-    w     = modelweights(r)
+    X     = fullyweightedmodelmatrix(r)[idx,:]
+    e     = rawresiduals(r)[idx]
+    # w     = modelweights(r)
     bstarts = [searchsorted(cls, j[2]) for j in enumerate(unique(cls))]
     adjresid!(k, X, e, ichol, bstarts)
     M = zeros(size(X, 2), size(X, 2))
@@ -106,23 +106,6 @@ function meat(r::CovarianceModels, k::CRHC)
     return scale!(M, 1/nobs(r))
 end
 #endregion
-
-
-vcov(r::T, k::HC) where {T<:CovarianceModels} = sandwhich(r, k)
-vcov(r::T, k::Type{RobustVariance}) where {T<:CovarianceModels} = sandwhich(r, k())
-
-stderr(r::CovarianceModels, k::CRHC) = sqrt.(diag(vcov(r, k)))
-stderr(r::CovarianceModels, k::Type{T}) where {T<:HC} = sqrt.(diag(vcov(r, k())))
-
-
-vcov(r::T, k::HC) where {T<:DataFrameRegressionModel} = sandwhich(r, k)
-vcov(r::T, k::Type{R}) where {T<:DataFrameRegressionModel, R<:RobustVariance} = sandwhich(r, k())
-
-vcov(r::T, k::HC) where {T<:AbstractGLM} = sandwhich(r, k)
-vcov(r::T, k::Type{R}) where {T<:AbstractGLM, R<:RobustVariance} = sandwhich(r, k())
-
-vcov(r::T, k::HC) where {T<:LinearModel} = sandwhich(r, k)
-vcov(r::T, k::Type{R}) where {T<:LinearModel, R<:RobustVariance} = sandwhich(r, k())
 
 
 function sandwhich(r::T, k::R) where {T<:CovarianceModels, R<:RobustVariance}
@@ -158,8 +141,7 @@ numobs(r::FlatModels) = size(r.pp.X, 1)
 modelmatrix(r::FlatModels) = r.pp.X
 rawresiduals(r::GeneralizedLinearModel) = r.rr.wrkresid
 rawresiduals(r::LinearModel) = modelresiduals(r)
-modelresiduals(r::LinearModel) = rawresiduals(r)
-modelweights(r::FlatModels) = r.rr.wrkwts
+modelweights(r::FlatModels) = r.rr.wrkwt
 function modelresiduals(r::LinearModel)
     y = r.rr.y
     mu = r.rr.mu
@@ -190,14 +172,14 @@ nclus(k::CRHC) = length(unique(k.cl))
 #region Residual adjustments
 adjresid!(v::CRHC0, X, e, ichol, bstarts) = identity(e)
 adjresid!(v::CRHC1, X, e, ichol, bstarts) = e[:] = scalaradjustment(X, bstarts)*e
-adjresid!(v::CRHC2, X, e, ichol, bstarts) = getqii(v, e, X, chol, bstarts)
-adjresid!(v::CRHC3, X, e, ichol, bstarts) = scale!(scalaradjustment(X, bstarts), getqii(v, e, X, chol, bstarts))
+adjresid!(v::CRHC2, X, e, ichol, bstarts) = getqii(v, e, X, ichol, bstarts)
+adjresid!(v::CRHC3, X, e, ichol, bstarts) = scale!(scalaradjustment(X, bstarts), getqii(v, e, X, ichol, bstarts))
 
 function getqii(v::CRHC2, e, X, A, bstarts)
     @inbounds for j in 1:length(bstarts)
         rnge = bstarts[j]
         se = view(e, rnge)
-        sx = view(X, rnge,:)
+        sx = view(X, rnge,:)        
         BB = Symmetric(I - sx*A*sx')
         e[rnge] =  cholfact(BB)\se
     end
@@ -242,6 +224,34 @@ end
 
 
 
+# vcov(r::T, k::HC) where {T<:CovarianceModels} = sandwhich(r, k)
+# vcov(r::T, k::Type{RobustVariance}) where {T<:CovarianceModels} = sandwhich(r, k())
+
+# vcov(r::T, k::CRHC) where {T<:CovarianceModels} = sandwhich(r, k)
+
+vcov(r::T, k::CRHC) where {T<:DataFrameRegressionModel} = sandwhich(r, k)
+vcov(r::T, k::CRHC) where {T<:AbstractGLM} = sandwhich(r, k)
+vcov(r::T, k::CRHC) where {T<:LinearModel} = sandwhich(r, k)
+
+vcov(r::T, k::HC) where {T<:DataFrameRegressionModel} = sandwhich(r, k)
+vcov(r::T, k::HC) where {T<:AbstractGLM} = sandwhich(r, k)
+vcov(r::T, k::HC) where {T<:LinearModel} = sandwhich(r, k)
+
+vcov(r::T, k::Type{R}) where {T<:DataFrameRegressionModel, R<:HC} = sandwhich(r, k())
+vcov(r::T, k::Type{R}) where {T<:AbstractGLM, R<:HC} = sandwhich(r, k())
+vcov(r::T, k::Type{R}) where {T<:LinearModel, R<:HC} = sandwhich(r, k())
+
+stderr(r::T, k::CRHC) where {T<:DataFrameRegressionModel} = sqrt.(diag(sandwhich(r, k)))
+stderr(r::T, k::CRHC) where {T<:AbstractGLM} = sqrt.(diag(sandwhich(r, k)))
+stderr(r::T, k::CRHC) where {T<:LinearModel} = sqrt.(diag(sandwhich(r, k)))
+
+stderr(r::T, k::HC) where {T<:DataFrameRegressionModel} = sqrt.(diag(sandwhich(r, k)))
+stderr(r::T, k::HC) where {T<:AbstractGLM} = sqrt.(diag(sandwhich(r, k)))
+stderr(r::T, k::HC) where {T<:LinearModel} = sqrt.(diag(sandwhich(r, k)))
+
+stderr(r::T, k::Type{R}) where {T<:DataFrameRegressionModel, R<:HC} = sqrt.(diag(sandwhich(r, k())))
+stderr(r::T, k::Type{R}) where {T<:AbstractGLM, R<:HC} = sqrt.(diag(sandwhich(r, k())))
+stderr(r::T, k::Type{R}) where {T<:LinearModel, R<:HC} = sqrt.(diag(sandwhich(r, k())))
 
 
 

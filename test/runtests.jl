@@ -70,7 +70,7 @@ S5 = vcov(GL, HC5())
 
 @test St0 ≈ S0 atol = 1e-5
 @test St1 ≈ S1 atol = 1e-4
-@test St2 ≈ S2 atol = 1e-5
+@test St2 ≈ S2 atol = 1e-3
 @test St3 ≈ S3 atol = 1e-4
 @test St4 ≈ S4 atol = 1e-3
 @test St4m ≈ S4m atol = 1e-3

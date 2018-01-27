@@ -259,13 +259,13 @@ function variance(r::DataFrameRegressionModel, k::HAC; args...)
 end
 
 function meat(r::DataFrameRegressionModel, k::HAC; args...)
-    u = residuals(r)    
-    X = r.mm.m
+    u = modelresiduals(r)    
+    X = modelmatrix(r)
     z = X.*u
     vcov(z, k; args...)
 end
 
 function bread(r::DataFrameRegressionModel, k::HAC; arg...)
-    A = inv(cholfact(r.model.pp))::Array{Float64, 2}
+    A = invXX(r)
     scale!(A, nobs(r))
 end
