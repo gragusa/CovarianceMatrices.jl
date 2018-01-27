@@ -30,6 +30,12 @@ clotting = DataFrame(
 
 ## Unweighted OLS though GLM interface
 OLS = fit(GeneralizedLinearModel, @formula(lot1~u),clotting, Normal(), IdentityLink())
+mf = ModelFrame(@formula(lot1~u),clotting)
+X = ModelMatrix(mf).m
+y = clotting[:lot1]
+GL  = fit(GeneralizedLinearModel, X,y, Normal(), IdentityLink())
+LM  = lm(X,y)
+
 S0 = vcov(OLS, HC0())
 S1 = vcov(OLS, HC1())
 S2 = vcov(OLS, HC2())
@@ -53,6 +59,22 @@ St5 = St4
 @test abs.(maximum(S4 .- St4)) < 1e-03
 @test abs.(maximum(S4m .- St4m)) < 1e-03
 @test abs.(maximum(S5 .- St5)) < 1e-03
+
+S0 = vcov(GL, HC0())
+S1 = vcov(GL, HC1())
+S2 = vcov(GL, HC2())
+S3 = vcov(GL, HC3())
+S4 = vcov(GL, HC4())
+S4m = vcov(GL, HC4m())
+S5 = vcov(GL, HC5())
+
+@test St0 ≈ S0 atol = 1e-5
+@test St1 ≈ S1 atol = 1e-4
+@test St2 ≈ S2 atol = 1e-5
+@test St3 ≈ S3 atol = 1e-4
+@test St4 ≈ S4 atol = 1e-3
+@test St4m ≈ S4m atol = 1e-3
+@test St5 ≈ S5 atol = 1e-3
 
 M0 = CovarianceMatrices.meat(OLS, HC0())
 M1 = CovarianceMatrices.meat(OLS, HC1())
@@ -89,6 +111,32 @@ S4 = vcov(OLS, HC4())
 ## Weighted OLS though GLM interface
 wOLS = fit(GeneralizedLinearModel, @formula(lot1~u), clotting, Normal(),
            IdentityLink(), wts = Vector{Float64}(clotting[:w]))
+
+wts = Vector{Float64}(clotting[:w])           
+wLM = lm(X, y)
+wGL = fit(GeneralizedLinearModel, X, y, Normal(), 
+            IdentityLink(), wts = wts)
+
+residuals_raw = y-X*coef(wGL)
+residuals_wts = sqrt.(wts).*(y-X*coef(wGL))
+            
+@test modelresiduals(wOLS) == modelresiduals(wGL)
+@test modelresiduals(wOLS) == residuals_wts
+@test modelresiduals(wGL) == residuals_wts
+@test modelweights(wGL) == modelweights(wOLS)
+@test rawresiduals(wGL) == rawresiduals(wOLS)
+
+wXX   = (wts.*X)'*X
+wXu   = X.*(residuals_raw.*wts)
+wXuuX = wXu'*wXu
+
+@test fullyweightedmodelmatrix(wOLS) == X.*wts
+@test fullyweightedmodelmatrix(wOLS).*rawresiduals(wOLS) ≈ wXu
+@test meat(wOLS, HC0()) ≈  wXuuX./(sum(wts))
+
+@test XX(wOLS) ≈ wXX
+@test invXX(wOLS) ≈ inv(wXX)
+
 S0 = vcov(wOLS, HC0())
 S1 = vcov(wOLS, HC1())
 S2 = vcov(wOLS, HC2())
@@ -212,7 +260,6 @@ df = CSV.read("wols_test.csv")
 OLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
           Normal(), IdentityLink())
 
-
 S0 = vcov(OLS, HC0())
 S1 = vcov(OLS, HC1())
 S2 = vcov(OLS, HC2())
@@ -251,9 +298,9 @@ St1 = [0.042839848169137905,0.04927285387211425,
 @test maximum(abs.(S1 .- St1)) < 1e-10
 
 ############################################################
-## Linear Model
+## Test different interfaces
 ############################################################
-srand(1)
+
 # y = randn(100);
 # x = randn(100, 5);
 

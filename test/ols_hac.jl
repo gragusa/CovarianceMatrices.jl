@@ -144,12 +144,6 @@ Vt = [0.00422525037811967 -0.000131637826271777 0.000413149700377485
       0.000413149700377485 -0.000420524137687161 0.00342999158493283]
 @test V≈Vt atol=1e-4
 
-
-
-
-
-
-
 @test optimalbw(Andrews, BartlettKernel, lm1) ≈ 1.79655260917
 @test optimalbw(Andrews, TruncatedKernel, lm1) ≈ 0.923095757094
 @test optimalbw(Andrews, ParzenKernel, lm1) ≈ 3.71612017536
