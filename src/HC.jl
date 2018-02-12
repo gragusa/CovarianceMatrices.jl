@@ -127,11 +127,11 @@ numobs(r::DataFrameRegressionModel) = size(r.model.pp.X, 1)
 modelmatrix(r::DataFrameRegressionModel) = r.mm.m
 rawresiduals(r::DataFrameRegressionModel) = r.model.rr.wrkresid
 modelweights(r::DataFrameRegressionModel) = r.model.rr.wrkwt
-
+modelweights(r::LinearModel) = r.rr.wts
 choleskyfactor(r::DataFrameRegressionModel) = cholfact(r.model.pp)[:UL]
 XX(r::DataFrameRegressionModel) = choleskyfactor(r)'*choleskyfactor(r)
 invXX(r::DataFrameRegressionModel) = GLM.invchol(r.model.pp)
-
+modelresponse(r::DataFrameRegressionModel) = r.model.rr.y
 ## -----
 ## GeneralizedLinearModel methods
 ## -----
@@ -142,6 +142,7 @@ modelmatrix(r::FlatModels) = r.pp.X
 rawresiduals(r::GeneralizedLinearModel) = r.rr.wrkresid
 rawresiduals(r::LinearModel) = modelresiduals(r)
 modelweights(r::FlatModels) = r.rr.wrkwt
+modelresponse(r::LinearModel) = r.rr.y
 function modelresiduals(r::LinearModel)
     y = r.rr.y
     mu = r.rr.mu
