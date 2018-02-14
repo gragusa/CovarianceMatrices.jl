@@ -112,7 +112,9 @@ S4 = vcov(OLS, HC4())
 wOLS = fit(GeneralizedLinearModel, @formula(lot1~u), clotting, Normal(),
            IdentityLink(), wts = Vector{Float64}(clotting[:w]))
 
-wts = Vector{Float64}(clotting[:w])           
+wts = Vector{Float64}(clotting[:w])  
+X = [ones(clotting[:u]) clotting[:u]]
+y = clotting[:lot1]         
 wLM = lm(X, y)
 wGL = fit(GeneralizedLinearModel, X, y, Normal(), 
             IdentityLink(), wts = wts)
@@ -120,22 +122,22 @@ wGL = fit(GeneralizedLinearModel, X, y, Normal(),
 residuals_raw = y-X*coef(wGL)
 residuals_wts = sqrt.(wts).*(y-X*coef(wGL))
             
-@test modelresiduals(wOLS) == modelresiduals(wGL)
-@test modelresiduals(wOLS) == residuals_wts
-@test modelresiduals(wGL) == residuals_wts
-@test modelweights(wGL) == modelweights(wOLS)
-@test rawresiduals(wGL) == rawresiduals(wOLS)
+@test CovarianceMatrices.modelresiduals(wOLS) == CovarianceMatrices.modelresiduals(wGL)
+@test CovarianceMatrices.modelresiduals(wOLS) == residuals_wts
+@test CovarianceMatrices.modelresiduals(wGL)  == residuals_wts
+@test CovarianceMatrices.modelweights(wGL)    == CovarianceMatrices.modelweights(wOLS)
+@test CovarianceMatrices.rawresiduals(wGL)    == CovarianceMatrices.rawresiduals(wOLS)
 
 wXX   = (wts.*X)'*X
 wXu   = X.*(residuals_raw.*wts)
 wXuuX = wXu'*wXu
 
-@test fullyweightedmodelmatrix(wOLS) == X.*wts
-@test fullyweightedmodelmatrix(wOLS).*rawresiduals(wOLS) ≈ wXu
-@test meat(wOLS, HC0()) ≈  wXuuX./(sum(wts))
+@test CovarianceMatrices.fullyweightedmodelmatrix(wOLS) == X.*wts
+@test CovarianceMatrices.fullyweightedmodelmatrix(wOLS).*CovarianceMatrices.rawresiduals(wOLS) ≈ wXu
+@test CovarianceMatrices.meat(wOLS, HC0()) ≈  wXuuX./(sum(wts))
 
-@test XX(wOLS) ≈ wXX
-@test invXX(wOLS) ≈ inv(wXX)
+@test CovarianceMatrices.XX(wOLS) ≈ wXX
+@test CovarianceMatrices.invXX(wOLS) ≈ inv(wXX)
 
 S0 = vcov(wOLS, HC0())
 S1 = vcov(wOLS, HC1())
