@@ -2,7 +2,6 @@ __precompile__(true)
 module CovarianceMatrices
 
 using Reexport
-using PDMats
 
 abstract type RobustVariance end
 abstract type HAC{G} <: RobustVariance end
@@ -12,9 +11,9 @@ abstract type CRHC <: RobustVariance end
 @reexport using GLM
 @reexport using DataFrames
 
-import StatsBase: confint, stderr, vcov, nobs, residuals
-import GLM: LinPredModel, LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual
-import DataFrames: DataFrameRegressionModel
+import StatsBase: confint, stderr, vcov, nobs, residuals, RegressionModel
+import GLM: LinPredModel, LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual, AbstractGLM
+import StatsModels: DataFrameRegressionModel
 
 const twohalftoπ² = 2.5 / π^2
 
