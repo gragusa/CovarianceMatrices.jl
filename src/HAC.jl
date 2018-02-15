@@ -1,24 +1,3 @@
-kernel(k::HAC, x) = isnan(x) ? (return 1.0) : kernel(k, float(x))
-
-kernel(k::TruncatedKernel, x::Float64)    = (abs(x) <= 1.0) ? 1.0 : 0.0
-kernel(k::BartlettKernel, x::Float64)     = (abs(x) <= 1.0) ? (1.0 - abs(x)) : 0.0
-kernel(k::TukeyHanningKernel, x::Float64) = (abs(x) <= 1.0) ? 0.5 * (1.0 + cospi(x)) : 0.0
-
-function kernel(k::ParzenKernel, x::Float64)
-    ax = abs(x)
-    if ax > 1.0
-        0.0
-    elseif ax <= 0.5
-        1.0 - 6.0 * ax^2 + 6.0 * ax^3
-    else
-        2.0 * (1.0 - ax)^3
-    end
-end
-
-function kernel(k::QuadraticSpectralKernel, x::Float64)
-    iszero(x) ? 1.0 : (- cosc(1.2 * x) * twohalftoπ² / x)
-end
-
 ##############################################################################
 ##
 ## Optimal bandwidth
@@ -84,7 +63,6 @@ ParzenKernel() = PRK(Optimal(), Array{Float64}(1), Array{Float64}(0))
 TukeyHanningKernel() = THK(Optimal(), Array{Float64}(1), Array{Float64}(0))
 QuadraticSpectralKernel() = QSK(Optimal(), Array{Float64}(1), Array{Float64}(0))
 
-
 BartlettKernel(x::Type{NeweyWest}) = BTK(Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
 ParzenKernel(x::Type{NeweyWest}) = PRK(Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
 QuadraticSpectralKernel(x::Type{NeweyWest}) = QSK(Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
@@ -96,7 +74,6 @@ BartlettKernel(x::Type{Andrews}) = BTK(Optimal{Andrews}(), Array{Float64}(1), Ar
 ParzenKernel(x::Type{Andrews}) = PRK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
 TukeyHanningKernel(x::Type{Andrews}) = THK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
 QuadraticSpectralKernel(x::Type{Andrews}) = QSK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
-
 
 TruncatedKernel(bw::Number) = TRK(Fixed(), [float(bw)], Array{Float64}(0))
 BartlettKernel(bw::Number) = BTK(Fixed(), [float(bw)], Array{Float64}(0))
@@ -227,4 +204,31 @@ end
 function bread(r::DataFrameRegressionModel, k::HAC; arg...)
     A = invXX(r)
     scale!(A, nobs(r))
+end
+
+##############################################################################
+##
+## Kernel functions
+##
+##############################################################################
+
+kernel(k::HAC, x) = isnan(x) ? (return 1.0) : kernel(k, float(x))
+
+kernel(k::TruncatedKernel, x::Float64)    = (abs(x) <= 1.0) ? 1.0 : 0.0
+kernel(k::BartlettKernel, x::Float64)     = (abs(x) <= 1.0) ? (1.0 - abs(x)) : 0.0
+kernel(k::TukeyHanningKernel, x::Float64) = (abs(x) <= 1.0) ? 0.5 * (1.0 + cospi(x)) : 0.0
+
+function kernel(k::ParzenKernel, x::Float64)
+    ax = abs(x)
+    if ax > 1.0
+        0.0
+    elseif ax <= 0.5
+        1.0 - 6.0 * ax^2 + 6.0 * ax^3
+    else
+        2.0 * (1.0 - ax)^3
+    end
+end
+
+function kernel(k::QuadraticSpectralKernel, x::Float64)
+    iszero(x) ? 1.0 : (- cosc(1.2 * x) * twohalftoπ² / x)
 end
