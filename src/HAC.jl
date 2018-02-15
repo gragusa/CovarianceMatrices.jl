@@ -1,22 +1,22 @@
 kernel(k::HAC, x) = isnan(x) ? (return 1.0) : kernel(k, float(x))
 
-kernel(k::TruncatedKernel, x::Float64)    = (abs(x) < 1.0) ? 1.0 : 0.0
-kernel(k::BartlettKernel, x::Float64)     = (abs(x) < 1.0) ? (1.0 - abs(x)) : 0.0
-kernel(k::TukeyHanningKernel, x::Float64) = (abs(x) < 1.0) ? 0.5 * (1.0 + cospi(x)) : 0.0
+kernel(k::TruncatedKernel, x::Float64)    = (abs(x) <= 1.0) ? 1.0 : 0.0
+kernel(k::BartlettKernel, x::Float64)     = (abs(x) <= 1.0) ? (1.0 - abs(x)) : 0.0
+kernel(k::TukeyHanningKernel, x::Float64) = (abs(x) <= 1.0) ? 0.5 * (1.0 + cospi(x)) : 0.0
 
 function kernel(k::ParzenKernel, x::Float64)
     ax = abs(x)
-    if ax >= 1.0
+    if ax > 1.0
         0.0
     elseif ax <= 0.5
-        1.0 - 6.0 * x^2 + 6.0 * ax^3
+        1.0 - 6.0 * ax^2 + 6.0 * ax^3
     else
         2.0 * (1.0 - ax)^3
     end
 end
 
 function kernel(k::QuadraticSpectralKernel, x::Float64)
-    iszero(x) ? 1.0 : (- cosc(1.2 * x) * fivetoπ² / x)
+    iszero(x) ? 1.0 : (- cosc(1.2 * x) * twohalftoπ² / x)
 end
 
 ##############################################################################
@@ -106,7 +106,6 @@ QuadraticSpectralKernel(bw::Number) = QSK(Fixed(), [float(bw)], Array{Float64}(0
 
 VARHAC() = VARHAC(2, 2, 1)
 VARHAC(imax::Int64) = VARHAC(imax, 2, 1)
-
 
 bandwidth(k::HAC{G}, X::AbstractMatrix) where {G<:Fixed} = k.bw
 bandwidth(k::HAC{Optimal{G}}, X::AbstractMatrix) where {G<:Andrews} = bwAndrews(k, )
@@ -210,8 +209,6 @@ end
 
 vcov(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...) where {T<:Fixed} = vcov(r.model, k; args...)
 stderr(x::DataFrameRegressionModel, k::HAC; kwargs...) = sqrt.(diag(vcov(x, k; kwargs...)))
-
-
 
 vcov(r::DataFrameRegressionModel, k::VARHAC) = vcov(r.model, k)
 

@@ -16,7 +16,7 @@ import StatsBase: confint, stderr, vcov, nobs, residuals
 import GLM: LinPredModel, LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual
 import DataFrames: DataFrameRegressionModel
 
-const fivetoπ² = 5.0 / π^2
+const twohalftoπ² = 2.5 / π^2
 
 export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel,
        TukeyHanningKernel, VARHAC, HC0, HC1, HC2, HC3, HC4, HC4m, HC5, CRHC0, CRHC1,
