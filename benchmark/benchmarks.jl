@@ -1,4 +1,4 @@
-    using PkgBenchmark
+using PkgBenchmark
 using CovarianceMatrices
 using CSV
 
@@ -6,7 +6,7 @@ using CSV
     @benchgroup "No prewithen" begin
         nf = string(Pkg.dir("CovarianceMatrices"), "/test/ols_hac.csv")
         df = CSV.read(nf)
-	      lm1 = glm(@formula(y~x+w), df, Normal(), IdentityLink())
+	lm1 = glm(@formula(y~x+w), df, Normal(), IdentityLink())
         @bench "Truncated Kernel" vcov(lm1, TruncatedKernel(1.0), prewhite = false)
         @bench "Quadratic Spectral Kernel" vcov(lm1, QuadraticSpectralKernel(1.0), prewhite = false)
         @bench "Parzen Kernel" vcov(lm1, ParzenKernel(1.0), prewhite = false)
@@ -15,7 +15,7 @@ using CSV
 
     @benchgroup "Prewithen" begin
         nf = string(Pkg.dir("CovarianceMatrices"), "/test/ols_hac.csv")
-	      df = CSV.read(nf)
+	df = CSV.read(nf)
         lm1 = glm(@formula(y~x+w), df, Normal(), IdentityLink())
         @bench "Truncated Kernel" vcov(lm1, TruncatedKernel(1.0), prewhite = true)
         @bench "Quadratic Spectral Kernel" vcov(lm1, QuadraticSpectralKernel(1.0), prewhite = true)
