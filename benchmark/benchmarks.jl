@@ -17,7 +17,7 @@ using CSV
         nf = string(Pkg.dir("CovarianceMatrices"), "/test/ols_hac.csv")
 	      df = CSV.read(nf)
         lm1 = glm(@formula(y~x+w), df, Normal(), IdentityLink())
-        @bench "Truncated Kernel" vcov(lm0, TruncatedKernel(1.0), prewhite = true)
+        @bench "Truncated Kernel" vcov(lm1, TruncatedKernel(1.0), prewhite = true)
         @bench "Quadratic Spectral Kernel" vcov(lm1, QuadraticSpectralKernel(1.0), prewhite = true)
         @bench "Parzen Kernel" vcov(lm1, ParzenKernel(1.0), prewhite = true)
         @bench "Tukey Hanning Kernel" vcov(lm1, TukeyHanningKernel(1.0), prewhite = true)
