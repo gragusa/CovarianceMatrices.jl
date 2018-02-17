@@ -43,7 +43,7 @@ struct QuadraticSpectralKernel{G <: BandwidthType} <: HAC{G}
     weights::Vector{Float64}
 end
 
-struct VARHAC
+struct VARHAC 
     imax::Int64
     ilag::Int64
     imodel::Int64
@@ -112,6 +112,26 @@ end
 
 vcov(X::AbstractMatrix, k::VARHAC) = varhac(X, k.imax, k.ilag, k.imodel)
 
+function vcov(X::AbstractMatrix, k::HAC{Fixed}; prewhite::Bool=true)
+    D = I
+    !prewhite || ((X, D) = pre_white(X))
+    bw = k.bw[1]
+    vcov(X, k, bw, D, prewhite)
+end
+
+function vcov(X::AbstractMatrix, k::HAC{Optimal{T}}; prewhite::Bool=true) where T<:OptimalBandwidth
+    p = size(X, 2)
+    D = I
+    !prewhite || ((X, D) = pre_white(X))
+    if isempty(k.weights)
+        for j in 1:p
+            push!(k.weights, 1.0)
+        end
+    end
+    bw = optimal_bw(X, k, T(), k.weights, prewhite)
+    vcov(X, k, bw, D, prewhite)
+end
+
 function vcov(X::AbstractMatrix, k::HAC, bw, D, prewhite::Bool)
     n, p = size(X)
     Q  = zeros(p, p)
@@ -140,34 +160,8 @@ function vcov(X::AbstractMatrix, k::QuadraticSpectralKernel, bw, D, prewhite::Bo
     return scale!(Q, 1/n)
 end
 
-function vcov(X::AbstractMatrix, k::HAC{Fixed}; prewhite::Bool=true)
-    D = I
-    !prewhite || ((X, D) = pre_white(X))
-    bw = k.bw[1]
-    vcov(X, k, bw, D, prewhite)
-end
-
-function vcov(X::AbstractMatrix, k::HAC{Optimal{T}}; prewhite::Bool=true) where T<:Fixed
-    p = size(X, 2)
-    D = I
-    !prewhite || ((X, D) = pre_white(X))
-    #isempty(k.weights) && (k.weights = ones(p))
-    bw = optimal_bw(X, k, T(), ones(p), prewhite)
-    vcov(X, k, bw, D, prewhite)
-end
-
-function vcov(X::AbstractMatrix, k::HAC{Optimal{T}}; prewhite::Bool=true) where T<:OptimalBandwidth
-    p = size(X, 2)
-    D = I
-    !prewhite || ((X, D) = pre_white(X))
-    if isempty(k.weights)
-        for j in 1:p
-            push!(k.weights, 1.0)
-        end
-    end
-    bw = optimal_bw(X, k, T(), k.weights, prewhite)
-    vcov(X, k, bw, D, prewhite)
-end
+vcov(r::DataFrameRegressionModel, k::HAC{T}; args...) where {T<:Fixed} = variance(r, k; args...)
+stderr(x::DataFrameRegressionModel, k::HAC; kwargs...) = sqrt.(diag(vcov(x, k; kwargs...)))
 
 function vcov(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...) where T<:OptimalBandwidth
     p = size(r.model.pp.X, 2)
@@ -178,20 +172,7 @@ function vcov(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...) where T<
             push!(k.weights, 1.0)
         end
     end
-    # w = ones(p)
-    # "(Intercept)" ∈ coefnames(r.mf) && (w[find("(Intercept)" .== coefnames(r.mf))] = 0)
-    # k.weights = w
     variance(r, k; args...)
-end
-
-vcov(r::DataFrameRegressionModel, k::HAC{T}; args...) where {T<:Fixed} = variance(r, k; args...)
-
-stderr(x::DataFrameRegressionModel, k::HAC; kwargs...) = sqrt.(diag(vcov(x, k; kwargs...)))
-
-function variance(r::DataFrameRegressionModel, k::HAC; args...) 
-    B = meat(r, k; args...)
-    A = bread(r, k)
-    scale!(A*B*A, 1/nobs(r))
 end
 
 function meat(r::DataFrameRegressionModel, k::HAC; args...)
@@ -205,6 +186,15 @@ function bread(r::DataFrameRegressionModel, k::HAC; arg...)
     A = invXX(r)
     scale!(A, nobs(r))
 end
+
+function variance(r::DataFrameRegressionModel, k::HAC; args...) 
+    B = meat(r, k; args...)
+    A = bread(r, k)
+    scale!(A*B*A, 1/nobs(r))
+end
+
+
+
 
 ##############################################################################
 ##
