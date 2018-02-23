@@ -1,8 +1,6 @@
 # CovarianceMatrices.jl
 
 [![Build Status](https://travis-ci.org/gragusa/CovarianceMatrices.jl.svg?branch=master)](https://travis-ci.org/gragusa/CovarianceMatrices.jl)
-[![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_0.4.svg)](http://pkg.julialang.org/detail/CovarianceMatrices&&ver=0.4)
-[![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_0.5.svg)](http://pkg.julialang.org/?pkg=CovarianceMatrices&ver=0.5)
 [![CovarianceMatrices](http://pkg.julialang.org/badges/CovarianceMatrices_0.6.svg)](http://pkg.julialang.org/detail/CovarianceMatrices&ver=0.6)
 [![Coverage Status](https://coveralls.io/repos/gragusa/CovarianceMatrices.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/gragusa/CovarianceMatrices.jl?branch=master)
 [![codecov.io](http://codecov.io/github/gragusa/CovarianceMatrices.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/CovarianceMatrices.jl?branch=master)
