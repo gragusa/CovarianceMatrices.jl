@@ -270,10 +270,10 @@ S4 = vcov(OLS, HC4())
 S5 = vcov(OLS, HC5())
 
 cl = convert(Array, df[:cl])
-S0 = stderr(OLS, CRHC0(cl))
-S1 = stderr(OLS, CRHC1(cl))
-S2 = stderr(OLS, CRHC2(cl))
-S3 = stderr(OLS, CRHC3(cl))
+S0 = stderror(OLS, CRHC0(cl))
+S1 = stderror(OLS, CRHC1(cl))
+S2 = stderror(OLS, CRHC2(cl))
+S3 = stderror(OLS, CRHC3(cl))
 
 
 ## STATA
@@ -286,12 +286,12 @@ St1 = [.0374668, .0497666, .0472636, .0437952, .0513613, .0435369]
 
 
 wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
-          Normal(), IdentityLink(), wts = convert(Array, df[:w]))
+          Normal(), IdentityLink(), wts = convert(Array{Float64}, df[:w]))
 
-S0 = stderr(wOLS, CRHC0(cl))
-S1 = stderr(wOLS, CRHC1(cl))
-S2 = stderr(wOLS, CRHC2(cl))
-S3 = stderr(wOLS, CRHC3(cl))
+S0 = stderror(wOLS, CRHC0(cl))
+S1 = stderror(wOLS, CRHC1(cl))
+S2 = stderror(wOLS, CRHC2(cl))
+S3 = stderror(wOLS, CRHC3(cl))
 
 St1 = [0.042839848169137905,0.04927285387211425,
        0.05229519531359171,0.041417170723876025,
@@ -307,7 +307,7 @@ St1 = [0.042839848169137905,0.04927285387211425,
 # x = randn(100, 5);
 
 # lm1 = lm(x, y)
-# @test stderr(lm1, HC0())≈[0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651] atol=1e-06
+# @test stderror(lm1, HC0())≈[0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651] atol=1e-06
 # @test diag(vcov(lm1, HC0()))≈[0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651].^2 atol=1e-06
 
 ############################################################
