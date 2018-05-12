@@ -86,9 +86,9 @@ If one wants to estimate the long-time variance using the same kernel, but with 
 ```julia
 vcov(lm1, QuadraticSpectralKernel(NeweyWest), prewhite = false)
 ```
-The standard errors can be obtained by the `stderr` method
+The standard errors can be obtained by the `stderror` method
 ```julia
-stderr(::DataFrameRegressionModel, ::HAC; prewhite::Bool)
+stderror(::DataFrameRegressionModel, ::HAC; prewhite::Bool)
 ```
 Sometime is useful to access the bandwidth selected by the automatic procedures. This can be done using the `optimalbw` method
 ```julia
@@ -98,7 +98,7 @@ optimalbw(Andrews, QuadraticSpectralKernel, lm1; prewhite = false)
 
 ### Long run variance of the average of the process
 
-Sometime interest lies in estimating the long-run variance of the average of the process. At the moment this can be done by carrying out a regression on a constant (the sample mean of the realization of the process) and using `vcov` or `stderr` to obtain a consistent variance.
+Sometime interest lies in estimating the long-run variance of the average of the process. At the moment this can be done by carrying out a regression on a constant (the sample mean of the realization of the process) and using `vcov` or `stderror` to obtain a consistent variance estimate (or its diagonal elements).
 
 ```julia
 lm2 = glm(u~1, df, Normal(), IdentityLink())

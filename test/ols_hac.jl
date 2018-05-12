@@ -137,7 +137,7 @@ Vt = [0.00417663470962045 -0.00014277423204925 0.000404820124045818
      -0.00014277423204925 0.00310914818879932 -0.000418125055191947
       0.000404820124045818 -0.000418125055191946 0.00345356514902845]
 @test V≈Vt atol=1e-4
-@test stderr(lm1,ParzenKernel(Andrews), prewhite = true) ≈ sqrt.(diag(Vt)) atol = 0.001
+@test stderror(lm1,ParzenKernel(Andrews), prewhite = true) ≈ sqrt.(diag(Vt)) atol = 0.001
 
 V = vcov(lm1, QuadraticSpectralKernel(Andrews), prewhite = true)
 Vt = [0.00422525037811967 -0.000131637826271777 0.000413149700377485
@@ -145,7 +145,7 @@ Vt = [0.00422525037811967 -0.000131637826271777 0.000413149700377485
       0.000413149700377485 -0.000420524137687161 0.00342999158493283]
 
 @test V≈Vt atol=1e-4
-@test stderr(lm1, QuadraticSpectralKernel(Andrews), prewhite = true) ≈ sqrt.(diag(Vt)) atol = 0.001
+@test stderror(lm1, QuadraticSpectralKernel(Andrews), prewhite = true) ≈ sqrt.(diag(Vt)) atol = 0.001
 
 
 @test optimalbw(Andrews, BartlettKernel, lm1) ≈ 1.79655260917

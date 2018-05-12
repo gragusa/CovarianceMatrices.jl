@@ -20,10 +20,17 @@ function varhac(dat,imax,ilag,imodel)
     ## ccc:        VARHAC estimator
 
 
-    global ex, ex1, ex2, dat2, dep
+    #global ex, ex1, ex2, dat2, dep
+
 
     nt   = size(dat, 1)
     kdim = size(dat, 2)
+
+    ex   = dat[imax:nt-1, :];
+    dat2 = dat[imax:nt-1, :];
+    ex1  = dat[imax:nt-1, :]
+    ex2  = dat[imax:nt-1, :]
+    dep  = dat[imax+1:nt, 1]
 
     ddd      = dat[imax+1:nt, :]
     minres   = ddd

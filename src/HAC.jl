@@ -161,7 +161,7 @@ function vcov(X::AbstractMatrix, k::QuadraticSpectralKernel, bw, D, prewhite::Bo
 end
 
 vcov(r::DataFrameRegressionModel, k::HAC{T}; args...) where {T<:Fixed} = variance(r, k; args...)
-stderr(x::DataFrameRegressionModel, k::HAC; kwargs...) = sqrt.(diag(vcov(x, k; kwargs...)))
+stderror(x::DataFrameRegressionModel, k::HAC; kwargs...) = sqrt.(diag(vcov(x, k; kwargs...)))
 
 function vcov(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...) where T<:OptimalBandwidth
     p = size(r.model.pp.X, 2)

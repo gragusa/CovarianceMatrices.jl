@@ -243,17 +243,17 @@ vcov(r::T, k::Type{R}) where {T<:DataFrameRegressionModel, R<:HC} = sandwhich(r,
 vcov(r::T, k::Type{R}) where {T<:AbstractGLM, R<:HC} = sandwhich(r, k())
 vcov(r::T, k::Type{R}) where {T<:LinearModel, R<:HC} = sandwhich(r, k())
 
-stderr(r::T, k::CRHC) where {T<:DataFrameRegressionModel} = sqrt.(diag(sandwhich(r, k)))
-stderr(r::T, k::CRHC) where {T<:AbstractGLM} = sqrt.(diag(sandwhich(r, k)))
-stderr(r::T, k::CRHC) where {T<:LinearModel} = sqrt.(diag(sandwhich(r, k)))
+stderror(r::T, k::CRHC) where {T<:DataFrameRegressionModel} = sqrt.(diag(sandwhich(r, k)))
+stderror(r::T, k::CRHC) where {T<:AbstractGLM} = sqrt.(diag(sandwhich(r, k)))
+stderror(r::T, k::CRHC) where {T<:LinearModel} = sqrt.(diag(sandwhich(r, k)))
 
-stderr(r::T, k::HC) where {T<:DataFrameRegressionModel} = sqrt.(diag(sandwhich(r, k)))
-stderr(r::T, k::HC) where {T<:AbstractGLM} = sqrt.(diag(sandwhich(r, k)))
-stderr(r::T, k::HC) where {T<:LinearModel} = sqrt.(diag(sandwhich(r, k)))
+stderror(r::T, k::HC) where {T<:DataFrameRegressionModel} = sqrt.(diag(sandwhich(r, k)))
+stderror(r::T, k::HC) where {T<:AbstractGLM} = sqrt.(diag(sandwhich(r, k)))
+stderror(r::T, k::HC) where {T<:LinearModel} = sqrt.(diag(sandwhich(r, k)))
 
-stderr(r::T, k::Type{R}) where {T<:DataFrameRegressionModel, R<:HC} = sqrt.(diag(sandwhich(r, k())))
-stderr(r::T, k::Type{R}) where {T<:AbstractGLM, R<:HC} = sqrt.(diag(sandwhich(r, k())))
-stderr(r::T, k::Type{R}) where {T<:LinearModel, R<:HC} = sqrt.(diag(sandwhich(r, k())))
+stderror(r::T, k::Type{R}) where {T<:DataFrameRegressionModel, R<:HC} = sqrt.(diag(sandwhich(r, k())))
+stderror(r::T, k::Type{R}) where {T<:AbstractGLM, R<:HC} = sqrt.(diag(sandwhich(r, k())))
+stderror(r::T, k::Type{R}) where {T<:LinearModel, R<:HC} = sqrt.(diag(sandwhich(r, k())))
 
 
 

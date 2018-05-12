@@ -11,7 +11,7 @@ abstract type CRHC <: RobustVariance end
 @reexport using GLM
 @reexport using DataFrames
 
-import StatsBase: confint, stderr, vcov, nobs, residuals, RegressionModel
+import StatsBase: confint, stderror, vcov, nobs, residuals, RegressionModel
 import GLM: LinPredModel, LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual, AbstractGLM
 import StatsModels: DataFrameRegressionModel
 
@@ -19,7 +19,7 @@ const twohalftoπ² = 2.5 / π^2
 
 export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel,
        TukeyHanningKernel, VARHAC, HC0, HC1, HC2, HC3, HC4, HC4m, HC5, CRHC0, CRHC1,
-       CRHC2, CRHC3, vcov, NeweyWest, Andrews, optimalbw
+       CRHC2, CRHC3, vcov, stderror, NeweyWest, Andrews, optimalbw
 
 mutable struct HC0  <: HC end
 mutable struct HC1  <: HC end
