@@ -3,6 +3,9 @@ module CovarianceMatrices
 
 using Reexport
 
+Pkg.installed("StatsBase") < v"0.22" 
+
+
 abstract type RobustVariance end
 abstract type HAC{G} <: RobustVariance end
 abstract type HC <: RobustVariance end
@@ -11,9 +14,16 @@ abstract type CRHC <: RobustVariance end
 @reexport using GLM
 @reexport using DataFrames
 
-import StatsBase: confint, stderror, vcov, nobs, residuals, RegressionModel
+import StatsBase: confint, vcov, nobs, residuals, RegressionModel
 import GLM: LinPredModel, LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual, AbstractGLM
 import StatsModels: DataFrameRegressionModel
+
+if Pkg.installed("StatsBase") < v"0.22"
+    import StatsBase: stderror   
+else
+    import StatsBase: stderr
+    const stderror = stderr
+end
 
 const twohalftoπ² = 2.5 / π^2
 
