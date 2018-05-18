@@ -3,8 +3,6 @@ module CovarianceMatrices
 
 using Reexport
 
-Pkg.installed("StatsBase") < v"0.22" 
-
 abstract type RobustVariance end
 abstract type HAC{G} <: RobustVariance end
 abstract type HC <: RobustVariance end
