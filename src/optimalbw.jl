@@ -29,10 +29,10 @@ end
 
 function ar(Y::Matrix{T}, lag::Int) where T<:Number
     N, p = size(Y)
-    Yl = Array{Float64}(N-lag, lag+1)
-    ρ  = Array{Float64}(p, lag)
-    σ² = Array{Float64}(p)
-    ε  = Array{Float64}(N-lag)
+    Yl = Array{Float64}(undef, N-lag, lag+1)
+    ρ  = Array{Float64}(undef, p, lag)
+    σ² = Array{Float64}(undef, p)
+    ε  = Array{Float64}(undef, N-lag)
     for j in 1:p
         lag!(Yl, view(Y, :,j), lag)
         Yt          = view(Y, lag+1:N, j)
@@ -67,10 +67,10 @@ end
 function getalpha(X::AbstractMatrix, approx::Symbol, w::Vector)
     ρ, σ² = ar(X)
     σ⁴ = (σ²).^2
-    nm = 4.*ρ.^2.*σ⁴./((1-ρ).^6.*(1+ρ).^2)
-    dn = σ⁴./(1-ρ).^4
+    nm = 4.0.*(ρ.^2).*σ⁴./(((1.0.-ρ).^6).*((1.0.+ρ).^2))
+    dn = σ⁴./(1.0.-ρ).^4
     α₁ = sum(w.*nm)/sum(w.*dn)
-    nm = 4.*ρ.^2.*σ⁴./(1-ρ).^8
+    nm = 4.0.*(ρ.^2).*σ⁴./((1.0.-ρ).^8)
     α₂ = sum(w.*nm)/sum(w.*dn)
     return α₁, α₂
 end
@@ -92,7 +92,7 @@ bwnw(k::QuadraticSpectralKernel, s0, s1, s2) = 1.3221*((s2/s0)^2)^growthrate(k)
 ## --> Interface
 
 function bwAndrews(X::Matrix, k::HAC, prewhite::Bool)
-    isempty(k.weights) && (k.weights = ones(p))
+    isempty(k.weights) && (fill!(k.weights, 1.0))
     bwAndrews(X, k, k.weights, prewhite)
 end
 
@@ -107,7 +107,6 @@ function bwAndrews(r::DataFrameRegressionModel, k::HAC, w::Array, prewhite::Bool
     u = modelresiduals(r)
     X = modelmatrix(r)
     z = X.*u
-    p = size(z, 2)
     bwAndrews(z, k, w, prewhite)
 end
 
@@ -115,13 +114,12 @@ function bwNeweyWest(r::DataFrameRegressionModel, k::HAC, w::Array, prewhite::Bo
     u = modelresiduals(r)
     X = modelmatrix(r)
     z = X.*u
-    p = size(z, 2)
     bwNeweyWest(z, k, w, prewhite)
 end
 
 function bwNeweyWest(X::Matrix, k::HAC, prewhite::Bool)
-    isempty(k.weights) && (k.weights = ones(p))
-    bwAndrews(X, k, k.weights, prewhite)
+    isempty(k.weights) && (fill!(k.weights, 1.0))
+    bwNeweyWest(X, k, k.weights, prewhite)
 end
 
 function getrates(X, k, prewhite)
@@ -135,7 +133,7 @@ end
 
 function bwNeweyWest(X::Matrix, k::HAC, w::Vector{F}, prewhite::Bool) where F<:Number
     n, l = getrates(X, k, prewhite)
-    ## Prewhite if necessary
+    ## Preheat if necessary
     !prewhite || ((X::Array{Float64,2}, D) = pre_white(X))
     gr = growthrate(k)
     N = n + ifelse(prewhite, 1, 0)
@@ -143,8 +141,8 @@ function bwNeweyWest(X::Matrix, k::HAC, w::Vector{F}, prewhite::Bool) where F<:N
 end
 
 function bw_neweywest(k, X, w, l, gr, n, N)
-    xm = Array{Float64}(n)
-    A_mul_B!(xm, X, w)
+    xm = Array{Float64}(undef,n)
+    mul!(xm, X, w)
     a = map(j -> dot(xm[1:n-j], xm[j+1:n])/n, 0:l)::Array{Float64, 1}
     aa = view(a, 2:l+1)
     a0 = a[1] + 2*sum(aa)
@@ -157,9 +155,9 @@ end
 ## -> Optimal bandwidth API
 function stdregweights(r::DataFrameRegressionModel)
     nc = length(coef(r))::Int
-    w = ones(nc)
+    w = fill(1,nc)
     "(Intercept)" ∈ coefnames(r.mf) &&
-    (w[find("(Intercept)" .== coefnames(r.mf))] = 0)
+    (w[findall("(Intercept)" .== coefnames(r.mf))] .= 0)
     w
 end
 
@@ -171,13 +169,13 @@ optimal_bw(r::DataFrame, k::HAC, t::Andrews, w::Array, prewhite::Bool) = bwAndre
 
 
 optimalbw(t::Type{NeweyWest}, k::Type{K}, X::Matrix{T};
-           prewhite::Bool = false, weights = ones(size(X,2))) where {K<:HAC, T} = bwNeweyWest(X, k(), weights, prewhite)
-
-optimalbw(t::Type{Andrews}, k::Type{K}, X::Matrix{T};
-           prewhite::Bool = false, weights = ones(size(X,2))) where {K<:HAC, T} = bwAndrews(X, k(), weights, prewhite)
+           prewhite::Bool = false, weights = fill(1.0, size(X,2))) where {K<:HAC, T} = bwNeweyWest(X, k(), weights, prewhite)
 
 optimalbw(t::Type{NeweyWest}, k::Type{K}, r::DataFrameRegressionModel;
               prewhite::Bool = false, weights = stdregweights(r)) where {K<:HAC} = bwNeweyWest(r, k(), weights, prewhite)
+
+optimalbw(t::Type{Andrews}, k::Type{K}, X::Matrix{T};
+           prewhite::Bool = false, weights = fill(1.0, size(X,2))) where {K<:HAC, T} = bwAndrews(X, k(), weights, prewhite)
 
 optimalbw(t::Type{Andrews}, k::Type{K}, r::DataFrameRegressionModel;
               prewhite::Bool = false, weights = stdregweights(r)) where {K<:HAC} = bwAndrews(r, k(), weights, prewhite)

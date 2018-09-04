@@ -2,6 +2,7 @@ __precompile__(true)
 module CovarianceMatrices
 
 using Reexport
+using LinearAlgebra
 
 abstract type RobustVariance end
 abstract type HAC{G} <: RobustVariance end
@@ -15,13 +16,7 @@ import StatsBase: confint, vcov, nobs, residuals, RegressionModel
 import GLM: LinPredModel, LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual, AbstractGLM
 import StatsModels: DataFrameRegressionModel
 
-if Pkg.installed("StatsBase") >= v"0.22"
-    import StatsBase: stderror   
-else
-    import StatsBase: stderr
-    const stderror = stderr
-end
-
+import StatsBase: stderror
 
 const twohalftoπ² = 2.5 / π^2
 

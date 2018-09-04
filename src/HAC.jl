@@ -57,29 +57,29 @@ const QSK=QuadraticSpectralKernel
 
 Optimal() = Optimal{Andrews}()
 
-TruncatedKernel() = TRK(Optimal(), Array{Float64}(1), Array{Float64}(0))
-BartlettKernel() = BTK(Optimal(), Array{Float64}(1), Array{Float64}(0))
-ParzenKernel() = PRK(Optimal(), Array{Float64}(1), Array{Float64}(0))
-TukeyHanningKernel() = THK(Optimal(), Array{Float64}(1), Array{Float64}(0))
-QuadraticSpectralKernel() = QSK(Optimal(), Array{Float64}(1), Array{Float64}(0))
+TruncatedKernel() = TRK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0))
+BartlettKernel() = BTK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0))
+ParzenKernel() = PRK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0))
+TukeyHanningKernel() = THK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0))
+QuadraticSpectralKernel() = QSK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0))
 
-BartlettKernel(x::Type{NeweyWest}) = BTK(Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
-ParzenKernel(x::Type{NeweyWest}) = PRK(Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
-QuadraticSpectralKernel(x::Type{NeweyWest}) = QSK(Optimal{NeweyWest}(), Array{Float64}(1), Array{Float64}(0))
+BartlettKernel(x::Type{NeweyWest}) = BTK(Optimal{NeweyWest}(), Array{Float64}(undef,1), Array{Float64}(undef,0))
+ParzenKernel(x::Type{NeweyWest}) = PRK(Optimal{NeweyWest}(), Array{Float64}(undef,1), Array{Float64}(undef,0))
+QuadraticSpectralKernel(x::Type{NeweyWest}) = QSK(Optimal{NeweyWest}(), Array{Float64}(undef,1), Array{Float64}(undef,0))
 TukeyHanningKernel(x::Type{NeweyWest}) = error("Newey-West optimal bandwidth does not support TukeyHanningKernel")
 TruncatedKernel(x::Type{NeweyWest}) = error("Newey-West optimal bandwidth does not support TuncatedKernel")
 
-TruncatedKernel(x::Type{Andrews}) = TRK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
-BartlettKernel(x::Type{Andrews}) = BTK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
-ParzenKernel(x::Type{Andrews}) = PRK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
-TukeyHanningKernel(x::Type{Andrews}) = THK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
-QuadraticSpectralKernel(x::Type{Andrews}) = QSK(Optimal{Andrews}(), Array{Float64}(1), Array{Float64}(0))
+TruncatedKernel(x::Type{Andrews}) = TRK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0))
+BartlettKernel(x::Type{Andrews}) = BTK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0))
+ParzenKernel(x::Type{Andrews}) = PRK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0))
+TukeyHanningKernel(x::Type{Andrews}) = THK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0))
+QuadraticSpectralKernel(x::Type{Andrews}) = QSK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0))
 
-TruncatedKernel(bw::Number) = TRK(Fixed(), [float(bw)], Array{Float64}(0))
-BartlettKernel(bw::Number) = BTK(Fixed(), [float(bw)], Array{Float64}(0))
-ParzenKernel(bw::Number) = PRK(Fixed(), [float(bw)], Array{Float64}(0))
-TukeyHanningKernel(bw::Number) = THK(Fixed(), [float(bw)], Array{Float64}(0))
-QuadraticSpectralKernel(bw::Number) = QSK(Fixed(), [float(bw)], Array{Float64}(0))
+TruncatedKernel(bw::Number) = TRK(Fixed(), [float(bw)], Array{Float64}(undef,0))
+BartlettKernel(bw::Number) = BTK(Fixed(), [float(bw)], Array{Float64}(undef,0))
+ParzenKernel(bw::Number) = PRK(Fixed(), [float(bw)], Array{Float64}(undef,0))
+TukeyHanningKernel(bw::Number) = THK(Fixed(), [float(bw)], Array{Float64}(undef,0))
+QuadraticSpectralKernel(bw::Number) = QSK(Fixed(), [float(bw)], Array{Float64}(undef,0))
 
 VARHAC() = VARHAC(2, 2, 1)
 VARHAC(imax::Int64) = VARHAC(imax, 2, 1)
@@ -136,28 +136,28 @@ function vcov(X::AbstractMatrix, k::HAC, bw, D, prewhite::Bool)
     n, p = size(X)
     Q  = zeros(p, p)
     for j in -floor(Int, bw):floor(Int, bw)
-        Base.BLAS.axpy!(kernel(k, j/bw), Γ(X, j), Q)
+        LinearAlgebra.axpy!(kernel(k, j/bw), Γ(X, j), Q)
     end
-    Base.LinAlg.copytri!(Q, 'U')
+    LinearAlgebra.copytri!(Q, 'U')
     if prewhite
         Q[:] = D*Q*D'
         n += 1
     end
-    return scale!(Q, 1/n)
+    return rmul!(Q, 1/n)
 end
 
 function vcov(X::AbstractMatrix, k::QuadraticSpectralKernel, bw, D, prewhite::Bool)
     n, p = size(X)
     Q  = zeros(p, p)
     for j in -n:n
-        Base.BLAS.axpy!(kernel(k, j/bw), Γ(X, j), Q)
+        LinearAlgebra.axpy!(kernel(k, j/bw), Γ(X, j), Q)
     end
-    Base.LinAlg.copytri!(Q, 'U')
+    LinearAlgebra.copytri!(Q, 'U')
     if prewhite
         Q[:] = D*Q*D'
         n += 1
     end
-    return scale!(Q, 1/n)
+    return rmul!(Q, 1/n)
 end
 
 vcov(r::DataFrameRegressionModel, k::HAC{T}; args...) where {T<:Fixed} = variance(r, k; args...)
@@ -176,7 +176,7 @@ function vcov(r::DataFrameRegressionModel, k::HAC{Optimal{T}}; args...) where T<
 end
 
 function meat(r::DataFrameRegressionModel, k::HAC; args...)
-    u = modelresiduals(r)    
+    u = modelresiduals(r)
     X = modelmatrix(r)
     z = X.*u
     vcov(z, k; args...)
@@ -184,13 +184,13 @@ end
 
 function bread(r::DataFrameRegressionModel, k::HAC; arg...)
     A = invXX(r)
-    scale!(A, nobs(r))
+    rmul!(A, nobs(r))
 end
 
 function variance(r::DataFrameRegressionModel, k::HAC; args...) 
     B = meat(r, k; args...)
     A = bread(r, k)
-    scale!(A*B*A, 1/nobs(r))
+    rmul!(A*B*A, 1/nobs(r))
 end
 
 
