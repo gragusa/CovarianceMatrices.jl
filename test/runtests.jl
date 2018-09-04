@@ -1,6 +1,7 @@
 using CovarianceMatrices
-using Base.Test
+using Test
 using CSV
+using LinearAlgebra
 ############################################################
 ## HAC
 ############################################################
@@ -25,7 +26,7 @@ clotting = DataFrame(
     u    = log.([5,10,15,20,30,40,60,80,100]),
     lot1 = [118,58,42,35,27,25,21,19,18],
     lot2 = [69,35,26,21,18,16,13,12,12],
-    w    = 9.*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
+    w    = 9.0*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
 )
 
 ## Unweighted OLS though GLM interface
@@ -68,7 +69,7 @@ S4 = vcov(GL, HC4())
 S4m = vcov(GL, HC4m())
 S5 = vcov(GL, HC5())
 
-@test St0 ≈ S0 atol = 1e-5
+@test St0 ≈ S0 atol = 1e-4
 @test St1 ≈ S1 atol = 1e-4
 @test St2 ≈ S2 atol = 1e-3
 @test St3 ≈ S3 atol = 1e-4
@@ -112,16 +113,16 @@ S4 = vcov(OLS, HC4())
 wOLS = fit(GeneralizedLinearModel, @formula(lot1~u), clotting, Normal(),
            IdentityLink(), wts = Vector{Float64}(clotting[:w]))
 
-wts = Vector{Float64}(clotting[:w])  
-X = [ones(clotting[:u]) clotting[:u]]
-y = clotting[:lot1]         
+wts = Vector{Float64}(clotting[:w])
+X = [fill(1,size(clotting[:u])) clotting[:u]]
+y = clotting[:lot1]
 wLM = lm(X, y)
-wGL = fit(GeneralizedLinearModel, X, y, Normal(), 
+wGL = fit(GeneralizedLinearModel, X, y, Normal(),
             IdentityLink(), wts = wts)
 
 residuals_raw = y-X*coef(wGL)
 residuals_wts = sqrt.(wts).*(y-X*coef(wGL))
-            
+
 @test CovarianceMatrices.modelresiduals(wOLS) == CovarianceMatrices.modelresiduals(wGL)
 @test CovarianceMatrices.modelresiduals(wOLS) == residuals_wts
 @test CovarianceMatrices.modelresiduals(wGL)  == residuals_wts
