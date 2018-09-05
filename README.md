@@ -55,7 +55,7 @@ Consider the following artificial data (a regression with autoregressive error c
 ```julia
 using CovarianceMatrices
 using DataFrames
-srand(1)
+Random.seed!(1)
 n = 500
 x = randn(n,5)
 u = Array{Float64}(2*n)
