@@ -127,11 +127,37 @@ numobs(r::DataFrameRegressionModel) = size(r.model.pp.X, 1)
 modelmatrix(r::DataFrameRegressionModel) = r.mm.m
 rawresiduals(r::DataFrameRegressionModel) = r.model.rr.wrkresid
 modelweights(r::DataFrameRegressionModel) = r.model.rr.wrkwt
+
+function modelweights(r::DataFrameRegressionModel{T}) where T<:LinearModel
+    wts = r.model.rr.wts
+    isempty(wts) ? one(eltype(wts)) : wts
+end
+
 modelweights(r::LinearModel) = r.rr.wts
+modelweights(r::LmResp) = r.model.rr.wts
+
 choleskyfactor(r::DataFrameRegressionModel) = r.model.pp.chol.UL
-XX(r::DataFrameRegressionModel) = choleskyfactor(r)'*choleskyfactor(r)
+function XX(r::DataFrameRegressionModel)
+    cf = choleskyfactor(r)
+    cf'cf
+end
 invXX(r::DataFrameRegressionModel) = GLM.invchol(r.model.pp)
 modelresponse(r::DataFrameRegressionModel) = r.model.rr.y
+
+function rawresiduals(r::DataFrameRegressionModel{T}) where T<:LinearModel
+    y = r.model.rr.y
+    mu = r.model.rr.mu
+    if isempty(r.model.rr.wts)
+        y - mu
+    else
+        wts = r.model.rr.wts
+        resid = similar(y)
+        @simd for i = eachindex(resid,y,mu,wts)
+            @inbounds resid[i] = (y[i] - mu[i]) * sqrt(wts[i])
+        end
+        resid
+    end
+end
 
 ## -----
 ## GeneralizedLinearModel methods
