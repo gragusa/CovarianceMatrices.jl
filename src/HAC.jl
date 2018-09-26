@@ -43,7 +43,7 @@ struct QuadraticSpectralKernel{G <: BandwidthType} <: HAC{G}
     weights::Vector{Float64}
 end
 
-struct VARHAC 
+struct VARHAC
     imax::Int64
     ilag::Int64
     imodel::Int64
@@ -135,7 +135,7 @@ end
 function vcov(X::AbstractMatrix, k::HAC, bw, D, prewhite::Bool)
     n, p = size(X)
     Q  = zeros(p, p)
-    for j in -floor(Int, bw):floor(Int, bw)
+    @inbounds for j in -floor(Int, bw):floor(Int, bw)
         LinearAlgebra.axpy!(kernel(k, j/bw), Γ(X, j), Q)
     end
     LinearAlgebra.copytri!(Q, 'U')
@@ -149,7 +149,7 @@ end
 function vcov(X::AbstractMatrix, k::QuadraticSpectralKernel, bw, D, prewhite::Bool)
     n, p = size(X)
     Q  = zeros(p, p)
-    for j in -n:n
+    @inbounds for j in -n:n
         LinearAlgebra.axpy!(kernel(k, j/bw), Γ(X, j), Q)
     end
     LinearAlgebra.copytri!(Q, 'U')
@@ -187,7 +187,7 @@ function bread(r::DataFrameRegressionModel, k::HAC; arg...)
     rmul!(A, nobs(r))
 end
 
-function variance(r::DataFrameRegressionModel, k::HAC; args...) 
+function variance(r::DataFrameRegressionModel, k::HAC; args...)
     B = meat(r, k; args...)
     A = bread(r, k)
     rmul!(A*B*A, 1/nobs(r))
@@ -203,7 +203,6 @@ end
 ##############################################################################
 
 kernel(k::HAC, x) = isnan(x) ? (return 1.0) : kernel(k, float(x))
-
 kernel(k::TruncatedKernel, x::Float64)    = (abs(x) <= 1.0) ? 1.0 : 0.0
 kernel(k::BartlettKernel, x::Float64)     = (abs(x) <= 1.0) ? (1.0 - abs(x)) : 0.0
 kernel(k::TukeyHanningKernel, x::Float64) = (abs(x) <= 1.0) ? 0.5 * (1.0 + cospi(x)) : 0.0
