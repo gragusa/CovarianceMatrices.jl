@@ -2,7 +2,7 @@ module CovarianceMatrices
 
 using Reexport
 using LinearAlgebra
-
+using Statistics
 abstract type RobustVariance end
 abstract type HAC{G} <: RobustVariance end
 abstract type HC <: RobustVariance end
@@ -21,7 +21,7 @@ const twohalftoπ² = 2.5 / π^2
 
 export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel,
        TukeyHanningKernel, VARHAC, HC0, HC1, HC2, HC3, HC4, HC4m, HC5, CRHC0, CRHC1,
-       CRHC2, CRHC3, vcov, stderror, NeweyWest, Andrews, optimalbw
+       CRHC2, CRHC3, vcov, stderror, NeweyWest, Andrews, optimalbw, Variance, HACConfig
 
 mutable struct HC0  <: HC end
 mutable struct HC1  <: HC end
@@ -49,9 +49,7 @@ mutable struct CRHC3{V<:AbstractVector}  <: CRHC
     cl::V
 end
 
-include("varhac.jl")
+#include("varhac.jl")
 include("HAC.jl")
-include("optimalbw.jl")
 include("HC.jl")
-
 end # module
