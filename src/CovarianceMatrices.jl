@@ -23,13 +23,13 @@ export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel,
        TukeyHanningKernel, VARHAC, HC0, HC1, HC2, HC3, HC4, HC4m, HC5, CRHC0, CRHC1,
        CRHC2, CRHC3, vcov, stderror, NeweyWest, Andrews, optimalbw, Variance, HACConfig
 
-mutable struct HC0  <: HC end
-mutable struct HC1  <: HC end
-mutable struct HC2  <: HC end
-mutable struct HC3  <: HC end
-mutable struct HC4  <: HC end
-mutable struct HC4m <: HC end
-mutable struct HC5  <: HC end
+struct HC0  <: HC end
+struct HC1  <: HC end
+struct HC2  <: HC end
+struct HC3  <: HC end
+struct HC4  <: HC end
+struct HC4m <: HC end
+struct HC5  <: HC end
 
 #const CLVector{T<:Integer} = DenseArray{T,1}
 
