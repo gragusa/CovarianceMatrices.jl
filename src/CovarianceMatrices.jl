@@ -11,6 +11,8 @@ abstract type CRHC <: RobustVariance end
 @reexport using GLM
 @reexport using DataFrames
 
+using StatsBase
+using StatsModels
 import StatsBase: confint, vcov, nobs, residuals, RegressionModel
 import GLM: LinPredModel, LinearModel, GeneralizedLinearModel, ModelMatrix, df_residual, AbstractGLM
 import StatsModels: DataFrameRegressionModel
@@ -52,4 +54,5 @@ end
 #include("varhac.jl")
 include("HAC.jl")
 include("HC.jl")
+include("CRHC.jl")
 end # module
