@@ -407,3 +407,52 @@ end
 @inline lagtruncation(k::BartlettKernel) = 2/9
 @inline lagtruncation(k::ParzenKernel) = 4/25
 @inline lagtruncation(k::QuadraticSpectralKernel) = 2/25
+
+
+##############################################################################
+##
+## GLM
+##
+##############################################################################
+
+function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel, k::HAC, cfg::CovarianceMatrices.HACConfig; demean = Val{false}, kwargs...)
+    mf = esteq_hac!(cfg, m)
+    br = pseudohessian(m)
+    V = variance(mf, k, cfg, demean = demean)*size(cfg.X_demean,1)
+    br*V*br'
+end
+
+function StatsBase.vcov(m::GLM.LinearModel, k::HAC, cfg::CovarianceMatrices.HACConfig; demean = Val{false}, kwargs...)
+    mf = esteq_hac!(cfg, m)
+    br = pseudohessian(m)
+    V = variance(mf, k, cfg, demean = demean).*size(cfg.X_demean,1)
+    br*V*br'
+end
+
+function StatsBase.vcov(m::GLM.LinearModel, k::HAC; kwargs...)
+    cfg = HACConfig(modelmatrix(m), k)
+    vcov(m, k, cfg, kwargs...)
+end
+
+function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel, k::HAC; kwargs...)
+    cfg = HACConfig(modelmatrix(m), k)
+    vcov(m, k, cfg, kwargs...)
+end
+
+
+
+function esteq_hac!(cfg, m::RegressionModel)
+    X = copy(modelmatrix(m))
+    u = copy(residuals(m))
+    if !isempty(getweights(m))
+        broadcast!(*, X, X, sqrt.(getweights(m)))
+        broadcast!(*, u, u, sqrt.(getweights(m)))
+    end
+    broadcast!(*, X, X, u)
+    return X
+end
+
+
+## -----
+## DataFramesRegressionModel/AbstractGLM methods
+## -----
