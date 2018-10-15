@@ -3,19 +3,20 @@ using Test
 using CSV
 using LinearAlgebra
 using Statistics
+using Random
 
 datapath = joinpath(@__DIR__)
 
 @testset "HAC - Basic checks...................................." begin
     X = [0 0; 3 7; 4 8; 5 9]
     X_demean = [-3  -6; 0   1; 1   2; 2   3]
-    cfg = CovarianceMatrices.HACConfig(X, TruncatedKernel(prewhiten=true));
-    CovarianceMatrices.demean!(cfg, X, Val{true})
-    @test all(cfg.μ .== [3 6])
-    @test all(cfg.X_demean .== X_demean)
-    CovarianceMatrices.fit_var!(cfg)
-    @test all(cfg.D   .≈ [-9/5 -4; 1 2])
-    @test all(cfg.XX  .≈ [3/5 1; 0 0; 9/5 3])
+    cache = CovarianceMatrices.HACCache(X, TruncatedKernel(prewhiten=true));
+    CovarianceMatrices.demean!(cache, X, Val{true})
+    @test all(cache.μ .== [3 6])
+    @test all(cache.X_demean .== X_demean)
+    CovarianceMatrices.fit_var!(cache)
+    @test all(cache.D   .≈ [-9/5 -4; 1 2])
+    @test all(cache.XX  .≈ [3/5 1; 0 0; 9/5 3])
 end
 
 @testset "HAC - Optimal Bandwidth Calculations.................." begin
@@ -24,8 +25,8 @@ end
     X = reshape(X, 8, 3)
 
     k = ParzenKernel(prewhiten=true)
-    cfg = CovarianceMatrices.HACConfig(X, k)
-    CovarianceMatrices.demean!(cfg, X, Val{true})
+    cache = CovarianceMatrices.HACCache(X, k)
+    CovarianceMatrices.demean!(cache, X, Val{true})
 
     Xd = reshape([               -2.75,    -1.75,   -0.75,     0.25,
                                   1.25,     2.25,    3.25,    -1.75,
@@ -34,15 +35,15 @@ end
                     0.0212499999999998,  0.12125,  0.22125, 0.32125,
                                0.42125, -0.37875, -0.36875, -0.35875], 8, 3)
 
-    @test all(Xd .≈ cfg.X_demean)
+    @test all(Xd .≈ cache.X_demean)
 
-    CovarianceMatrices.prewhiten!(cfg)
+    CovarianceMatrices.prewhiten!(cache)
 
-    D= reshape([-0.409214603090833,   -0.546926852567603, -0.0793279159360713,
+    D = reshape([-0.409214603090833,   -0.546926852567603, -0.0793279159360713,
                   7.17805137100394,    -1.09268085748226,  -0.152674132870786,
                   -56.8116543172651,    12.0360552297997,    1.52457939755027], 3,3)'
 
-    @test all(D .≈ cfg.D)
+    @test all(D .≈ cache.D)
 
     XX = reshape([0.575048549180823,     0.487377212994233,   0.399705876807639,
                   0.312034540621058,      0.22436320443446,   0.688172853937608,
@@ -51,34 +52,34 @@ end
                   0.0313806821395586,   0.0116065536680327,   -0.17700974754426,
                   0.00253436150757022,     0.1820784705594,    0.36162257961123,
                   -0.35883331133694,   0.00357849884047592, 0.00132355436565176], 7, 3)
-    @test all(XX .≈ cfg.XX)
+    @test all(XX .≈ cache.XX)
 
-    CovarianceMatrices.fit_ar!(cfg)
+    CovarianceMatrices.fit_ar!(cache)
     ρ = [-0.411560904449045,  -0.202815142161935, -0.202567957968907]
     σ⁴= [ 0.00043730337156934, 8.49515993964198,   0.0020740008652368]
-    @test all(ρ .≈ cfg.ρ)
-    @test all(σ⁴ .≈ cfg.σ⁴)
+    @test all(ρ .≈ cache.ρ)
+    @test all(σ⁴ .≈ cache.σ⁴)
 
-    CovarianceMatrices.fit_ar!(cfg)
+    CovarianceMatrices.fit_ar!(cache)
     if isempty(k.weights)
         for j in 1:size(X,2)
             push!(k.weights, 1.0)
         end
     end
-    a1, a2 = CovarianceMatrices.getalpha!(cfg, k.weights)
+    a1, a2 = CovarianceMatrices.getalpha!(cache, k.weights)
     @test a1 ≈ 0.1789771071933
     @test a2 ≈ 0.07861018601427
     @test CovarianceMatrices.bw_andrews(k, a1, a2, 7) ≈ 2.361704327253
     k.bw .= CovarianceMatrices.bw_andrews(k, a1, a2, 7)
     bw = k.bw[1]
-    fill!(cfg.V, zero(eltype(cfg.V)))
-    mul!(cfg.V, cfg.XX', cfg.XX)
+    fill!(cache.V, zero(eltype(cache.V)))
+    mul!(cache.V, cache.XX', cache.XX)
     V = reshape([0.707026904730492,   0.0322404268557179, 0.00367653990459955,
                  0.0322404268557179, 10.3694701634646,    1.29616765021965,
                  0.00367653990459955, 1.29616765021965,   0.162019118007504], 3, 3)*2
 
-    @test all(V ≈ cfg.V)
-    triu!(cfg.V)
+    @test all(V ≈ cache.V)
+    triu!(cache.V)
     @test CovarianceMatrices.kernel(k, 1/bw) ≈  0.379763254768776
     @test CovarianceMatrices.kernel(k, 2/bw) ≈  0.00718479751373071
 
@@ -86,39 +87,35 @@ end
 
     for j in -floor(Int, bw):-1
         k_j = CovarianceMatrices.kernel(k, j/bw)
-        LinearAlgebra.axpy!(k_j, CovarianceMatrices.Γ!(cfg, j), cfg.V)
+        LinearAlgebra.axpy!(k_j, CovarianceMatrices.Γ!(cache, j), cache.V)
     end
 
     for j in 1:floor(Int, bw)
         k_j = CovarianceMatrices.kernel(k, j/bw)
-        LinearAlgebra.axpy!(k_j, CovarianceMatrices.Γ!(cfg, j), cfg.V)
+        LinearAlgebra.axpy!(k_j, CovarianceMatrices.Γ!(cache, j), cache.V)
     end
 
-    LinearAlgebra.copytri!(cfg.V, 'U')
+    LinearAlgebra.copytri!(cache.V, 'U')
 
     V = reshape([ 2.18378130064673,  -0.126247404742945, -0.0168728162431914,
                  -0.126247404742945, 17.4806466521012,    2.18514395521502,
                  -0.0168728162431914, 2.18514395521502,   0.273151430809999], 3, 3)
 
-    @test all(V .≈ cfg.V)
+    @test all(V .≈ cache.V)
 
 
-    fill!(cfg.Q, zero(eltype(cfg.Q)))
-    for i = 1:size(cfg.Q, 2)
-        cfg.Q[i,i] = one(eltype(cfg.Q))
+    fill!(cache.Q, zero(eltype(cache.Q)))
+    for i = 1:size(cache.Q, 2)
+        cache.Q[i,i] = one(eltype(cache.Q))
     end
-    v = ldiv!(qr(I-cfg.D'), cfg.Q)
-    cfg.V .= v*cfg.V*v'
+    v = ldiv!(qr(I-cache.D'), cache.Q)
+    cache.V .= v*cache.V*v'
 
     V = reshape([10.3056593241458,   7.62922768968777,  0.731955791380014,
           7.62922768968773,  8.49755610886395,  0.859802385984295,
           0.731955791380006, 0.859802385984297, 0.0874594553955033], 3, 3)
 
-    @test all(V .≈ cfg.V)
-
-
-
-
+    @test all(V .≈ cache.V)
 end
 
 @testset "HAC - Optimal Bandwidth (All Kernels/All bw).........." begin
@@ -127,17 +124,18 @@ end
         .3, .4, .5, .6, .7, .8, .9, .10, .11, .12]
     X = reshape(X, 8, 3)
 
-    h_pre = CovarianceMatrices.HACConfig(X, ParzenKernel(prewhiten=true))
-    h_unw = CovarianceMatrices.HACConfig(X, ParzenKernel(prewhiten=false))
+    h_pre = CovarianceMatrices.HACCache(X, ParzenKernel(prewhiten=true))
+    h_unw = CovarianceMatrices.HACCache(X, ParzenKernel(prewhiten=false))
 
-    andrews_opt_kernels = (((ParzenKernel(prewhiten=u), u ? h_pre : h_unw),
-                            (TruncatedKernel(prewhiten=u), u ? h_pre : h_unw),
-                            (BartlettKernel(prewhiten=u), u ? h_pre : h_unw),
-                            (TukeyHanningKernel(prewhiten=u), u ? h_pre : h_unw),
-                            (QuadraticSpectralKernel(prewhiten=u), u ? h_pre : h_unw)) for u in (true, false))
+    andrews_opt_kernels = ((ParzenKernel(prewhiten=u),
+                           TruncatedKernel(prewhiten=u),
+                           BartlettKernel(prewhiten=u),
+                           TukeyHanningKernel(prewhiten=u),
+                           QuadraticSpectralKernel(prewhiten=u)) for u in (true, false))
 
 
-    Ω = map(lst -> map(k -> CovarianceMatrices.variance(X, k...), lst), andrews_opt_kernels)
+
+    Ω = map(lst -> map(k -> CovarianceMatrices.variance(X, k), lst), andrews_opt_kernels)
 
     O = (([1.28821 0.953653 0.0914945; 0.953653 1.06219 0.107475; 0.0914945 0.107475 0.0109324],
          [1.49062 1.1894 0.115455; 1.1894 1.18561 0.118517; 0.115455 0.118517 0.0118871],
@@ -151,16 +149,36 @@ end
          [5.44375 -3.05791 -0.48333; -3.05791 7.51892 0.979098; -0.48333 0.979098 0.129227],
          [5.51144 -3.28821 -0.512786; -3.28821 7.52871 0.985677; -0.512786 0.985677 0.130714]))
 
+         for j in 1:2, i in 1:4
+             @test abs2(maximum(Ω[j][i] .- O[j][i])) < 1e-06
+         end
+
+    andrews_opt_kernels = (((ParzenKernel(prewhiten=true), h_pre),
+                            (TruncatedKernel(prewhiten=true), h_pre),
+                            (BartlettKernel(prewhiten=true), h_pre),
+                            (TukeyHanningKernel(prewhiten=true), h_pre),
+                            (QuadraticSpectralKernel(prewhiten=true), h_pre)),
+                            ((ParzenKernel(prewhiten=false), h_unw),
+                            (TruncatedKernel(prewhiten=false), h_unw),
+                            (BartlettKernel(prewhiten=false), h_unw),
+                            (TukeyHanningKernel(prewhiten=false), h_unw),
+                            (QuadraticSpectralKernel(prewhiten=false), h_unw)))
+
+    Ω = map(lst -> map(k -> copy(CovarianceMatrices.variance(X, k...)), lst), andrews_opt_kernels)
+
+
+
     for j in 1:2, i in 1:4
         @test abs2(maximum(Ω[j][i] .- O[j][i])) < 1e-06
     end
 
     ## Quadratic Spectral in R has a bug
-    newey_opt_kernels = (((ParzenKernel(NeweyWest, prewhiten=u), u ? h_pre : h_unw),
-                            (BartlettKernel(NeweyWest, prewhiten=u), u ? h_pre : h_unw),
-                            (QuadraticSpectralKernel(NeweyWest, prewhiten=u), u ? h_pre : h_unw)) for u in (true, false))
+    newey_opt_kernels = ((ParzenKernel(NeweyWest, prewhiten=u),
+                           BartlettKernel(NeweyWest, prewhiten=u),
+                           TukeyHanningKernel(NeweyWest, prewhiten=u),
+                           QuadraticSpectralKernel(NeweyWest, prewhiten=u)) for u in (true, false))
 
-    Ω = map(lst -> map(k -> CovarianceMatrices.variance(X, k...), lst), newey_opt_kernels)
+    Ω = map(lst -> map(k -> copy(CovarianceMatrices.variance(X, k...)), lst), newey_opt_kernels)
 
     O = (([0.623214 -0.105139 -0.0189412; -0.105139 0.244904 0.0285405; -0.0189412 0.0285405 0.00340343],
           [1.31044 0.981166 0.0943068; 0.981166 1.07909 0.109042; 0.0943068 0.109042 0.0110746],
@@ -176,16 +194,39 @@ end
 
     W = randn(100,5);
     k = ParzenKernel(prewhiten=true)
-    h_pre = CovarianceMatrices.HACConfig(W, k)
-    Ω = CovarianceMatrices.variance(W, k,  h_pre, calculatechol = true)
+    h_pre = CovarianceMatrices.HACCache(W, k)
+    Ω = CovarianceMatrices.variance(W, k,  h_pre, cholesky = LinearAlgebra.Cholesky)
     @test h_pre.chol == cholesky(Symmetric(Ω), check = false)
-    ## Without cfg
-    Ω = map(lst -> map(k -> CovarianceMatrices.variance(X, k[1]), lst), newey_opt_kernels)
-    for j in 1:2, i in 1:3
-      @test abs2(maximum(Ω[j][i] .- O[j][i])) < 1e-06
-    end
+
+    Ω = CovarianceMatrices.variance(W, k,  h_pre, cholesky = PositiveFactorizations.Positive)
+    @test h_pre.chol.L == cholesky(Positive, Symmetric(Ω)).L
+    @test h_pre.chol.U == cholesky(Positive, Symmetric(Ω)).U
+    ## Without cache
 
 end
+
+@testset "HAC - GLM............................................." begin
+    using GLM
+    using DataFrames
+    Random.seed!(1)
+    n = 500
+    x = randn(n,5)
+    u = Array{Float64}(undef, 2*n)
+    u[1] = rand()
+    for j in 2:2*n
+        u[j] = 0.90*u[j-1] + randn()
+    end
+    u = u[n+1:2*n]
+    y = 0.1 .+ x*[0.2, 0.3, 0.0, 0.0, 0.5] .+ u
+
+    df = DataFrame()
+    df[:y] = y
+    for j in enumerate([:x1, :x2, :x3, :x4, :x5])
+        df[j[2]] = x[:,j[1]]
+    end
+
+    lm1 = glm(@formula(y~x1+x2+x3+x4+x5), df, Normal(), IdentityLink())
+
 
 #
 #

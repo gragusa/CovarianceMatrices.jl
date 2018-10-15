@@ -1,0 +1,9 @@
+name = "CovarianceMatrices"
+author = "Giuseppe Ragusa <giuseppe.ragusa@gmail.com>"
+uuid = "60f91f6f-d783-54cb-84f9-544141854719"
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+PositiveFactorizations = "85a6dd25-e78a-55b7-8502-1745935b8125"
+Requires = "ae029012-a4dd-5104-9daa-d747884805df"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
