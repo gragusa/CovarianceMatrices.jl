@@ -1,4 +1,4 @@
-struct CRHCCache{F1<:AbstractMatrix, F2<:AbstractMatrix, V<:AbstractVector, IN<:AbstractVector}
+struct CRHCCache{VN<:AbstractVector, F1<:AbstractMatrix, F2<:AbstractMatrix, V<:AbstractVector, IN<:AbstractVector}
     q::F1
     X::F1
     x::F2
@@ -8,66 +8,83 @@ struct CRHCCache{F1<:AbstractMatrix, F2<:AbstractMatrix, V<:AbstractVector, IN<:
     u::V
     M::F1
     clusidx::IN
-    clus::IN
+    clus::VN
 end
 
-function CRHCCache(X::AbstractMatrix{T1}; returntype::Type{T1} = eltype(X)) where T1
+function CRHCCache(X::AbstractMatrix{T1}, cl::AbstractVector{T}; returntype::Type{T1} = eltype(X)) where {T,T1}
     n, p = size(X)
     CRHCCache(similar(X), similar(X), Array{T1, 2}(undef, p, p),
              Array{T1, 1}(undef, n), Array{T1, 1}(undef, n),
              Array{T1, 1}(undef, n), Array{T1, 1}(undef, n),
              Array{T1, 2}(undef, p, p), Array{Int, 1}(undef, n),
-             Array{Int, 1}(undef, n))
+             Array{T, 1}(undef, n))
 end
 
 function installsortedxuw!(cache, m, k, ::Type{Val{true}})
-    installxuw!(cache, m)
+    copyto!(cache.X, modelmatrix(m))
+    copyto!(cache.u, residuals(m))
     copyto!(cache.clus, k.cl)
+    if !isempty(m.rr.wts)
+        cache.w .= sqrt.(smplweights(m))
+        broadcast!(*, cache.u, cache.u, cache.w)
+        broadcast!(*, cache.u, cache.u, cache.w)
+    end
+
 end
 
 function installsortedxuw!(cache, m, k, ::Type{Val{false}})
     n, p = size(cache.X)
     sortperm!(cache.clusidx, k.cl)
     cidx = cache.clusidx
-    u = residuals(m)
-    w = getweights(m)
-    X = modelmatrix(m)
+    u = CovarianceMatrices.residuals(m)
+    w = CovarianceMatrices.smplweights(m)
+    X = CovarianceMatrices.modelmatrix(m)
     uu = cache.u
     XX = cache.X
     ww = cache.w
     c  = k.cl
     cc = cache.clus
-
     @inbounds for i in eachindex(cidx)
         uu[i] = u[cidx[i]]
     end
     @inbounds for j in 1:p, i in eachindex(cache.clusidx)
-        XX[i,j] = X[cidx[i], p]
+        XX[i,j] = X[cidx[i], j]
     end
     @inbounds for i in eachindex(cache.clusidx)
         cc[i] = c[cidx[i]]
     end
-
-    if !isempty(ww)
+    if !isempty(w)
         @inbounds for i in eachindex(cidx)
-            ww[i] = sqrt.(w[cidx[i]])
+            ww[i] = sqrt(w[cidx[i]])
         end
         broadcast!(*, XX, XX, ww)
         broadcast!(*, uu, uu, ww)
     end
 end
 
-adjresid!(k::CRHC0, cache, ichol, bstarts) = nothing
-adjresid!(k::CRHC1, cache, ichol, bstarts) = cache.u .= scalaradjustment(cache, bstarts)*cache.u
-adjresid!(k::CRHC2, cache, ichol, bstarts) = getqii(k, cache, ichol, bstarts)
-adjresid!(k::CRHC3, cache, ichol, bstarts) = scalaradjustment(cache, bstarts).*getqii(k, cache, ichol, bstarts)
 
-function scalaradjustment(cache, bstarts)
-    n, p = size(cache.X)
-    g    = length(bstarts)
-    sqrt.((n-1)/(n-p) * g/(g-1))
+
+adjresid!(k::CRHC0, cache, ichol, bstarts) = nothing
+adjresid!(k::CRHC1, cache, ichol, bstarts) = nothing
+adjresid!(k::CRHC2, cache, ichol, bstarts) = getqii(k, cache, ichol, bstarts)
+adjresid!(k::CRHC3, cache, ichol, bstarts) = getqii(k, cache, ichol, bstarts)
+
+function dof_adjustment(cache, k::CRHC0, bstarts)
+    g, (n, p) = length(bstarts), size(cache.X)
+    g/(g-1)
 end
 
+function dof_adjustment(cache, k::CRHC1, bstarts)
+    g, (n, p) = length(bstarts), size(cache.X)
+    (n-1)/(n-p) * g/(g-1)
+end
+
+dof_adjustment(cache, k::T, bstarts) where T<:Union{CRHC2} = 1.0
+
+function dof_adjustment(cache, k::CRHC3, bstarts)
+    g, (n, p) = length(bstarts), size(cache.X)
+    g/(g-1)
+end
 
 function getqii(v::CRHC2, cache, A, bstarts)
     X, u  = cache.X, cache.u
@@ -77,7 +94,7 @@ function getqii(v::CRHC2, cache, A, bstarts)
         uu = copy(uv)
         xx = copy(xv)
         BB = Symmetric(I - xx*A*xx')
-        uv .= cholesky!(BB).U\uu
+        uv .= cholesky!(BB).L\uu
     end
     return u
 end

@@ -2,151 +2,157 @@
 Requires
 =========#
 
-using .GLM
-using .DataFrames
-using .StatsBase
-using .StatsModels
-import .StatsBase: residuals
+using GLM
+using DataFrames
+using StatsBase
+using StatsModels
+#import StatsBase: residuals
+
+const INNERMOD = Union{GLM.GeneralizedLinearModel, GLM.LinearModel}
 
 #============
 General GLM methods
 =============#
+StatsModels.modelmatrix(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = m.mm.m
+StatsModels.modelmatrix(m::T) where T<:INNERMOD = m.pp.X
 
 
-StatsModels.modelmatrix(m::T) where T<:StatsModels.DataFrameRegressionModel = m.mm.m
-StatsModels.modelmatrix(m::T) where T<:GLM.LinearModel = m.pp.X
+residuals(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = m.model.rr.wrkresid
+residuals(m::T) where T<:INNERMOD = m.rr.y .- m.rr.mu
 
-function modelmatrix!(cache, m::T, weighted::Type{Val{false}}) where T<:Union{StatsModels.DataFrameRegressionModel, GLM.LinearModel}
-    return cache.X
-end
+modelweights(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = m.model.rr.wrkwt
+modelweights(m::GLM.GeneralizedLinearModel) = m.rr.wrkwt
+modelweights(m::GLM.LinearModel) = m.rr.wts
 
-residuals(m::StatsModels.DataFrameRegressionModel{T}) where T<:GLM.GeneralizedLinearModel = m.model.rr.wrkresid
-getweights(m::StatsModels.DataFrameRegressionModel) = m.model.rr.wts
-getweights(m::GLM.LinearModel) = m.rr.wts
+smplweights(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = m.model.rr.wts
+smplweights(m::GLM.GeneralizedLinearModel) = m.rr.wts
+smplweights(m::GLM.LinearModel) = m.rr.wts
 
-function installxuw!(cache, m::T) where T<:Union{StatsModels.DataFrameRegressionModel, GLM.LinearModel}
+
+choleskyfactor(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = m.model.pp.chol.UL
+choleskyfactor(m::T) where T<:INNERMOD = m.pp.chol.UL
+
+unweighted_nobs(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = size(modelmatrix(m), 1)
+unweighted_nobs(m::T) where T<:INNERMOD = size(modelmatrix(m), 1)
+
+unweighted_dof_residual(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = unweighted_nobs(m) - length(coef(m))
+unweighted_dof_residual(m::T) where T<:INNERMOD = unweighted_nobs(m) - length(coef(m))
+
+function installxuw!(cache, m::T) where T<:INNERMOD
     copyto!(cache.X, modelmatrix(m))
     copyto!(cache.u, residuals(m))
-    if !isempty(getweights(m))
-        cache.w .= sqrt.(getweights(m))
-        broadcast!(*, cache.X, cache.X, cache.w)
-        broadcast!(*, cache.u, cache.u, cache.w)
+    if !isempty(m.rr.wts)
+        broadcast!(*, cache.u, cache.u, smplweights(m))
     end
 end
 
-choleskyfactor(m::StatsModels.DataFrameRegressionModel) = m.model.pp.chol.UL
-choleskyfactor(m::GLM.LinearModel) = m.pp.chol.UL
-
-unweighted_nobs(m::T) where T<:Union{StatsModels.DataFrameRegressionModel, GLM.LinearModel} = size(modelmatrix(m), 1)
-unweighted_dof_residual(m::T) where T<:Union{StatsModels.DataFrameRegressionModel, GLM.LinearModel} = size(modelmatrix(m), 1) - length(coef(m))
-
-## -----
-## DataFramesRegressionModel/AbstractGLM methods
-## -----
-
-function esteq!(cache, m::StatsModels.RegressionModel)
+function esteq!(cache, m::StatsModels.RegressionModel, k::T) where T<:Union{HC, CRHC}
     broadcast!(*, cache.q, cache.X, cache.u)
     return cache.q
 end
 
-pseudohessian(cache, m::StatsModels.DataFrameRegressionModel) = GLM.invchol(m.model.pp)
-pseudohessian(m::StatsModels.DataFrameRegressionModel) = GLM.invchol(m.model.pp)
-
-function pseudohessian(cache, m::GLM.LinearModel)
-    X = cache.X
-    mul!(cache.x, X', X)
-    inv(cholesky!(cache.x))
+function esteq!(cache, m::RegressionModel, k::HAC)
+    X = copy(modelmatrix(m))
+    u = copy(residuals(m))
+    if !isempty(smplweights(m))
+        broadcast!(*, u, u, smplweights(m))
+    end
+    broadcast!(*, X, X, u)
+    return X
 end
 
+pseudohessian(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = GLM.invchol(m.model.pp)
+pseudohessian(m::T) where T<:INNERMOD = GLM.invchol(m.pp)
 
 #==============
 HAC GLM Methods
 ===============#
 
-function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel, k::HAC, cache::CovarianceMatrices.HACCache; demean = Val{false}, dof_adjustment::Bool = true)
-    mf = esteq_hac!(cache, m)
+function HACCache(m::StatsModels.DataFrameRegressionModel{T}; prewhiten = false) where T<:INNERMOD
+    HACCache(m.model, prewhiten = prewhiten)
+end
+
+
+function HACCache(m::T; prewhiten = false) where T<:INNERMOD
+    HACCache(modelmatrix(m), prewhiten = prewhiten)
+end
+
+function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel{T}, k::HAC, args...; kwargs...) where T<:INNERMOD
+    set_bw_weights!(k, m)
+    vcov(m.model, k, args...; kwargs...)
+end
+
+StatsBase.vcov(m::T, k::HAC; kwargs...) where T<:INNERMOD = vcov(m, k, HACCache(m, prewhiten = k.prewhiten); kwargs...)
+
+function StatsBase.vcov(m::T, k::HAC, cache::CovarianceMatrices.HACCache; demean = Val{false}, dof_adjustment::Bool = true) where T<:INNERMOD
+    mf = esteq!(cache, m, k)
     br = pseudohessian(m)
-    n = unweighted_nobs(m)
-    V = variance(mf, k, cache, demean = demean, dof_adjustment = dof_adjustment)
-    V = br*V*br'
-    dof_adjustment ? rmul!(V, unweighted_dof_residual(m)) : rmul!(V, unweighted_nobs(m))
+    set_bw_weights!(k, m)
+    variance(mf, k, cache, demean = demean)
+    V = br*cache.V*br'
+    dof_adjustment ? rmul!(V, unweighted_nobs(m)^2/unweighted_dof_residual(m)) : rmul!(V, unweighted_nobs(m))
 end
 
-function StatsBase.vcov(m::GLM.LinearModel, k::HAC, cache::CovarianceMatrices.HACCache; demean = Val{false}, dof_adjustment = dof_adjustment)
-    mf = esteq_hac!(cache, m)
-    br = pseudohessian(m)
-    V = variance(mf, k, cache, demean = demean, kwargs...).*size(cache.X_demean,1)
-    V = br*V*br'
-    dof_adjustment ? rmul!(V, unweighted_dof_residual(m)) : rmul!(V, unweighted_nobs(m))
-end
-
-function StatsBase.vcov(m::GLM.LinearModel, k::HAC; kwargs...)
-    cache = HACCache(modelmatrix(m), k)
-    vcov(m, k, cache, demean=demean, kwargs...)
-end
-
-function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel, k::HAC; kwargs...)
-    cache = HACCache(modelmatrix(m), k)
-    vcov(m, k, cache, kwargs...)
-end
-
-
-function esteq_hac!(cache, m::RegressionModel)
-    X = copy(modelmatrix(m))
-    u = copy(residuals(m))
-    if !isempty(getweights(m))
-        broadcast!(*, X, X, sqrt.(getweights(m)))
-        broadcast!(*, u, u, sqrt.(getweights(m)))
+function set_bw_weights!(k::HAC, m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD
+    if isempty(k.weights)
+        for j in eachindex(coef(m))
+            push!(k.weights, 1.0)
+        end
     end
-    broadcast!(*, X, X, u)
-    return X
+    if length(k.weights) == length(coef(m))
+        "(Intercept)" ∈ coefnames(m) ? (k.weights .= 1.0; k.weights[1] = 0.0) : k.weights .= 1.0
+    else
+        error("Bandwidth weights have wrong dimension for the problem")
+    end
+end
+
+function set_bw_weights!(k::HAC, m::T) where T<:INNERMOD
+    if isempty(k.weights)
+        for j in eachindex(coef(m))
+            push!(k.weights, 1.0)
+        end
+    end
 end
 
 #==============
 HC GLM Methods
 ===============#
 
-function HCCache(m::StatsModels.DataFrameRegressionModel; returntype::Type{T1} = Float64) where T1
-    s = size(ModelMatrix(m.mf).m)
-    HCCache(similar(Array{T1, 2}(undef, s...)); returntype = returntype)
+function HCCache(m::StatsModels.DataFrameRegressionModel{T}; returntype::Type{T1} = Float64) where {T<:INNERMOD, T1}
+    HCCache(m.model, returntype = returntype)
 end
 
-function HCCache(m::GLM.LinearModel; returntype::Type{T1} = Float64) where T1
-    s = size(m.pp.X)
-    HCCache(similar(Array{T1, 2}(undef, s...)); returntype = T1)
+function HCCache(m::T; returntype::Type{T1} = Float64) where {T<:INNERMOD, T1}
+    n, p = unweighted_nobs(m), length(coef(m))
+    HCCache(similar(Array{T1, 2}(undef, n, p)); returntype = T1)
 end
 
+function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel{T}, k::HC, args...; kwargs...) where T<:INNERMOD
+    vcov(m.model, k, args...; kwargs...)
+end
 
-StatsBase.vcov(m::StatsModels.DataFrameRegressionModel, k::HC; kwargs...) = vcov(m, k, HCCache(m); kwargs...)
-StatsBase.vcov(m::GLM.LinearModel, k::HC, kwargs...) = vcov(m, k, HCCache(m); kwargs...)
+StatsBase.vcov(m::T, k::HC; kwargs...) where T<:INNERMOD = vcov(m, k, HCCache(m); kwargs...)
 
-function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel, k::HC, cache::CovarianceMatrices.HCCache)
-    installxuw!(cache, m)
-    mf = esteq!(cache, m)
-    br = pseudohessian(cache, m)
-    adjfactor!(cache, m, k)
+function StatsBase.vcov(m::T, k::HC, cache::CovarianceMatrices.HCCache; kwargs...) where T<:INNERMOD
+    CovarianceMatrices.installxuw!(cache, m)
+    mf = CovarianceMatrices.esteq!(cache, m, k)
+    br = CovarianceMatrices.pseudohessian(m)
+    CovarianceMatrices.adjfactor!(cache, m, k)
     mul!(cache.x, mf', broadcast!(*, cache.X, mf, cache.η))
     br*cache.x*br'
 end
 
-function StatsBase.vcov(m::GLM.LinearModel, k::HC, cache::CovarianceMatrices.HCCache; kwargs...)
-    installxuw!(cache, m)
-    mf = esteq!(cache, m)
-    br = pseudohessian(cache, m)
-    adjfactor!(cache, m, k)
-    mul!(cache.x, mf', broadcast!(*, cache.X, mf, cache.η))
-    br*cache.x*br'
-end
 
-StatsBase.stderror(m::StatsModels.DataFrameRegressionModel, k::HC, args...; kwargs...) = sqrt.(diag(vcov(m, k, args...)))
-StatsBase.stderror(m::GLM.LinearModel, k::HC, args...; kwargs...) = sqrt.(diag(vcov(m, k, args...; kwrags...)))
+StatsBase.stderror(m::StatsModels.DataFrameRegressionModel{T}, k::RobustVariance, args...; kwargs...) where T<:INNERMOD = stderror(m.model, k, args...; kwargs...)
+StatsBase.stderror(m::T, k::RobustVariance, args...; kwargs...) where T<:INNERMOD = sqrt.(diag(vcov(m, k, args...; kwargs...)))
 
 ## -----
 ## DataFramesRegressionModel/AbstractGLM methods
 ## -----
 
-function hatmatrix(cache, m::T) where T<:Union{StatsModels.DataFrameRegressionModel, GLM.LinearModel}
+function hatmatrix(cache, m::T) where T<:INNERMOD
       z = cache.X  ## THIS ASSUME THAT X IS WEIGHTED BY SQRT(W)
+      z .= z.*sqrt.(modelweights(m))
       cf = choleskyfactor(m)::UpperTriangular
       rdiv!(z, cf)
       sum!(cache.v, z.^2)
@@ -186,44 +192,38 @@ function hatmatrix(cache, m::T) where T<:Union{StatsModels.DataFrameRegressionMo
       mx    = max(n*0.7*maximum(h)/p, 4)
       @inbounds for j in eachindex(h)
           alpha =  min(n*h[j]/p, mx)
-          cache.η[j] = tone/(tone-h[j])^alpha
+          cache.η[j] = sqrt(tone/(tone-h[j])^alpha)
       end
       cache.η
   end
 
-#=========
+#==========
 Cluster GLM
 =========#
 
-function CRHCCache(m::StatsModels.DataFrameRegressionModel; returntype::Type{T1} = Float64) where T1
-    s = size(ModelMatrix(m.mf).m)
-    CRHCCache(similar(Array{T1, 2}(undef, s...)); returntype = returntype)
+function CRHCCache(m::StatsModels.DataFrameRegressionModel{T}, cl::AbstractArray{F}; returntype::Type{T1} = Float64) where {T<:INNERMOD, F, T1}
+    CRHCCache(m.model, cl, returntype=returntype)
 end
 
-function CRHCCache(m::GLM.LinearModel; returntype::Type{T1} = Float64) where T1
-    s = size(m.pp.X)
-    CRHCCache(similar(Array{T1, 2}(undef, s...)); returntype = T1)
+function CRHCCache(m::T, cl::AbstractVector{F}; returntype::Type{T1} = Float64) where {T<:INNERMOD, F, T1}
+    n, p = unweighted_nobs(m), length(coef(m))
+    CRHCCache(similar(Array{T1, 2}(undef, n, p)), cl; returntype = T1)
 end
 
-function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel, k::CRHC, cache; sorted::Bool = false)
-    B = CovarianceMatrices.pseudohessian(cache, m)
+function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel{T}, k::CRHC, args...; kwargs...) where T<:INNERMOD
+    vcov(m.model, k, args...; kwargs...)
+end
+
+StatsBase.vcov(m::T, k::CRHC; kwargs...) where T<:INNERMOD = vcov(m, k, CRHCCache(m, k.cl); kwargs...)
+
+function StatsBase.vcov(m::T, k::CRHC, cache::CRHCCache; sorted::Bool = false) where T<:INNERMOD
+    B = CovarianceMatrices.pseudohessian(m)
     CovarianceMatrices.installsortedxuw!(cache, m, k, Val{sorted})
     bstarts = (searchsorted(cache.clus, j[2]) for j in enumerate(unique(cache.clus)))
     CovarianceMatrices.adjresid!(k, cache, B, bstarts)
-    CovarianceMatrices.esteq!(cache, m)
+    CovarianceMatrices.esteq!(cache, m, k)
     CovarianceMatrices.clusterize!(cache, bstarts)
-    return B*cache.M*B
+    return dof_adjustment(cache, k, bstarts).*(B*cache.M*B)
 end
-
-function StatsBase.vcov(m::GLM.LinearModel, k::CRHC, cache; sorted::Bool = false)
-    B = CovarianceMatrices.pseudohessian(cache, m)
-    CovarianceMatrices.installsortedxuw!(cache, m, k, Val{sorted})
-    bstarts = (searchsorted(cache.clus, j[2]) for j in enumerate(unique(cache.clus)))
-    CovarianceMatrices.adjresid!(k, cache, B, bstarts)
-    CovarianceMatrices.esteq!(cache, m)
-    CovarianceMatrices.clusterize!(cache, bstarts)
-    return B*cache.M*B
-end
-
 
 export vcov, stderror
