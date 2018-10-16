@@ -4,6 +4,9 @@ using CSV
 using LinearAlgebra
 using Statistics
 using Random
+using PositiveFactorizations
+using GLM
+using DataFrames
 
 datapath = joinpath(@__DIR__)
 
@@ -166,8 +169,6 @@ end
 
     Ω = map(lst -> map(k -> copy(CovarianceMatrices.variance(X, k...)), lst), andrews_opt_kernels)
 
-
-
     for j in 1:2, i in 1:4
         @test abs2(maximum(Ω[j][i] .- O[j][i])) < 1e-06
     end
@@ -175,10 +176,9 @@ end
     ## Quadratic Spectral in R has a bug
     newey_opt_kernels = ((ParzenKernel(NeweyWest, prewhiten=u),
                            BartlettKernel(NeweyWest, prewhiten=u),
-                           TukeyHanningKernel(NeweyWest, prewhiten=u),
                            QuadraticSpectralKernel(NeweyWest, prewhiten=u)) for u in (true, false))
 
-    Ω = map(lst -> map(k -> copy(CovarianceMatrices.variance(X, k...)), lst), newey_opt_kernels)
+    Ω = map(lst -> map(k -> copy(CovarianceMatrices.variance(X, k)), lst), newey_opt_kernels)
 
     O = (([0.623214 -0.105139 -0.0189412; -0.105139 0.244904 0.0285405; -0.0189412 0.0285405 0.00340343],
           [1.31044 0.981166 0.0943068; 0.981166 1.07909 0.109042; 0.0943068 0.109042 0.0110746],
@@ -201,7 +201,40 @@ end
     Ω = CovarianceMatrices.variance(W, k,  h_pre, cholesky = PositiveFactorizations.Positive)
     @test h_pre.chol.L == cholesky(Positive, Symmetric(Ω)).L
     @test h_pre.chol.U == cholesky(Positive, Symmetric(Ω)).U
-    ## Without cache
+
+end
+
+@testset "Accessor functions ..................................." begin
+    Random.seed!(1)
+    y = randn(100)
+    X = [ones(100) randn(100,4)]
+    df = DataFrame(y = y, x1 = X[:,2], x2 = X[:,3], x3 = X[:,4], x4 = X[:,5])
+
+    OLS1 = fit(GeneralizedLinearModel, X, y, Normal(), IdentityLink())
+    OLS2 = fit(LinearModel, X, y)
+    OLS3 = glm(@formula(y~x1+x2+x3+x4), df, Normal(), IdentityLink())
+    OLS4 = lm(X,y)
+
+    @test CovarianceMatrices.modelmatrix(OLS1) == X
+    @test CovarianceMatrices.modelmatrix(OLS2) == X
+    @test CovarianceMatrices.modelmatrix(OLS3) == X
+    @test CovarianceMatrices.modelmatrix(OLS4) == X
+
+    @test CovarianceMatrices.unweighted_nobs(OLS1) == 100
+    @test CovarianceMatrices.unweighted_nobs(OLS1) == CovarianceMatrices.unweighted_nobs(OLS2)
+    @test CovarianceMatrices.unweighted_nobs(OLS2) == CovarianceMatrices.unweighted_nobs(OLS3)
+    @test CovarianceMatrices.unweighted_nobs(OLS3) == CovarianceMatrices.unweighted_nobs(OLS4)
+
+    @test CovarianceMatrices.pseudohessian(OLS1) ≈ inv(X'X)
+    @test CovarianceMatrices.pseudohessian(OLS2) ≈ inv(X'X)
+    @test CovarianceMatrices.pseudohessian(OLS3) ≈ inv(X'X)
+    @test CovarianceMatrices.pseudohessian(OLS4) ≈ inv(X'X)
+
+    res = y - X*coef(OLS1)
+    @test CovarianceMatrices.residuals(OLS1) ≈ res
+    @test CovarianceMatrices.residuals(OLS2) ≈ res
+    @test CovarianceMatrices.residuals(OLS3) ≈ res
+    @test CovarianceMatrices.residuals(OLS4) ≈ res
 
 end
 
@@ -226,322 +259,287 @@ end
     end
 
     lm1 = glm(@formula(y~x1+x2+x3+x4+x5), df, Normal(), IdentityLink())
+    cache = HACCache(lm1, prewhiten = false)
+    k = ParzenKernel(prewhiten=false)
+    V1 = vcov(lm1, k, dof_adjustment=true)
+    V2 = vcov(lm1, ParzenKernel(prewhiten=false), dof_adjustment=false)
+    V3 = vcov(lm1, ParzenKernel(prewhiten=true), dof_adjustment=true)
+
+    @test V1 ≈ [0.0270211 -0.00307949 -0.00163554 -0.000300019 -0.00188026 -0.000867778; -0.00307949 0.00937425 0.00190391 -0.000170949 0.00129168 -0.000222773; -0.00163554 0.00190391 0.00818586 -0.000314616 -3.04184e-5 0.00102808; -0.000300019 -0.000170949 -0.000314616 0.00631031 0.000692898 -0.000413075; -0.00188026 0.00129168 -3.04184e-5 0.000692898 0.00992344 -0.000614847; -0.000867778 -0.000222773 0.00102808 -0.000413075 -0.000614847 0.00687878] atol = 1e-07
+    @test V2 ≈ [0.0266968 -0.00304254 -0.00161591 -0.000296419 -0.0018577 -0.000857365; -0.00304254 0.00926176 0.00188106 -0.000168897 0.00127617 -0.000220099; -0.00161591 0.00188106 0.00808763 -0.00031084 -3.00534e-5 0.00101574; -0.000296419 -0.000168897 -0.00031084 0.00623459 0.000684584 -0.000408118; -0.0018577 0.00127617 -3.00534e-5 0.000684584 0.00980436 -0.000607469; -0.000857365 -0.000220099 0.00101574 -0.000408118 -0.000607469 0.00679623] atol = 1e-07
+    @test V3 ≈ [0.119989 -0.0161438 -0.0112091 -0.00223659 -0.011342 -0.00100829; -0.0161438 0.0118321 0.00332481 0.000108606 0.00266646 -0.000861742; -0.0112091 0.00332481 0.00850798 -0.000528358 0.00101983 0.000670953; -0.00223659 0.000108606 -0.000528358 0.00647909 0.00126079 -0.000440205; -0.011342 0.00266646 0.00101983 0.00126079 0.0109383 -0.000179102; -0.00100829 -0.000861742 0.000670953 -0.000440205 -0.000179102 0.00722848] atol = 1e-06
+
+    ## Weighted
+    Random.seed!(1)
+    df[:w] = rand(500)
+    lmw = glm(@formula(y~x1+x2+x3+x4+x5), df, Normal(), IdentityLink(), wts = df[:w])
+    @test vcov(lmw, ParzenKernel()) ≈ [0.029872 -0.0044146 -0.00260797 -0.000579526 -0.000424983 -0.00171035; -0.0044146 0.0117399 0.00391563 -0.000353498 0.000506188 -0.000594032; -0.00260797 0.00391563 0.0131766 -0.000687168 -0.000567488 0.00102956; -0.000579526 -0.000353498 -0.000687168 0.00844854 -0.000993179 -0.000654108; -0.000424983 0.000506188 -0.000567488 -0.000993179 0.0132472 -0.00091491; -0.00171035 -0.000594032 0.00102956 -0.000654108 -0.00091491 0.00783998] atol = 1e-07
+end
 
 
-#
-#
-#
-# ############################################################
-# ## HAC
-# ############################################################
-#
-# X = randn(100, 5);
-#
-# @time vcov(X, TruncatedKernel(2.))
-# @time vcov(X, BartlettKernel(2.))
-# @time vcov(X, ParzenKernel(2.))
-# @time vcov(X, QuadraticSpectralKernel(2.))
-# @time vcov(X, TruncatedKernel())
-# @time vcov(X, BartlettKernel())
-# @time vcov(X, ParzenKernel())
-# @time vcov(X, QuadraticSpectralKernel())
-#
-# ############################################################
-# ## HC
-# ############################################################
-#
-# # A Gamma example, from McCullagh & Nelder (1989, pp. 300-2)
-# clotting = DataFrame(
-#     u    = log.([5,10,15,20,30,40,60,80,100]),
-#     lot1 = [118,58,42,35,27,25,21,19,18],
-#     lot2 = [69,35,26,21,18,16,13,12,12],
-#     w    = 9.0*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
-# )
-#
-# ## Unweighted OLS though GLM interface
-# OLS = fit(GeneralizedLinearModel, @formula(lot1~u),clotting, Normal(), IdentityLink())
-# mf = ModelFrame(@formula(lot1~u),clotting)
-# X = ModelMatrix(mf).m
-# y = clotting[:lot1]
-# GL  = fit(GeneralizedLinearModel, X,y, Normal(), IdentityLink())
-# LM  = lm(X,y)
-#
-# S0 = vcov(OLS, HC0())
-# S1 = vcov(OLS, HC1())
-# S2 = vcov(OLS, HC2())
-# S3 = vcov(OLS, HC3())
-# S4 = vcov(OLS, HC4())
-# S4m = vcov(OLS, HC4m())
-# S5 = vcov(OLS, HC5())
-#
-# St0 = [720.6213 -190.0645; -190.0645 51.16333]
-# St1 = [926.5131 -244.3687; -244.3687 65.78143]
-# St2 = [1300.896 -343.3307; -343.3307 91.99719]
-# St3 = [2384.504 -628.975 ; -628.975 167.7898]
-# St4 = [2538.746 -667.9597; -667.9597 177.2631]
-# St4m= [3221.095 -849.648 ; -849.648 226.1705]
-# St5 = St4
-#
-# @test abs.(maximum(S0 .- St0)) < 1e-04
-# @test abs.(maximum(S1 .- St1)) < 1e-04
-# @test abs.(maximum(S2 .- St2)) < 1e-04
-# @test abs.(maximum(S3 .- St3)) < 1e-04
-# @test abs.(maximum(S4 .- St4)) < 1e-03
-# @test abs.(maximum(S4m .- St4m)) < 1e-03
-# @test abs.(maximum(S5 .- St5)) < 1e-03
-#
-# S0 = vcov(GL, HC0())
-# S1 = vcov(GL, HC1())
-# S2 = vcov(GL, HC2())
-# S3 = vcov(GL, HC3())
-# S4 = vcov(GL, HC4())
-# S4m = vcov(GL, HC4m())
-# S5 = vcov(GL, HC5())
-#
-# @test St0 ≈ S0 atol = 1e-4
-# @test St1 ≈ S1 atol = 1e-4
-# @test St2 ≈ S2 atol = 1e-3
-# @test St3 ≈ S3 atol = 1e-4
-# @test St4 ≈ S4 atol = 1e-3
-# @test St4m ≈ S4m atol = 1e-3
-# @test St5 ≈ S5 atol = 1e-3
-#
-# M0 = CovarianceMatrices.meat(OLS, HC0())
-# M1 = CovarianceMatrices.meat(OLS, HC1())
-# M2 = CovarianceMatrices.meat(OLS, HC2())
-# M3 = CovarianceMatrices.meat(OLS, HC3())
-# M4 = CovarianceMatrices.meat(OLS, HC4())
-# M4m = CovarianceMatrices.meat(OLS, HC4m())
-# M5 = CovarianceMatrices.meat(OLS, HC5())
-#
-# Mt0 = [206.6103 518.7871; 518.7871 1531.173]
-# Mt1 = [265.6418 667.012;  667.012 1968.651]
-# Mt2 = [323.993 763.0424;  763.0424 2149.767]
-# Mt3 = [531.478 1172.751;  1172.751 3122.79]
-# Mt4 = [531.1047 1110.762; 1110.762 2783.269]
-# Mt4m= [669.8647 1412.227; 1412.227 3603.247]
-# Mt5 = Mt4
-#
-# @test abs.(maximum(M0 .- Mt0)) < 1e-04
-# @test abs.(maximum(M1 .- Mt1)) < 1e-04
-# @test abs.(maximum(M2 .- Mt2)) < 1e-04
-# @test abs.(maximum(M3 .- Mt3)) < 1e-03
-# @test abs.(maximum(M4 .- Mt4)) < 1e-03
-# @test abs.(maximum(M4m .- Mt4m)) < 1e-03
-# @test abs.(maximum(M5 .- Mt5)) < 1e-03
-#
-# ## Unweighted
-# OLS = glm(@formula(lot1~u),clotting, Normal(), IdentityLink())
-# S0 = vcov(OLS, HC0())
-# S1 = vcov(OLS, HC1())
-# S2 = vcov(OLS, HC2())
-# S3 = vcov(OLS, HC3())
-# S4 = vcov(OLS, HC4())
-#
-# ## Weighted OLS though GLM interface
-# wOLS = fit(GeneralizedLinearModel, @formula(lot1~u), clotting, Normal(),
-#            IdentityLink(), wts = Vector{Float64}(clotting[:w]))
-#
-# wts = Vector{Float64}(clotting[:w])
-# X = [fill(1,size(clotting[:u])) clotting[:u]]
-# y = clotting[:lot1]
-# wLM = lm(X, y)
-# wGL = fit(GeneralizedLinearModel, X, y, Normal(),
-#             IdentityLink(), wts = wts)
-#
-# residuals_raw = y-X*coef(wGL)
-# residuals_wts = sqrt.(wts).*(y-X*coef(wGL))
-#
-# @test CovarianceMatrices.modelresiduals(wOLS) == CovarianceMatrices.modelresiduals(wGL)
-# @test CovarianceMatrices.modelresiduals(wOLS) == residuals_wts
-# @test CovarianceMatrices.modelresiduals(wGL)  == residuals_wts
-# @test CovarianceMatrices.modelweights(wGL)    == CovarianceMatrices.modelweights(wOLS)
-# @test CovarianceMatrices.rawresiduals(wGL)    == CovarianceMatrices.rawresiduals(wOLS)
-#
-# wXX   = (wts.*X)'*X
-# wXu   = X.*(residuals_raw.*wts)
-# wXuuX = wXu'*wXu
-#
-# @test CovarianceMatrices.fullyweightedmodelmatrix(wOLS) == X.*wts
-# @test CovarianceMatrices.fullyweightedmodelmatrix(wOLS).*CovarianceMatrices.rawresiduals(wOLS) ≈ wXu
-# @test CovarianceMatrices.meat(wOLS, HC0()) ≈  wXuuX./(sum(wts))
-#
-# @test CovarianceMatrices.XX(wOLS) ≈ wXX
-# @test CovarianceMatrices.invXX(wOLS) ≈ inv(wXX)
-#
-# S0 = vcov(wOLS, HC0())
-# S1 = vcov(wOLS, HC1())
-# S2 = vcov(wOLS, HC2())
-# S3 = vcov(wOLS, HC3())
-# S4 = vcov(wOLS, HC4())
-# S4m= vcov(wOLS, HC4m())
-# S5 = vcov(wOLS, HC5())
-#
-# St0 = [717.7362 -178.4043; -178.4043 45.82273]
-# St1 = [922.8037 -229.3769; -229.3769 58.91494]
-# St2 = [1412.94 -361.33; -361.33 95.91252]
-# St3 = [2869.531 -756.2976; -756.2976 208.2344]
-# St4 = [3969.913 -1131.358; -1131.358 342.2859]
-# St4m= [4111.626 -1103.174; -1103.174   310.194]
-# St5 = St4
-#
-# @test abs.(maximum(S0 .- St0)) < 1e-04
-# @test abs.(maximum(S1 .- St1)) < 1e-04
-# @test abs.(maximum(S2 .- St2)) < 1e-03
-# @test abs.(maximum(S3 .- St3)) < 1e-03
-# @test abs.(maximum(S4 .- St4)) < 1e-03
-# @test abs.(maximum(S4m .- St4m)) < 1e-03
-# @test abs.(maximum(S5 .- St5)) < 1e-03
-#
-# ## Unweighted GLM - Gamma
-# GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
-#
-# S0 = vcov(GAMMA, HC0())
-# S1 = vcov(GAMMA, HC1())
-# S2 = vcov(GAMMA, HC2())
-# S3 = vcov(GAMMA, HC3())
-# S4 = vcov(GAMMA, HC4())
-# S4m = vcov(GAMMA, HC4m())
-# S5 = vcov(GAMMA, HC5())
-#
-# St0 = [4.504287921232951e-07 -1.700020601541489e-07;
-#        -1.700020601541490e-07  8.203697048568913e-08]
-#
-# St1 = [5.791227327299548e-07 -2.185740773410504e-07;
-#        -2.185740773410510e-07  1.054761049101728e-07]
-#
-# St2 = [3.192633083111232e-06 -9.942484630848573e-07;
-#        -9.942484630848578e-07  3.329973305723091e-07]
-#
-# St3 = [2.982697811926944e-05 -8.948137019946751e-06;
-#        -8.948137019946738e-06  2.712024459305714e-06]
-#
-# St4 = [0.002840158946368653 -0.0008474436578800430;
-#        -0.000847443657880045  0.0002528819761961959]
-#
-# St4m= [8.49306e-05 -2.43618e-05; -2.43618e-05  7.04210e-06]
-#
-# St5 = St4
-#
-# @test abs.(maximum(S0 .- St0)) < 1e-06
-# @test abs.(maximum(S1 .- St1)) < 1e-06
-# @test abs.(maximum(S2 .- St2)) < 1e-06
-# @test abs.(maximum(S3 .- St3)) < 1e-06
-# @test abs.(maximum(S4 .- St4)) < 1e-06
-# @test abs.(maximum(S4m .- St4m)) < 1e-05
-# @test abs.(maximum(S5 .- St5)) < 1e-05
-#
-# ## Weighted Gamma
-#
-# GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[:w]))
-#
-# S0 = vcov(GAMMA, HC0())
-# S1 = vcov(GAMMA, HC1())
-# S2 = vcov(GAMMA, HC2())
-# S3 = vcov(GAMMA, HC3())
-# S4 = vcov(GAMMA, HC4())
-# S4m = vcov(GAMMA, HC4m())
-# S5 = vcov(GAMMA, HC5())
-#
-# St0 = [4.015104e-07 -1.615094e-07;
-#        -1.615094e-07  8.378363e-08]
-#
-# St1 = [5.162277e-07 -2.076549e-07;
-#        -2.076549e-07  1.077218e-07]
-#
-# St2 = [2.720127e-06 -8.490977e-07;
-#        -8.490977e-07  2.963563e-07]
-#
-# St3 = [2.638128e-05 -7.639883e-06;
-#        -7.639883e-06  2.259590e-06]
-#
-# St4 = [0.0029025754 -0.0008275858;
-#        -0.0008275858  0.0002360053]
-#
-# St4m = [8.493064e-05 -2.436180e-05; -2.436180e-05  7.042101e-06]
-#
-# St5 = St4
-#
-#
-# @test abs.(maximum(S0 .- St0)) < 1e-06
-# @test abs.(maximum(S1 .- St1)) < 1e-06
-# @test abs.(maximum(S2 .- St2)) < 1e-06
-# @test abs.(maximum(S3 .- St3)) < 1e-06
-# @test abs.(maximum(S4 .- St4)) < 1e-06
-# @test abs.(maximum(S4m .- St4m)) < 1e-05
-# @test abs.(maximum(S5 .- St5)) < 1e-05
-#
-#
-# ### Cluster basic interface
-#
-# ## Construct Fake ols data
-#
-# ## srand(1)
-#
-# ## df = DataFrame( Y = randn(500),
-# ##                X1 = randn(500),
-# ##                X2 = randn(500),
-# ##                X3 = randn(500),
-# ##                X4 = randn(500),
-# ##                X5 = randn(500),
-# ##                w  = rand(500),
-# ##                cl = repmat(collect(1:25), 20))
-#
-# df = CSV.read("wols_test.csv")
-#
-# OLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
-#           Normal(), IdentityLink())
-#
-# S0 = vcov(OLS, HC0())
-# S1 = vcov(OLS, HC1())
-# S2 = vcov(OLS, HC2())
-# S3 = vcov(OLS, HC3())
-# S4 = vcov(OLS, HC4())
-# S5 = vcov(OLS, HC5())
-#
-# cl = convert(Array, df[:cl])
-# S0 = stderror(OLS, CRHC0(cl))
-# S1 = stderror(OLS, CRHC1(cl))
-# S2 = stderror(OLS, CRHC2(cl))
-# S3 = stderror(OLS, CRHC3(cl))
-#
-#
-# ## STATA
-# St1 = [.0374668, .0497666, .0472636, .0437952, .0513613, .0435369]
-#
-# @test maximum(abs.(S0 .- St1)) < 1e-02
-# @test maximum(abs.(S1 .- St1)) < 1e-04
-# @test maximum(abs.(S2 .- St1)) < 1e-02
-# @test maximum(abs.(S3 .- St1)) < 1e-02
-#
-#
-# wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
-#           Normal(), IdentityLink(), wts = convert(Array{Float64}, df[:w]))
-#
-# S0 = stderror(wOLS, CRHC0(cl))
-# S1 = stderror(wOLS, CRHC1(cl))
-# S2 = stderror(wOLS, CRHC2(cl))
-# S3 = stderror(wOLS, CRHC3(cl))
-#
-# St1 = [0.042839848169137905,0.04927285387211425,
-#        0.05229519531359171,0.041417170723876025,
-#        0.04748115282615204,0.04758615959662984]
-#
-# @test maximum(abs.(S1 .- St1)) < 1e-10
-#
-# ############################################################
-# ## Test different interfaces
-# ############################################################
-#
-# # y = randn(100);
-# # x = randn(100, 5);
-#
-# # lm1 = lm(x, y)
-# # @test stderror(lm1, HC0())≈[0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651] atol=1e-06
-# # @test diag(vcov(lm1, HC0()))≈[0.0941998, 0.0946132, 0.0961678, 0.0960445, 0.101651].^2 atol=1e-06
-#
-# ############################################################
-# ## HAC
-# ############################################################
-#
-# include("ols_hac.jl")
+@testset "HC...................................................." begin
+
+
+# A Gamma example, from McCullagh & Nelder (1989, pp. 300-2)
+clotting = DataFrame(
+    u    = log.([5,10,15,20,30,40,60,80,100]),
+    lot1 = [118,58,42,35,27,25,21,19,18],
+    lot2 = [69,35,26,21,18,16,13,12,12],
+    w    = 9.0*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
+)
+
+## Unweighted OLS though GLM interface
+OLS = fit(GeneralizedLinearModel, @formula(lot1~u),clotting, Normal(), IdentityLink())
+mf = ModelFrame(@formula(lot1~u),clotting)
+X = ModelMatrix(mf).m
+y = clotting[:lot1]
+GL  = fit(GeneralizedLinearModel, X,y, Normal(), IdentityLink())
+LM  = lm(X,y)
+
+S0 = vcov(OLS, HC0())
+S1 = vcov(OLS, HC1())
+S2 = vcov(OLS, HC2())
+S3 = vcov(OLS, HC3())
+S4 = vcov(OLS, HC4())
+S4m = vcov(OLS, HC4m())
+S5 = vcov(OLS, HC5())
+
+
+St0 = [720.621306411 -190.064512543; -190.064512543 51.163333742]
+St1 = [926.513108242 -244.368658984; -244.368658984 65.781429097]
+St2 = [1300.895673284 -343.330672699; -343.330672699  91.997186033]
+St3 = [2384.50393347 -628.97499232; -628.97499232 167.78976878]
+St4 = [2538.74635384 -667.95972319; -667.95972319 177.26308957]
+St4m = [3221.09520169 -849.64802585; -849.64802585 226.17046981]
+St5 = [1334.670541439 -351.751377823; -351.751377823  93.949230276]
+
+
+@test S0 ≈ St0
+@test S1 ≈ St1
+@test S2 ≈ St2
+@test S3 ≈ St3
+@test S4 ≈ St4
+@test S4m ≈ St4m
+@test S5 ≈ St5
+
+S0 = vcov(GL, HC0())
+S1 = vcov(GL, HC1())
+S2 = vcov(GL, HC2())
+S3 = vcov(GL, HC3())
+S4 = vcov(GL, HC4())
+S4m = vcov(GL, HC4m())
+S5 = vcov(GL, HC5())
+
+@test S0 ≈ St0
+@test S1 ≈ St1
+@test S2 ≈ St2
+@test S3 ≈ St3
+@test S4 ≈ St4
+@test S4m ≈ St4m
+@test S5 ≈ St5
+
+## Weighted OLS though GLM interface
+wOLS = fit(GeneralizedLinearModel, @formula(lot1~u), clotting, Normal(),
+           IdentityLink(), wts = Vector{Float64}(clotting[:w]))
+
+wts = Vector{Float64}(clotting[:w])
+X = [fill(1,size(clotting[:u])) clotting[:u]]
+y = clotting[:lot1]
+wLM = lm(X, y)
+wGL = fit(GeneralizedLinearModel, X, y, Normal(),
+            IdentityLink(), wts = wts)
+
+
+S0 = vcov(wOLS, HC0())
+S1 = vcov(wOLS, HC1())
+S2 = vcov(wOLS, HC2())
+S3 = vcov(wOLS, HC3())
+S4 = vcov(wOLS, HC4())
+S4m= vcov(wOLS, HC4m())
+S5 = vcov(wOLS, HC5())
+
+
+
+St0 = [717.736178076 -178.404274981; -178.404274981   45.822730697]
+St1 = [922.803657527 -229.376924975; -229.376924975 58.914939468]
+St2 = [1412.940497584 -361.329969345; -361.329969345 95.912520696]
+St3 = [2869.53068690 -756.29761027; -756.29761027 208.23437869]
+St4 = [3969.9130263 -1131.3577578; -1131.3577578 342.2858663]
+St4m= [4111.62611908 -1103.17362711; -1103.17362711   310.19430896]
+St5 = [1597.40932634 -420.66907485; -420.66907485 115.99180777]
+
+@test S0  ≈ St0
+@test S1  ≈ St1
+@test S2  ≈ St2
+@test S3  ≈ St3
+@test S4  ≈ St4
+@test S4m ≈ St4m
+@test S5  ≈ St5
+
+## Unweighted GLM - Gamma
+GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
+
+S0 = vcov(GAMMA, HC0())
+S1 = vcov(GAMMA, HC1())
+S2 = vcov(GAMMA, HC2())
+S3 = vcov(GAMMA, HC3())
+S4 = vcov(GAMMA, HC4())
+S4m = vcov(GAMMA, HC4m())
+S5 = vcov(GAMMA, HC5())
+
+St0 = [4.504287921232951e-07 -1.700020601541489e-07;
+       -1.700020601541490e-07  8.203697048568913e-08]
+
+St1 = [5.791227327299548e-07 -2.185740773410504e-07;
+       -2.185740773410510e-07  1.054761049101728e-07]
+
+St2 = [3.192633083111232e-06 -9.942484630848573e-07;
+       -9.942484630848578e-07  3.329973305723091e-07]
+
+St3 = [2.982697811926944e-05 -8.948137019946751e-06;
+       -8.948137019946738e-06  2.712024459305714e-06]
+
+St4 = [0.002840158946368653 -0.0008474436578800430;
+       -0.000847443657880045  0.0002528819761961959]
+
+St4m= [9.2891282926e-05  -2.7759505159e-05;
+      -2.7759505159e-05  8.3203461732e-06]
+
+St5 = [2.9781374021e-05  -8.9232514073e-06
+       -8.9232514073e-06  2.6952175350e-06]
+
+@test S0  ≈ St0 atol = 1e-06
+@test S1  ≈ St1 atol = 1e-06
+@test S2  ≈ St2 atol = 1e-06
+@test S3  ≈ St3 atol = 1e-06
+@test S4  ≈ St4 atol = 1e-02
+@test S4m ≈ St4m atol = 1e-06
+@test S5  ≈ St5 atol = 1e-06
+
+## Weighted Gamma
+
+GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[:w]))
+
+S0 = vcov(GAMMA, HC0())
+S1 = vcov(GAMMA, HC1())
+S2 = vcov(GAMMA, HC2())
+S3 = vcov(GAMMA, HC3())
+S4 = vcov(GAMMA, HC4())
+S4m = vcov(GAMMA, HC4m())
+S5 = vcov(GAMMA, HC5())
+
+St0 = [4.015104e-07 -1.615094e-07;
+       -1.615094e-07  8.378363e-08]
+
+St1 = [5.162277e-07 -2.076549e-07;
+       -2.076549e-07  1.077218e-07]
+
+St2 = [2.720127e-06 -8.490977e-07;
+       -8.490977e-07  2.963563e-07]
+
+St3 = [2.638128e-05 -7.639883e-06;
+       -7.639883e-06  2.259590e-06]
+
+St4 = [0.0029025754 -0.0008275858;
+       -0.0008275858  0.0002360053]
+
+St4m = [8.493064e-05 -2.436180e-05; -2.436180e-05  7.042101e-06]
+
+St5 = [2.6206554518e-05 -7.5421496876e-06
+      -7.5421496876e-06  2.2017813312e-06]
+
+
+@test abs.(maximum(S0 .- St0)) < 1e-06
+@test abs.(maximum(S1 .- St1)) < 1e-06
+@test abs.(maximum(S2 .- St2)) < 1e-06
+@test abs.(maximum(S3 .- St3)) < 1e-06
+@test abs.(maximum(S4 .- St4)) < 1e-06
+@test abs.(maximum(S4m .- St4m)) < 1e-05
+@test abs.(maximum(S5 .- St5)) < 1e-05
+
+end
+
+@testset "CRHC.................................................." begin
+
+df = CSV.read("wols_test.csv")
+df_sorted = sort!(copy(df), :cl)
+
+St1 = [.0374668, .0497666, .0472636, .0437952, .0513613, .0435369]
+
+OLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df, Normal(), IdentityLink())
+cl = convert(Array, df[:cl])
+k0 = CRHC0(cl)
+k1 = CRHC1(cl)
+k2 = CRHC2(cl)
+k3 = CRHC3(cl)
+
+
+V0 = vcov(OLS, k0)
+V1 = vcov(OLS, k1)
+V2 = vcov(OLS, k2)
+V3 = vcov(OLS, k3)
+
+@test V1 ≈ [0.00140376 0.000215526 -5.99768e-5 0.000296271 0.000460622 -0.000139741; 0.000215526 0.00247671 -0.000270429 0.000218622 0.000610127 7.23345e-5; -5.99768e-5 -0.000270429 0.00223385 -0.000145166 -0.00018859 -0.000903561; 0.000296271 0.000218622 -0.000145166 0.00191802 -0.000444364 -0.000420563; 0.000460622 0.000610127 -0.00018859 -0.000444364 0.00263798 0.000736363; -0.000139741 7.23345e-5 -0.000903561 -0.000420563 0.000736363 0.00189546] atol = 1e-08
+
+## Note sandwich in R has HC3 without G/(G-1) and CRHC2 is problematic
+
+
+# @test V2 ≈ [0.00139221 0.000200724 -5.27035e-5 0.000303788 0.000447839 -0.000148834; 0.000200724 0.00249027 -0.00027644 0.000228303 0.000615919 7.2322e-5; -5.27035e-5 -0.00027644 0.00225428 -0.000136258 -0.000198873 -0.00091242; 0.000303788 0.000228303 -0.000136258 0.00191732 -0.00044305 -0.000428727; 0.000447839 0.000615919 -0.000198873 -0.00044305 0.00264158 0.000745312; -0.000148834 7.2322e-5 -0.00091242 -0.000428727 0.000745312 0.00189766] atol = 1e-04
+# @test V3 ≈ [0.00145336 0.00019558 -4.78541e-5 0.000327554 0.000457657 -0.000166203; 0.00019558 0.00263562 -0.000297447 0.000250382 0.000654282 7.59035e-5; -4.78541e-5 -0.000297447 0.00239503 -0.000133855 -0.000220102 -0.000969674; 0.000327554 0.000250382 -0.000133855 0.00201758 -0.000465343 -0.00045985; 0.000457657 0.000654282 -0.000220102 -0.000465343 0.00278486 0.000793909; -0.000166203 7.59035e-5 -0.000969674 -0.00045985 0.000793909 0.00199984] atol = 1e-08
+
+@test stderror(OLS, k0, sorted = false) == sqrt.(diag(V0))
+
+OLS_sorted = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df_sorted, Normal(), IdentityLink())
+V0s = vcov(OLS_sorted, k0, sorted = true)
+V1s = vcov(OLS_sorted, k1, sorted = true)
+V2s = vcov(OLS_sorted, k2, sorted = true)
+V3s = vcov(OLS_sorted, k3, sorted = true)
+
+@test V0s == V0
+@test V1s == V1
+@test V2s == V2
+@test V3s == V3
+
+
+wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
+       Normal(), IdentityLink(), wts = convert(Array{Float64}, df[:w]))
+
+cl = convert(Array, df[:cl])
+k0 = CRHC0(cl)
+k1 = CRHC1(cl)
+k2 = CRHC2(cl)
+k3 = CRHC3(cl)
+
+V0 = vcov(wOLS, k0)
+V1 = vcov(wOLS, k1)
+V2 = vcov(wOLS, k2)
+V3 = vcov(wOLS, k3)
+
+@test V1 ≈ [0.00183525 0.000137208 -0.00038971 0.000389943 0.000619903 0.00019496; 0.000137208 0.00242781 -0.000272316 0.000462353 2.99597e-5 0.000133303; -0.00038971 -0.000272316 0.00273479 -0.000113765 -7.26396e-5 -0.000998524; 0.000389943 0.000462353 -0.000113765 0.00171538 -0.00067357 -0.000416268; 0.000619903 2.99597e-5 -7.26396e-5 -0.00067357 0.00225446 0.00106796; 0.00019496 0.000133303 -0.000998524 -0.000416268 0.00106796 0.00226444] atol = 1e-07
+
+wOLS_sorted = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df_sorted,
+       Normal(), IdentityLink(), wts = convert(Array{Float64}, df[:w]))
+
+V0s = vcov(wOLS_sorted, k0, sorted = true)
+V1s = vcov(wOLS_sorted, k1, sorted = true)
+V2s = vcov(wOLS_sorted, k2, sorted = true)
+V3s = vcov(wOLS_sorted, k3, sorted = true)
+
+@test V1 ≈ [0.00183525 0.000137208 -0.00038971 0.000389943 0.000619903 0.00019496; 0.000137208 0.00242781 -0.000272316 0.000462353 2.99597e-5 0.000133303; -0.00038971 -0.000272316 0.00273479 -0.000113765 -7.26396e-5 -0.000998524; 0.000389943 0.000462353 -0.000113765 0.00171538 -0.00067357 -0.000416268; 0.000619903 2.99597e-5 -7.26396e-5 -0.00067357 0.00225446 0.00106796; 0.00019496 0.000133303 -0.000998524 -0.000416268 0.00106796 0.00226444] atol = 1e-07
+
+
+innovation = CSV.read("InstInnovation.csv", allowmissing=:none)
+
+innovation[:capemp] = log.(innovation[:capital]./innovation[:employment])
+innovation[:lsales] = log.(innovation[:sales])
+innovation[:year] = categorical(innovation[:year])
+innovation[:industry] = categorical(innovation[:industry])
+#innovation[:company] = categorical(innovation[:company])
+pois = glm(@formula(cites ~ institutions + capemp + lsales + industry + year), innovation, Poisson(), LogLink())
+
+Vt = [0.817387, 5.7907e-6, 0.0184833, 0.00172419]
+@test diag(vcov(pois, CRHC0(innovation[:company])))[1:4] ≈ Vt atol = 1e-5
+
+
+
+end
