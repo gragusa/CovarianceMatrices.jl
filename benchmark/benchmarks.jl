@@ -3,6 +3,7 @@ using CovarianceMatrices
 using Random
 using GLM
 using DataFrames
+using BenchmarkTools
 using PkgBenchmark
 Random.seed!(1)
 
@@ -17,7 +18,7 @@ lm1 = glm(frm, df, Normal(), IdentityLink())
 
 bench = BenchmarkGroup()
 
-suite["HAC"] = BenchmarkGroup(["Optimal Cached"], ["Optimal Uncached"], ["Fixed Cached"], ["Fixed Uncached"])
+suite["HAC"] = BenchmarkGroup(["Optimal Uncached"], ["Fixed Uncached"])
 
 suite["HAC"]["Optimal Uncached"] = @benchmarkable vcov(lm1, TruncatedKernel())
 suite["HAC"]["Fixed Uncached"] = @benchmarkable vcov(lm1, TruncatedKernel(2))
