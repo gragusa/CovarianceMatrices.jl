@@ -15,9 +15,9 @@ end
 frm = @formula(y ~ x1 + x2 + x3 + x4 + x5)
 lm1 = glm(frm, df, Normal(), IdentityLink())
 
-bench = BencmarkGroup()
+bench = BenchmarkGroup()
 
-suite["HAC"] = BencmarkGroup(["Optimal Cached"], ["Optimal Uncached"], ["Fixed Cached"], ["Fixed Uncached"])
+suite["HAC"] = BenchmarkGroup(["Optimal Cached"], ["Optimal Uncached"], ["Fixed Cached"], ["Fixed Uncached"])
 
 suite["HAC"]["Optimal Uncached"] = @benchmarkable vcov(lm1, TruncatedKernel())
 suite["HAC"]["Fixed Uncached"] = @benchmarkable vcov(lm1, TruncatedKernel(2))
