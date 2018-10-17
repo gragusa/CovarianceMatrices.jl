@@ -6,7 +6,7 @@ using DataFrames
 using PkgBenchmark
 Random.seed!(1)
 
-df = DataFrames(y = randn(1000))
+df = DataFrame(y = randn(1000))
 
 for j in Symbol.("x".*string.(collect(1:5)))
     df[j] = randn(1000)
