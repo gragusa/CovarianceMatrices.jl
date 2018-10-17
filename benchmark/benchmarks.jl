@@ -3,7 +3,7 @@ using Random
 using GLM
 using DataFrames
 using BenchmarkTools
-using PkgBenchmark
+
 Random.seed!(1)
 
 df = DataFrame(y = randn(1000))
