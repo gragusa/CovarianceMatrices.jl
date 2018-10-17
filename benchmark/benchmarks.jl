@@ -1,4 +1,3 @@
-using PkgBenchmark
 using CovarianceMatrices
 using Random
 using GLM
@@ -16,12 +15,13 @@ end
 frm = @formula(y ~ x1 + x2 + x3 + x4 + x5)
 lm1 = glm(frm, df, Normal(), IdentityLink())
 
-bench = BenchmarkGroup()
+suite = BenchmarkGroup()
 
-suite["HAC"] = BenchmarkGroup(["Optimal Uncached"], ["Fixed Uncached"])
+suite["HAC"] = BenchmarkGroup(["Optimal Uncached", "Fixed Uncached"])
 
 suite["HAC"]["Optimal Uncached"] = @benchmarkable vcov(lm1, TruncatedKernel())
 suite["HAC"]["Fixed Uncached"] = @benchmarkable vcov(lm1, TruncatedKernel(2))
+
 # ["Fixed Cached"]
 # ["Fixed Uncached"]
 
