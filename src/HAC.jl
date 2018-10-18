@@ -1,50 +1,14 @@
-Optimal() = Optimal{Andrews}()
-
-TruncatedKernel(;prewhiten=false)    = TRK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-BartlettKernel(;prewhiten=false)     = BTK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-ParzenKernel(;prewhiten=false)       = PRK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-TukeyHanningKernel(;prewhiten=false) = THK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-QuadraticSpectralKernel(;prewhiten=false) = QSK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-
-BartlettKernel(x::Type{NeweyWest};prewhiten=false) = BTK(Optimal{NeweyWest}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-ParzenKernel(x::Type{NeweyWest};prewhiten=false) = PRK(Optimal{NeweyWest}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-QuadraticSpectralKernel(x::Type{NeweyWest};prewhiten=false) = QSK(Optimal{NeweyWest}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-TukeyHanningKernel(x::Type{NeweyWest};prewhiten=false) = error("Newey-West optimal bandwidth does not support TukeyHanningKernel")
-TruncatedKernel(x::Type{NeweyWest};prewhiten=false) = error("Newey-West optimal bandwidth does not support TuncatedKernel")
-
-TruncatedKernel(x::Type{Andrews};prewhiten=false) = TRK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-BartlettKernel(x::Type{Andrews};prewhiten=false) = BTK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-ParzenKernel(x::Type{Andrews};prewhiten=false) = PRK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-TukeyHanningKernel(x::Type{Andrews};prewhiten=false) = THK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-QuadraticSpectralKernel(x::Type{Andrews};prewhiten=false) = QSK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
-
-TruncatedKernel(bw::Number;prewhiten=false) = TRK(Fixed(), [float(bw)], Array{Float64}(undef,0), prewhiten)
-BartlettKernel(bw::Number;prewhiten=false) = BTK(Fixed(), [float(bw)], Array{Float64}(undef,0), prewhiten)
-ParzenKernel(bw::Number;prewhiten=false) = PRK(Fixed(), [float(bw)], Array{Float64}(undef,0), prewhiten)
-TukeyHanningKernel(bw::Number;prewhiten=false) = THK(Fixed(), [float(bw)], Array{Float64}(undef,0), prewhiten)
-QuadraticSpectralKernel(bw::Number;prewhiten=false) = QSK(Fixed(), [float(bw)], Array{Float64}(undef,0), prewhiten)
-
-bandwidth(k::HAC{G}, X::AbstractMatrix) where {G<:Fixed} = k.bw
-bandwidth(k::HAC{Optimal{G}}, X::AbstractMatrix) where {G<:Andrews} = bwAndrews(k, )
-
-function bandwidth(k::QuadraticSpectralKernel, X::AbstractMatrix)
-    return k.bw(X, k)
-end
-
-isprewhiten(k::HAC) = k.prewhiten
-
-
 struct HACCache{TYPE, T1<:Real, F<:AbstractMatrix, V<:AbstractVector}
     prew::TYPE
-    X_demean::F
+    X_demean::F ## Should call this q n_origin x p
     YY::F
     XX::F
     Y_lagged::F
     X_lagged::F
-    μ::F
-    Q::F
-    V::F
-    D::F
+    μ::F        ## p x 1
+    Q::F        ## p x p
+    V::F        ## p x p
+    D::F        ## p x p
     U::V
     ρ::V
     σ⁴::V
@@ -89,6 +53,42 @@ end
 
 check_cache_consistenty(k::HAC, cache::HACCache{T}) where T<:Prewhitened = isprewhiten(k) ? nothing : error("Inconstent cache type")
 check_cache_consistenty(k::HAC, cache::HACCache{T}) where T<:Unwhitened = !isprewhiten(k) ? nothing : error("Inconstent cache type")
+
+Optimal() = Optimal{Andrews}()
+
+TruncatedKernel(;prewhiten=false)    = TRK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+BartlettKernel(;prewhiten=false)     = BTK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+ParzenKernel(;prewhiten=false)       = PRK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+TukeyHanningKernel(;prewhiten=false) = THK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+QuadraticSpectralKernel(;prewhiten=false) = QSK(Optimal(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+
+BartlettKernel(x::Type{NeweyWest};prewhiten=false) = BTK(Optimal{NeweyWest}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+ParzenKernel(x::Type{NeweyWest};prewhiten=false) = PRK(Optimal{NeweyWest}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+QuadraticSpectralKernel(x::Type{NeweyWest};prewhiten=false) = QSK(Optimal{NeweyWest}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+TukeyHanningKernel(x::Type{NeweyWest};prewhiten=false) = error("Newey-West optimal bandwidth does not support TukeyHanningKernel")
+TruncatedKernel(x::Type{NeweyWest};prewhiten=false) = error("Newey-West optimal bandwidth does not support TuncatedKernel")
+
+TruncatedKernel(x::Type{Andrews};prewhiten=false) = TRK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+BartlettKernel(x::Type{Andrews};prewhiten=false) = BTK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+ParzenKernel(x::Type{Andrews};prewhiten=false) = PRK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+TukeyHanningKernel(x::Type{Andrews};prewhiten=false) = THK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+QuadraticSpectralKernel(x::Type{Andrews};prewhiten=false) = QSK(Optimal{Andrews}(), Array{Float64}(undef,1), Array{Float64}(undef,0), prewhiten)
+
+TruncatedKernel(bw::Number;prewhiten=false) = TRK(Fixed(), [float(bw)], Array{Float64}(undef,0), prewhiten)
+BartlettKernel(bw::Number;prewhiten=false) = BTK(Fixed(), [float(bw)], Array{Float64}(undef,0), prewhiten)
+ParzenKernel(bw::Number;prewhiten=false) = PRK(Fixed(), [float(bw)], Array{Float64}(undef,0), prewhiten)
+TukeyHanningKernel(bw::Number;prewhiten=false) = THK(Fixed(), [float(bw)], Array{Float64}(undef,0), prewhiten)
+QuadraticSpectralKernel(bw::Number;prewhiten=false) = QSK(Fixed(), [float(bw)], Array{Float64}(undef,0), prewhiten)
+
+bandwidth(k::HAC{G}, X::AbstractMatrix) where {G<:Fixed} = k.bw
+bandwidth(k::HAC{Optimal{G}}, X::AbstractMatrix) where {G<:Andrews} = bwAndrews(k, )
+
+function bandwidth(k::QuadraticSpectralKernel, X::AbstractMatrix)
+    return k.bw(X, k)
+end
+
+isprewhiten(k::HAC) = k.prewhiten
+
 
 function variance(X::AbstractMatrix, k::HAC; kwargs...)
     cache = HACCache(X, k)
@@ -181,14 +181,14 @@ end
 makecholesky!(cache, ::Type{Nothing}) = nothing
 
 function makecholesky!(cache, ::Type{Cholesky})
-    chol = cholesky(Symmetric(cache.V), check = false)
+    chol = LinearAlgebra.cholesky(Symmetric(cache.V), check = false)
     copyto!(cache.chol.UL.data, chol.UL.data)
     copyto!(cache.chol.U.data, chol.U.data)
     copyto!(cache.chol.L.data, chol.L.data)
 end
 
 function makecholesky!(cache, ::Type{PositiveFactorizations.Positive})
-    chol = cholesky(Positive, Symmetric(cache.V))
+    chol = LinearAlgebra.cholesky(Positive, Symmetric(cache.V))
     copyto!(cache.chol.UL.data, chol.UL.data)
     copyto!(cache.chol.U.data, chol.U.data)
     copyto!(cache.chol.L.data, chol.L.data)
