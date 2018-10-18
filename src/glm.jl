@@ -9,7 +9,7 @@ using StatsModels
 #import StatsBase: residuals
 
 const INNERMOD = Union{GLM.GeneralizedLinearModel, GLM.LinearModel}
-
+const UNIONC = Union{Type{Nothing}, Type{LinearAlgebra.Cholesky}, Type{PositiveFactorizations.Positive}}
 #============
 General GLM methods
 =============#
@@ -84,13 +84,31 @@ end
 
 StatsBase.vcov(m::T, k::HAC; kwargs...) where T<:INNERMOD = vcov(m, k, HACCache(m, prewhiten = k.prewhiten); kwargs...)
 
-function StatsBase.vcov(m::T, k::HAC, cache::CovarianceMatrices.HACCache; demean = Val{false}, dof_adjustment::Bool = true) where T<:INNERMOD
+function StatsBase.vcov(m::T, k::HAC, cache::CovarianceMatrices.HACCache; demean = Val{false}, dof_adjustment::Bool = true, cholesky::C = Nothing) where {T<:INNERMOD,C<:UNIONC}
     mf = esteq!(cache, m, k)
     br = pseudohessian(m)
     set_bw_weights!(k, m)
-    variance(mf, k, cache, demean = demean)
+    variance(mf, k, cache, demean = demean, cholesky = Nothing)
     V = br*cache.V*br'
     dof_adjustment ? rmul!(V, unweighted_nobs(m)^2/unweighted_dof_residual(m)) : rmul!(V, unweighted_nobs(m))
+    setcholesky!(cache, cholesky, V)
+    return V
+end
+
+setcholesky!(cache, cholesky::Type{Nothing}, V) = nothing
+
+function setcholesky!(cache, cholesky::Type{Cholesky}, V)
+    chol = LinearAlgebra.cholesky(Symmetric(V))
+    copyto!(cache.chol.UL.data, chol.UL.data)
+    copyto!(cache.chol.U.data, chol.U.data)
+    copyto!(cache.chol.L.data, chol.L.data)
+end
+
+function setcholesky!(cache, cholesky::Type{PositiveFactorizations.Positive}, V)
+    chol = LinearAlgebra.cholesky(Positive, V)
+    copyto!(cache.chol.UL.data, chol.UL.data)
+    copyto!(cache.chol.U.data, chol.U.data)
+    copyto!(cache.chol.L.data, chol.L.data)
 end
 
 function set_bw_weights!(k::HAC, m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD
@@ -131,17 +149,18 @@ function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel{T}, k::HC, args.
     vcov(m.model, k, args...; kwargs...)
 end
 
-StatsBase.vcov(m::T, k::HC; kwargs...) where T<:INNERMOD = vcov(m, k, HCCache(m); kwargs...)
+StatsBase.vcov(m::T, k::HC; kwargs...) where T<:INNERMOD = vcov(m, k, HCCache(m); cholesky=Nothing)
 
-function StatsBase.vcov(m::T, k::HC, cache::CovarianceMatrices.HCCache; kwargs...) where T<:INNERMOD
+function StatsBase.vcov(m::T, k::HC, cache::CovarianceMatrices.HCCache; cholesky::C = Nothing) where {T<:INNERMOD, C<:UNIONC}
     CovarianceMatrices.installxuw!(cache, m)
     mf = CovarianceMatrices.esteq!(cache, m, k)
     br = CovarianceMatrices.pseudohessian(m)
     CovarianceMatrices.adjfactor!(cache, m, k)
     mul!(cache.x, mf', broadcast!(*, cache.X, mf, cache.η))
-    br*cache.x*br'
+    V = br*cache.x*br'
+    setcholesky!(cache, cholesky, V)
+    return V
 end
-
 
 StatsBase.stderror(m::StatsModels.DataFrameRegressionModel{T}, k::RobustVariance, args...; kwargs...) where T<:INNERMOD = stderror(m.model, k, args...; kwargs...)
 StatsBase.stderror(m::T, k::RobustVariance, args...; kwargs...) where T<:INNERMOD = sqrt.(diag(vcov(m, k, args...; kwargs...)))
