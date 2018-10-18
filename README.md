@@ -11,7 +11,7 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
 
 The package is registered on [METADATA](http::/github.com/JuliaLang/METADATA.jl), so to install
 ```julia
-Pkg.add("CovarianceMatrices")
+pkg> add CovarianceMatrices
 ```
 
 ---
@@ -23,10 +23,10 @@ This package provides types and methods useful to obtain consistent estimates of
 Three classes of estimators are considered:
 
 1. **HAC** - heteroskedasticity and autocorrelation consistent (Andrews, 1996; Newey and West, 1994)
-2. **HC**  - hetheroskedasticity (White, 1982)
-3. **CRVE** - cluster robust (Arellano, 1986)
+2. **HC**  - hetheroskedasticity consistent (White, 1982)
+3. **CRVE** - cluster robust (Arellano, 1986; Bell, 2002)
 
-The typical application of these estimators is to conduct robust inference about parameters of a model. This is accomplished by extending methods defined in [StatsBase.jl](http://github.com/JuliaStat/StatsBase.jl) and [GLM.jl](http://github.com/JuliaStat/GLM.jl).
+The typical application of these estimators is to conduct robust inference about parameters of generalized linear models.
 
 # Quick tour
 
@@ -40,15 +40,36 @@ Available kernel types are:
 - `TukeyHanningKernel`
 - `QuadraticSpectralKernel`
 
-For example, `ParzenKernel(NeweyWest)` return an instance of `TruncatedKernel` parametrized by `NeweyWest`, the type that corresponds to the optimal bandwidth calculated following Newey and West (1994).  Similarly, `ParzenKernel(Andrews)` corresponds to the optimal bandwidth obtained in Andrews (1991). If the bandwidth is known, it can be directly passed, i.e. `TruncatedKernel(2)`.
+These types are subtypes of the abstract type `HAC`.
 
-The examples below clarify the API, that is however relatively easy to use.
+For example, `ParzenKernel(NeweyWest)` return an instance of `TruncatedKernel` parametrized by `NeweyWest`, the type that corresponds to the optimal bandwidth calculated following Newey and West (1994). Similarly, `ParzenKernel(Andrews)` corresponds to the optimal bandwidth obtained in Andrews (1991). If the bandwidth is known, it can be directly passed, i.e. `TruncatedKernel(2)`.
 
-### Long run variance of the regression coefficient
+## Long-run variance of random vector
+
+Consider testimating the long-run variance of a (p x 1) random vector X based on (T x 1) observations.
+
+```julia
+## X is (Txp)
+CovarianceMatrices.variance(X, ParzenKernel())           ## Parzen Kernel with Optimal Bandwidth a lá Andrews
+CovarianceMatrices.variance(X, ParzenKernel(NeweyWest))  ## Parzen Kernel with Optimal Bandwidth a lá Newey-West
+CovarianceMatrices.variance(X, ParzenKernel(2))          ## Parzen Kernel with Bandwidth  = 2
+```
+
+Before calculating the variance the data can be prewhitened.
+
+```julia
+## X is (Txp)
+CovarianceMatrices.variance(X, ParzenKernel(prewhiten=true))             ## Parzen Kernel with Optimal Bandwidth a lá Andrews
+CovarianceMatrices.variance(X, ParzenKernel(NeweyWest, prewhiten=true))  ## Parzen Kernel with Optimal Bandwidth a lá Newey-West
+CovarianceMatrices.variance(X, ParzenKernel(2, prewhiten=true))          ## Parzen Kernel with Bandwidth  = 2
+```
+
+
+### Long-run variance of the regression coefficient
 
 In the regression context, the function `vcov` does all the work:
 ```julia
-vcov(::DataFrameRegressionModel, ::HAC; prewhite = true)
+vcov(::DataFrameRegressionModel, ::HAC)
 ```
 
 Consider the following artificial data (a regression with autoregressive error component):
@@ -63,8 +84,8 @@ u[1] = rand()
 for j in 2:2*n
     u[j] = 0.78*u[j-1] + randn()
 end
-u = u[n+1:2*n]    
-y = 0.1 + x*[0.2, 0.3, 0.0, 0.0, 0.5] + u            
+u = u[n+1:2*n]
+y = 0.1 + x*[0.2, 0.3, 0.0, 0.0, 0.5] + u
 
 df = DataFrame()
 df[:y] = y
@@ -80,31 +101,21 @@ lm1 = glm(y~x1+x2+x3+x4+x5, df, Normal(), IdentityLink())
 
 To get a consistent estimate of the long run variance of the estimated coefficients using a Quadratic Spectral kernel with automatic bandwidth selection  _à la_ Andrews
 ```julia
-vcov(lm1, QuadraticSpectralKernel(Andrews), prewhite = false)
+vcov(lm1, QuadraticSpectralKernel(Andrews))
 ```
 If one wants to estimate the long-time variance using the same kernel, but with a bandwidth selected _à la_ Newey-West
 ```julia
-vcov(lm1, QuadraticSpectralKernel(NeweyWest), prewhite = false)
+vcov(lm1, QuadraticSpectralKernel(NeweyWest))
 ```
 The standard errors can be obtained by the `stderror` method
 ```julia
-stderror(::DataFrameRegressionModel, ::HAC; prewhite::Bool)
+stderror(::DataFrameRegressionModel, ::HAC)
 ```
-Sometime is useful to access the bandwidth selected by the automatic procedures. This can be done using the `optimalbw` method
+<!-- Sometime is useful to access the bandwidth selected by the automatic procedures. This can be done using the `optimalbw` method
 ```julia
 optimalbw(NeweyWest, QuadraticSpectralKernel, lm1; prewhite = false)
 optimalbw(Andrews, QuadraticSpectralKernel, lm1; prewhite = false)
-```
-
-### Long run variance of the average of the process
-
-Sometime interest lies in estimating the long-run variance of the average of the process. At the moment this can be done by carrying out a regression on a constant (the sample mean of the realization of the process) and using `vcov` or `stderror` to obtain a consistent variance estimate (or its diagonal elements).
-
-```julia
-lm2 = glm(u~1, df, Normal(), IdentityLink())
-vcov(lm1, ParzenKernel(NeweyWest), prewhite = false)
-stderr(lm1, ParzenKernel(NeweyWest), prewhite = false)
-```
+``` -->
 
 ## HC (Heteroskedastic consistent)
 
@@ -112,21 +123,60 @@ As in the HAC case, `vcov` and `stderr` are the main functions. They know get as
 ```julia
 vcov(::DataFrameRegressionModel, ::HC)
 ```
-Where HC is an abstract type with the following concrete types:
+Where `HC` is an abstract type with the following concrete types:
 
 - `HC0`
-- `HC1` (this is `HC0` with the degree of freedom adjustment)
+    - This is Hal White (1982) robust variance estimator
+- `HC1`
+    - This is equal to `H0` multiplyed it by n/(n-p), where n is the sample size and p is the number of parameters in the model.
 - `HC2`
+    - A modification of HC0 that involves dividing the squared residual by 1-h, where h is the leverage for the case (Horn, Horn and Duncan, 1975)
 - `HC3`
+    - A modification of HC0 that approximates a jackknife estimator. Squared residuals are divided by the square of 1-h (Davidson and Mackinnon, 1993).
 - `HC4`
+    - A modification of HC0 that divides the squared residuals by 1-h to a power that varies according to h, n, and p, with an upper limit of 4 (Cribari-Neto, 2004).
 - `HC4m`
+    - Similar to HC4 but with smaller bias (Cribari-Neto and Da Silva, 2011)
 - `HC5`
+    - A modification of HC0 that divides the squared residuals by 1-h to a power that varies according to h, n, and p, with an upper limit of 4 (Cribari-Neto, 2004). (Cribari-Neto, Souza and Vasconcellos, 2007)
 
 
+To get a feel of how the use of different estimators impact inference, we conduct a simple Monte Carlo:
 ```
 using CovarianceMatrices
-using DataFrames
 using GLM
+
+function montecarlo()
+    simulations = 1000
+    nobs = 50
+    p = 5
+    gamma = [0.1 for j in 1:p]
+
+    results = Array{NTuple{7,Array{Float64,1}}, 1}()
+
+
+for j in 1:simulations
+    ## Simulate y = X*beta_0 + exp(X*gamma)*u; beta_0 = [0,...,0], u ~ N(0,1), X ~ N(0,I_p)
+    @show j
+    X = randn(nobs, p)
+    u = randn(nobs)
+    y = randn(nobs) .+ exp.(X*gamma).*u
+
+    OLS = fit(LinearModel, X, y)
+
+    v = (stderror(OLS, HC0())),
+        (stderror(OLS, HC1())),
+        (stderror(OLS, HC2())),
+        (stderror(OLS, HC3())),
+        (stderror(OLS, HC4())),
+        (stderror(OLS, HC4m())),
+        (stderror(OLS, HC5()))
+
+    push!(results, v)
+end
+
+return v
+end
 
 # A Gamma example, from McCullagh & Nelder (1989, pp. 300-2)
 # The weights are added just to test the interface and are not part
@@ -139,7 +189,7 @@ clotting = DataFrame(
 )
 wOLS = fit(GeneralizedLinearModel, lot1~u, clotting, Normal(), wts = array(clotting[:w]))
 
-vcov(wOLS, HC0
+vcov(wOLS, HC0)
 vcov(wOLS, HC1)
 vcov(wOLS, HC2)
 vcov(wOLS, HC3)
