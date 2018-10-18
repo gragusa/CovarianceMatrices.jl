@@ -274,6 +274,23 @@ end
     df[:w] = rand(500)
     lmw = glm(@formula(y~x1+x2+x3+x4+x5), df, Normal(), IdentityLink(), wts = df[:w])
     @test vcov(lmw, ParzenKernel()) ≈ [0.029872 -0.0044146 -0.00260797 -0.000579526 -0.000424983 -0.00171035; -0.0044146 0.0117399 0.00391563 -0.000353498 0.000506188 -0.000594032; -0.00260797 0.00391563 0.0131766 -0.000687168 -0.000567488 0.00102956; -0.000579526 -0.000353498 -0.000687168 0.00844854 -0.000993179 -0.000654108; -0.000424983 0.000506188 -0.000567488 -0.000993179 0.0132472 -0.00091491; -0.00171035 -0.000594032 0.00102956 -0.000654108 -0.00091491 0.00783998] atol = 1e-07
+
+    clotting = DataFrame(
+        u    = log.([5,10,15,20,30,40,60,80,100]),
+        lot1 = [118,58,42,35,27,25,21,19,18],
+        lot2 = [69,35,26,21,18,16,13,12,12],
+        w    = 9.0*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
+    )
+
+    GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[:w]))
+    V = vcov(GAMMA, ParzenKernel())
+    Vp = [5.48898e-7 -2.60409e-7; -2.60409e-7 1.4226e-7]
+    @test V ≈ Vp atol = 1e-08
+
+    GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
+    V = vcov(GAMMA, ParzenKernel())
+    Vp = [5.81672e-7 -2.24162e-7; -2.24162e-7 1.09657e-7]
+    @test V ≈ Vp atol = 1e-08
 end
 
 
@@ -412,7 +429,7 @@ St5 = [2.9781374021e-05  -8.9232514073e-06
 @test S1  ≈ St1 atol = 1e-06
 @test S2  ≈ St2 atol = 1e-06
 @test S3  ≈ St3 atol = 1e-06
-@test S4  ≈ St4 atol = 1e-02
+@test S4  ≈ St4 atol = 1e-05
 @test S4m ≈ St4m atol = 1e-06
 @test S5  ≈ St5 atol = 1e-06
 
@@ -448,15 +465,13 @@ St4m = [8.493064e-05 -2.436180e-05; -2.436180e-05  7.042101e-06]
 St5 = [2.6206554518e-05 -7.5421496876e-06
       -7.5421496876e-06  2.2017813312e-06]
 
-
-@test abs.(maximum(S0 .- St0)) < 1e-06
-@test abs.(maximum(S1 .- St1)) < 1e-06
-@test abs.(maximum(S2 .- St2)) < 1e-06
-@test abs.(maximum(S3 .- St3)) < 1e-06
-@test abs.(maximum(S4 .- St4)) < 1e-06
-@test abs.(maximum(S4m .- St4m)) < 1e-05
-@test abs.(maximum(S5 .- St5)) < 1e-05
-
+@test S0  ≈ St0 atol = 1e-06
+@test S1  ≈ St1 atol = 1e-06
+@test S2  ≈ St2 atol = 1e-06
+@test S3  ≈ St3 atol = 1e-06
+@test S4  ≈ St4 atol = 1e-05
+@test S4m ≈ St4m atol = 1e-06
+@test S5  ≈ St5 atol = 1e-06
 end
 
 @testset "CRHC.................................................." begin
