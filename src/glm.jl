@@ -152,7 +152,9 @@ StatsBase.stderror(m::T, k::RobustVariance, args...; kwargs...) where T<:INNERMO
 
 function hatmatrix(cache, m::T) where T<:INNERMOD
       z = cache.X  ## THIS ASSUME THAT X IS WEIGHTED BY SQRT(W)
-      z .= z.*sqrt.(modelweights(m))
+      if !isempty(modelweights(m))
+          z .= z.*sqrt.(modelweights(m))
+      end
       cf = choleskyfactor(m)::UpperTriangular
       rdiv!(z, cf)
       sum!(cache.v, z.^2)
