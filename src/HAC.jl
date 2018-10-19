@@ -1,62 +1,58 @@
-##############################################################################
-##
-## Optimal bandwidth
-##
-##############################################################################
-
-abstract type BandwidthType{G} end
-abstract type OptimalBandwidth end
-
-struct NeweyWest<:OptimalBandwidth end
-struct Andrews<:OptimalBandwidth end
-
-struct Fixed<:BandwidthType{G where G} end
-struct Optimal{G<:OptimalBandwidth}<:BandwidthType{G where G<:OptimalBandwidth} end
-
-struct Prewhitened end
-struct Unwhitened end
-
-struct TruncatedKernel{G<:BandwidthType, F}<:HAC{G}
-  bwtype::G
-  bw::Vector{F}
-  weights::Vector{F}
-  prewhiten::Bool
-end
-
-struct BartlettKernel{G<:BandwidthType, F}<:HAC{G}
-    bwtype::G
-    bw::Vector{F}
-    weights::Vector{F}
-    prewhiten::Bool
-end
-
-struct ParzenKernel{G<:BandwidthType, F}<:HAC{G}
-    bwtype::G
-    bw::Vector{F}
-    weights::Vector{F}
-    prewhiten::Bool
-end
-
-struct TukeyHanningKernel{G<:BandwidthType, F}<:HAC{G}
-    bwtype::G
-    bw::Vector{F}
-    weights::Vector{F}
-    prewhiten::Bool
-end
-
-struct QuadraticSpectralKernel{G<:BandwidthType, F}<:HAC{G}
-    bwtype::G
-    bw::Vector{F}
-    weights::Vector{F}
-    prewhiten::Bool
+struct HACCache{TYPE, T1<:Real, F<:AbstractMatrix, V<:AbstractVector}
+    prew::TYPE
+    X_demean::F ## Should call this q n_origin x p
+    YY::F
+    XX::F
+    Y_lagged::F
+    X_lagged::F
+    μ::F        ## p x 1
+    Q::F        ## p x p
+    V::F        ## p x p
+    D::F        ## p x p
+    U::V
+    ρ::V
+    σ⁴::V
+    u::F
+    chol::Cholesky{T1, F}
 end
 
 
-const TRK=TruncatedKernel
-const BTK=BartlettKernel
-const PRK=ParzenKernel
-const THK=TukeyHanningKernel
-const QSK=QuadraticSpectralKernel
+function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = true, returntype::Type{T1} = promote_type(T, Sys.WORD_SIZE == 64 ? Float64 : Float32)) where {T<:Int, T1<:AbstractFloat}
+    HACCache(convert(Array{T1, 2}, X), prewhiten = prewhiten, returntype = returntype)
+end
+
+function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = true, returntype::Type{T1} = eltype(X)) where {T<:Real, T1<:Real}
+    nr, p = size(X)
+    TYPE = prewhiten ? Prewhitened() : Unwhitened()
+    n = prewhiten ? nr-1 : nr
+    if prewhiten
+    return HACCache(TYPE, copy(convert(Array{T1}, X)), Array{T1}(undef, n, p),
+                     Array{T1}(undef, n, p), Array{T1}(undef, n-1, p),
+                     Array{T1}(undef, n-1, p), Array{T1}(undef, 1, p),
+                     Array{T1}(undef, p, p), Array{T1}(undef, p, p),
+                     Array{T1}(undef, p, p), Array{T1}(undef, n-1),
+                     Array{T1}(undef, p), Array{T1}(undef, p),
+                     Array{T1}(undef, n, p), cholesky(Matrix(one(T1)I, p, p)))
+    else
+        return HACCache(TYPE, copy(convert(Array{T1}, X)), Array{T1}(undef, 0, 0),
+                                Array{T1}(undef, n, p), Array{T1}(undef, n-1, p),
+                                Array{T1}(undef, n-1, p), Array{T1}(undef, 1, p),
+                                Array{T1}(undef, p, p), Array{T1}(undef, p, p),
+                                Matrix(one(T1)I, p, p), Array{T1}(undef, n-1),
+                                Array{T1}(undef, p), Array{T1}(undef, p),
+                                Array{T1}(undef, 0, 0), cholesky(Matrix(one(T1)I, p, p)))
+    end
+end
+
+
+
+function HACCache(X::AbstractMatrix, k::HAC; kwargs...)
+    ip = isprewhiten(k)
+    HACCache(X, prewhiten = ip; kwargs...)
+end
+
+check_cache_consistenty(k::HAC, cache::HACCache{T}) where T<:Prewhitened = isprewhiten(k) ? nothing : error("Inconstent cache type")
+check_cache_consistenty(k::HAC, cache::HACCache{T}) where T<:Unwhitened = !isprewhiten(k) ? nothing : error("Inconstent cache type")
 
 Optimal() = Optimal{Andrews}()
 
@@ -94,110 +90,55 @@ end
 isprewhiten(k::HAC) = k.prewhiten
 
 
-struct HACConfig{TYPE, T1<:Real, F<:AbstractMatrix, V<:AbstractVector}
-    prew::TYPE
-    X_demean::F
-    YY::F
-    XX::F
-    Y_lagged::F
-    X_lagged::F
-    μ::F
-    Q::F
-    V::F
-    D::F
-    U::V
-    ρ::V
-    σ⁴::V
-    u::F
-    chol::Cholesky{T1, F}
+function variance(X::AbstractMatrix, k::HAC; kwargs...)
+    cache = HACCache(X, k)
+    variance(X, k, cache; kwargs...)
 end
 
-function HACConfig(X::AbstractMatrix{T}, k::HAC; returntype::Type{T1} = Float64) where {T<:Real, T1<:AbstractFloat}
-    nr, p = size(X)
-    ip = isprewhiten(k)
-    TYPE = ip ? Prewhitened() : Unwhitened()
-    n = ip ? nr-1 : nr
-    if ip
-    return HACConfig(TYPE, copy(convert(Array{T1}, X)),
-                     Array{T1}(undef, n, p),
-                     Array{T1}(undef, n, p),
-                     Array{T1}(undef, n-1, p),
-                     Array{T1}(undef, n-1, p),
-                     Array{T1}(undef, 1, p),
-                     Array{T1}(undef, p, p),
-                     Array{T1}(undef, p, p),
-                     Array{T1}(undef, p, p),
-                     Array{T1}(undef, n-1),
-                     Array{T1}(undef, p),
-                     Array{T1}(undef, p),
-                     Array{T1}(undef, n, p),
-                     cholesky(Matrix(one(T1)I, p, p)))
-    else
-        return HACConfig(TYPE, copy(convert(Array{T1}, X)),
-                                Array{T1}(undef, 0, 0),
-                                Array{T1}(undef, n, p),
-                                Array{T1}(undef, n-1, p),
-                                Array{T1}(undef, n-1, p),
-                                Array{T1}(undef, 1, p),
-                                Array{T1}(undef, p, p),
-                                Array{T1}(undef, p, p),
-                                Matrix(one(T1)I, p, p),
-                                Array{T1}(undef, n-1),
-                                Array{T1}(undef, p),
-                                Array{T1}(undef, p),
-                                Array{T1}(undef, 0, 0),
-                                cholesky(Matrix(one(T1)I, p, p)))
-    end
+function variance(X::Matrix{F}, k::T, cache::HACCache{TC}; demean::Type{T1} = Val{true}, cholesky::C = Nothing) where {F, T, TC, T1, C}
+    ## Check whether cache and prewhiten option are consistent
+    check_cache_consistenty(k, cache)
+    demean!(cache, X, demean)
+    prewhiten!(cache)
+    _variance(k, cache, cholesky)
 end
 
-
-function variance(X::AbstractMatrix, k::HAC; arg...)
-    cfg = HACConfig(X, k)
-    variance(X, k, cfg; arg...)
+function _variance(k::HAC{Optimal{T}}, cache, cholesky) where T<:OptimalBandwidth
+    n, p = size(cache.XX)
+    setupkernelweights!(k, p, eltype(cache.XX))
+    optimal_bw!(cache, k, T())
+    __variance(k::HAC, cache, cholesky)
 end
 
-function variance(X::Matrix{F}, k::T, cfg::HACConfig; demean::Type{T1} = Val{true}, calculatechol::Bool = false) where {F, T, T1}
-    demean!(cfg, X, demean)
-    prewhiten!(cfg)
-    _variance(k, cfg, calculatechol)
+function _variance(k::HAC{T}, cache, cholesky) where T<:Fixed
+    __variance(k::HAC, cache, cholesky)
 end
 
-function _variance(k::HAC{Optimal{T}}, cfg, calculatechol) where T<:OptimalBandwidth
-    n, p = size(cfg.XX)
-    setupkernelweights!(k, p, eltype(cfg.XX))
-    optimal_bw!(cfg, k, T())
-    __variance(k::HAC, cfg, calculatechol)
-end
-
-function _variance(k::HAC{T}, cfg, calculatechol) where T<:Fixed
-    __variance(k::HAC, cfg, calculatechol)
-end
-
-function __variance(k::HAC, cfg, calculatechol)
-    n, p = size(cfg.XX)
-    fill!(cfg.V, zero(eltype(cfg.XX)))
+function __variance(k::HAC, cache, cholesky)
+    n, p = size(cache.XX)
+    fill!(cache.V, zero(eltype(cache.XX)))
     bw = first(k.bw)
-    mul!(cfg.V, cfg.XX', cfg.XX)
-    triu!(cfg.V)
+    mul!(cache.V, cache.XX', cache.XX)
+    triu!(cache.V)
     idxs = getcovindeces(k, n)
     @inbounds for j in idxs
         k_j = CovarianceMatrices.kernel(k, j/bw)
-        LinearAlgebra.axpy!(k_j, CovarianceMatrices.Γ!(cfg, j), cfg.V)
+        LinearAlgebra.axpy!(k_j, CovarianceMatrices.Γ!(cache, j), cache.V)
     end
-    LinearAlgebra.copytri!(cfg.V, 'U')
-    swhiten!(cfg)
-    rmul!(cfg.V, 1/(n+isprewhiten(k)))
-    calculatechol && makecholesky!(cfg)
-    return cfg.V
+    LinearAlgebra.copytri!(cache.V, 'U')
+    swhiten!(cache)
+    rmul!(cache.V, 1/(n+isprewhiten(k)))
+    makecholesky!(cache, cholesky)
+    return cache.V
 end
 
 getcovindeces(k::T, n) where T<:QuadraticSpectralKernel = Iterators.filter(x -> x!=0, -n:n)
 getcovindeces(k::HAC, n) = Iterators.filter(x -> x!=0, -floor(Int, k.bw[1]):floor(Int, k.bw[1]))
 
-function Γ!(cfg, j)
-    X = cfg.XX
+function Γ!(cache, j)
+    X = cache.XX
     T, p = size(X)
-    Q = fill!(cfg.Q, zero(eltype(X)))
+    Q = fill!(cache.Q, zero(eltype(X)))
     if j >= 0
         for h=1:p, s = 1:h
             for t = j+1:T
@@ -211,37 +152,46 @@ function Γ!(cfg, j)
             end
         end
     end
-    return cfg.Q
+    return cache.Q
 end
 
-function demean!(cfg::HACConfig, X, ::Type{Val{true}})
-    sum!(cfg.μ, X)
-    rmul!(cfg.μ, 1/size(X,1))
-    cfg.X_demean .= X .- cfg.μ
+function demean!(cache::HACCache, X, ::Type{Val{true}})
+    sum!(cache.μ, X)
+    rmul!(cache.μ, 1/size(X,1))
+    cache.X_demean .= X .- cache.μ
 end
 
-function demean!(cfg::HACConfig, X, ::Type{Val{false}})
-    copyto!(cfg.X_demean, X)
+function demean!(cache::HACCache, X, ::Type{Val{false}})
+    copyto!(cache.X_demean, X)
 end
 
-prewhiten!(cfg::HACConfig{T}) where T<:Unwhitened = copyto!(cfg.XX, cfg.X_demean)
-prewhiten!(cfg::HACConfig{T}) where T<:Prewhitened = fit_var!(cfg)
-swhiten!(cfg::HACConfig{T}) where T<:Unwhitened = nothing
+prewhiten!(cache::HACCache{T}) where T<:Unwhitened = copyto!(cache.XX, cache.X_demean)
+prewhiten!(cache::HACCache{T}) where T<:Prewhitened = fit_var!(cache)
+swhiten!(cache::HACCache{T}) where T<:Unwhitened = nothing
 
-function swhiten!(cfg::HACConfig{T}) where T<:Prewhitened
-    fill!(cfg.Q, zero(eltype(cfg.Q)))
-    for i = 1:size(cfg.Q, 2)
-        cfg.Q[i,i] = one(eltype(cfg.Q))
+function swhiten!(cache::HACCache{T}) where T<:Prewhitened
+    fill!(cache.Q, zero(eltype(cache.Q)))
+    for i = 1:size(cache.Q, 2)
+        cache.Q[i,i] = one(eltype(cache.Q))
     end
-    v = ldiv!(qr(I-cfg.D'), cfg.Q)
-    cfg.V .= v*cfg.V*v'
+    v = ldiv!(qr(I-cache.D'), cache.Q)
+    cache.V .= v*cache.V*v'
 end
 
-function makecholesky!(cfg)
-    chol = cholesky(Symmetric(cfg.V), check = false)
-    copyto!(cfg.chol.UL.data, chol.UL.data)
-    copyto!(cfg.chol.U.data, chol.U.data)
-    copyto!(cfg.chol.L.data, chol.L.data)
+makecholesky!(cache, ::Type{Nothing}) = nothing
+
+function makecholesky!(cache, ::Type{Cholesky})
+    chol = LinearAlgebra.cholesky(Symmetric(cache.V), check = false)
+    copyto!(cache.chol.UL.data, chol.UL.data)
+    copyto!(cache.chol.U.data, chol.U.data)
+    copyto!(cache.chol.L.data, chol.L.data)
+end
+
+function makecholesky!(cache, ::Type{PositiveFactorizations.Positive})
+    chol = LinearAlgebra.cholesky(Positive, Symmetric(cache.V))
+    copyto!(cache.chol.UL.data, chol.UL.data)
+    copyto!(cache.chol.U.data, chol.U.data)
+    copyto!(cache.chol.L.data, chol.L.data)
 end
 
 ##############################################################################
@@ -286,8 +236,8 @@ end
 ##
 ##############################################################################
 
- function fit_var!(cfg::HACConfig)
-     X, Y, Z, u, D = cfg.XX, cfg.YY, cfg.X_demean, cfg.u, cfg.D
+ function fit_var!(cache::HACCache)
+     X, Y, Z, u, D = cache.XX, cache.YY, cache.X_demean, cache.u, cache.D
      n, p = size(Z)
      @inbounds for j in 1:p, i = 1:n-1
          X[i,j] = Z[i,  j]
@@ -301,23 +251,23 @@ end
      broadcast!(-, X, Y, u)
  end
 
- function fit_ar!(cfg)
+ function fit_ar!(cache)
      ## Estimate
      ##
      ## y_{t,j} = ρ y_{t-1,j} + ϵ
-     σ⁴ = cfg.σ⁴
-     ρ = cfg.ρ
-     U = cfg.U
-     n, p = size(cfg.XX)
-     lag!(cfg)
-     Y = cfg.Y_lagged
-     X = cfg.X_lagged
+     σ⁴ = cache.σ⁴
+     ρ = cache.ρ
+     U = cache.U
+     n, p = size(cache.XX)
+     lag!(cache)
+     Y = cache.Y_lagged
+     X = cache.X_lagged
      for j in 1:p
          y = view(Y, :, j)
          x = view(X, :, j)
          x .= x .- mean(x)
          y .= y .- mean(y)
-         ρ[j] = sum(broadcast!(*, cfg.U, x, y))/sum(abs2, x)
+         ρ[j] = sum(broadcast!(*, cache.U, x, y))/sum(abs2, x)
          copyto!(U, y)
          x .= x.*ρ[j]
          broadcast!(-, U, U, x)
@@ -325,15 +275,15 @@ end
      end
  end
 
- function lag!(cfg)
+ function lag!(cache)
      ## This construct two matrices
      ## Z_lagged we store X_demean[1:n-1, :]
-     nl, pl = size(cfg.Y_lagged)
-     n, p  = size(cfg.XX)
+     nl, pl = size(cache.Y_lagged)
+     n, p  = size(cache.XX)
      for ic in 1:p
          for i = 2:n
-             @inbounds cfg.Y_lagged[i-1, ic] = cfg.XX[i, ic]
-             @inbounds cfg.X_lagged[i-1, ic] = cfg.XX[i-1, ic]
+             @inbounds cache.Y_lagged[i-1, ic] = cache.XX[i, ic]
+             @inbounds cache.X_lagged[i-1, ic] = cache.XX[i-1, ic]
          end
      end
   end
@@ -344,13 +294,13 @@ end
 ##
 ##############################################################################
 
-optimal_bw!(cfg, k::HAC, optype::T) where T<:NeweyWest = bwNeweyWest(cfg, k)
-optimal_bw!(cfg, k::HAC, opttype::T) where T<:Andrews = bwAndrews(cfg, k)
+optimal_bw!(cache, k::HAC, optype::T) where T<:NeweyWest = bwNeweyWest(cache, k)
+optimal_bw!(cache, k::HAC, opttype::T) where T<:Andrews = bwAndrews(cache, k)
 
-function bwAndrews(cfg, k::HAC)
+function bwAndrews(cache, k::HAC)
     isempty(k.weights) && (fill!(k.weights, 1.0))
-    n, p  = size(cfg.XX)
-    a1, a2 = getalpha!(cfg, k.weights)
+    n, p  = size(cache.XX)
+    a1, a2 = getalpha!(cache, k.weights)
     k.bw[1] = bw_andrews(k, a1, a2, n)
 end
 
@@ -365,9 +315,9 @@ for kerneltype in [:TruncatedKernel, :BartlettKernel, :ParzenKernel, :TukeyHanni
     @eval $:(bw_andrews)(k::($kerneltype), a1, a2, n) = $(d_bw_andrews[kerneltype])
 end
 
-function getalpha!(cfg, w)
-    fit_ar!(cfg)
-    σ⁴, ρ = cfg.σ⁴, cfg.ρ
+function getalpha!(cache, w)
+    fit_ar!(cache)
+    σ⁴, ρ = cache.σ⁴, cache.ρ
     nm = 4.0.*(ρ.^2).*σ⁴./(((1.0.-ρ).^6).*((1.0.+ρ).^2))
     dn = σ⁴./(1.0.-ρ).^4
     α₁ = sum(w.*nm)/sum(w.*dn)
@@ -376,11 +326,11 @@ function getalpha!(cfg, w)
     return α₁, α₂
 end
 
-function bwNeweyWest(cfg, k::HAC)
-    n, p = size(cfg.XX)
-    l = getrates(cfg, k)
+function bwNeweyWest(cache, k::HAC)
+    n, p = size(cache.XX)
+    l = getrates(cache, k)
     w = k.weights
-    xm = cfg.XX*w
+    xm = cache.XX*w
     a = map(j -> dot(xm[1:n-j], xm[j+1:n])/n, 0:l)::Array{Float64, 1}
     aa = view(a, 2:l+1)
     a0 = a[1] + 2*sum(aa)
@@ -389,8 +339,8 @@ function bwNeweyWest(cfg, k::HAC)
     k.bw[1] = bwnw(k, a0, a1, a2)*(n+isprewhiten(k))^growthrate(k)
 end
 
-function getrates(cfg, k)
-    n, p = size(cfg.X_demean)
+function getrates(cache, k)
+    n, p = size(cache.X_demean)
     lrate = lagtruncation(k)
     adj = isprewhiten(k) ? 3 : 4
     floor(Int, adj*(n/100)^lrate)

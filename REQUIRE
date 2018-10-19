@@ -1,6 +1,7 @@
 julia 0.7
+DataFrames
+GLM
+PositiveFactorizations
+Requires
 StatsBase
-StatsModels 
-GLM 
-DataFrames 
-Reexport
+StatsModels
