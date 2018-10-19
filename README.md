@@ -76,16 +76,16 @@ Consider the following artificial data (a regression with autoregressive error c
 ```julia
 using CovarianceMatrices
 using DataFrames
+using Random
 Random.seed!(1)
 n = 500
 x = randn(n,5)
-u = Array{Float64}(2*n)
+u = Array{Float64}(undef, 2*n)
 u[1] = rand()
 for j in 2:2*n
     u[j] = 0.78*u[j-1] + randn()
 end
-u = u[n+1:2*n]
-y = 0.1 + x*[0.2, 0.3, 0.0, 0.0, 0.5] + u
+
 
 df = DataFrame()
 df[:y] = y
@@ -96,7 +96,7 @@ end
 Using the data in `df`, the coefficient of the regression can be estimated using `GLM`
 
 ```julia
-lm1 = glm(y~x1+x2+x3+x4+x5, df, Normal(), IdentityLink())
+lm1 = glm(@formula(y~x1+x2+x3+x4+x5), df, Normal(), IdentityLink())
 ```
 
 To get a consistent estimate of the long run variance of the estimated coefficients using a Quadratic Spectral kernel with automatic bandwidth selection  _à la_ Andrews
@@ -115,7 +115,6 @@ stderror(::DataFrameRegressionModel, ::HAC)
 ```julia
 optimalbw(NeweyWest, QuadraticSpectralKernel, lm1; prewhite = false)
 optimalbw(Andrews, QuadraticSpectralKernel, lm1; prewhite = false)
-``` -->
 
 ## HC (Heteroskedastic consistent)
 
@@ -182,12 +181,12 @@ end
 # The weights are added just to test the interface and are not part
 # of the original data
 clotting = DataFrame(
-    u    = log([5,10,15,20,30,40,60,80,100]),
+    u    = log.([5,10,15,20,30,40,60,80,100]),
     lot1 = [118,58,42,35,27,25,21,19,18],
     lot2 = [69,35,26,21,18,16,13,12,12],
     w    = 9*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
 )
-wOLS = fit(GeneralizedLinearModel, lot1~u, clotting, Normal(), wts = array(clotting[:w]))
+wOLS = fit(GeneralizedLinearModel, @formula(lot1~u), clotting, Normal(), wts = convert(Array{Float64}, clotting[:w]))
 
 vcov(wOLS, HC0)
 vcov(wOLS, HC1)
@@ -204,7 +203,7 @@ The API of this class of variance estimators is subject to change, so please use
 ```julia
 using RDatasets
 df = dataset("plm", "Grunfeld")
-lm = glm(Inv~Value+Capital, df, Normal(), IdentityLink())
-vcov(lm, CRHC1(convert(Array, df[:Firm])))
-stderr(lm, CRHC1(convert(Array, df[:Firm])))
+lm = glm(@formula(Inv~Value+Capital), df, Normal(), IdentityLink())
+vcov(lm, CRHC1(convert(Array{Float64}, df[:Firm])))
+stderror(lm, CRHC1(convert(Array{Float64}, df[:Firm])))
 ```
