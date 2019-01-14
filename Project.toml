@@ -6,8 +6,6 @@ author = "Giuseppe Ragusa <giuseppe.ragusa@gmail.com>"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-PositiveFactorizations = "85a6dd25-e78a-55b7-8502-1745935b8125"
-Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
@@ -16,6 +14,7 @@ StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 
 [targets]
-test = ["Test", "CSV", "Random"]
+test = ["Test", "CSV", "Random", "JSON"]
