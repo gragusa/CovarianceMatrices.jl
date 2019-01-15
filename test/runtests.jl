@@ -581,7 +581,7 @@ end
 
 @testset "CRHC............................................." begin
 
-    df = CSV.read("wols_test.csv")
+    df = CSV.read("testdata/wols_test.csv")
     df_sorted = sort!(copy(df), :cl)
 
     St1 = [.0374668, .0497666, .0472636, .0437952, .0513613, .0435369]
@@ -658,7 +658,7 @@ end
                 0.000619903 2.99597e-5 -7.26396e-5 -0.00067357 0.00225446 0.00106796;
                 0.00019496 0.000133303 -0.000998524 -0.000416268 0.00106796 0.00226444] atol = 1e-07
 
-    innovation = CSV.read("InstInnovation.csv", allowmissing=:none)
+    innovation = CSV.read("testdata/InstInnovation.csv", allowmissing=:none)
 
     innovation[:capemp] = log.(innovation[:capital]./innovation[:employment])
     innovation[:lsales] = log.(innovation[:sales])
@@ -674,7 +674,7 @@ end
 
 
 @testset "CovarianceMatrices Methods......................." begin
-    df = CSV.read("wols_test.csv")
+    df = CSV.read("testdata/wols_test.csv")
     df_sorted = sort!(copy(df), :cl)
     cl = convert(Array, df[:cl])
     wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
