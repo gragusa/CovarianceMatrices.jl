@@ -14,11 +14,11 @@ Three classes of estimators are considered:
 1. **HAC** 
     - heteroskedasticity and autocorrelation consistent (Andrews, 1996; Newey and West, 1994)
 2. **HC**  
-    - hetheroskedasticity consistent (White, 1982)
+    - heteroskedasticity consistent (White, 1982)
 3. **CRVE** 
     - cluster robust (Arellano, 1986; Bell, 2002)
 
-The typical applications of these estimators are __(a)__ to estimate the long run covariance matrix of a stochastic process, and/or __(b)__ conduct robust inference about parameters of generalized linear models (GLM).
+The typical applications of these estimators are __(a)__ estimation of the long run covariance matrix of a stochastic process, __(b)__ robust inference about parameters of regular statistical models such as LM and GLM.
 
 
 ## Installation
@@ -30,9 +30,9 @@ pkg> add CovarianceMatrices
 
 ## Quick and dirty
 
-Given a `GLM` object, we want to construct the variance covariance matrix of the coefficients.
+In this section we will describe the typical application of this package, that is, obtaining a consistent estimate of the covariance of coefficient of generalized linear model. 
 
-This can be done by using `vcov`. 
+To get the covariance matrix of the estimated coefficients of a generalized linear model fitted through `GLM` use `vcov`
 
 ```julia
 vcov(::DataFrameRegressionModel, ::T) where T<:RobustVariance
@@ -42,7 +42,7 @@ Standard errors can be obtained by
 stderror(::DataFrameRegressionModel, ::T) where T<:RobustVariance
 ```
 
-`RobustVariance` is an abstract type. Subtypes of `RobustVariance` are `HAC`, `HC` and `CRHC`. These in turns are subtypes with concrete types give n by
+`RobustVariance` is an abstract type. Subtypes of `RobustVariance` are `HAC`, `HC` and `CRHC`. These in turns are themselves abstract with the following concrete types:
 
 - `HAC`
     - `TruncatedKernel`
@@ -90,38 +90,44 @@ for j in enumerate([:x1, :x2, :x3, :x4, :x5])
     df[j[2]] = x[:,j[1]]
 end
 ```
+
 Using the data in `df`, the coefficient of the regression can be estimated using `GLM`
 
 ```julia
 lm1 = lm(@formula(y~x1+x2+x3+x4+x5), df)
 ```
 
-Given the autocorrelation in the residuals, to obtain a consistent covariance of estimator of the coefficient we have to use a `HAC` estimator which in turns requires choosing a kernel function. 
-
-
-```julia
-QuadraticSpectralKernel(::Real; prewhiten = false)
-QuadraticSpectralKernel(::Andrews; prewhiten = false)
-QuadraticSpectralKernel(::NeweyWest; prewhiten = false)
-```
-
-So, for instance, calling
-
+Given the autocorrelation structure, a consistent covariance of the coefficient requires to use a `HAC` estimator. For instance, the follwoing
 ```julia
 vcov(lm1, ParzenKernel(1.34, prewhiten = true))
 ```
+will give an estimate based on the Parzen Kernel with bandwidth 1.34. The kernel option `prewhitening = true` indicates that the covariance will calculated after prewhitening (the dafault is `prewhiten=false`). 
 
-will return the estimate of the covariance matrix of the coefficient of `lm1` using a the Parzen Kernel, a bandwidth equal to 1.34. The estimating equation will be also prewhiten. 
+Typically, the bandwidth is chosen by data-dependent procedures. These procedures are given in Andrews (1996) and Newey and West (1994). 
 
-
-To get an estimate that uses the Quadratic Spectral Kernel and data-dependent bandwidth selected _à la_ Andrews (and no prewhitening)
+To get an estimate with bandwidth selected automatically following Andrews, 
 ```julia
+vcov(lm1, ParzenKernel(Andrews))
+```
+This works for all kernels, e.g.,
+```julia
+vcov(lm1, TruncatedKernel(Andrews))
+vcov(lm1, BartlettKernel(Andrews))
 vcov(lm1, QuadraticSpectralKernel(Andrews))
 ```
-The following uses instead Newey-West method of selecting the optimal bandwidth:
+
+To use instead Newey West approach, 
 ```julia
 vcov(lm1, QuadraticSpectralKernel(NeweyWest))
 ```
+Newey West selection only works for the `QuadraticSpectralKernel`, `BartlettKernel`, and `ParzenKernel`. 
+
+To retrive the optimal bandwidth calculated by these two procedures, the kernel must be preallocated. For instance,
+```julia
+kernel = QuadraticSpectralKernel(NeweyWest)
+vcov(lm1, kernel)
+```
+Now `kernel.bw` containes the optimal bandwidth. 
 
 
 ### HC (Heteroskedastic consistent)
@@ -135,17 +141,17 @@ Where `HC` is an abstract type with the following concrete types:
 - `HC0`
     - This is Hal White (1982) robust variance estimator
 - `HC1`
-    - This is equal to `H0` multiplyed it by n/(n-p), where n is the sample size and p is the number of parameters in the model.
+    - This is equal to `H0` multiplyed it by _n/(n-p)_, where n is the sample size and _p_ is the number of parameters in the model.
 - `HC2`
-    - A modification of HC0 that involves dividing the squared residual by 1-h, where h is the leverage for the case (Horn, Horn and Duncan, 1975)
+    - A modification of `HC0` that involves dividing the squared residual by _1-h_, where h is the leverage for the case (Horn, Horn and Duncan, 1975)
 - `HC3`
-    - A modification of HC0 that approximates a jackknife estimator. Squared residuals are divided by the square of 1-h (Davidson and Mackinnon, 1993).
+    - A modification of `HC0` that approximates a jackknife estimator. Squared residuals are divided by the square of _1-h_ (Davidson and Mackinnon, 1993).
 - `HC4`
-    - A modification of HC0 that divides the squared residuals by 1-h to a power that varies according to h, n, and p, with an upper limit of 4 (Cribari-Neto, 2004).
+    - A modification of `HC0` that divides the squared residuals by _1-h_ to a power that varies according to _h_, _n_, and _p_. (Cribari-Neto, 2004).
 - `HC4m`
-    - Similar to HC4 but with smaller bias (Cribari-Neto and Da Silva, 2011)
+    - Similar to `HC4` but with smaller bias (Cribari-Neto and Da Silva, 2011)
 - `HC5`
-    - A modification of HC0 that divides the squared residuals by 1-h to a power that varies according to h, n, and p, with an upper limit of 4 (Cribari-Neto, 2004). (Cribari-Neto, Souza and Vasconcellos, 2007)
+    - A modification of `HC0` that divides the squared residuals by the square of _1-h_ to a power that varies according to _h_, _n_, and _p_. (Cribari-Neto, 2004). (Cribari-Neto, Souza and Vasconcellos, 2007)
 
 Example:
 
