@@ -79,13 +79,13 @@ using Random
 Random.seed!(1)
 n = 500
 x = randn(n,5)
-u = Array{Float64}(undef, 2*n)
+u = Array{Float64}(undef, n)
 u[1] = rand()
-for j in 2:2*n
+for j in 2:n
     u[j] = 0.78*u[j-1] + randn()
 end
 df = DataFrame()
-df[:y] = y
+df[:y] = u
 for j in enumerate([:x1, :x2, :x3, :x4, :x5])
     df[j[2]] = x[:,j[1]]
 end
