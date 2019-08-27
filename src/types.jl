@@ -1,7 +1,10 @@
+<<<<<<< HEAD
 const WFLOAT = Sys.WORD_SIZE == 64 ? Float64 : Float32
 
 
 
+=======
+>>>>>>> newcache
 #=========
 Abstraction
 ==========#
@@ -9,7 +12,11 @@ Abstraction
 abstract type RobustVariance end
 abstract type HAC{G} <: RobustVariance end
 abstract type HC <: RobustVariance end
+<<<<<<< HEAD
 abstract type CRHC{V} <: RobustVariance end
+=======
+abstract type CRHC <: RobustVariance end
+>>>>>>> newcache
 
 
 #=========
@@ -84,6 +91,7 @@ struct HC5  <: HC end
 
 #const CLVector{T<:Integer} = DenseArray{T,1}
 
+<<<<<<< HEAD
 mutable struct CRHC0{V<:AbstractVector}  <: CRHC{V}
     cl::V
 end
@@ -131,3 +139,20 @@ struct HACCache{TYPE, F<:AbstractMatrix, V<:AbstractVector} <: AbstractCache
     u::F
 end
 
+=======
+mutable struct CRHC0{V<:AbstractVector}  <: CRHC
+    cl::V
+end
+
+mutable struct CRHC1{V<:AbstractVector}  <: CRHC
+    cl::V
+end
+
+mutable struct CRHC2{V<:AbstractVector}  <: CRHC
+    cl::V
+end
+
+mutable struct CRHC3{V<:AbstractVector}  <: CRHC
+    cl::V
+end
+>>>>>>> newcache

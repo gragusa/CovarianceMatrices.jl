@@ -11,13 +11,21 @@ struct CRHCCache{VN<:AbstractVector, F1<:AbstractMatrix, F2<:AbstractMatrix, V<:
     clus::VN
 end
 
+<<<<<<< HEAD
 function CRHCCache(X::AbstractMatrix{T1}, cl::AbstractVector{T2}) where {T1,T2}
+=======
+function CRHCCache(X::AbstractMatrix{T1}, cl::AbstractVector{T}; returntype::Type{T1} = eltype(X)) where {T,T1}
+>>>>>>> newcache
     n, p = size(X)
     CRHCCache(similar(X), similar(X), Array{T1, 2}(undef, p, p),
              Array{T1, 1}(undef, n), Array{T1, 1}(undef, n),
              Array{T1, 1}(undef, n), Array{T1, 1}(undef, n),
              Array{T1, 2}(undef, p, p), Array{Int, 1}(undef, n),
+<<<<<<< HEAD
              Array{T2, 1}(undef, n))
+=======
+             Array{T, 1}(undef, n))
+>>>>>>> newcache
 end
 
 function installsortedxuw!(cache, m, k, ::Type{Val{true}})
@@ -62,13 +70,22 @@ function installsortedxuw!(cache, m, k, ::Type{Val{false}})
     end
 end
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> newcache
 adjresid!(k::CRHC0, cache, ichol, bstarts) = nothing
 adjresid!(k::CRHC1, cache, ichol, bstarts) = nothing
 adjresid!(k::CRHC2, cache, ichol, bstarts) = getqii(k, cache, ichol, bstarts)
 adjresid!(k::CRHC3, cache, ichol, bstarts) = getqii(k, cache, ichol, bstarts)
 
 function dof_adjustment(cache, k::CRHC0, bstarts)
+<<<<<<< HEAD
     g = length(bstarts)
+=======
+    g, (n, p) = length(bstarts), size(cache.X)
+>>>>>>> newcache
     g/(g-1)
 end
 
@@ -112,10 +129,17 @@ end
 
 function clusterize!(cache, bstarts)
     M = cache.M
+<<<<<<< HEAD
     fill!(M, zero(eltype(M)))
     U = cache.q
     p, p = size(M)
     s = Array{eltype(M)}(undef, p)
+=======
+    fill!(M, zero(Float64))
+    U = cache.q
+    p, p = size(M)
+    s = Array{Float64}(undef, p)
+>>>>>>> newcache
     for m in bstarts
         for i = 1:p
             @inbounds s[i] = zero(Float64)
@@ -128,4 +152,8 @@ function clusterize!(cache, bstarts)
         end
     end
     return M
+<<<<<<< HEAD
 end
+=======
+end
+>>>>>>> newcache

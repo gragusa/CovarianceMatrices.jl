@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = false) where {T<:Int}
     HACCache(convert(Matrix{WFLOAT}, X), prewhiten = prewhiten)
 end
@@ -39,6 +40,55 @@ function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = false) where {T<:Real}
                         Array{T}(undef, 0, 0))
     end
 end
+=======
+struct HACCache{TYPE, T1<:Real, F<:AbstractMatrix, V<:AbstractVector}
+    prew::TYPE
+    X_demean::F ## Should call this q n_origin x p
+    YY::F
+    XX::F
+    Y_lagged::F
+    X_lagged::F
+    μ::F        ## p x 1
+    Q::F        ## p x p
+    V::F        ## p x p
+    D::F        ## p x p
+    U::V
+    ρ::V
+    σ⁴::V
+    u::F
+    chol::Cholesky{T1, F}
+end
+
+
+function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = true, returntype::Type{T1} = promote_type(T, Sys.WORD_SIZE == 64 ? Float64 : Float32)) where {T<:Int, T1<:AbstractFloat}
+    HACCache(convert(Array{T1, 2}, X), prewhiten = prewhiten, returntype = returntype)
+end
+
+function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = true, returntype::Type{T1} = eltype(X)) where {T<:Real, T1<:Real}
+    nr, p = size(X)
+    TYPE = prewhiten ? Prewhitened() : Unwhitened()
+    n = prewhiten ? nr-1 : nr
+    if prewhiten
+    return HACCache(TYPE, copy(convert(Array{T1}, X)), Array{T1}(undef, n, p),
+                     Array{T1}(undef, n, p), Array{T1}(undef, n-1, p),
+                     Array{T1}(undef, n-1, p), Array{T1}(undef, 1, p),
+                     Array{T1}(undef, p, p), Array{T1}(undef, p, p),
+                     Array{T1}(undef, p, p), Array{T1}(undef, n-1),
+                     Array{T1}(undef, p), Array{T1}(undef, p),
+                     Array{T1}(undef, n, p), cholesky(Matrix(one(T1)I, p, p)))
+    else
+        return HACCache(TYPE, copy(convert(Array{T1}, X)), Array{T1}(undef, 0, 0),
+                                Array{T1}(undef, n, p), Array{T1}(undef, n-1, p),
+                                Array{T1}(undef, n-1, p), Array{T1}(undef, 1, p),
+                                Array{T1}(undef, p, p), Array{T1}(undef, p, p),
+                                Matrix(one(T1)I, p, p), Array{T1}(undef, n-1),
+                                Array{T1}(undef, p), Array{T1}(undef, p),
+                                Array{T1}(undef, 0, 0), cholesky(Matrix(one(T1)I, p, p)))
+    end
+end
+
+
+>>>>>>> newcache
 
 function HACCache(X::AbstractMatrix, k::HAC; kwargs...)
     ip = isprewhiten(k)
@@ -83,6 +133,52 @@ end
 
 isprewhiten(k::HAC) = k.prewhiten
 
+<<<<<<< HEAD
+=======
+
+function variance(X::AbstractMatrix, k::HAC; kwargs...)
+    cache = HACCache(X, k)
+    variance(X, k, cache; kwargs...)
+end
+
+function variance(X::Matrix{F}, k::T, cache::HACCache{TC}; demean::Type{T1} = Val{true}, cholesky::C = Nothing) where {F, T, TC, T1, C}
+    ## Check whether cache and prewhiten option are consistent
+    check_cache_consistenty(k, cache)
+    demean!(cache, X, demean)
+    prewhiten!(cache)
+    _variance(k, cache, cholesky)
+end
+
+function _variance(k::HAC{Optimal{T}}, cache, cholesky) where T<:OptimalBandwidth
+    n, p = size(cache.XX)
+    setupkernelweights!(k, p, eltype(cache.XX))
+    optimal_bw!(cache, k, T())
+    __variance(k::HAC, cache, cholesky)
+end
+
+function _variance(k::HAC{T}, cache, cholesky) where T<:Fixed
+    __variance(k::HAC, cache, cholesky)
+end
+
+function __variance(k::HAC, cache, cholesky)
+    n, p = size(cache.XX)
+    fill!(cache.V, zero(eltype(cache.XX)))
+    bw = first(k.bw)
+    mul!(cache.V, cache.XX', cache.XX)
+    triu!(cache.V)
+    idxs = getcovindeces(k, n)
+    @inbounds for j in idxs
+        k_j = CovarianceMatrices.kernel(k, j/bw)
+        LinearAlgebra.axpy!(k_j, CovarianceMatrices.Γ!(cache, j), cache.V)
+    end
+    LinearAlgebra.copytri!(cache.V, 'U')
+    swhiten!(cache)
+    rmul!(cache.V, 1/(n+isprewhiten(k)))
+    makecholesky!(cache, cholesky)
+    return cache.V
+end
+
+>>>>>>> newcache
 getcovindeces(k::T, n) where T<:QuadraticSpectralKernel = Iterators.filter(x -> x!=0, -n:n)
 getcovindeces(k::HAC, n) = Iterators.filter(x -> x!=0, -floor(Int, k.bw[1]):floor(Int, k.bw[1]))
 
@@ -127,6 +223,7 @@ function swhiten!(cache::HACCache{T}) where T<:Prewhitened
     end
     v = ldiv!(qr(I-cache.D'), cache.Q)
     cache.V .= v*cache.V*v'
+<<<<<<< HEAD
 end
 
 # makecholesky!(cache, ::Type{Nothing}) = nothing
@@ -144,6 +241,25 @@ end
 #     copyto!(cache.chol.U.data, chol.U.data)
 #     copyto!(cache.chol.L.data, chol.L.data)
 # end
+=======
+end
+
+makecholesky!(cache, ::Type{Nothing}) = nothing
+
+function makecholesky!(cache, ::Type{Cholesky})
+    chol = LinearAlgebra.cholesky(Symmetric(cache.V), check = false)
+    copyto!(cache.chol.UL.data, chol.UL.data)
+    copyto!(cache.chol.U.data, chol.U.data)
+    copyto!(cache.chol.L.data, chol.L.data)
+end
+
+function makecholesky!(cache, ::Type{PositiveFactorizations.Positive})
+    chol = LinearAlgebra.cholesky(Positive, Symmetric(cache.V))
+    copyto!(cache.chol.UL.data, chol.UL.data)
+    copyto!(cache.chol.U.data, chol.U.data)
+    copyto!(cache.chol.L.data, chol.L.data)
+end
+>>>>>>> newcache
 
 ##############################################################################
 ##
