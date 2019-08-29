@@ -13,29 +13,29 @@ const INNERMOD = Union{GLM.GeneralizedLinearModel, GLM.LinearModel}
 #============
 General GLM methods
 =============#
-StatsModels.modelmatrix(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = m.mm.m
+StatsModels.modelmatrix(m::StatsModels.TableRegressionModel{T}) where T<:INNERMOD = m.mm.m
 StatsModels.modelmatrix(m::T) where T<:INNERMOD = m.pp.X
 
 
-residuals(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = m.model.rr.wrkresid
+residuals(m::StatsModels.TableRegressionModel{T}) where T<:INNERMOD = m.model.rr.wrkresid
 residuals(m::T) where T<:INNERMOD = m.rr.y .- m.rr.mu
 
-modelweights(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = m.model.rr.wrkwt
+modelweights(m::StatsModels.TableRegressionModel{T}) where T<:INNERMOD = m.model.rr.wrkwt
 modelweights(m::GLM.GeneralizedLinearModel) = m.rr.wrkwt
 modelweights(m::GLM.LinearModel) = m.rr.wts
 
-smplweights(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = m.model.rr.wts
+smplweights(m::StatsModels.TableRegressionModel{T}) where T<:INNERMOD = m.model.rr.wts
 smplweights(m::GLM.GeneralizedLinearModel) = m.rr.wts
 smplweights(m::GLM.LinearModel) = m.rr.wts
 
 
-choleskyfactor(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = m.model.pp.chol.UL
+choleskyfactor(m::StatsModels.TableRegressionModel{T}) where T<:INNERMOD = m.model.pp.chol.UL
 choleskyfactor(m::T) where T<:INNERMOD = m.pp.chol.UL
 
-unweighted_nobs(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = size(modelmatrix(m), 1)
+unweighted_nobs(m::StatsModels.TableRegressionModel{T}) where T<:INNERMOD = size(modelmatrix(m), 1)
 unweighted_nobs(m::T) where T<:INNERMOD = size(modelmatrix(m), 1)
 
-unweighted_dof_residual(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = unweighted_nobs(m) - length(coef(m))
+unweighted_dof_residual(m::StatsModels.TableRegressionModel{T}) where T<:INNERMOD = unweighted_nobs(m) - length(coef(m))
 unweighted_dof_residual(m::T) where T<:INNERMOD = unweighted_nobs(m) - length(coef(m))
 
 function installxuw!(cache, m::T) where T<:INNERMOD
@@ -60,14 +60,14 @@ function esteq!(cache, m::RegressionModel, k::HAC)
     broadcast!(*, X, X, u)
 end
 
-pseudohessian(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD = GLM.invchol(m.model.pp)
+pseudohessian(m::StatsModels.TableRegressionModel{T}) where T<:INNERMOD = GLM.invchol(m.model.pp)
 pseudohessian(m::T) where T<:INNERMOD = GLM.invchol(m.pp)
 
 #==============
 HAC GLM Methods
 ===============#
 
-function HACCache(m::StatsModels.DataFrameRegressionModel{T}; prewhiten = false) where T<:INNERMOD
+function HACCache(m::StatsModels.TableRegressionModel{T}; prewhiten = false) where T<:INNERMOD
     HACCache(m.model, prewhiten = prewhiten)
 end
 
@@ -75,7 +75,7 @@ function HACCache(m::T; prewhiten = false) where T<:INNERMOD
     HACCache(copy(modelmatrix(m)), prewhiten = prewhiten)
 end
 
-function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel{T}, k::HAC, args...; kwargs...) where T<:INNERMOD
+function StatsBase.vcov(m::StatsModels.TableRegressionModel{T}, k::HAC, args...; kwargs...) where T<:INNERMOD
     set_bw_weights!(k, m)
     vcov(m.model, k, args...; kwargs...)
 end
@@ -96,23 +96,7 @@ function StatsBase.vcov(m::T, k::K, cache::HACCache, returntype::Type{T1} = Cova
     finalize(V, T2, T1, k, scale)
 end
 
-# setcholesky!(cache, cholesky::Type{Nothing}, V) = nothing
-
-# function setcholesky!(cache, cholesky::Type{Cholesky}, V)
-#     chol = LinearAlgebra.cholesky(Symmetric(V))
-#     copyto!(cache.chol.UL.data, chol.UL.data)
-#     copyto!(cache.chol.U.data, chol.U.data)
-#     copyto!(cache.chol.L.data, chol.L.data)
-# end
-
-# function setcholesky!(cache, cholesky::Type{PositiveFactorizations.Positive}, V)
-#     chol = LinearAlgebra.cholesky(Positive, V)
-#     copyto!(cache.chol.UL.data, chol.UL.data)
-#     copyto!(cache.chol.U.data, chol.U.data)
-#     copyto!(cache.chol.L.data, chol.L.data)
-# end
-
-function set_bw_weights!(k::HAC, m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD
+function set_bw_weights!(k::HAC, m::StatsModels.TableRegressionModel{T}) where T<:INNERMOD
     if isempty(k.weights)
         for j in eachindex(coef(m))
             push!(k.weights, 1.0)
@@ -136,7 +120,7 @@ end
 #==============
 HC GLM Methods
 ===============#
-function HCCache(m::StatsModels.DataFrameRegressionModel{T}) where T<:INNERMOD
+function HCCache(m::StatsModels.TableRegressionModel{T}) where T<:INNERMOD
     HCCache(m.model)
 end
 
@@ -145,9 +129,9 @@ function HCCache(m::T) where {T<:INNERMOD}
     HCCache(similar(Array{eltype(modelmatrix(m)), 2}(undef, n, p)))
 end
 
-function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel{T}, 
+function StatsBase.vcov(m::StatsModels.TableRegressionModel{T},
                         k::K, returntype::Type{T1} = CovarianceMatrix,
-                        factortype::Type{T2} = Cholesky; 
+                        factortype::Type{T2} = Cholesky;
                         kwargs...) where {T<:INNERMOD,
                                           K<:HC,
                                           T1<:Union{CovarianceMatrix, Matrix},
@@ -155,9 +139,9 @@ function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel{T},
     vcov(m.model, k, HCCache(m.model), returntype, factortype; kwargs...)
 end
 
-function StatsBase.vcov(m::T, 
+function StatsBase.vcov(m::T,
     k::K, returntype::Type{T1} = CovarianceMatrix,
-    factortype::Type{T2} = Cholesky; 
+    factortype::Type{T2} = Cholesky;
     kwargs...) where {T<:INNERMOD,
                       K<:HC,
                       T1<:Union{CovarianceMatrix, Matrix},
@@ -193,7 +177,7 @@ function StatsBase.vcov(m::T,
     br = CovarianceMatrices.pseudohessian(m)
     CovarianceMatrices.adjfactor!(cache, m, k)
     mul!(cache.x, mf', broadcast!(*, cache.X, mf, cache.η))
-    V = br*cache.x*br'    
+    V = br*cache.x*br'
     finalize(V, T2, T1, k, 1.0)
 end
 
@@ -254,8 +238,8 @@ function hatmatrix(cache, m::T) where T<:INNERMOD
 Cluster GLM
 =========#
 
-function CRHCCache(m::StatsModels.DataFrameRegressionModel{T}, cl::AbstractArray{F}) where {T<:INNERMOD, F}
-    CRHCCache(m.model, cl, returntype=returntype)
+function CRHCCache(m::StatsModels.TableRegressionModel{T}, cl::AbstractArray{F}) where {T<:INNERMOD, F}
+    CRHCCache(m.model, cl)
 end
 
 function CRHCCache(m::T, cl::AbstractVector{F}) where {T<:INNERMOD, F}
@@ -263,8 +247,8 @@ function CRHCCache(m::T, cl::AbstractVector{F}) where {T<:INNERMOD, F}
     CRHCCache(similar(modelmatrix(m)), cl)
 end
 
-function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel{T}, 
-                        k::K, 
+function StatsBase.vcov(m::StatsModels.TableRegressionModel{T},
+                        k::K,
                         returntype::Type{T1} = CovarianceMatrix,
                         factortype::Type{T2} = Cholesky; kwargs...) where {T<:INNERMOD,
                                                                            K<:CRHC,
@@ -273,10 +257,10 @@ function StatsBase.vcov(m::StatsModels.DataFrameRegressionModel{T},
     vcov(m.model, k, CRHCCache(m.model, k.cl), returntype, factortype; kwargs...)
 end
 
-function StatsBase.vcov(m::T, 
-                        k::K, 
-                        returntype::Type{T1} = CovarianceMatrix, 
-                        factortype::Type{T2} = Cholesky; 
+function StatsBase.vcov(m::T,
+                        k::K,
+                        returntype::Type{T1} = CovarianceMatrix,
+                        factortype::Type{T2} = Cholesky;
                         kwargs...) where {T<:INNERMOD,
                                           K<:CRHC,
                                           T1<:Union{CovarianceMatrix, Matrix},
@@ -285,11 +269,11 @@ function StatsBase.vcov(m::T,
 end
 
 
-function StatsBase.vcov(m::T, 
-                        k::CRHC, 
+function StatsBase.vcov(m::T,
+                        k::CRHC,
                         cache::CRHCCache,
-                        returntype::Type{T1} = CovarianceMatrix, 
-                        factortype::Type{T2} = Cholesky; 
+                        returntype::Type{T1} = CovarianceMatrix,
+                        factortype::Type{T2} = Cholesky;
                         sorted::Bool = false) where {T<:INNERMOD,
                                                      K<:HC,
                                                      T1<:Union{CovarianceMatrix, Matrix},
@@ -304,5 +288,4 @@ function StatsBase.vcov(m::T,
     finalize(V, T2, T1, k, 1.0)
 end
 
-StatsBase.stderror(m::StatsModels.DataFrameRegressionModel{T}, k::RobustVariance; kwargs...) where T<:INNERMOD = sqrt.(diag(vcov(m, k, Matrix; kwargs...)))
-
+StatsBase.stderror(m::StatsModels.TableRegressionModel{T}, k::RobustVariance; kwargs...) where T<:INNERMOD = sqrt.(diag(vcov(m, k, Matrix; kwargs...)))
