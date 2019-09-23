@@ -46,7 +46,7 @@ function __covariance!(cache::HACCache, k::HAC)
     end
     LinearAlgebra.copytri!(cache.V, 'U')
     swhiten!(cache)
-    rmul!(cache.V, 1/(n+isprewhiten(k)))
+    #rmul!(cache.V, 1/(n+isprewhiten(k)))
     nothing
 end
 
