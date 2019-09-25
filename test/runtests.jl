@@ -717,3 +717,14 @@ end
     @test V2s.F == svd(V2m)
 
 end
+
+@testset "Various.........................................." begin
+    Random.seed!(1)
+    Z = randn(10, 5)
+    @test covariance(Z, HC1(), demean = true) == cov(StatsBase.SimpleCovariance(), Z)
+    @test covariance(Z, HC1(), demean = true) == covariance(Z .- mean(Z, dims=1), HC1(), demean = false)
+    cache = HCCache(Z)
+    @test covariance(Z, HC1(), cache, Matrix, Cholesky, demean = true) ≈ cov(StatsBase.SimpleCovariance(), Z)
+    @test covariance(Z, HC1(), cache, Matrix, Cholesky, demean = true) ≈ covariance(Z .- mean(Z, dims=1), HC1(), cache, Matrix, Cholesky, demean = false)
+    ## Need testing for CRHC
+end
