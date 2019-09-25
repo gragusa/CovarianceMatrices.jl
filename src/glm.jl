@@ -2,11 +2,8 @@
 Requires
 =========#
 
-using GLM
-using DataFrames
-using StatsBase
-using StatsModels
-#import StatsBase: residuals
+import .GLM
+#import .DataFrames
 
 const INNERMOD = Union{GLM.GeneralizedLinearModel, GLM.LinearModel}
 #const UNIONC = Union{Type{Nothing}, Type{LinearAlgebra.Cholesky}, Type{PositiveFactorizations.Positive}}
