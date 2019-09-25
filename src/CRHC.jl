@@ -1,15 +1,3 @@
-struct CRHCCache{VN<:AbstractVector, F1<:AbstractMatrix, F2<:AbstractMatrix, V<:AbstractVector, IN<:AbstractVector}
-    q::F1
-    X::F1
-    x::F2
-    v::V
-    w::V
-    η::V
-    u::V
-    M::F1
-    clusidx::IN
-    clus::VN
-end
 
 function CRHCCache(X::AbstractMatrix{T1}, cl::AbstractVector{T2}) where {T1,T2}
     n, p = size(X)
