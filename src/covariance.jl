@@ -46,7 +46,7 @@ function __covariance!(cache::HACCache, k::HAC)
     end
     LinearAlgebra.copytri!(cache.V, 'U')
     swhiten!(cache)
-    #rmul!(cache.V, 1/(n+isprewhiten(k)))
+    #rmul!(cache.V, n/(n+isprewhiten(k)))
     nothing
 end
 
@@ -54,14 +54,21 @@ end
 B. HC
 =======#
 function covariance(X::T, k::K, returntype::Type{T1} = CovarianceMatrix, factortype::Type{T2} = Cholesky; demean::Bool = true, scale::Int = size(X,1)) where {T<:AbstractMatrix, K<:HC, T1<:Union{CovarianceMatrix, Matrix}, T2<:Union{Nothing, Factorization}}
-    V = X'X
-    finalize(V, T2, T1, k, scale)
+    V = demean ? X .- mean(X, dims = 1) : X    
+    finalize(V'V, T2, T1, k, scale)
 end
 
-function covariance(X::T, k::K, cache::HCCache, returntype::Type{T2} = CovarianceMatrix, factortype::Type{T1} = Cholesky; demean::Bool = true, scale::Int = size(X, 1)) where {T<:AbstractMatrix, K<:HC, T1<:Union{Nothing, Factorization}, T2<:Union{CovarianceMatrix, Matrix}}
-    check_cache_consistenty(k, cache)
-    _covariance!(cache, k)
-    finalize(T2, T1, k, cache, scale)
+#TO BE IMPLEMENTED BETER WHEN CACHES ARE REFACTORED
+function demean!(cache::HCCache, X, ::Type{Val{true}})
+    μ = mean(X, dims = 1)
+    cache.q .= X .- μ
+end
+
+function covariance(X::T, k::K, cache::HCCache, returntype::Type{T1} = CovarianceMatrix, factortype::Type{T2} = Cholesky; demean::Bool = true, scale::Int = size(X, 1)) where {T<:AbstractMatrix, K<:HC, T2<:Union{Nothing, Factorization}, T1<:Union{CovarianceMatrix, Matrix}}    
+    #demean!(cache, X, Val{demean})
+    cache.q .= X .- mean(X, dims = 1)
+    V = cache.q'*cache.q
+    finalize(V, T2, T1, k, scale)
 end
 
 #======
@@ -72,8 +79,16 @@ function covariance(X::T, k::K, returntype::Type{T1} = CovarianceMatrix, factort
     covariance(X, k, cache, factortype, returntype, demean = demean, scale = scale, sorted = sorted)
 end
 
+
+function demean!(cache::CRHCCache, X, ::Type{Val{true}})
+    sum!(cache.μ, X)
+    rmul!(cache.μ, 1/size(X,1))
+    cache.X .= X .- cache.μ
+end
+
 function covariance(X::T, k::K, cache::CRHCCache, returntype::Type{T1} = CovarianceMatrix, factortype::Type{T2} = Cholesky; demean::Bool = true, scale::Int = size(X, 1), sorted::Bool = false ) where {T<:AbstractMatrix, K<:CRHC, T1<:Union{CovarianceMatrix, Matrix}, T2<:Union{Nothing, Factorization}}
     #check_cache_consistenty(k, cache)
+    demean!(cache, X, Val{demean})
     _covariance!(cache, X, k, sorted)
     finalize(cache.M, T2, T1, k, scale)
 end
@@ -127,6 +142,12 @@ function finalize(V, ::Type{Cholesky}, ::Type{CovarianceMatrix},  k, scale::Real
     rmul!(V, 1/scale)
     CovarianceMatrix(cholesky(Hermitian(V)), k, V)
 end
+
+function finalize(V, ::T2, ::Type{Matrix},  k, scale::Real) where T2
+    rmul!(V, 1/scale)
+end
+
+
 
 function finalize(::Type{SVD}, ::Type{CovarianceMatrix}, k, cache::AbstractCache, scale::Real)
     rmul!(cache.V, 1/scale)
