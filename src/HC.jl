@@ -8,7 +8,7 @@ struct HCCache{F1<:AbstractMatrix, F2<:AbstractMatrix, V<:AbstractVector} <: Abs
     u::V
 end
 
-function HCCache(X::AbstractMatrix{T1}) where T1<:Real
+function HCCache(X::AbstractMatrix{T1}; kwargs...) where T1<:Real
     n, p = size(X)
     HCCache(similar(X), X, Array{T1, 2}(undef, p, p),
              Array{T1, 1}(undef, n), Array{T1, 1}(undef, n),
