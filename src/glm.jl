@@ -89,7 +89,7 @@ function StatsBase.vcov(m::T, k::K, cache::HACCache, returntype::Type{T1} = Cova
     mf = esteq!(cache, m, k)
     br = pseudohessian(m)
     set_bw_weights!(k, m)
-    Ω = covariance(mf, k, cache, Matrix, demean = demean, scale = 1)
+    Ω = covariance(mf, k, cache, Matrix, demean = demean, scale = unweighted_nobs(m))
     V = br*Ω*br'
     rmul!(V, size(mf, 1)^2)
     scale = dof_adjustment ? unweighted_dof_residual(m) : unweighted_nobs(m)
