@@ -188,7 +188,8 @@ neweywest_kernels = [:ParzenKernel, :QuadraticSpectralKernel, :BartlettKernel]
     fopt!(u)
     ffix!(u)
     for j in 1:4, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
-        @test univariate[j][h][k]["V"] ≈ u[j][h][k]["V"]
+        ## TODO: univariate contains Vhat/n -- 
+        @test univariate[j][h][k]["V"] ≈ u[j][h][k]["V"]./length(x)
         @test univariate[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
     end
 
