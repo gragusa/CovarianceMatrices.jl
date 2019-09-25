@@ -6,7 +6,7 @@ const WFLOAT = Sys.WORD_SIZE == 64 ? Float64 : Float32
 Abstraction
 ==========#
 
-abstract type RobustVariance end
+abstract type RobustVariance <: CovarianceEstimator end
 abstract type HAC{G} <: RobustVariance end
 abstract type HC <: RobustVariance end
 abstract type CRHC{V} <: RobustVariance end
@@ -124,10 +124,32 @@ struct HACCache{TYPE, F<:AbstractMatrix, V<:AbstractVector} <: AbstractCache
     μ::F        ## p x 1
     Q::F        ## p x p
     V::F        ## p x p
-    D::F       ## p x p
+    D::F        ## p x p
     U::V
     ρ::V
     σ⁴::V
     u::F
 end
 
+struct CRHCCache{VN<:AbstractVector, F1<:AbstractMatrix, F2<:AbstractMatrix, V<:AbstractVector, IN<:AbstractVector} <: AbstractCache
+    q::F1
+    X::F1
+    x::F2
+    v::V
+    w::V
+    η::V
+    u::V
+    M::F1
+    clusidx::IN
+    clus::VN
+end
+
+struct HCCache{F1<:AbstractMatrix, F2<:AbstractMatrix, V<:AbstractVector} <: AbstractCache
+    q::F1
+    X::F1
+    x::F2
+    v::V
+    w::V
+    η::V
+    u::V
+end
