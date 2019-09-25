@@ -274,7 +274,7 @@ end
     fopt!(u)
     ffix!(u)
     for j in 1:4, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
-        @test hcat(multivariate[j][h][k]["V"]...) ≈ u[j][h][k]["V"]
+        @test hcat(multivariate[j][h][k]["V"]...) ≈ u[j][h][k]["V"]/size(X,1)
         @test multivariate[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
     end
 
