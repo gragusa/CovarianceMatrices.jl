@@ -9,7 +9,7 @@ function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = false) where {T<:Real}
     n = prewhiten ? nr-1 : nr    
     if prewhiten
     return HACCache(TYPE,
-                     X,
+                     collect(X),
                      Array{T}(undef, n, p),
                      Array{T}(undef, n, p),
                      Array{T}(undef, n-1, p),
@@ -17,14 +17,14 @@ function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = false) where {T<:Real}
                      Array{T}(undef, 1, p),
                      Array{T}(undef, p, p),
                      Array{T}(undef, p, p),
-                     Array{T}(undef, p, p),   ## This sometime host the ldiv! which may have larger type
+                     Array{T}(undef, p, p),   
                      Array{T}(undef, n-1),
                      Array{T}(undef, p),
                      Array{T}(undef, p),
                      Array{T}(undef, n, p))
     else
         return HACCache(TYPE,
-                        X,
+                        collect(X),
                         Array{T}(undef, 0, 0),
                         Array{T}(undef, n, p),
                         Array{T}(undef, n-1, p),
@@ -113,6 +113,10 @@ function demean!(cache::HACCache, X, ::Type{Val{true}})
 end
 
 function demean!(cache::HACCache, X, ::Type{Val{false}})
+    copyto!(cache.X_demean, X)
+end
+
+function demean!(cache::HCCache, X, ::Type{Val{false}})
     copyto!(cache.X_demean, X)
 end
 
