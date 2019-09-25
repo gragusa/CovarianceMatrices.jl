@@ -1,12 +1,4 @@
-struct HCCache{F1<:AbstractMatrix, F2<:AbstractMatrix, V<:AbstractVector} <: AbstractCache
-    q::F1
-    X::F1
-    x::F2
-    v::V
-    w::V
-    η::V
-    u::V
-end
+
 
 function HCCache(X::AbstractMatrix{T1}; kwargs...) where T1<:Real
     n, p = size(X)
