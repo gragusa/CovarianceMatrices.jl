@@ -58,7 +58,7 @@ function covariance(X::T, k::K, returntype::Type{T1} = CovarianceMatrix, factort
     finalize(V, T2, T1, k, scale)
 end
 
-function covariance(X::T, k::K, cache::HCCache, factortype::Type{T1} = Cholesky, returntype::Type{T2} = CovarianceMatrix; demean::Bool = true, scale::Int = size(X, 1)) where {T<:AbstractMatrix, K<:HC, T1<:Union{Nothing, Factorization}, T2<:Union{CovarianceMatrix, Matrix}}
+function covariance(X::T, k::K, cache::HCCache, returntype::Type{T2} = CovarianceMatrix, factortype::Type{T1} = Cholesky; demean::Bool = true, scale::Int = size(X, 1)) where {T<:AbstractMatrix, K<:HC, T1<:Union{Nothing, Factorization}, T2<:Union{CovarianceMatrix, Matrix}}
     check_cache_consistenty(k, cache)
     _covariance!(cache, k)
     finalize(T2, T1, k, cache, scale)
