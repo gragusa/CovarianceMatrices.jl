@@ -64,11 +64,11 @@ function demean!(cache::HCCache, X, ::Type{Val{true}})
     cache.q .= X .- μ
 end
 
-function covariance(X::T, k::K, cache::HCCache, returntype::Type{T1} = CovarianceMatrix, factortype::Type{T2} = Cholesky; demean::Bool = true, scale::Int = size(X, 1)) where {T<:AbstractMatrix, K<:HC, T2<:Union{Nothing, Factorization}, T1<:Union{CovarianceMatrix, Matrix}}    
+function covariance(X::T, k::K, cache::HCCache, returntype::Type{T1} = CovarianceMatrix, factortype::Type{T2} = Cholesky; demean::Bool = true, scale::Int = size(X, 1)) where {T<:AbstractMatrix, K<:HC, T2<:Union{Nothing, Factorization}, T1<:Union{CovarianceMatrix, Matrix}}
     #demean!(cache, X, Val{demean})
     cache.q .= X .- mean(X, dims = 1)
-    V = cache.q'*cache.q
-    finalize(V, T2, T1, k, scale)
+    cache.V = cache.q'*cache.q
+    finalize(cache.V, T2, T1, k, scale)
 end
 
 #======
@@ -90,7 +90,7 @@ function covariance(X::T, k::K, cache::CRHCCache, returntype::Type{T1} = Covaria
     #check_cache_consistenty(k, cache)
     demean!(cache, X, Val{demean})
     _covariance!(cache, X, k, sorted)
-    finalize(cache.M, T2, T1, k, scale)
+    finalize(cache.V, T2, T1, k, scale)
 end
 
 #=---
@@ -101,8 +101,7 @@ function _covariance!(cache, X, k::CRHC, sorted::Bool)
     CovarianceMatrices.installsortedX!(cache, X, k, Val{sorted})
     bstarts = (searchsorted(cache.clus, j[2]) for j in enumerate(unique(cache.clus)))
     CovarianceMatrices.clusterize!(cache, bstarts)
-    rmul!(cache.M, dof_adjustment(cache, k, bstarts))
-
+    rmul!(cache.V, dof_adjustment(cache, k, bstarts))
 end
 
 function installsortedX!(cache, X, k, ::Type{Val{true}})
@@ -130,6 +129,13 @@ end
 #======
 Finalizers
 ======#
+
+## TODO: Fix the finilizer. The now all store variance in cache.V
+##
+## finalizer(cache, F, M, K, scale)
+
+
+
 finalize(V, ::Type{T}, ::Type{Matrix}, k, scale::Real) where T = rmul!(V, 1/scale)
 finalize(::Type{T}, ::Type{Matrix}, k, cache, scale::Real) where T = rmul!(cache.V, 1/scale)
 
@@ -146,8 +152,6 @@ end
 function finalize(V, ::T2, ::Type{Matrix},  k, scale::Real) where T2
     rmul!(V, 1/scale)
 end
-
-
 
 function finalize(::Type{SVD}, ::Type{CovarianceMatrix}, k, cache::AbstractCache, scale::Real)
     rmul!(cache.V, 1/scale)

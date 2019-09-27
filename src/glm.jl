@@ -49,6 +49,7 @@ function esteq!(cache, m::StatsModels.RegressionModel, k::T) where T<:Union{HC, 
 end
 
 function esteq!(cache, m::RegressionModel, k::HAC)
+    ## TODO: use chache!
     X = copy(modelmatrix(m))
     u = copy(residuals(m))
     if !isempty(smplweights(m))
