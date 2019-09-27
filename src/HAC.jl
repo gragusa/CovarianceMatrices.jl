@@ -2,7 +2,6 @@ function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = false) where {T<:Int}
     HACCache(convert(Matrix{WFLOAT}, X), prewhiten = prewhiten)
 end
 
-
 function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = false) where {T<:Real}
     nr, p = size(X)
     TYPE = prewhiten ? Prewhitened() : Unwhitened()
@@ -109,18 +108,18 @@ end
 function demean!(cache::HACCache, X, ::Type{Val{true}})
     sum!(cache.μ, X)
     rmul!(cache.μ, 1/size(X,1))
-    cache.X_demean .= X .- cache.μ
+    cache.q .= X .- cache.μ
 end
 
 function demean!(cache::HACCache, X, ::Type{Val{false}})
-    copyto!(cache.X_demean, X)
+    copyto!(cache.q, X)
 end
 
 function demean!(cache::HCCache, X, ::Type{Val{false}})
-    copyto!(cache.X_demean, X)
+    copyto!(cache.q, X)
 end
 
-prewhiten!(cache::HACCache{T}) where T<:Unwhitened = copyto!(cache.XX, cache.X_demean)
+prewhiten!(cache::HACCache{T}) where T<:Unwhitened = copyto!(cache.XX, cache.q)
 prewhiten!(cache::HACCache{T}) where T<:Prewhitened = fit_var!(cache)
 swhiten!(cache::HACCache{T}) where T<:Unwhitened = nothing
 
@@ -192,7 +191,7 @@ end
 ##############################################################################
 
  function fit_var!(cache::HACCache)
-     X, Y, Z, u, D = cache.XX, cache.YY, cache.X_demean, cache.u, cache.D
+     X, Y, Z, u, D = cache.XX, cache.YY, cache.q, cache.u, cache.D
      n, p = size(Z)
      @inbounds for j in 1:p, i = 1:n-1
          X[i,j] = Z[i,  j]
@@ -233,7 +232,7 @@ end
 
  function lag!(cache)
      ## This construct two matrices
-     ## Z_lagged we store X_demean[1:n-1, :]
+     ## Z_lagged we store q[1:n-1, :]
      nl, pl = size(cache.Y_lagged)
      n, p  = size(cache.XX)
      for ic in 1:p
@@ -296,7 +295,7 @@ function bwNeweyWest(cache, k::HAC)
 end
 
 function getrates(cache, k)
-    n, p = size(cache.X_demean)
+    n, p = size(cache.q)
     lrate = lagtruncation(k)
     adj = isprewhiten(k) ? 3 : 4
     floor(Int, adj*(n/100)^lrate)

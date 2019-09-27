@@ -116,7 +116,7 @@ abstract type AbstractCache end
 
 struct HACCache{TYPE, F<:AbstractMatrix, V<:AbstractVector} <: AbstractCache
     prew::TYPE
-    X_demean::F ## Should call this q n_origin x p
+    q::F ## Should call this q n_origin x p
     YY::F
     XX::F
     Y_lagged::F
@@ -132,24 +132,25 @@ struct HACCache{TYPE, F<:AbstractMatrix, V<:AbstractVector} <: AbstractCache
 end
 
 struct CRHCCache{VN<:AbstractVector, F1<:AbstractMatrix, F2<:AbstractMatrix, V<:AbstractVector, IN<:AbstractVector} <: AbstractCache
-    q::F1
-    X::F1
-    x::F2
-    v::V
-    w::V
-    η::V
+    q::F1   
+    X::F1   
+    V::F2   
+    v::V    
+    w::V    
+    η::V    
     u::V
     M::F1
     clusidx::IN
     clus::VN
 end
 
-struct HCCache{F1<:AbstractMatrix, F2<:AbstractMatrix, V<:AbstractVector} <: AbstractCache
-    q::F1
-    X::F1
-    x::F2
-    v::V
-    w::V
-    η::V
-    u::V
+struct HCCache{F1<:AbstractMatrix, F2<:AbstractMatrix, V1<:AbstractVector} <: AbstractCache
+    q::F1  # NxM
+    X::F1  # NxM
+    V::F2  # pxp
+    v::V1   # nx1 
+    w::V1   # nx1
+    η::V1   # nx1
+    u::V1   # nx1
+    V::F1   # mxm
 end
