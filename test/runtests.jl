@@ -7,6 +7,7 @@ using Random
 using GLM
 using DataFrames
 using JSON
+using StatsBase
 
 const CM = CovarianceMatrices
 
@@ -18,7 +19,7 @@ datapath = joinpath(@__DIR__)
     cache = CM.HACCache(X, TruncatedKernel(prewhiten=true));
     CM.demean!(cache, X, Val{true})
     @test all(cache.μ .== [3 6])
-    @test all(cache.X_demean .== X_demean)
+    @test all(cache.q .== X_demean)
     CM.fit_var!(cache)
     @test all(cache.D   .≈ [-9/5 -4; 1 2])
     @test all(cache.XX  .≈ [3/5 1; 0 0; 9/5 3])
@@ -39,7 +40,7 @@ end
                    3.6875,  -2.5125,  -3.0125, -2.9125,
                    0.0212499999999998,  0.12125,  0.22125, 0.32125,
                    0.42125, -0.37875, -0.36875, -0.35875], 8, 3)
-    @test all(Xd .≈ cache.X_demean)
+    @test all(Xd .≈ cache.q)
 
     CovarianceMatrices.prewhiten!(cache)
 
@@ -721,10 +722,12 @@ end
 @testset "Various.........................................." begin
     Random.seed!(1)
     Z = randn(10, 5)
-    @test covariance(Z, HC1(), demean = true) == cov(StatsBase.SimpleCovariance(), Z)
-    @test covariance(Z, HC1(), demean = true) == covariance(Z .- mean(Z, dims=1), HC1(), demean = false)
+    @test covariance(Z, HC1(), demean = true) ≈ cov(StatsBase.SimpleCovariance(), Z)
+    @test covariance(Z, HC1(), demean = true) ≈ covariance(Z .- mean(Z, dims=1), HC1(), demean = false)
+    @test covariance(Z, HC1(), demean = false) ≈ Z'Z/size(Z,1)
     cache = HCCache(Z)
     @test covariance(Z, HC1(), cache, Matrix, Cholesky, demean = true) ≈ cov(StatsBase.SimpleCovariance(), Z)
     @test covariance(Z, HC1(), cache, Matrix, Cholesky, demean = true) ≈ covariance(Z .- mean(Z, dims=1), HC1(), cache, Matrix, Cholesky, demean = false)
     ## Need testing for CRHC
+    
 end
