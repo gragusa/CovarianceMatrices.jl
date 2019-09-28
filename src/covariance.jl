@@ -1,3 +1,16 @@
+function demean!(cache, ::Type{Val{true}})    
+    mean!(cache.μ, cache.q)
+    cache.q .= cache.q .- cache.μ
+end
+demean!(cache, ::Type{Val{false}}) = nothing
+
+function demean!(cache, X, ::Type{Val{true}})
+    copy!(cache.q, X)
+    mean!(cache.μ, cache.q)
+    cache.q .= cache.q .- cache.μ
+end
+demean!(cache, X, ::Type{Val{false}}) = copy!(cache.q, X); nothing
+
 #======
 A. HAC
 =======#
@@ -18,7 +31,7 @@ function covariance(X::T,
     demean!(cache, X, Val{demean})
     prewhiten!(cache)
     _covariance!(cache, k)
-    finalize(T2, T1, k, cache, scale)
+    finalize(cache, T1, T2, k, scale)
 end
 
 #=--
@@ -35,7 +48,7 @@ _covariance!(cache::HACCache, k::HAC{T}) where {T<:Fixed} = __covariance!(cache,
 
 function __covariance!(cache::HACCache, k::HAC)
     n, p = size(cache.XX)
-    fill!(cache.V, zero(eltype(cache.XX)))
+    #fill!(cache.V, zero(eltype(cache.XX)))
     bw = first(k.bw)
     mul!(cache.V, cache.XX', cache.XX)
     triu!(cache.V)
@@ -46,29 +59,30 @@ function __covariance!(cache::HACCache, k::HAC)
     end
     LinearAlgebra.copytri!(cache.V, 'U')
     swhiten!(cache)
-    #rmul!(cache.V, n/(n+isprewhiten(k)))
     nothing
 end
 
 #=======
 B. HC
 =======#
-function covariance(X::T, k::K, returntype::Type{T1} = CovarianceMatrix, factortype::Type{T2} = Cholesky; demean::Bool = true, scale::Int = size(X,1)) where {T<:AbstractMatrix, K<:HC, T1<:Union{CovarianceMatrix, Matrix}, T2<:Union{Nothing, Factorization}}
-    V = demean ? X .- mean(X, dims = 1) : X    
-    finalize(V'V, T2, T1, k, scale)
+function covariance(X::T, k::K, returntype::Type{T1} = CovarianceMatrix, 
+                    factortype::Type{T2} = Cholesky; demean::Bool = true, 
+                    scale::Int = size(X,1)) where {T<:AbstractMatrix, K<:HC, 
+                                                   T1<:Union{CovarianceMatrix, Matrix}, 
+                                                   T2<:Union{Nothing, Factorization}}
+    cache = HCCache(X)
+    covariance(X, k, cache, returntype, factortype, demean = demean, scale = scale)
 end
 
-#TO BE IMPLEMENTED BETER WHEN CACHES ARE REFACTORED
-function demean!(cache::HCCache, X, ::Type{Val{true}})
-    μ = mean(X, dims = 1)
-    cache.q .= X .- μ
-end
+function covariance(X::T, k::K, cache::HCCache, returntype::Type{T1} = CovarianceMatrix, 
+                    factortype::Type{T2} = Cholesky; 
+                    demean::Bool = true, scale::Int = size(X, 1)) where 
+                        {T<:AbstractMatrix, K<:HC, T2<:Union{Nothing, Factorization}, 
+                         T1<:Union{CovarianceMatrix, Matrix}}
 
-function covariance(X::T, k::K, cache::HCCache, returntype::Type{T1} = CovarianceMatrix, factortype::Type{T2} = Cholesky; demean::Bool = true, scale::Int = size(X, 1)) where {T<:AbstractMatrix, K<:HC, T2<:Union{Nothing, Factorization}, T1<:Union{CovarianceMatrix, Matrix}}
-    #demean!(cache, X, Val{demean})
-    cache.q .= X .- mean(X, dims = 1)
-    cache.V = cache.q'*cache.q
-    finalize(cache.V, T2, T1, k, scale)
+    demean!(cache, X, Val{demean})
+    cache.V .= cache.q'*cache.q
+    finalize(cache, T1, T2, k, scale)
 end
 
 #======
@@ -134,31 +148,14 @@ Finalizers
 ##
 ## finalizer(cache, F, M, K, scale)
 
+factorizer(::Type{SVD}) = svd
+factorizer(::Type{Cholesky}) = x->cholesky(Hermitian(x), check = false)
 
-
-finalize(V, ::Type{T}, ::Type{Matrix}, k, scale::Real) where T = rmul!(V, 1/scale)
-finalize(::Type{T}, ::Type{Matrix}, k, cache, scale::Real) where T = rmul!(cache.V, 1/scale)
-
-function finalize(V, ::Type{SVD}, ::Type{CovarianceMatrix}, k, scale::Real)
-    rmul!(V, 1/scale)
-    CovarianceMatrix(svd(V), k, V)
+function finalize(cache, ::Type{M}, T, k, scale) where M<:Matrix
+    return copy(rmul!(cache.V, 1/scale))
 end
 
-function finalize(V, ::Type{Cholesky}, ::Type{CovarianceMatrix},  k, scale::Real)
-    rmul!(V, 1/scale)
-    CovarianceMatrix(cholesky(Hermitian(V)), k, V)
-end
-
-function finalize(V, ::T2, ::Type{Matrix},  k, scale::Real) where T2
-    rmul!(V, 1/scale)
-end
-
-function finalize(::Type{SVD}, ::Type{CovarianceMatrix}, k, cache::AbstractCache, scale::Real)
+function finalize(cache, ::Type{M}, T, k, scale) where M<:CovarianceMatrix
     rmul!(cache.V, 1/scale)
-    CovarianceMatrix(svd(cache.V), k, copy(cache.V))
-end
-
-function finalize(::Type{Cholesky}, ::Type{CovarianceMatrix},  k, cache::HACCache, scale::Real)
-    rmul!(cache.V, 1/scale)
-    CovarianceMatrix(cholesky(Hermitian(cache.V)), k, copy(cache.V))
+    CovarianceMatrix(factorizer(T)(cache.V), k, copy(cache.V))
 end

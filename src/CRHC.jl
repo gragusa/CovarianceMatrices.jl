@@ -12,21 +12,20 @@ function installsortedxuw!(cache, m, k, ::Type{Val{true}})
     copyto!(cache.X, modelmatrix(m))
     copyto!(cache.u, residuals(m))
     copyto!(cache.clus, k.cl)
-    if !isempty(m.rr.wts)
+    if !isempty(smplweights(m))
         cache.w .= sqrt.(smplweights(m))
         broadcast!(*, cache.u, cache.u, cache.w)
         broadcast!(*, cache.u, cache.u, cache.w)
     end
-
 end
 
 function installsortedxuw!(cache, m, k, ::Type{Val{false}})
     n, p = size(cache.X)
     sortperm!(cache.clusidx, k.cl)
     cidx = cache.clusidx
-    u = CovarianceMatrices.residuals(m)
-    w = CovarianceMatrices.smplweights(m)
-    X = CovarianceMatrices.modelmatrix(m)
+    u = residuals(m)
+    w = smplweights(m)
+    X = modelmatrix(m)
     uu = cache.u
     XX = cache.X
     ww = cache.w

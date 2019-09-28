@@ -22,7 +22,7 @@ using LinearAlgebra
 using Statistics
 using StatsBase
 using StatsBase: CovarianceEstimator
-using StatsModels
+using StatsModels: TableRegressionModel
 
 #include("varhac.jl")
 include("types.jl")
@@ -41,6 +41,7 @@ end
 export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel,
        TukeyHanningKernel, VARHAC, HC0, HC1, HC2, HC3, HC4, HC4m, HC5, CRHC0, CRHC1,
        CRHC2, CRHC3, NeweyWest, Andrews, 
-       HACCache, HCCache, CRHCCache, CovarianceMatrix, vcov, stderr, cov
+       HACCache, HCCache, CRHCCache, 
+       covariance, CovarianceMatrix, vcov, stderr, cov
 
 end # module
