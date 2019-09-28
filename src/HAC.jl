@@ -1,51 +1,5 @@
-function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = false) where {T<:Int}
-    HACCache(convert(Matrix{WFLOAT}, X), prewhiten = prewhiten)
-end
-
-function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = false) where {T<:Real}
-    nr, p = size(X)
-    TYPE = prewhiten ? Prewhitened() : Unwhitened()
-    n = prewhiten ? nr-1 : nr    
-    if prewhiten
-    return HACCache(TYPE,
-                     collect(X),
-                     Array{T}(undef, n, p),
-                     Array{T}(undef, n, p),
-                     Array{T}(undef, n-1, p),
-                     Array{T}(undef, n-1, p),
-                     Array{T}(undef, 1, p),
-                     Array{T}(undef, p, p),
-                     Array{T}(undef, p, p),
-                     Array{T}(undef, p, p),   
-                     Array{T}(undef, n-1),
-                     Array{T}(undef, p),
-                     Array{T}(undef, p),
-                     Array{T}(undef, n, p))
-    else
-        return HACCache(TYPE,
-                        collect(X),
-                        Array{T}(undef, 0, 0),
-                        Array{T}(undef, n, p),
-                        Array{T}(undef, n-1, p),
-                        Array{T}(undef, n-1, p),
-                        Array{T}(undef, 1, p),
-                        Array{T}(undef, p, p),
-                        Array{T}(undef, p, p),
-                        Matrix(one(T)I, p, p),
-                        Array{T}(undef, n-1),
-                        Array{T}(undef, p),
-                        Array{T}(undef, p),
-                        Array{T}(undef, 0, 0))
-    end
-end
-
-function HACCache(X::AbstractMatrix, k::HAC; kwargs...)
-    ip = isprewhiten(k)
-    HACCache(X, prewhiten = ip; kwargs...)
-end
-
-check_cache_consistenty(k::HAC, cache::HACCache{T}) where T<:Prewhitened = isprewhiten(k) ? nothing : error("Inconstent cache type")
-check_cache_consistenty(k::HAC, cache::HACCache{T}) where T<:Unwhitened = !isprewhiten(k) ? nothing : error("Inconstent cache type")
+check_cache_consistenty(k::HAC, cache::HACCache{T}) where T<:Prewhiten = isprewhiten(k) ? nothing : error("Inconstent cache type")
+check_cache_consistenty(k::HAC, cache::HACCache{T}) where T<:Unwhiten = !isprewhiten(k) ? nothing : error("Inconstent cache type")
 
 Optimal() = Optimal{Andrews}()
 
@@ -105,25 +59,11 @@ function Γ!(cache, j)
     return cache.Q
 end
 
-function demean!(cache::HACCache, X, ::Type{Val{true}})
-    sum!(cache.μ, X)
-    rmul!(cache.μ, 1/size(X,1))
-    cache.q .= X .- cache.μ
-end
+prewhiten!(cache::HACCache{T}) where T<:Unwhiten = copyto!(cache.XX, cache.q)
+prewhiten!(cache::HACCache{T}) where T<:Prewhiten = fit_var!(cache)
+swhiten!(cache::HACCache{T}) where T<:Unwhiten = nothing
 
-function demean!(cache::HACCache, X, ::Type{Val{false}})
-    copyto!(cache.q, X)
-end
-
-function demean!(cache::HCCache, X, ::Type{Val{false}})
-    copyto!(cache.q, X)
-end
-
-prewhiten!(cache::HACCache{T}) where T<:Unwhitened = copyto!(cache.XX, cache.q)
-prewhiten!(cache::HACCache{T}) where T<:Prewhitened = fit_var!(cache)
-swhiten!(cache::HACCache{T}) where T<:Unwhitened = nothing
-
-function swhiten!(cache::HACCache{T}) where T<:Prewhitened
+function swhiten!(cache::HACCache{T}) where T<:Prewhiten
     fill!(cache.Q, zero(eltype(cache.Q)))
     for i = 1:size(cache.Q, 2)
         cache.Q[i,i] = one(eltype(cache.Q))
@@ -131,22 +71,6 @@ function swhiten!(cache::HACCache{T}) where T<:Prewhitened
     v = ldiv!(qr(I-cache.D'), cache.Q)
     cache.V .= v*cache.V*v'
 end
-
-# makecholesky!(cache, ::Type{Nothing}) = nothing
-
-# function makecholesky!(cache, ::Type{Cholesky})
-#     chol = LinearAlgebra.cholesky(Symmetric(cache.V), check = false)
-#     copyto!(cache.chol.UL.data, chol.UL.data)
-#     copyto!(cache.chol.U.data, chol.U.data)
-#     copyto!(cache.chol.L.data, chol.L.data)
-# end
-
-# function makecholesky!(cache, ::Type{PositiveFactorizations.Positive})
-#     chol = LinearAlgebra.cholesky(Positive, Symmetric(cache.V))
-#     copyto!(cache.chol.UL.data, chol.UL.data)
-#     copyto!(cache.chol.U.data, chol.U.data)
-#     copyto!(cache.chol.L.data, chol.L.data)
-# end
 
 ##############################################################################
 ##
@@ -191,19 +115,21 @@ end
 ##############################################################################
 
  function fit_var!(cache::HACCache)
-     X, Y, Z, u, D = cache.XX, cache.YY, cache.q, cache.u, cache.D
-     n, p = size(Z)
-     @inbounds for j in 1:p, i = 1:n-1
-         X[i,j] = Z[i,  j]
-         Y[i,j] = Z[i+1,j]
-     end
-     QX = qr(X)
-    ldiv!(D, QX, convert(Matrix{eltype(QX)}, Y))
-     @inbounds for j in 1:p, i = 1:n-1
-         Y[i,j] = Z[i+1,j]
-     end
-     mul!(u, X, D)
-     broadcast!(-, X, Y, u)
+    #X, Y, Z, u, D = cache.XX, cache.YY, cache.q, cache.u, cache.D
+    XX, YY, q, u, D = cache.XX, cache.YY, cache.q, cache.u, cache.D
+
+    n, p = size(q)
+    @inbounds for j in 1:p, i = 1:n-1
+        XX[i,j] = q[i,  j]
+        YY[i,j] = q[i+1,j]
+    end
+    QX = qr(XX)
+    ldiv!(D, QX, convert(Matrix{eltype(QX)}, YY))
+    @inbounds for j in 1:p, i = 1:n-1
+        YY[i,j] = q[i+1,j]
+    end
+    mul!(u, XX, D)
+    broadcast!(-, XX, YY, u)
  end
 
  function fit_ar!(cache)
@@ -215,8 +141,8 @@ end
      U = cache.U
      n, p = size(cache.XX)
      lag!(cache)
-     Y = cache.Y_lagged
-     X = cache.X_lagged
+     Y = cache.YL
+     X = cache.XL
      for j in 1:p
          y = view(Y, :, j)
          x = view(X, :, j)
@@ -231,14 +157,12 @@ end
  end
 
  function lag!(cache)
-     ## This construct two matrices
-     ## Z_lagged we store q[1:n-1, :]
-     nl, pl = size(cache.Y_lagged)
+     nl, pl = size(cache.YL)
      n, p  = size(cache.XX)
      for ic in 1:p
          for i = 2:n
-             @inbounds cache.Y_lagged[i-1, ic] = cache.XX[i, ic]
-             @inbounds cache.X_lagged[i-1, ic] = cache.XX[i-1, ic]
+             @inbounds cache.YL[i-1, ic] = cache.XX[i, ic]
+             @inbounds cache.XL[i-1, ic] = cache.XX[i-1, ic]
          end
      end
   end
