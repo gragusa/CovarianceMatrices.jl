@@ -1,13 +1,3 @@
-
-function CRHCCache(X::AbstractMatrix{T1}, cl::AbstractVector{T2}) where {T1,T2}
-    n, p = size(X)
-    CRHCCache(similar(X), similar(X), Array{T1, 2}(undef, p, p),
-             Array{T1, 1}(undef, n), Array{T1, 1}(undef, n),
-             Array{T1, 1}(undef, n), Array{T1, 1}(undef, n),
-             Array{T1, 2}(undef, p, p), Array{Int, 1}(undef, n),
-             Array{T2, 1}(undef, n))
-end
-
 function installsortedxuw!(cache, m, k, ::Type{Val{true}})
     copyto!(cache.X, modelmatrix(m))
     copyto!(cache.u, residuals(m))
@@ -98,7 +88,7 @@ function getqii(v::CRHC3, cache, A, bstarts)
 end
 
 function clusterize!(cache, bstarts)
-    M = cache.M
+    M = cache.V
     fill!(M, zero(eltype(M)))
     U = cache.q
     p, p = size(M)
