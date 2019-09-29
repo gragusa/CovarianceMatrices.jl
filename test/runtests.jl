@@ -16,7 +16,7 @@ datapath = joinpath(@__DIR__)
 @testset "HAC - Basic checks..............................." begin
     X = [0 0; 3 7; 4 8; 5 9]
     X_demean = [-3  -6; 0   1; 1   2; 2   3]
-    cache = CM.HACCache(X, TruncatedKernel(prewhiten=true));
+    cache = CM.cache(TruncatedKernel(prewhiten=true), X);
     CM.demean!(cache, X, Val{true})
     @test all(cache.μ .== [3 6])
     @test all(cache.q .== X_demean)
@@ -31,7 +31,7 @@ end
     X = reshape(X, 8, 3)
 
     k = ParzenKernel(prewhiten=true)
-    cache = CovarianceMatrices.HACCache(X, k)
+    cache = CovarianceMatrices.cache(k, X)
     CovarianceMatrices.demean!(cache, X, Val{true})
 
     Xd = reshape([ -2.75,    -1.75,   -0.75,     0.25,
@@ -147,10 +147,10 @@ neweywest_kernels = [:ParzenKernel, :QuadraticSpectralKernel, :BartlettKernel]
             dn["prewhite"] = pre == :true ? 1 : 0
             for k in andrews_kernels
                 eval(quote
-                     tmp = CovarianceMatrices.covariance(x[1:end,:], ($k)(prewhiten=$pre))
+                     tmp = CovarianceMatrices.covariance(($k)(prewhiten=$pre), x[1:end,:], CovarianceMatrix)
                      da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      if Symbol($k) in neweywest_kernels
-                     tmp = CovarianceMatrices.covariance(x[1:end,:], ($k)(prewhiten=$pre))
+                     tmp = CovarianceMatrices.covariance(($k)(prewhiten=$pre), x[1:end,:], CovarianceMatrix)
                      dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      end
                      end)
@@ -171,10 +171,10 @@ neweywest_kernels = [:ParzenKernel, :QuadraticSpectralKernel, :BartlettKernel]
             dn["prewhite"] = pre == :true ? 1 : 0
             for k in andrews_kernels
                 eval(quote
-                     tmp = CovarianceMatrices.covariance(x[1:end,:], ($k)(1.5, prewhiten=$pre))
+                     tmp = CovarianceMatrices.covariance(($k)(1.5, prewhiten=$pre), x[1:end,:], CovarianceMatrix)
                      da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      if Symbol($k) in neweywest_kernels
-                         tmp = CovarianceMatrices.covariance(x[1:end,:], ($k)(1.5, prewhiten=$pre))
+                         tmp = CovarianceMatrices.covariance(($k)(1.5, prewhiten=$pre), x[1:end,:], CovarianceMatrix)
                          dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      end
                 end)
@@ -189,7 +189,7 @@ neweywest_kernels = [:ParzenKernel, :QuadraticSpectralKernel, :BartlettKernel]
     fopt!(u)
     ffix!(u)
     for j in 1:4, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
-        ## TODO: univariate contains Vhat/n -- 
+        ## TODO: univariate contains Vhat/n --
         @test univariate[j][h][k]["V"] ≈ u[j][h][k]["V"]./length(x)
         @test univariate[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
     end
@@ -233,10 +233,10 @@ end
             dn["prewhite"] = pre == :true ? 1 : 0
             for k in andrews_kernels
                 eval(quote
-                     tmp = CovarianceMatrices.covariance(X, ($k)(prewhiten=$pre))
+                     tmp = CovarianceMatrices.covariance(($k)(prewhiten=$pre), X, CovarianceMatrix)
                      da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      if Symbol($k) in neweywest_kernels
-                     tmp = CovarianceMatrices.covariance(X, ($k)(prewhiten=$pre))
+                     tmp = CovarianceMatrices.covariance(($k)(prewhiten=$pre), X, CovarianceMatrix)
                      dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      end
                      end)
@@ -257,10 +257,10 @@ end
             dn["prewhite"] = pre == :true ? 1 : 0
             for k in andrews_kernels
                 eval(quote
-                     tmp = CovarianceMatrices.covariance(X, ($k)(1.5, prewhiten=$pre))
+                     tmp = CovarianceMatrices.covariance(($k)(1.5, prewhiten=$pre), X, CovarianceMatrix)
                      da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      if Symbol($k) in neweywest_kernels
-                         tmp = CovarianceMatrices.covariance(X, ($k)(1.5, prewhiten=$pre))
+                         tmp = CovarianceMatrices.covariance(($k)(1.5, prewhiten=$pre), X, CovarianceMatrix)
                          dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      end
                      end)
@@ -296,10 +296,10 @@ end
             for k in andrews_kernels
                 eval(quote
                      ols = glm(@formula(y~x1+x2+x3), df, Normal(), IdentityLink())
-                     tmp = CovarianceMatrices.vcov(ols, ($k)(prewhiten=$pre), dof_adjustment = false)
+                     tmp = vcov(($k)(prewhiten=$pre), ols, CovarianceMatrix, dof_adjustment = false)
                      da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      if Symbol($k) in neweywest_kernels
-                     tmp = CovarianceMatrices.vcov(ols, ($k)(prewhiten=$pre), dof_adjustment = false)
+                     tmp = vcov(($k)(prewhiten=$pre), ols, CovarianceMatrix, dof_adjustment = false)
                      dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      end
                      end)
@@ -321,10 +321,10 @@ end
             for k in andrews_kernels
                 eval(quote
                      ols = glm(@formula(y~x1+x2+x3), df, Normal(), IdentityLink())
-                     tmp = CovarianceMatrices.vcov(ols, ($k)(1.5, prewhiten=$pre), dof_adjustment = false)
+                     tmp = CovarianceMatrices.vcov(($k)(1.5, prewhiten=$pre), ols, CovarianceMatrix, dof_adjustment = false)
                      da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      if Symbol($k) in neweywest_kernels
-                         tmp = CovarianceMatrices.vcov(ols, ($k)(1.5, prewhiten=$pre), dof_adjustment = false)
+                         tmp = CovarianceMatrices.vcov(($k)(1.5, prewhiten=$pre), ols, CovarianceMatrix, dof_adjustment = false)
                          dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      end
                      end)
@@ -390,16 +390,15 @@ end
     )
 
     GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[!, :w]))
-    V = vcov(GAMMA, ParzenKernel())
+    V = vcov(ParzenKernel(), GAMMA)
     Vp = [5.48898e-7 -2.60409e-7; -2.60409e-7 1.4226e-7]
     @test V ≈ Vp atol = 1e-08
 
     GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
-    V = vcov(GAMMA, ParzenKernel())
+    V = vcov(ParzenKernel(), GAMMA)
     Vp = [5.81672e-7 -2.24162e-7; -2.24162e-7 1.09657e-7]
     @test V ≈ Vp atol = 1e-08
 end
-
 
 @testset "HC..............................................." begin
 
@@ -419,13 +418,13 @@ end
     GL  = fit(GeneralizedLinearModel, X,y, Normal(), IdentityLink())
     LM  = lm(X,y)
 
-    S0 = vcov(OLS, HC0())
-    S1 = vcov(OLS, HC1())
-    S2 = vcov(OLS, HC2())
-    S3 = vcov(OLS, HC3())
-    S4 = vcov(OLS, HC4())
-    S4m = vcov(OLS, HC4m())
-    S5 = vcov(OLS, HC5())
+    S0 = vcov(HC0(),OLS)
+    S1 = vcov(HC1(),OLS)
+    S2 = vcov(HC2(),OLS)
+    S3 = vcov(HC3(),OLS)
+    S4 = vcov(HC4(),OLS)
+    S4m = vcov(HC4m(),OLS)
+    S5 = vcov(HC5(),OLS)
 
     St0 = [720.621306411 -190.064512543; -190.064512543 51.163333742]
     St1 = [926.513108242 -244.368658984; -244.368658984 65.781429097]
@@ -444,13 +443,13 @@ end
     @test S4m ≈ St4m
     @test S5 ≈ St5
 
-    S0 = vcov(GL, HC0())
-    S1 = vcov(GL, HC1())
-    S2 = vcov(GL, HC2())
-    S3 = vcov(GL, HC3())
-    S4 = vcov(GL, HC4())
-    S4m = vcov(GL, HC4m())
-    S5 = vcov(GL, HC5())
+    S0 = vcov(HC0(), GL)
+    S1 = vcov(HC1(), GL)
+    S2 = vcov(HC2(), GL)
+    S3 = vcov(HC3(), GL)
+    S4 = vcov(HC4(), GL)
+    S4m = vcov(HC4m(), GL)
+    S5 = vcov(HC5(), GL)
 
     @test S0 ≈ St0
     @test S1 ≈ St1
@@ -472,13 +471,13 @@ end
               IdentityLink(), wts = wts)
 
 
-    S0 = vcov(wOLS, HC0())
-    S1 = vcov(wOLS, HC1())
-    S2 = vcov(wOLS, HC2())
-    S3 = vcov(wOLS, HC3())
-    S4 = vcov(wOLS, HC4())
-    S4m= vcov(wOLS, HC4m())
-    S5 = vcov(wOLS, HC5())
+    S0 = vcov(HC0(),wOLS)
+    S1 = vcov(HC1(),wOLS)
+    S2 = vcov(HC2(),wOLS)
+    S3 = vcov(HC3(),wOLS)
+    S4 = vcov(HC4(),wOLS)
+    S4m= vcov(HC4m(),wOLS)
+    S5 = vcov(HC5(),wOLS)
 
 
 
@@ -501,13 +500,13 @@ end
     ## Unweighted GLM - Gamma
     GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
 
-    S0 = vcov(GAMMA, HC0())
-    S1 = vcov(GAMMA, HC1())
-    S2 = vcov(GAMMA, HC2())
-    S3 = vcov(GAMMA, HC3())
-    S4 = vcov(GAMMA, HC4())
-    S4m = vcov(GAMMA, HC4m())
-    S5 = vcov(GAMMA, HC5())
+    S0 = vcov(HC0(),GAMMA)
+    S1 = vcov(HC1(),GAMMA)
+    S2 = vcov(HC2(),GAMMA)
+    S3 = vcov(HC3(),GAMMA)
+    S4 = vcov(HC4(),GAMMA)
+    S4m = vcov(HC4m(),GAMMA)
+    S5 = vcov(HC5(),GAMMA)
 
     St0 = [4.504287921232951e-07 -1.700020601541489e-07;
            -1.700020601541490e-07  8.203697048568913e-08]
@@ -542,13 +541,13 @@ end
 
     GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[!, :w]))
 
-    S0 = vcov(GAMMA, HC0())
-    S1 = vcov(GAMMA, HC1())
-    S2 = vcov(GAMMA, HC2())
-    S3 = vcov(GAMMA, HC3())
-    S4 = vcov(GAMMA, HC4())
-    S4m = vcov(GAMMA, HC4m())
-    S5 = vcov(GAMMA, HC5())
+    S0 = vcov(HC0(),GAMMA)
+    S1 = vcov(HC1(),GAMMA)
+    S2 = vcov(HC2(),GAMMA)
+    S3 = vcov(HC3(),GAMMA)
+    S4 = vcov(HC4(),GAMMA)
+    S4m = vcov(HC4m(),GAMMA)
+    S5 = vcov(HC5(),GAMMA)
 
     St0 = [4.015104e-07 -1.615094e-07;
            -1.615094e-07  8.378363e-08]
@@ -582,7 +581,6 @@ end
 
 
 @testset "CRHC............................................." begin
-
     df = CSV.read("testdata/wols_test.csv")
     df_sorted = sort(df, [:X1])
 
@@ -595,11 +593,10 @@ end
     k2 = CRHC2(cl)
     k3 = CRHC3(cl)
 
-
-    V0 = vcov(OLS, k0)
-    V1 = vcov(OLS, k1)
-    V2 = vcov(OLS, k2)
-    V3 = vcov(OLS, k3)
+    V0 = vcov(k0, OLS)
+    V1 = vcov(k1, OLS)
+    V2 = vcov(k2, OLS)
+    V3 = vcov(k3, OLS)
 
     @test V1 ≈ [0.00140376 0.000215526 -5.99768e-5 0.000296271 0.000460622 -0.000139741;
                 0.000215526 0.00247671 -0.000270429 0.000218622 0.000610127 7.23345e-5;
@@ -610,7 +607,7 @@ end
 
     ## Note sandwich in R has HC3 without G/(G-1) and CRHC2 is problematic
 
-    @test stderror(OLS, k0, sorted = false) == sqrt.(diag(V0))
+    @test stderror(k0, OLS, sorted = false) == sqrt.(diag(V0))
 
     OLS_sorted = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df_sorted, Normal(), IdentityLink())
     cl = convert(Array, df_sorted[!, :cl])
@@ -618,10 +615,10 @@ end
     k1 = CRHC1(cl)
     k2 = CRHC2(cl)
     k3 = CRHC3(cl)
-    V0s = vcov(OLS_sorted, k0, sorted = false)
-    V1s = vcov(OLS_sorted, k1, sorted = false)
-    V2s = vcov(OLS_sorted, k2, sorted = false)
-    V3s = vcov(OLS_sorted, k3, sorted = false)
+    V0s = vcov(k0, OLS_sorted, sorted = false)
+    V1s = vcov(k1, OLS_sorted, sorted = false)
+    V2s = vcov(k2, OLS_sorted, sorted = false)
+    V3s = vcov(k3, OLS_sorted, sorted = false)
 
     @test V0s ≈ V0
     @test V1s ≈ V1
@@ -638,10 +635,10 @@ end
     k2 = CRHC2(cl)
     k3 = CRHC3(cl)
 
-    V0 = vcov(wOLS, k0)
-    V1 = vcov(wOLS, k1)
-    V2 = vcov(wOLS, k2)
-    V3 = vcov(wOLS, k3)
+    V0 = vcov(k0, wOLS)
+    V1 = vcov(k1, wOLS)
+    V2 = vcov(k2, wOLS)
+    V3 = vcov(k3, wOLS)
 
     @test V1 ≈ [0.00183525 0.000137208 -0.00038971 0.000389943 0.000619903 0.00019496;
                 0.000137208 0.00242781 -0.000272316 0.000462353 2.99597e-5 0.000133303;
@@ -659,8 +656,8 @@ end
     k2 = CRHC2(cl)
     k3 = CRHC3(cl)
 
-    V0s = vcov(wOLS_sorted, k0, sorted = true)
-    V1s = vcov(wOLS_sorted, k1, sorted = true)
+    V0s = vcov(k0, wOLS_sorted, sorted = true)
+    V1s = vcov(k1, wOLS_sorted, sorted = true)
     #V2s = vcov(wOLS_sorted, k2, sorted = true)
     #V3s = vcov(wOLS_sorted, k3, sorted = true)
 
@@ -681,8 +678,7 @@ end
     pois = glm(@formula(cites ~ institutions + capemp + lsales + industry + year), innovation, Poisson(), LogLink())
 
     Vt = [0.817387, 5.7907e-6, 0.0184833, 0.00172419]
-    @test diag(vcov(pois, CRHC0(innovation[!, :company]), Matrix))[1:4] ≈ Vt atol = 1e-5
-
+    @test stderror(CRHC0(innovation[!, :company]), pois)[1:4] ≈ Vt atol = 1e-5
 end
 
 
@@ -693,41 +689,63 @@ end
     wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
                Normal(), IdentityLink(), wts = convert(Array{Float64}, df[!, :w]))
 
-    V0 = vcov(wOLS, HC0())
-    V1 = vcov(wOLS, ParzenKernel())
-    V2 = vcov(wOLS, CRHC0(cl))
+    V0 = vcov(HC0(), wOLS)
+    V1 = vcov(ParzenKernel(), wOLS)
+    V2 = vcov(CRHC0(cl), wOLS)
 
-    V0s = vcov(wOLS, HC0(), CovarianceMatrix, SVD)
-    V1s = vcov(wOLS, ParzenKernel(), CovarianceMatrix, SVD)
-    V2s = vcov(wOLS, CRHC0(cl), CovarianceMatrix, SVD)
+    V0s = vcov(HC0(), wOLS, CovarianceMatrix, SVD)
+    V1s = vcov(ParzenKernel(), wOLS, CovarianceMatrix, SVD)
+    V2s = vcov(CRHC0(cl), wOLS, CovarianceMatrix, SVD)
 
-    V0m = vcov(wOLS, HC0(), Matrix)
-    V1m = vcov(wOLS, ParzenKernel(), Matrix)
-    V2m = vcov(wOLS, CRHC0(cl), Matrix)
+    V0s2 = vcov(HC0(), wOLS,  SVD)
+    V1s2 = vcov(ParzenKernel(), wOLS,  SVD)
+    V2s2 = vcov(CRHC0(cl), wOLS,  SVD)
+
+    V0m = vcov(HC0(), wOLS, Matrix)
+    V1m = vcov(ParzenKernel(), wOLS, Matrix)
+    V2m = vcov(CRHC0(cl), wOLS, Matrix)
+
+    V0c = vcov(HC0(), wOLS, CovarianceMatrix, Cholesky)
+    V1c = vcov(ParzenKernel(), wOLS, CovarianceMatrix, Cholesky)
+    V2c = vcov(CRHC0(cl), wOLS, CovarianceMatrix, Cholesky)
+
+    V0c2 = vcov(HC0(), wOLS, Cholesky)
+    V1c2 = vcov(ParzenKernel(), wOLS, Cholesky)
+    V2c2 = vcov(CRHC0(cl), wOLS, Cholesky)
 
     @test V0 == V0m
     @test V1 == V1m
     @test V2 == V2m
 
-    @test V0.F == cholesky(Symmetric(V0m))
-    @test V1.F == cholesky(Symmetric(V1m))
-    @test V2.F == cholesky(Symmetric(V2m))
+    @test V0c.F == cholesky(Symmetric(V0m))
+    @test V1c.F == cholesky(Symmetric(V1m))
+    @test V2c.F == cholesky(Symmetric(V2m))
+
+    @test V0c2.F == cholesky(Symmetric(V0m))
+    @test V1c2.F == cholesky(Symmetric(V1m))
+    @test V2c2.F == cholesky(Symmetric(V2m))
 
     @test V0s.F == svd(V0m)
     @test V1s.F == svd(V1m)
     @test V2s.F == svd(V2m)
+
+    @test V0s2.F == svd(V0m)
+    @test V1s2.F == svd(V1m)
+    @test V2s2.F == svd(V2m)
+
+    @test inv(V2s2) == inv(Matrix(V2s2))
+    @test inv(V2c2) == inv(Matrix(V2c2))
 
 end
 
 @testset "Various.........................................." begin
     Random.seed!(1)
     Z = randn(10, 5)
-    @test covariance(Z, HC1(), demean = true) ≈ cov(StatsBase.SimpleCovariance(), Z)
-    @test covariance(Z, HC1(), demean = true) ≈ covariance(Z .- mean(Z, dims=1), HC1(), demean = false)
-    @test covariance(Z, HC1(), demean = false) ≈ Z'Z/size(Z,1)
-    cache = HCCache(Z)
-    @test covariance(Z, HC1(), cache, Matrix, Cholesky, demean = true) ≈ cov(StatsBase.SimpleCovariance(), Z)
-    @test covariance(Z, HC1(), cache, Matrix, Cholesky, demean = true) ≈ covariance(Z .- mean(Z, dims=1), HC1(), cache, Matrix, Cholesky, demean = false)
+    @test covariance(HC1(), Z, demean = true) ≈ cov(StatsBase.SimpleCovariance(), Z)
+    @test covariance(HC1(), Z, demean = true) ≈ covariance(HC1(), Z .- mean(Z, dims=1), demean = false)
+    @test covariance(HC1(), Z, demean = false) ≈ Z'Z/size(Z,1)
+    cache = CovarianceMatrices.cache(HC1(), Z)
+    @test covariance(HC1(), Z, cache, Matrix, Cholesky, demean = true) ≈ cov(StatsBase.SimpleCovariance(), Z)
+    @test covariance(HC1(), Z, cache, Matrix, Cholesky, demean = true) ≈ covariance(HC1(), Z .- mean(Z, dims=1), cache, Matrix, Cholesky, demean = false)
     ## Need testing for CRHC
-    
 end
