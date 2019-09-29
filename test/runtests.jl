@@ -1,6 +1,6 @@
 using CovarianceMatrices
 using Test
-using CSV
+using TableReader
 using LinearAlgebra
 using Statistics
 using Random
@@ -8,6 +8,7 @@ using GLM
 using DataFrames
 using JSON
 using StatsBase
+using CategoricalArrays
 
 const CM = CovarianceMatrices
 
@@ -283,7 +284,7 @@ end
 
 @testset "HAC OLS VCOV....................................." begin
     reg = JSON.parse(read("testdata/regression.json", String))
-    global df = CSV.read("testdata/ols_df.csv")
+    global df = TableReader.readcsv("testdata/ols_df.csv")
 
     function fopt!(u)
         global da = Dict{String, Any}()
@@ -581,7 +582,7 @@ end
 
 
 @testset "CRHC............................................." begin
-    df = CSV.read("testdata/wols_test.csv")
+    df = TableReader.readcsv("testdata/wols_test.csv")
     df_sorted = sort(df, [:X1])
 
     St1 = [.0374668, .0497666, .0472636, .0437952, .0513613, .0435369]
@@ -668,7 +669,7 @@ end
                 0.000619903 2.99597e-5 -7.26396e-5 -0.00067357 0.00225446 0.00106796;
                 0.00019496 0.000133303 -0.000998524 -0.000416268 0.00106796 0.00226444] atol = 1e-07
 
-    innovation = CSV.read("testdata/InstInnovation.csv", allowmissing=:none)
+    innovation = TableReader.readcsv("testdata/InstInnovation.csv")
 
     innovation[!, :capemp] = log.(innovation[!, :capital]./innovation[!, :employment])
     innovation[!, :lsales] = log.(innovation[!, :sales])
@@ -676,14 +677,17 @@ end
     innovation[!, :industry] = categorical(innovation[!, :industry])
     #innovation[:company] = categorical(innovation[:company])
     pois = glm(@formula(cites ~ institutions + capemp + lsales + industry + year), innovation, Poisson(), LogLink())
+    Vt = [0.904094640946072,
+          0.00240638781048165,
+          0.135953255431155,
+          0.0415234048672968]
 
-    Vt = [0.817387, 5.7907e-6, 0.0184833, 0.00172419]
     @test stderror(CRHC0(innovation[!, :company]), pois)[1:4] ≈ Vt atol = 1e-5
 end
 
 
 @testset "CovarianceMatrices Methods......................." begin
-    df = CSV.read("testdata/wols_test.csv")
+    df = TableReader.readcsv("testdata/wols_test.csv")
     df_sorted = sort!(copy(df), :cl)
     cl = convert(Array, df[!, :cl])
     wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
@@ -733,8 +737,8 @@ end
     @test V1s2.F == svd(V1m)
     @test V2s2.F == svd(V2m)
 
-    @test inv(V2s2) == inv(Matrix(V2s2))
-    @test inv(V2c2) == inv(Matrix(V2c2))
+    @test inv(V2s2) ≈ inv(Matrix(V2s2))
+    @test inv(V2c2) ≈ inv(Matrix(V2c2))
 
 end
 
