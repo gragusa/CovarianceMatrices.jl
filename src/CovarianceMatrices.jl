@@ -16,13 +16,12 @@ module CovarianceMatrices
 #     @info("INIT CALLED")
 #     @require GLM="38e38edf-8417-5370-95a0-9cbb8c7f171a" include("glm.jl")
 # end
-using Requires: @require
 
+using Requires: @require
 using LinearAlgebra
 using Statistics
 using StatsBase
 using StatsBase: CovarianceEstimator
-using StatsModels: TableRegressionModel
 
 #include("varhac.jl")
 include("types.jl")
@@ -30,18 +29,21 @@ include("HAC.jl")
 include("HC.jl")
 include("CRHC.jl")
 include("covariance.jl")
-include("covarianceestimator.jl")
+#include("covarianceestimator.jl")
 include("methods.jl")
+# using GLM
+# include("glm.jl")
 
 function __init__()
     @require GLM="38e38edf-8417-5370-95a0-9cbb8c7f171a" include("glm.jl")
 end
 
-
-export QuadraticSpectralKernel, TruncatedKernel, ParzenKernel, BartlettKernel,
-       TukeyHanningKernel, VARHAC, HC0, HC1, HC2, HC3, HC4, HC4m, HC5, CRHC0, CRHC1,
-       CRHC2, CRHC3, NeweyWest, Andrews, 
+export QuadraticSpectralKernel, TruncatedKernel, 
+       ParzenKernel, BartlettKernel,
+       TukeyHanningKernel, 
+       HC0, HC1, HC2, HC3, HC4, HC4m, HC5, 
+       CRHC0, CRHC1, CRHC2, CRHC3, NeweyWest, Andrews, 
        HACCache, HCCache, CRHCCache, 
-       covariance, CovarianceMatrix, vcov, stderr, cov
+       covariance, CovarianceMatrix, vcov, stderr
 
 end # module

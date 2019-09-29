@@ -18,38 +18,25 @@ The keyword argument `mean` can be:
 """
 
 
-function covariance_cache(k::T; X::AbstractArray, prewhiten::Bool = false) where T<:HAC 
-    N, M = size(X)
-    HACCache(zeros(N,M), prewhiten=prewhiten)
-end
+# StatsBase.cov(ce::RobustVariance, X::Vector, args...; kwargs...) = 
+#         StatsBase.cov(ce, reshape(X, (length(X),1)), args...; kwargs...)
 
-function covariance_cache(k::T, X::AbstractArray; prewhiten::Bool = false) where T<:HC 
-    N, M = size(X)
-    HCCache(zeros(N,M))
-end
+# function StatsBase.cov(ce::RobustVariance, X::AbstractMatrix; mean=nothing, dims::Int=1, corrected::Bool=false)
+#     dims ∈ (1, 2) || throw(ArgumentError("Argument dims can only be 1 or 2 (given: $dims)"))
+#     Z = dims == 1 ? X : X'
+#     if mean === nothing
+#         covariance(Z, ce, Matrix, scale=size(X, dims)-corrected, demean=true)
+#     else
+#         @assert length(mean) == size(X, dims == 1 ? 2 : 1)
+#         covariance(Z .- mean, ce, Matrix, scale=size(Z, dims)-corrected, demean=false)
+#     end
+# end
 
-function covariance_cache(k::T, X::AbstractArray; prewhiten::Bool = false) where T<:CRHC 
-    N, M = size(X)
-    CRHCCache(zeros(N,M))
-end
-
-
-function StatsBase.cov(ce::RobustVariance, X::AbstractMatrix; mean = nothing, dims::Int = 1)
-    dims ∈ (1, 2) || throw(ArgumentError("Argument dims can only be 1 or 2 (given: $dims)"))
-    Z = dims == 1 ? X : X'
-    if mean === nothing
-        covariance(Z, ce, Matrix, SVD, scale = size(X, dims), demean = true)
-    else
-        @assert length(mean) == size(X, dims == 1 ? 2 : 1)
-        covariance(Z .- mean, ce, Matrix, SVD, scale = size(Z, dims), demean = false)
-    end
-end
-
-function StatsBase.cov(ce::RobustVariance, X::AbstractMatrix, cache::AbstractCache; mean = nothing, dims::Int = 1)
-    if mean === nothing
-        covariance(X, ce, cache, Matrix, SVD, scale = size(X, dims), demean = true)
-    else
-        @assert length(mean) == size(X, dims == 1 ? 2 : 1)
-        covariance(X .- mean, ce, Matrix, SVD, scale = size(Z, dims), demean = false)
-    end
-end
+# function StatsBase.cov(ce::RobustVariance, X::AbstractMatrix, cache::AbstractCache; mean=nothing, dims::Int=1, corrected::Bool=false)
+#     if mean === nothing
+#         covariance(X, ce, cache, Matrix, SVD, scale = size(X, dims)-corrected, demean = true)
+#     else
+#         @assert length(mean) == size(X, dims == 1 ? 2 : 1)
+#         covariance(X .- mean, ce, Matrix, SVD, scale = size(X, dims)-corrected, demean = false)
+#     end
+# end

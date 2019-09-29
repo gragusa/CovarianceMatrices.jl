@@ -3,17 +3,14 @@ const WFLOAT = Sys.WORD_SIZE == 64 ? Float64 : Float32
 #=========
 Abstraction
 ==========#
-
 abstract type RobustVariance <: CovarianceEstimator end
 abstract type HAC{G} <: RobustVariance end
 abstract type HC <: RobustVariance end
 abstract type CRHC{V} <: RobustVariance end
 
-
 #=========
 HAC Types
 =========#
-
 abstract type BandwidthType{G} end
 abstract type OptimalBandwidth end
 
@@ -61,13 +58,11 @@ struct QuadraticSpectralKernel{G<:BandwidthType, F}<:HAC{G}
     prewhiten::Bool
 end
 
-
 const TRK=TruncatedKernel
 const BTK=BartlettKernel
 const PRK=ParzenKernel
 const THK=TukeyHanningKernel
 const QSK=QuadraticSpectralKernel
-
 
 #=========
 HC Types
@@ -79,8 +74,6 @@ struct HC3  <: HC end
 struct HC4  <: HC end
 struct HC4m <: HC end
 struct HC5  <: HC end
-
-#const CLVector{T<:Integer} = DenseArray{T,1}
 
 mutable struct CRHC0{V<:AbstractVector}  <: CRHC{V}
     cl::V
@@ -101,23 +94,34 @@ end
 struct CovarianceMatrix{T2<:Factorization, T3<:CovarianceMatrices.RobustVariance, F1, T1<:AbstractMatrix{F1}} <: AbstractMatrix{F1}
     F::T2       ## Factorization
     K::T3       ## RobustVariance, e.g. HC0()
-    V::T1       ## The Variance Covariance
+    V::T1       ## Covariance matrix
 end
-
-
 
 #=======
 Caches
 =======#
-
 abstract type AbstractCache end
+
+function cache(k::T, X::AbstractMatrix; prewhiten = false) where T<:HAC
+    prewhiten = isprewhiten(k) ? :prewhiten : :unwhiten
+    HACCache(convert(Matrix{WFLOAT}, X), Val{prewhiten})
+end
+
+function cache(k::T, X::AbstractMatrix; kwargs...) where T<:HC
+    HCCache(X)
+end
+
+function cache(k::T, X::AbstractMatrix) where T<:CRHC
+    cl = k.cl
+    CRHCCache(convert(Matrix{WFLOAT}, X), k.cl)
+end
 
 struct HACCache{TYPE, F<:AbstractMatrix, T<:AbstractVector} <: AbstractCache
     prew::TYPE
     q::F         ## nxp
     YY::F        ## nxp
     XX::F        ## nxp
-    YL::F        ## (n-1)xp 
+    YL::F        ## (n-1)xp
     XL::F        ## (n-1)xp
     μ::F         ## 1 x p
     Q::F         ## p x p
@@ -129,10 +133,12 @@ struct HACCache{TYPE, F<:AbstractMatrix, T<:AbstractVector} <: AbstractCache
     u::F         ## nxp
 end
 
+
+## TODO: HAC type for Fixed bandwidth should set YL/XL to (0,0)
 function HACCache(X::AbstractMatrix{T}, ::Type{Val{:prewhiten}}) where T
     N, p = size(X)
     n = N - 1
-    return HACCache(Prewhiten(), 
+    return HACCache(Prewhiten(),
                      collect(X),                    ## q
                      Matrix{T}(undef, n, p),        ## YY
                      Matrix{T}(undef, n, p),        ## XX
@@ -150,7 +156,7 @@ end
 
 function HACCache(X::AbstractMatrix{T}, ::Type{Val{:unwhiten}}) where T
     n, p = size(X)
-    return HACCache(Unwhiten(), 
+    return HACCache(Unwhiten(),
                      collect(X),                    ## q
                      Matrix{T}(undef, 0, 0),        ## YY
                      Matrix{T}(undef, n, p),        ## XX
@@ -166,21 +172,6 @@ function HACCache(X::AbstractMatrix{T}, ::Type{Val{:unwhiten}}) where T
                      Matrix{T}(undef, 0, 0))        ## u
 end
 
-function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = false) where T<:Int
-    HACCache(convert(Matrix{WFLOAT}, X), prewhiten = prewhiten)
-end
-
-function HACCache(X::AbstractMatrix{T}; prewhiten::Bool = false) where T
-    wtype = prewhiten ? :prewhiten : :unwhiten
-    HACCache(X, Val{wtype})
-end
-
-function HACCache(X::AbstractMatrix, k::HAC; kwargs...)
-    ip = isprewhiten(k)
-    HACCache(X, prewhiten = ip; kwargs...)
-end
-
-
 struct CRHCCache{VN<:AbstractVector, F1<:AbstractMatrix, F2<:AbstractMatrix, V<:AbstractVector, IN<:AbstractVector} <: AbstractCache
     q::F1   # nxm
     X::F1   # nxm
@@ -188,24 +179,32 @@ struct CRHCCache{VN<:AbstractVector, F1<:AbstractMatrix, F2<:AbstractMatrix, V<:
     v::V    # (n-1)xp
     w::V    # (n-1)xp
     μ::V    # 1xp
-    u::V    
+    u::V
     M::F1
     clusidx::IN
     clus::VN
 end
 
+function CRHCCache(X::AbstractMatrix{T1}, cl::AbstractVector{T2}) where {T1,T2}
+    n, p = size(X)
+    CRHCCache(similar(X), similar(X), Array{T1, 2}(undef, p, p),
+             Array{T1, 1}(undef, n), Array{T1, 1}(undef, n),
+             Array{T1, 1}(undef, n), Array{T1, 1}(undef, n),
+             Array{T1, 2}(undef, p, p), Array{Int, 1}(undef, n),
+             Array{T2, 1}(undef, n))
+end
 
 struct HCCache{F1<:AbstractMatrix, V1<:AbstractVector} <: AbstractCache
     q::F1   # NxM
     X::F1   # NxM
-    v::V1   # nx1 
+    v::V1   # nx1
     η::V1   # nx1
     u::V1   # nx1
     V::F1   # mxm
     μ::F1   # 1xp
 end
 
-function HCCache(X::AbstractMatrix{T}; kwargs...) where T
+function HCCache(X::AbstractMatrix{T}) where T
     n, p = size(X)
     HCCache(collect(X),               ## q
             collect(X),               ## X
@@ -213,5 +212,5 @@ function HCCache(X::AbstractMatrix{T}; kwargs...) where T
             Vector{T}(undef, n),      ## η
             Vector{T}(undef, n),      ## u
             Matrix{T}(undef, p, p),   ## V
-            Matrix{T}(undef, 1, p))   ## μ 
+            Matrix{T}(undef, 1, p))   ## μ
 end

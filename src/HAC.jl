@@ -172,7 +172,6 @@ end
 ## Optimal bandwidth
 ##
 ##############################################################################
-
 optimal_bw!(cache, k::HAC, optype::T) where T<:NeweyWest = bwNeweyWest(cache, k)
 optimal_bw!(cache, k::HAC, opttype::T) where T<:Andrews = bwAndrews(cache, k)
 

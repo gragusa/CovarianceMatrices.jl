@@ -9,10 +9,12 @@ Base.getindex(x::CovarianceMatrix, row, col) = getindex(x.V, row, col)
 Base.eltype(x::CovarianceMatrix) = eltype(x.V)
 
 LinearAlgebra.inv(x::CovarianceMatrix) = inv(x.F)
+function LinearAlgebra.pinv(x::CovarianceMatrix{T}; kwargs...) where T<:SVD
+    F = invfact(x)
+    F'*F
+end
 
-## How should I call this terms? Breads? invfactor? 
 invfact(x::CovarianceMatrix{T1}, upper::Bool = true) where T1<:Cholesky = upper ? inv(x.F.U) : inv(x.F.L)
-
 
 function invfact(x::CovarianceMatrix{T1}; regularize::Bool = true, atol::Real = 0.0, rtol::Real = (eps(real(float(one(eltype(x)))))*min(size(x)...))*iszero(atol)) where T1<:SVD
     Sr = similar(x.F.S)
@@ -22,9 +24,9 @@ function invfact(x::CovarianceMatrix{T1}; regularize::Bool = true, atol::Real = 
         maxabs = abs.(first(S))
         tol = max(rtol*maxabs, atol)
         @inbounds for j in eachindex(S)
-            if S[j] <= tol  
-                Sr[j] = zero(eltype(x)) 
-            else  
+            if S[j] <= tol
+                Sr[j] = zero(eltype(x))
+            else
                 Sr[j] = 1/sqrt(S[j])
             end
         end
@@ -34,14 +36,14 @@ end
 
 function quadinv(g::AbstractMatrix, x::CovarianceMatrix)
     LinearAlgebra.checksquare(g)
-    @assert size(g, 1) == size(x, 1)    
+    @assert size(g, 1) == size(x, 1)
     B = invfact(x)
     gw = B*g
     dot(gw, gw)
 end
 
 function quadinv(g::AbstractVector, x::CovarianceMatrix)
-    @assert length(g) == size(x, 1)    
+    @assert length(g) == size(x, 1)
     B = invfact(x)
     gw = B*g
     dot(gw, gw)
