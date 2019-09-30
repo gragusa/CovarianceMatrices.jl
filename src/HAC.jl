@@ -27,12 +27,12 @@ ParzenKernel(bw::Number;prewhiten=false) = PRK(Fixed(), [float(bw)], Array{WFLOA
 TukeyHanningKernel(bw::Number;prewhiten=false) = THK(Fixed(), [float(bw)], Array{WFLOAT}(undef,0), prewhiten)
 QuadraticSpectralKernel(bw::Number;prewhiten=false) = QSK(Fixed(), [float(bw)], Array{WFLOAT}(undef,0), prewhiten)
 
-bandwidth(k::HAC{G}, X::AbstractMatrix) where {G<:Fixed} = k.bw
-bandwidth(k::HAC{Optimal{G}}, X::AbstractMatrix) where {G<:Andrews} = bwAndrews(k, )
+# bandwidth(k::HAC{G}, X::AbstractMatrix) where {G<:Fixed} = k.bw
+# bandwidth(k::HAC{Optimal{G}}, X::AbstractMatrix) where {G<:Andrews} = bwAndrews(k, )
 
-function bandwidth(k::QuadraticSpectralKernel, X::AbstractMatrix)
-    return k.bw(X, k)
-end
+# function bandwidth(k::QuadraticSpectralKernel, X::AbstractMatrix)
+#     return k.bw(X, k)
+# end
 
 isprewhiten(k::HAC) = k.prewhiten
 
@@ -85,9 +85,7 @@ kernel(k::TukeyHanningKernel, x::Real) = (abs(x) <= 1.0) ? 0.5 * (1.0 + cospi(x)
 
 function kernel(k::ParzenKernel, x::Real)
     ax = abs(x)
-    if ax > 1.0
-        0.0
-    elseif ax <= 0.5
+    if ax <= 0.5
         1.0 - 6.0 * ax^2 + 6.0 * ax^3
     else
         2.0 * (1.0 - ax)^3
