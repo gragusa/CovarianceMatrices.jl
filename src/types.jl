@@ -225,7 +225,7 @@ function HCCache(X::AbstractMatrix{T}) where T
             Matrix{T}(undef, 1, p))   ## μ
 end
 
-struct VARHACCache{T}
+struct VARHACCache{T} <: AbstractCache
     q::T
     V::T
     μ::T
