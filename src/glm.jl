@@ -3,13 +3,12 @@ Requires
 =========#
 
 import .GLM
-#import .DataFrames
-#using StatsModels
 import StatsModels: TableRegressionModel, RegressionModel
 import StatsBase: modelmatrix, vcov, stderror
 
 const INNERMOD = Union{GLM.GeneralizedLinearModel, GLM.LinearModel}
 const LINMOD = GLM.LinearModel
+
 cache(k, m::TableRegressionModel; kwargs...) = cache(k, m.model)
 cache(k, m::T; kwargs...) where T<:INNERMOD = cache(k, modelmatrix(m))
 
@@ -42,8 +41,6 @@ end
 function vcov(k::RobustVariance, m::RegressionModel, cache::AbstractCache, ::Type{T}; kwargs...) where T<:Matrix
     vcov(k, m, cache, Matrix, Nothing; kwargs...)
 end
-
-
 
 #============
 General GLM methods
@@ -132,7 +129,6 @@ end
 #==============
 HC GLM Methods
 ===============#
-
 function vcov(k::T, m, cache, returntype, factortype;
               demean::Bool=false, dof_adjustment=false) where T<:HC
     CovarianceMatrices.installxuw!(cache, m)
@@ -218,5 +214,3 @@ end
 
 stderror(k::RobustVariance, m, args...; kwargs...) = sqrt.(diag(vcov(k, m, args...; kwargs...)))
 stderror(cm::CovarianceMatrix) = sqrt.(diag(cm))
-
-
