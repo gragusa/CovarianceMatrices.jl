@@ -837,8 +837,18 @@ end
     @test eigmin(CM2) ≈ eigmin(Matrix(CM2))
     @test eigmin(CM3) ≈ eigmin(Matrix(CM3))
 
+    @test logdet(CM3) ≈ logdet(Matrix(CM3))
+    @test logdet(CM2) ≈ logdet(Matrix(CM2))
+
+    @test pinv(CM1) ≈ pinv(Matrix(CM1))
+
     g = mean(X, dims = 1)
     @test CovarianceMatrices.quadinv(g, CM1) ≈ first(g*inv(Matrix(CM1))*g')
+
+    g = rand(5)
+    @test CovarianceMatrices.quadinv(g, CM1) ≈ first(g'*inv(Matrix(CM1))*g)
+
+    @test Symmetric(CM1) == Symmetric(Matrix(CM1))
 
 end
 
