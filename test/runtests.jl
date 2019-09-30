@@ -859,9 +859,9 @@ end
     G1 = covariance(k, g)
     cache = CovarianceMatrices.cache(k, g)
     G2 = covariance(k, g, cache, Matrix, Nothing)
-    k = CovarianceMatrices.VARHAC(maxlags=2, lagstrategy=3)
+    k = CovarianceMatrices.VARHAC(maxlag=2, lagstrategy=3)
     G2 = covariance(k, g, cache, Matrix)
-    k = CovarianceMatrices.VARHAC(maxlags=2, lagstrategy=2)
+    k = CovarianceMatrices.VARHAC(maxlag=2, lagstrategy=2)
     G2 = covariance(k, g, cache, Matrix)
-    k = CovarianceMatrices.VARHAC(maxlags=2, lagstrategy=1)
+    k = CovarianceMatrices.VARHAC(maxlag=2, lagstrategy=1)
 end
