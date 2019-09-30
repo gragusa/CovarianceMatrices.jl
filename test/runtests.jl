@@ -863,5 +863,22 @@ end
     G2 = covariance(k, g, cache, Matrix)
     k = CovarianceMatrices.VARHAC(maxlag=2, lagstrategy=2)
     G2 = covariance(k, g, cache, Matrix)
-    k = CovarianceMatrices.VARHAC(maxlag=2, lagstrategy=1)
+    k = CovarianceMatrices.VARHAC(maxlag=3, lagstrategy=1)
+    G2 = covariance(k, g, cache, Matrix)
+
+    k = CovarianceMatrices.VARHAC(maxlag=3, lagstrategy=1, selectionstrategy=:bic)
+    G2 = covariance(k, g, cache, Matrix)
+    k = CovarianceMatrices.VARHAC(maxlag=3, lagstrategy=2, selectionstrategy=:bic)
+    G2 = covariance(k, g, cache, Matrix)
+    k = CovarianceMatrices.VARHAC(maxlag=3, lagstrategy=3, selectionstrategy=:bic)
+    G2 = covariance(k, g, cache, Matrix)
+
+    k = CovarianceMatrices.VARHAC(maxlag=3, lagstrategy=1, selectionstrategy=:eq)
+    G2 = covariance(k, g, cache, Matrix)
+
+    k = CovarianceMatrices.VARHAC(maxlag=3, lagstrategy=2, selectionstrategy=:eq)
+    G2 = covariance(k, g, cache, Matrix)
+    k = CovarianceMatrices.VARHAC(maxlag=3, lagstrategy=3, selectionstrategy=:eq)
+    G2 = covariance(k, g, cache, Matrix)
+
 end
