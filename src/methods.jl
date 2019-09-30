@@ -35,10 +35,9 @@ function invfact(x::CovarianceMatrix{T1}; regularize::Bool = true, atol::Real = 
 end
 
 function quadinv(g::AbstractMatrix, x::CovarianceMatrix)
-    LinearAlgebra.checksquare(g)
-    @assert size(g, 1) == size(x, 1)
+    @assert size(x, 1) == size(g, 2)
     B = invfact(x)
-    gw = B*g
+    gw = B*Transpose(g)
     dot(gw, gw)
 end
 
@@ -49,8 +48,12 @@ function quadinv(g::AbstractVector, x::CovarianceMatrix)
     dot(gw, gw)
 end
 
-maxeig(x::CovarianceMatrix{T1}) where {T1<:SVD} = first(x.F.S)
-mineig(x::CovarianceMatrix{T1}) where {T1<:SVD} = last(x.F.S)
+LinearAlgebra.eigmax(x::CovarianceMatrix{T1}) where {T1<:SVD} = first(x.F.S)
+LinearAlgebra.eigmin(x::CovarianceMatrix{T1}) where {T1<:SVD} = last(x.F.S)
+
+LinearAlgebra.eigmax(x::CovarianceMatrix{T1}) where {T1<:Cholesky} = eigmax(Matrix(x))
+LinearAlgebra.eigmin(x::CovarianceMatrix{T1}) where {T1<:Cholesky} = eigmin(Matrix(x))
+
 LinearAlgebra.Symmetric(x::CovarianceMatrix) = LinearAlgebra.Symmetric(x.V)
 
 function LinearAlgebra.logdet(x::CovarianceMatrix{T1}) where {T1<:Cholesky}
