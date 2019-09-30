@@ -2,19 +2,19 @@ covariance(k, m; kwargs...) = covariance(k, m, cache(k, m), Matrix, Nothing; kwa
 
 covariance(k, m::Vector, args...; kwargs...) = covariance(k, reshape(m, (length(m),1)), args...; kwargs...)
 
-function covariance(k, m::AbstractMatrix, ::Type{T}; kwargs...) where T<:Matrix  
+function covariance(k, m::AbstractMatrix, ::Type{T}; kwargs...) where T<:Matrix
     covariance(k, m, cache(k, m), Matrix, Nothing; kwargs...)
 end
 
-function covariance(k, m::AbstractMatrix, ::Type{T}; kwargs...) where T<:CovarianceMatrix  
+function covariance(k, m::AbstractMatrix, ::Type{T}; kwargs...) where T<:CovarianceMatrix
     covariance(k, m, cache(k, m), T, SVD; kwargs...)
 end
 
-function covariance(k, m::AbstractMatrix, ::Type{T}; kwargs...) where T<:Factorization  
+function covariance(k, m::AbstractMatrix, ::Type{T}; kwargs...) where T<:Factorization
     covariance(k, m, cache(k, m), CovarianceMatrix, T; kwargs...)
 end
 
-function covariance(k, m::AbstractMatrix, cache::AbstractCache, ::Type{T}; kwargs...) where T<:Factorization  
+function covariance(k, m::AbstractMatrix, cache::AbstractCache, ::Type{T}; kwargs...) where T<:Factorization
     covariance(k, m, cache, CovarianceMatrix, T; kwargs...)
 end
 
@@ -26,7 +26,7 @@ end
 Demeaning methods
 =======#
 
-function demean!(cache, ::Type{Val{true}})    
+function demean!(cache, ::Type{Val{true}})
     mean!(cache.μ, cache.q)
     cache.q .= cache.q .- cache.μ
 end
@@ -80,9 +80,21 @@ function __covariance!(cache, k::HAC)
 end
 
 #=======
+B. VARHC
+=======#
+function covariance(k::T, X, cache, returntype, factortype;
+    demean::Bool=true, scale::Int=1) where T<:VARHAC
+    maxlag, lagstrategy, selectionstrategy = k.maxlag, k.lagstrategy, k.selectionstrategy
+    demean!(cache, X, Val{demean})
+    cache.V .= varhac(cache.q,maxlag,lagstrategy,selectionstrategy == :aic ? 1 : 0)
+    finalize(cache, returntype, factortype, k, scale)
+end
+
+
+#=======
 B. HC
 =======#
-function covariance(k::K, X, cache, returntype, factortype; 
+function covariance(k::K, X, cache, returntype, factortype;
                     demean::Bool=true, scale::Int=size(X, 1)) where K<:HC
     demean!(cache, X, Val{demean})
     cache.V .= cache.q'*cache.q
@@ -93,7 +105,7 @@ end
 CRHC
 =======#
 
-function covariance(k::T, X, cache, returntype, factortype; 
+function covariance(k::T, X, cache, returntype, factortype;
                     demean::Bool=true, scale::Int=size(X, 1), sorted::Bool=false) where T<:CRHC
     #check_cache_consistenty(k, cache)
     demean!(cache, X, Val{demean})
@@ -114,7 +126,7 @@ end
 
 function installsortedX!(cache, X, k, ::Type{Val{true}})
     copyto!(cache.q, X)
-    copyto!(cache.clus, k.cl)    
+    copyto!(cache.clus, k.cl)
     nothing
 end
 
