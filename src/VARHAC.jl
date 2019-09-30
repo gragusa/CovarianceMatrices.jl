@@ -71,6 +71,7 @@ function varhac(dat,imax,ilag,imodel)
                     if imodel==3
                         b = (dep\ex)'
                         resid = dep-ex*b
+                        minpar   = zeros(kdim, 2*iorder)
                         minpar[k, :] = b'
                         minres[: ,k] = resid
                         minorder[k]  = imax
