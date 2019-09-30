@@ -231,6 +231,6 @@ struct VARHACCache{T}
     μ::T
     function VARHACCache(X::AbstractMatrix{T}) where T
         n, p = size(X)
-        new{Matrix{T}}(similar(X), Matrix{T}(undef, p, p), Matrix{T}(1,p))
+        new{Matrix{T}}(similar(X), Matrix{T}(undef,p,p), Matrix{T}(undef,1,p))
     end
 end
