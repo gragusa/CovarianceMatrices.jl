@@ -86,7 +86,8 @@ function covariance(k::T, X, cache, returntype, factortype;
     demean::Bool=true, scale::Int=1) where T<:VARHAC
     maxlag, lagstrategy, selectionstrategy = k.maxlag, k.lagstrategy, k.selectionstrategy
     demean!(cache, X, Val{demean})
-    cache.V .= varhac(cache.q,maxlag,lagstrategy,selectionstrategy == :aic ? 1 : 0)
+    strategy = selectionstrategy == :aic ? 1 : (selectionstrategy == :bic ? 2 : 3)
+    cache.V .= varhac(cache.q,maxlag,lagstrategy,strategy)
     finalize(cache, returntype, factortype, k, scale)
 end
 
