@@ -5,3 +5,4 @@
 benchmark/.tune.*
 .*
 *.mem
+Manifest.toml
