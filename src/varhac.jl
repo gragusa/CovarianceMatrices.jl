@@ -1,3 +1,5 @@
+VARHAC(;maxlag=12, lagstrategy=2, selectionstrategy=:aic) = VARHAC(maxlag, lagstrategy, selectionstrategy)
+
 function varhac(dat,imax,ilag,imodel)
 
     ## VARHAC ESTIMATOR FOR THE COVARIANCE MATRIX (SPECTRAL DENSITY AT FREQUENCY ZERO)
@@ -13,15 +15,10 @@ function varhac(dat,imax,ilag,imodel)
     ## imodel:     1 = AIC is used
     ##             2 = BIC is used
     ##             3 = a fixed lag order equal to imax is used
-    ## iprint:     1 = the chosen lag length will be printed on the screen
 
     ## OUTPUT:
 
     ## ccc:        VARHAC estimator
-
-
-    #global ex, ex1, ex2, dat2, dep
-
 
     nt   = size(dat, 1)
     kdim = size(dat, 2)
@@ -34,9 +31,8 @@ function varhac(dat,imax,ilag,imodel)
 
     ddd      = dat[imax+1:nt, :]
     minres   = ddd
-    aic      = log.(sum(minres.^2, 1))
+    aic      = log.(sum(minres.^2, dims=1))
     minorder = zeros(kdim, 2)
-
 
     if imax>0
         minpar   = zeros(kdim, kdim*imax)
@@ -60,9 +56,9 @@ function varhac(dat,imax,ilag,imodel)
                         ## Compute the model selection criterion
                         npar = kdim*iorder
                         if imodel==1
-                            aicnew = log.(sum(resid.^2, 1))+2*npar/(nt-imax)
+                            aicnew = log.(sum(resid.^2, dims=1)).+2*npar/(nt-imax)
                         else
-                            aicnew = log.(sum(resid.^2, 1))+log(nt-imax)*npar/(nt-imax)
+                            aicnew = log.(sum(resid.^2, dims=1)).+log(nt-imax)*npar/(nt-imax)
                         end
                         if aicnew[1]<aic[k]
                             aic[k] = aicnew[1]
@@ -101,9 +97,9 @@ function varhac(dat,imax,ilag,imodel)
                         ## Compute the model selection criterion
                         npar = iorder
                         if imodel==1
-                            aicnew = log.(sum(resid.^2, 1))+2*npar/(nt-imax);
+                            aicnew = log.(sum(resid.^2, dims=1)).+2*npar/(nt-imax);
                         else
-                            aicnew = log.(sum(resid.^2, 1))+log(nt-imax)*npar/(nt-imax);
+                            aicnew = log.(sum(resid.^2, dims=1)).+log(nt-imax)*npar/(nt-imax);
                         end
 
                         if aicnew[1] < aic[k]
@@ -173,9 +169,9 @@ function varhac(dat,imax,ilag,imodel)
                         npar = iorder+iorder2*(kdim-1)
 
                         if imodel==1
-                            aicnew = log.(sum(resid.^2, 1))+2*npar/(nt-imax);
+                            aicnew = log.(sum(resid.^2, dims=1)).+2*npar/(nt-imax);
                         else
-                            aicnew = log.(sum(resid.^2, 1))+log(nt-imax)*npar/(nt-imax);
+                            aicnew = log.(sum(resid.^2, dims=1)).+log(nt-imax)*npar/(nt-imax);
                         end
                         #println(aic[k])
                         if aicnew[1]<aic[k]
@@ -212,7 +208,7 @@ function varhac(dat,imax,ilag,imodel)
     ## COMPUTE THE VARHAC ESTIMATOR
     covar = minres'minres/(nt-imax)
 
-    bbb = eye(kdim)
+    bbb = diagm(0=>1:kdim)
 
     if imax>0
         for iorder = 1:imax
