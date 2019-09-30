@@ -753,3 +753,93 @@ end
     @test covariance(HC1(), Z, cache, Matrix, Cholesky, demean = true) ≈ covariance(HC1(), Z .- mean(Z, dims=1), cache, Matrix, Cholesky, demean = false)
     ## Need testing for CRHC
 end
+
+@testset "NeweyWest Optimal BW............................." begin
+    Random.seed!(9)
+    X = randn(30,5)
+    y = rand(30)
+    df = DataFrame(y = y, x1 = X[:,2], x2 = X[:,3], x3 = X[:,4], x4 = X[:,5])
+    V = [0.0014234570920295653 -0.0003203609358696263 0.0002145224188789533;
+        -0.00032036093586962626 0.002030239858282678 0.0006792335197493722;
+        0.0002145224188789535 0.0006792335197493722 0.0010400408350070508]
+    nwbw = 8.895268
+    k = ParzenKernel(NeweyWest)
+    Vj = vcov(k, lm(@formula(y~x1+x2), df))
+    @test V ≈ Vj
+    @test k.bw[1] ≈ nwbw
+
+    V = [0.0022881871780231766 -0.0008842029695304288 0.000442063353905825;
+    -0.0008842029695304284 0.0026011141571525057 0.0006638051071556448;
+     0.00044206335390582503 0.0006638051071556448 0.0013358590259366617]
+    nwbw = 4.23744676121782
+    k = BartlettKernel(NeweyWest)
+    Vj = vcov(k, lm(@formula(y~x1+x2), df))
+    @test V ≈ Vj
+    @test k.bw[1] ≈ nwbw
+
+    V = [0.0015938483461041284 -0.0004443550089371629 0.00022923187497491063;
+        -0.0004443550089371628 0.0022415134516427515 0.0007630674168323773;
+         0.0002292318749749108 0.0007630674168323773 0.0010705259313823915]
+    nwbw  = 4.41888992824362
+    k = QuadraticSpectralKernel(NeweyWest)
+    Vj = vcov(k, lm(@formula(y~x1+x2), df))
+    @test V ≈ Vj
+    @test k.bw[1] ≈ nwbw
+
+    V = [0.017662022128800667 -0.012810546226779051 -0.0008881499052458461 -0.007806577092014024 0.011568272552465097;
+        -0.012810546226779051 0.02892731512920205 0.005309632973967233 0.0061614622214174065 -0.007451816342478188;
+        -0.0008881499052458454 0.005309632973967234 0.009892573169329903 0.001242952114188168 -0.0027346850659789946;
+        -0.007806577092014025 0.0061614622214174065 0.0012429521141881681 0.010322298771795132 -0.013148100284155506;
+        0.011568272552465097 -0.007451816342478188 -0.0027346850659789946 -0.013148100284155504 0.028997064190718284]
+
+    @test  vcov(ParzenKernel(), lm(X, y)) ≈ V
+
+
+end
+
+@testset "Covariance Matrix Methods........................" begin
+    Random.seed!(9)
+    X = randn(30,5)
+    y = rand(30)
+    df = DataFrame(y = y, x1 = X[:,2], x2 = X[:,3], x3 = X[:,4], x4 = X[:,5])
+    k = TruncatedKernel(1)
+    CM1 = vcov(k, lm(X,y), CovarianceMatrix)
+    CM2 = vcov(k, lm(X,y), CovarianceMatrix, SVD)
+    CM3 = vcov(k, lm(X,y), CovarianceMatrix, Cholesky)
+    ca  = CovarianceMatrices.cache(k, lm(X,y))
+    CMc1 = vcov(k, lm(X,y), ca, CovarianceMatrix)
+    CMc2 = vcov(k, lm(X,y), ca, CovarianceMatrix, SVD)
+    CMc3 = vcov(k, lm(X,y), ca, CovarianceMatrix, Cholesky)
+    CMf2 = vcov(k, lm(X,y), ca, SVD)
+    CMf3 = vcov(k, lm(X,y), ca, Cholesky)
+
+    @test CM1 == CMc1
+    @test CM2 == CMc2
+    @test CM3 == CMc3
+
+
+    @test CM2 == CMf2
+    @test CM3 == CMf3
+
+    @test CM1[1,1] == CMc1[1,1]
+    @test CM1[1,1] == CMc2[1,1]
+
+    @test size(CM1) == (5,5)
+    @test eltype(CM1) == CovarianceMatrices.WFLOAT
+
+    @test CovarianceMatrices.invfact(CM3) == inv(cholesky(Hermitian(Matrix(CM3))).U)
+    s = svd(Matrix(CM1))
+    @test CovarianceMatrices.invfact(CM1) == diagm((1.0./sqrt.(s.S)))*s.Vt
+
+    @test eigmax(CM2) ≈ eigmax(Matrix(CM2))
+    @test eigmax(CM3) ≈ eigmax(Matrix(CM3))
+
+    @test eigmin(CM2) ≈ eigmin(Matrix(CM2))
+    @test eigmin(CM3) ≈ eigmin(Matrix(CM3))
+
+    g = mean(X, dims = 1)
+    @test CovarianceMatrices.quadinv(g, CM1) ≈ first(g*inv(Matrix(CM1))*g')
+
+end
+
+
