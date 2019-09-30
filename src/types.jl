@@ -58,6 +58,12 @@ struct QuadraticSpectralKernel{G<:BandwidthType, F}<:HAC{G}
     prewhiten::Bool
 end
 
+mutable struct VARHAC <: RobustVariance
+    maxlag::Int
+    lagstrategy::Int
+    selectionstrategy::Symbol
+end
+
 const TRK=TruncatedKernel
 const BTK=BartlettKernel
 const PRK=ParzenKernel
@@ -114,6 +120,10 @@ end
 function cache(k::T, X::AbstractMatrix) where T<:CRHC
     cl = k.cl
     CRHCCache(convert(Matrix{WFLOAT}, X), k.cl)
+end
+
+function cache(k::T, X::AbstractMatrix) where T<:VARHAC
+    VARHACCache(X)
 end
 
 struct HACCache{TYPE, F<:AbstractMatrix, T<:AbstractVector} <: AbstractCache
@@ -213,4 +223,14 @@ function HCCache(X::AbstractMatrix{T}) where T
             Vector{T}(undef, n),      ## u
             Matrix{T}(undef, p, p),   ## V
             Matrix{T}(undef, 1, p))   ## μ
+end
+
+struct VARHACCache{T}
+    q::T
+    V::T
+    μ::T
+    function VARHACCache(X::AbstractMatrix{T}) where T
+        n, p = size(X)
+        new{Matrix{T}}(similar(X), Matrix{T}(undef, p, p), Matrix{T}(1,p))
+    end
 end
