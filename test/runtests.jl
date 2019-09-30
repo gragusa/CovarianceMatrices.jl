@@ -852,4 +852,16 @@ end
 
 end
 
-
+@testset "VARHAC..........................................." begin
+    k = CovarianceMatrices.VARHAC()
+    Random.seed!(1)
+    g = randn(100,2);
+    G1 = covariance(k, g)
+    cache = CovarianceMatrices.cache(k, g)
+    G2 = covariance(k, g, cache, Matrix, Nothing)
+    k = CovarianceMatrices.VARHAC(maxlags=2, lagstrategy=3)
+    G2 = covariance(k, g, cache, Matrix)
+    k = CovarianceMatrices.VARHAC(maxlags=2, lagstrategy=2)
+    G2 = covariance(k, g, cache, Matrix)
+    k = CovarianceMatrices.VARHAC(maxlags=2, lagstrategy=1)
+end
