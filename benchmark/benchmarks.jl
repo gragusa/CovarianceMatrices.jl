@@ -61,9 +61,10 @@ SUITE["HAC Fixed(30)"]["Parzen"] = @benchmarkable vcov($ParzenKernel(30), lm1)
 SUITE["HAC Fixed(30)"]["Truncated"] = @benchmarkable vcov($TruncatedKernel(30), lm1)
 SUITE["HAC Fixed(30)"]["Bartlett"] = @benchmarkable vcov($BartlettKernel(30), lm1)
 
-k0 = CRHC0(df[!,:cluster])
-k2 = CRHC2(df[!,:cluster])
-k3 = CRHC3(df[!,:cluster])
+k0 = CRHC0(df2[!,:cluster])
+k2 = CRHC2(df2[!,:cluster])
+k3 = CRHC3(df2[!,:cluster])
+
 
 SUITE["CRHC (large)"]["CRHC0"] = @benchmarkable vcov($k0, lm1)
 SUITE["CRHC (large)"]["CRHC2"] = @benchmarkable vcov($k2, lm1)
