@@ -19,6 +19,18 @@ end
 df[:cluster] = repeat(1:50, inner = [300])
 
 
+
+df2 = DataFrame(y = sqrt(2).*randn(250))
+for j in Symbol.("x".*string.(collect(1:5)))
+    df2[j] = randn(250)
+end
+df2[:cluster] = repeat(1:50, inner = [5])
+
+
+frm = @formula(y ~ x1 + x2 + x3 + x4 + x5)
+lm1 = glm(frm, df, Normal(), IdentityLink())
+lm2 = glm(frm, df2, Normal(), IdentityLink())
+
 frm = @formula(y ~ x1 + x2 + x3 + x4 + x5)
 lm1 = glm(frm, df, Normal(), IdentityLink())
 k_fix = TruncatedKernel(10)
@@ -26,21 +38,37 @@ k_opt_andrews = TruncatedKernel()
 #k_opt_newey = TruncatedKernel(NeweyWest)
 
 SUITE = BenchmarkGroup()
-SUITE["HAC"] = BenchmarkGroup(["Optimal Uncached", "Fixed Uncached"])
-SUITE["HAC"]["Truncated Optimal Andrews"] = @benchmarkable vcov($k_opt_andrews, lm1)
-SUITE["HAC"]["Truncated Fixed "] = @benchmarkable vcov($k_fix, lm1)
+SUITE["HAC Andrews"] = BenchmarkGroup()
+SUITE["HAC Newey"] = BenchmarkGroup()
+SUITE["HAC Fixed(10)"] = BenchmarkGroup()
+SUITE["HAC Fixed(30)"] = BenchmarkGroup()
 
-k_fix = ParzenKernel(10)
-k_opt_andrews = ParzenKernel()
-k_opt_newey = ParzenKernel(NeweyWest)
+SUITE["CRHC (large)"] = BenchmarkGroup()
+SUITE["CRHC (small)"] = BenchmarkGroup()
 
-SUITE["HAC"]["Parzen Optimal Andrews"] = @benchmarkable vcov($k_opt_andrews, lm1)
-SUITE["HAC"]["Parzen Optimal Newey"] = @benchmarkable vcov($k_opt_newey, lm1)
-SUITE["HAC"]["Parzen Fixed "] = @benchmarkable vcov($k_fix, lm1)
+SUITE["HAC Andrews"]["Parzen"] = @benchmarkable vcov($ParzenKernel(), lm1)
+SUITE["HAC Andrews"]["Truncated"] = @benchmarkable vcov($TruncatedKernel(), lm1)
+SUITE["HAC Andrews"]["Bartlett"] = @benchmarkable vcov($BartlettKernel(), lm1)
 
-k = CRHC0(df[!,:cluster])
-SUITE["HAC"]["Cluster HC0"] = @benchmarkable vcov($k, lm1)
-k = CRHC2(df[!,:cluster])
-SUITE["HAC"]["Cluster HC2"] = @benchmarkable vcov($k, lm1)
-k = CRHC3(df[!,:cluster])
-SUITE["HAC"]["Cluster HC3"] = @benchmarkable vcov($k, lm1)
+SUITE["HAC Newey"]["Parzen"] = @benchmarkable vcov($ParzenKernel(NeweyWest), lm1)
+SUITE["HAC Newey"]["Bartlett"] = @benchmarkable vcov($BartlettKernel(NeweyWest), lm1)
+
+SUITE["HAC Fixed(10)"]["Parzen"] = @benchmarkable vcov($ParzenKernel(10), lm1)
+SUITE["HAC Fixed(10)"]["Truncated"] = @benchmarkable vcov($TruncatedKernel(10), lm1)
+SUITE["HAC Fixed(10)"]["Bartlett"] = @benchmarkable vcov($BartlettKernel(10), lm1)
+
+SUITE["HAC Fixed(30)"]["Parzen"] = @benchmarkable vcov($ParzenKernel(30), lm1)
+SUITE["HAC Fixed(30)"]["Truncated"] = @benchmarkable vcov($TruncatedKernel(30), lm1)
+SUITE["HAC Fixed(30)"]["Bartlett"] = @benchmarkable vcov($BartlettKernel(30), lm1)
+
+k0 = CRHC0(df[!,:cluster])
+k2 = CRHC2(df[!,:cluster])
+k3 = CRHC3(df[!,:cluster])
+
+SUITE["CRHC (large)"]["CRHC0"] = @benchmarkable vcov($k0, lm1)
+SUITE["CRHC (large)"]["CRHC2"] = @benchmarkable vcov($k2, lm1)
+SUITE["CRHC (large)"]["CRHC3"] = @benchmarkable vcov($k3, lm1)
+
+SUITE["CRHC (small)"]["CRHC0"] = @benchmarkable vcov($k0, lm2)
+SUITE["CRHC (small)"]["CRHC2"] = @benchmarkable vcov($k2, lm2)
+SUITE["CRHC (small)"]["CRHC3"] = @benchmarkable vcov($k3, lm2)
