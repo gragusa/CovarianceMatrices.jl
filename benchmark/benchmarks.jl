@@ -1,49 +1,41 @@
-using PkgBenchmark
 using CovarianceMatrices
-using CSV
+using Random
+using GLM
+using DataFrames
+using BenchmarkTools
 
-@benchgroup "HAC - Fixed Bandwidth" begin
-    @benchgroup "No prewithen" begin
-        nf = string(Pkg.dir("CovarianceMatrices"), "/test/ols_hac.csv")
-        df = CSV.read(nf)
-	      lm1 = glm(@formula(y~x+w), df, Normal(), IdentityLink())
-        @bench "Truncated Kernel" vcov(lm1, TruncatedKernel(1.0), prewhite = false)
-        @bench "Quadratic Spectral Kernel" vcov(lm1, QuadraticSpectralKernel(1.0), prewhite = false)
-        @bench "Parzen Kernel" vcov(lm1, ParzenKernel(1.0), prewhite = false)
-        @bench "Tukey Hanning Kernel" vcov(lm1, TukeyHanningKernel(1.0), prewhite = false)
-    end
+Random.seed!(1)
 
-    @benchgroup "Prewithen" begin
-        nf = string(Pkg.dir("CovarianceMatrices"), "/test/ols_hac.csv")
-	      df = CSV.read(nf)
-        lm1 = glm(@formula(y~x+w), df, Normal(), IdentityLink())
-        @bench "Truncated Kernel" vcov(lm1, TruncatedKernel(1.0), prewhite = true)
-        @bench "Quadratic Spectral Kernel" vcov(lm1, QuadraticSpectralKernel(1.0), prewhite = true)
-        @bench "Parzen Kernel" vcov(lm1, ParzenKernel(1.0), prewhite = true)
-        @bench "Tukey Hanning Kernel" vcov(lm1, TukeyHanningKernel(1.0), prewhite = true)
-    end
-
+df = DataFrame(y = randn(300*50))
+for j in Symbol.("x".*string.(collect(1:5)))
+    df[j] = randn(300*50)
 end
+df[:cluster] = repeat(1:50, inner = [300])
 
 
-@benchgroup "HAC - Optimal Bandwidth" begin
-    @benchgroup "No prewithen" begin
-        nf = string(Pkg.dir("CovarianceMatrices"), "/test/ols_hac.csv")
-        df = CSV.read(nf)
-        lm1 = glm(@formula(y~x+w), df, Normal(), IdentityLink())
-        @bench "Truncated Kernel" vcov(lm1, TruncatedKernel(), prewhite = false)
-        @bench "Quadratic Spectral Kernel" vcov(lm1, QuadraticSpectralKernel(), prewhite = false)
-        @bench "Parzen Kernel" vcov(lm1, ParzenKernel(), prewhite = false)
-        #@bench "Tukey Hanning Kernel" vcov(lm1, TukeyHanningKernel(), prewhite = false)
-    end
+frm = @formula(y ~ x1 + x2 + x3 + x4 + x5)
+lm1 = glm(frm, df, Normal(), IdentityLink())
+k_fix = TruncatedKernel(2)
+k_opt_andrews = TruncatedKernel()
+k_opt_newey = TruncatedKernel(NeweyWest)
 
-    @benchgroup "Prewithen" begin
-        nf = string(Pkg.dir("CovarianceMatrices"), "/test/ols_hac.csv")
-	      df = CSV.read(nf)
-        lm1 = glm(@formula(y~x+w), df, Normal(), IdentityLink())
-        @bench "Truncated Kernel" vcov(lm1, TruncatedKernel(), prewhite = true)
-        @bench "Quadratic Spectral Kernel" vcov(lm1, QuadraticSpectralKernel(), prewhite = true)
-        @bench "Parzen Kernel" vcov(lm1, ParzenKernel(), prewhite = true)
-        #@bench "Tukey Hanning Kernel" vcov(lm1, TukeyHanningKernel(), prewhite = true)
-    end
-end
+SUITE = BenchmarkGroup()
+SUITE["HAC"] = BenchmarkGroup(["Optimal Uncached", "Fixed Uncached"])
+SUITE["HAC"]["Truncated Optimal Andrews"] = @benchmarkable vcov(lm1, $k_opt_andrews)
+SUITE["HAC"]["Truncated Optimal Andrews"] = @benchmarkable vcov(lm1, $k_opt_newey)
+SUITE["HAC"]["Truncated Fixed "] = @benchmarkable vcov(lm1, $k_fix)
+
+k_fix = ParzenKernel(2)
+k_opt_andrews = ParzenKernel()
+k_opt_newey = ParzenKernel(NeweyWest)
+
+SUITE["HAC"]["Parzen Optimal Andrews"] = @benchmarkable vcov(lm1, $k_opt_andrews)
+SUITE["HAC"]["Parzen Optimal Newey"] = @benchmarkable vcov(lm1, $k_opt_newey)
+SUITE["HAC"]["Parzen Fixed "] = @benchmarkable vcov(lm1, $k_fix)
+
+k = CRHC0(df[!,:cluster])
+SUITE["HAC"]["Cluster HC0"] = @benchmarkable vcov(lm1, $k)
+k = CRHC2(df[!,:cluster])
+SUITE["HAC"]["Cluster HC2"] = @benchmarkable vcov(lm1, $k)
+k = CRHC3(df[!,:cluster])
+SUITE["HAC"]["Cluster HC3"] = @benchmarkable vcov(lm1, $k)
