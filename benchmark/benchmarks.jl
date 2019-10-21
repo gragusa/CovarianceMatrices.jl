@@ -70,6 +70,11 @@ SUITE["CRHC (large)"]["CRHC0"] = @benchmarkable vcov($k0, lm1, Matrix)
 SUITE["CRHC (large)"]["CRHC2"] = @benchmarkable vcov($k2, lm1, Matrix)
 SUITE["CRHC (large)"]["CRHC3"] = @benchmarkable vcov($k3, lm1, Matrix)
 
+k0 = CRHC0(df1[!,:cluster])
+k2 = CRHC2(df1[!,:cluster])
+k3 = CRHC3(df1[!,:cluster])
+
+
 SUITE["CRHC (small)"]["CRHC0"] = @benchmarkable vcov($k0, lm2, Matrix)
 SUITE["CRHC (small)"]["CRHC2"] = @benchmarkable vcov($k2, lm2, Matrix)
 SUITE["CRHC (small)"]["CRHC3"] = @benchmarkable vcov($k3, lm2, Matrix)
