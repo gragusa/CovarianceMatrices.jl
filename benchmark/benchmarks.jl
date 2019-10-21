@@ -61,21 +61,21 @@ SUITE["HAC Fixed(30)"]["Parzen"] = @benchmarkable vcov($ParzenKernel(30), lm1, M
 SUITE["HAC Fixed(30)"]["Truncated"] = @benchmarkable vcov($TruncatedKernel(30), lm1, Matrix)
 SUITE["HAC Fixed(30)"]["Bartlett"] = @benchmarkable vcov($BartlettKernel(30), lm1, Matrix)
 
-k0 = CRHC0(df2[!,:cluster])
-k2 = CRHC2(df2[!,:cluster])
-k3 = CRHC3(df2[!,:cluster])
+k0 = CRHC0(df[!,:cluster])
+k2 = CRHC2(df[!,:cluster])
+k3 = CRHC3(df[!,:cluster])
 
 
 SUITE["CRHC (large)"]["CRHC0"] = @benchmarkable vcov($k0, lm1, Matrix)
 SUITE["CRHC (large)"]["CRHC2"] = @benchmarkable vcov($k2, lm1, Matrix)
 SUITE["CRHC (large)"]["CRHC3"] = @benchmarkable vcov($k3, lm1, Matrix)
 
-k0 = CRHC0(df1[!,:cluster])
-k2 = CRHC2(df1[!,:cluster])
-k3 = CRHC3(df1[!,:cluster])
+k02 = CRHC0(df2[!,:cluster])
+k22 = CRHC2(df2[!,:cluster])
+k32 = CRHC3(df2[!,:cluster])
 
 
-SUITE["CRHC (small)"]["CRHC0"] = @benchmarkable vcov($k0, lm2, Matrix)
-SUITE["CRHC (small)"]["CRHC2"] = @benchmarkable vcov($k2, lm2, Matrix)
-SUITE["CRHC (small)"]["CRHC3"] = @benchmarkable vcov($k3, lm2, Matrix)
+SUITE["CRHC (small)"]["CRHC0"] = @benchmarkable vcov($k02, lm2, Matrix)
+SUITE["CRHC (small)"]["CRHC2"] = @benchmarkable vcov($k22, lm2, Matrix)
+SUITE["CRHC (small)"]["CRHC3"] = @benchmarkable vcov($k32, lm2, Matrix)
 
