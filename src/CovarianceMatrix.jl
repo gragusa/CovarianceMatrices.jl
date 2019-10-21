@@ -14,12 +14,13 @@ function LinearAlgebra.pinv(x::CovarianceMatrix{T}; kwargs...) where T<:SVD
     F'*F
 end
 
-invfact(x::CovarianceMatrix{T1}, upper::Bool = true) where T1<:Cholesky = upper ? inv(x.F.U) : inv(x.F.L)
+invfact(x::CovarianceMatrix{T1}, lower::Bool = true) where T1<:Cholesky = !lower ? inv(x.F.U) : inv(x.F.L)
 
 function invfact(x::CovarianceMatrix{T1}; regularize::Bool = true, atol::Real = 0.0, rtol::Real = (eps(real(float(one(eltype(x)))))*min(size(x)...))*iszero(atol)) where T1<:SVD
     Sr = similar(x.F.S)
-    S  = x.F.S
-    U  = x.F.Vt
+    S = x.F.S
+    Vt = x.F.Vt
+    U = x.F.U
     if regularize
         maxabs = abs.(first(S))
         tol = max(rtol*maxabs, atol)
@@ -31,7 +32,7 @@ function invfact(x::CovarianceMatrix{T1}; regularize::Bool = true, atol::Real = 
             end
         end
     end
-    Diagonal(Sr)*U
+    Diagonal(Sr)*Vt
 end
 
 function quadinv(g::AbstractMatrix, x::CovarianceMatrix)

@@ -1,9 +1,10 @@
 name = "CovarianceMatrices"
 uuid = "60f91f6f-d783-54cb-84f9-544141854719"
 author = "Giuseppe Ragusa <giuseppe.ragusa@gmail.com>"
-version = "0.9.2"
+version = "0.9.9"
 
 [deps]
+CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
@@ -12,7 +13,6 @@ StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
 
 [compat]
 julia = "1"
-
 
 [extras]
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"

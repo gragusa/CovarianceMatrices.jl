@@ -14,9 +14,9 @@ using Requires: @require
 using LinearAlgebra
 using Statistics
 using StatsBase
+using StatsModels
 using StatsBase: CovarianceEstimator
-
-#include("varhac.jl")
+using CategoricalArrays
 include("types.jl")
 include("HAC.jl")
 include("HC.jl")
@@ -24,7 +24,7 @@ include("CRHC.jl")
 include("VARHAC.jl")
 include("covariance.jl")
 #include("covarianceestimator.jl")
-include("methods.jl")
+include("CovarianceMatrix.jl")
 # using GLM
 # include("glm.jl")
 
@@ -37,7 +37,6 @@ export QuadraticSpectralKernel, TruncatedKernel,
        TukeyHanningKernel,
        HC0, HC1, HC2, HC3, HC4, HC4m, HC5,
        CRHC0, CRHC1, CRHC2, CRHC3, NeweyWest, Andrews,
-       HACCache, HCCache, CRHCCache,
        covariance, CovarianceMatrix, vcov, stderr
 
 end # module
