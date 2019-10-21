@@ -173,7 +173,7 @@ function vcov(k::HC, m::RegressionModel; returntype::UnionAll=Matrix, factortype
     mm = momentmatrix(m)
     adj = adjfactor(k, m, modmatrix(m))
     mm .= length(adj) > 1 ? mm.*sqrt.(adj) : mm
-    scale = length(adj) > 1 ? 1 : adj 
+    scale = length(adj) > 1 ? 1 : adj
     A = covariance(k, mm; returntype = returntype, factortype = Cholesky, demean = false, scale = scale)
     V = B*A*B
     return finalize(k, V, returntype, factortype)
@@ -231,4 +231,4 @@ function _shat(k::CRHC, m::RegressionModel, cache::CRHCCache)
 end
 
 ## Standard errors
-stderror(k::RobustVariance, m::RegressionModel; kwargs...) = diag(sqrt.(vcov(k, m; kwargs...)))
+stderror(k::RobustVariance, m::RegressionModel; kwargs...) = sqrt.(diag(vcov(k, m; kwargs...)))

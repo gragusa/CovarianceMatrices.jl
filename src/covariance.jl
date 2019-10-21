@@ -28,7 +28,7 @@ function covariance(k::VARHAC, m::AbstractMatrix; returntype=Matrix,
     mm = demean ? m .- mean(m, dims = 1) : m
     maxlag, lagstrategy, selectionstrategy = k.maxlag, k.lagstrategy, k.selectionstrategy
     strategy = selectionstrategy == :aic ? 1 : (selectionstrategy == :bic ? 2 : 3)
-    V .= varhac(mm,maxlag,lagstrategy,strategy)
+    V = varhac(mm,maxlag,lagstrategy,strategy)
     finalize(k, V, returntype, factortype, scale)
 end
 

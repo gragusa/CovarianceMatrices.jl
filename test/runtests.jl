@@ -379,8 +379,8 @@ end
 
     ## Note sandwich in R has HC3 without G/(G-1) and CRHC2 is problematic
 
-    @test diag(sqrt.(vcov(k0, OLS))) == sqrt.(diag(V0))
-    @test diag(sqrt.(vcov(k0, OLS))) == stderror(k0, OLS)
+    @test sqrt.(diag(vcov(k0, OLS))) == sqrt.(diag(V0))
+    @test sqrt.(diag(vcov(k0, OLS))) == stderror(k0, OLS)
     OLS_sorted = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df_sorted, Normal(), IdentityLink())
     cl = convert(Array, df_sorted[!, :cl])
     k0 = CRHC0(cl)
@@ -575,7 +575,7 @@ end
     @test CM.invfact(CM3, true) ≈ inv(cholesky(Hermitian(Matrix(CM3))).L)
     @test CM.invfact(CM3, false) ≈ inv(cholesky(Hermitian(Matrix(CM3))).U)
 
-    @test CM.invfact(CM3)'*CM.invfact(CM3) ≈ inv(CM3))
+    @test CM.invfact(CM3)'*CM.invfact(CM3) ≈ inv(CM3)
 
 
     @test CM.invfact(CM2)'*CM.invfact(CM2) ≈ inv(CM3)
