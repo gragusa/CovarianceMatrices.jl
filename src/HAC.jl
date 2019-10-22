@@ -27,14 +27,14 @@ QuadraticSpectralKernel(bw::Number) = QSK(Fixed(), [float(bw)], Array{WFLOAT}(un
 covindices(k::T, n) where T<:QuadraticSpectralKernel = Iterators.filter(x -> x!=0, -n:n)
 covindices(k::HAC, n) = Iterators.filter(x -> x!=0, -floor(Int, k.bw[1]):floor(Int, k.bw[1]))
 
-function Γ(A::Matrix{T}, j) where T
+function Γ(A::Matrix{T}, j::Int) where T
     n, p = size(A)
     Q = zeros(T, p, p)
     Γsign!(Q, A, j, Val{j>0})
     return Q
 end
 
-function Γsign!(Q, A, j, ::Type{Val{true}})
+function Γsign!(Q, A, j::Int, ::Type{Val{true}})
     n, p = size(A)
     for h=1:p, s = 1:h
         for t = j+1:n
@@ -43,7 +43,7 @@ function Γsign!(Q, A, j, ::Type{Val{true}})
     end
 end
 
-function Γsign!(Q, A, j, ::Type{Val{false}})
+function Γsign!(Q, A, j::Int, ::Type{Val{false}})
     n, p = size(A)
     for h=1:p, s = 1:h
         for t = -j+1:n
@@ -51,24 +51,6 @@ function Γsign!(Q, A, j, ::Type{Val{false}})
         end
     end
 end
-# function Γ(A::Matrix{T}, j) where T
-#     n, p = size(A)
-#     Q = zeros(T, p, p)
-#     if j >= 0
-#         for h=1:p, s = 1:h
-#             for t = j+1:n
-#                 @inbounds Q[s, h] = Q[s, h] + A[t, s]*A[t-j, h]
-#             end
-#         end
-#     elseif j<0
-#         for h=1:p, s = 1:h
-#             for t = -j+1:n
-#                 @inbounds Q[s,h] = Q[s ,h] + A[t+j, s]*A[t,h]
-#             end
-#         end
-#     end
-#     return Q
-# end
 
 function getbandwidth(k::HAC{Optimal{T}}, m::AbstractMatrix{F}) where {T<:OptimalBandwidth,F}
     setupkernelweights!(k, m)
@@ -127,7 +109,7 @@ function fit_var(A::Matrix{T}) where T
     E, B
 end
 
-function fit_ar(A::Matrix{T}) where T
+Base.@propagate_inbounds function fit_ar(A::Matrix{T}) where T
     ## Estimate
     ##
     ## y_{t,j} = ρ y_{t-1,j} + ϵ

@@ -106,16 +106,20 @@ function set_bw_weights!(k, m::T) where T<:INNERMOD
     i = interceptindex(m)
     i !== nothing && (k.weights[i] = 0)
 end
-function vcov(k::T, m; returntype=Matrix, factortype=Cholesky, prewhite=false,
-              dof_adjustment::Bool=true) where T<:HAC
+function __vcov(k, m, rt, ft, pre, scale)
     B  = pseudohessian(m)
     mm = momentmatrix(m)
     set_bw_weights!(k, m)
-    A = covariance(k, mm; returntype=returntype, factortype=Cholesky,
-                   prewhite=prewhite, demean=false, scale = 1)
+    A = __covariance(k, mm, rt, ft, pre, 1)
     V = B*A*B
-    scale = dof_adjustment ? dof_resid(m)/numobs(m) : one(Int)
-    return finalize(k, V, returntype, factortype, 1/scale)
+    return finalize(k, V, rt, ft, inv(scale))
+end
+
+function vcov(k::T, m; returntype=Matrix, factortype=Cholesky, prewhite=false,
+              dof_adjustment::Bool=true) where T<:HAC
+    adj = dof_resid(m)/numobs(m)
+    scale = dof_adjustment ? adj : one(adj)
+    return __vcov(k, m, returntype, factortype, prewhite, scale)
 end
 
 #==============
@@ -199,35 +203,18 @@ function install_cache(k::CRHC, m::RegressionModel)
     return CRHCCache(similar(X), X, res, similar(res), cf, Shat, ci, sf)
 end
 
-validate_crhccache(k::CRHC, m::TableRegressionModel{T}, cache) where T = validate_cache(k, m.model, cache)
-function validate_cache(k::CRHC, m::INNERMOD, cache::CRHCCache)
-    n, p = numobs(m), length(coef(m))
-    @assert (n,p) == size(cache.momentmatrix)
-    #@assert k.cl == cache.f "CRHCCache: the chache can be used only for pre-sorted problem."
-    # X = modelmatrix(m)
-    # res = resid(m)
-    # cache.modelmatrix = X
-    # cache.residuals = res
-    # cache.momentmatrix .= X.*res
-    # cache.chol = cholesky!(Symmetrix(X'*X))
-    return cache
-end
-
 function vcov(k::CRHC, m::RegressionModel; returntype = Matrix, factortype = Cholesky, dof_adjustment::Union{Nothing, Real} = nothing)
-    B = pseudohessian(m)
     cache = install_cache(k, m)
-    Shat = _shat(k, m, cache)
-    Shat .= Symmetric( (B*Shat*B) )
-    df = dof_adjustment === nothing ? dofadjustment(k, cache) : dof_adjustment
-    rmul!(Shat, df)
-    return finalize(k, Shat, returntype, factortype)
+    df = dof_adjustment === nothing ? float(dofadjustment(k, cache)) : float(dof_adjustment)
+    return __vcov(k, m, cache, returntype, factortype, df)
 end
 
-function _shat(k::CRHC, m::RegressionModel, cache::CRHCCache)
+function __vcov(k::CRHC, m, cache::CRHCCache, rt, ft, df)
+    B = pseudohessian(m)
     res = adjust_resid!(k, cache)
     cache.momentmatrix .= cache.modelmatrix.*res
     Shat = clusterize!(cache)
-    return Shat
+    finalize(k, Symmetric(B*Shat*B), rt, ft, df)
 end
 
 ## Standard errors
