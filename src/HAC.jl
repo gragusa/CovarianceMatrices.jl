@@ -85,21 +85,21 @@ getbandwidth(k::HAC{T}, m::AbstractMatrix) where {T<:Fixed} = first(k.bw)
 ##############################################################################
 
 #kernel(k::HAC, x::Real) = isnan(x) ? (return 1.0) : kernel(k, float(x))
-kernel(k::TruncatedKernel, x::Real)    = (abs(x) <= 1) ? 1 : 0
-kernel(k::BartlettKernel, x::Real)     = (abs(x) <= 1.0) ? (1 - abs(x)) : 0
-kernel(k::TukeyHanningKernel, x::Real) = (abs(x) <= 1.0) ? 0.5 * (1.0 + cospi(x)) : 0.0
+kernel(k::TruncatedKernel, x::Real) = (abs(x) <= 1) ? one(x) : zero(x)
+kernel(k::BartlettKernel, x::Real)   = (abs(x) <= 1) ? (one(x) - abs(x)) : zero(x)
+kernel(k::TukeyHanningKernel, x::Real) = (abs(x) <= 1) ? one(x)/2 * (one(x) + cospi(x)) : zero(x)
 
 function kernel(k::ParzenKernel, x::Real)
     ax = abs(x)
     if ax <= 1/2
-        1 - 6 * ax^2 + 6 * ax^3
+        one(x) - 6 * ax^2 + 6 * ax^3
     else
-        2 * (1 - ax)^3
+        2*one(x) * (1 - ax)^3
     end
 end
 
 function kernel(k::QuadraticSpectralKernel, x::Real)
-    iszero(x) ? 1.0 : (z = 1.2*π*x; 3*(sin(z)/z-cos(z))*(1/z)^2)
+    iszero(x) ? one(x) : (z = one(x)*6/5*π*x; 3*(sin(z)/z-cos(z))*(1/z)^2)
 end
 
 function setupkernelweights!(k, m::AbstractMatrix{T}) where T
