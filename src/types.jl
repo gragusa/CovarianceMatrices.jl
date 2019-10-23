@@ -96,6 +96,10 @@ mutable struct CRHC3{V<:AbstractVector}  <: CRHC{V}
     cl::V
 end
 
+for tp in [:CRHC0, :CRHC1, :CRHC2, :CRHC3]
+    @eval $(tp)() = $(tp)(Int[])
+end
+
 struct CovarianceMatrix{T2<:Factorization, T3<:CovarianceMatrices.RobustVariance, F1, T1<:AbstractMatrix{F1}} <: AbstractMatrix{F1}
     F::T2       ## Factorization
     K::T3       ## RobustVariance, e.g. HC0()
