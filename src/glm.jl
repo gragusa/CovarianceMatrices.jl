@@ -188,9 +188,6 @@ end
 # =========#
 
 # CRHCCache(m::TableRegressionModel{T}) where T = CRHCCache(m.model)
-
-#
-
 function install_cache(k::CRHC, m::RegressionModel)
     X = modmatrix(m)
     res = resid(m)
@@ -200,7 +197,7 @@ function install_cache(k::CRHC, m::RegressionModel)
     p = size(X, 2)
     cf = chol(m)
     Shat = Matrix{eltype(res)}(undef,p,p)
-    return CRHCCache(similar(X), X, res, similar(res), cf, Shat, ci, sf)
+    return CRHCCache(similar(X), X, res, similar(res, (0,0)), cf, Shat, ci, sf)
 end
 
 function vcov(k::CRHC, m::RegressionModel; returntype = Matrix, factortype = Cholesky, dof_adjustment::Union{Nothing, Real} = nothing)
@@ -209,7 +206,7 @@ function vcov(k::CRHC, m::RegressionModel; returntype = Matrix, factortype = Cho
     return __vcov(k, m, cache, returntype, factortype, df)
 end
 
-function __vcov(k::CRHC, m, cache::CRHCCache, rt, ft, df)
+function __vcov(k::CRHC, m::RegressionModel, cache::CRHCCache, rt, ft, df)
     B = pseudohessian(m)
     res = adjust_resid!(k, cache)
     cache.momentmatrix .= cache.modelmatrix.*res
