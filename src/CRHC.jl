@@ -3,8 +3,8 @@ mutable struct CRHCCache{M<:AbstractMatrix, V<:AbstractVector, C, IN}
     "For regression type"
     modelmatrix::M
     residuals::V
-    "Scratch residuals"
-    residualscr::V
+    "Scratch matrix"
+    matscr::M
     "Factorization of X'X"
     crossx::C         # Factorization of X'*X
     "Meat"
@@ -68,7 +68,7 @@ function install_cache(k::CRHC, X::AbstractMatrix{T}) where T
     em = Matrix{Float64}(undef,0,0)
     ev = T[]
     Shat= Matrix{T}(undef,p,p)
-    CRHCCache(X, em, ev, ev, chol, Shat, ci, sf)
+    CRHCCache(X, em, ev, em, chol, Shat, ci, sf)
 end
 
 # function validate_cache(k::CRHC, X::AbstractMatrix{T}, cache::CRHCCache) where T
@@ -158,4 +158,13 @@ Base.@propagate_inbounds function clusterize!(c::CRHCCache)
         end
     end
     return M
+end
+
+## Generic __vcov - Used by GLM, but more generic
+function __vcov(k::CRHC, cache, df)
+    B = Matrix(cache.crossx)
+    res = adjust_resid!(k, cache)
+    cache.momentmatrix .= cache.modelmatrix.*res
+    Shat = clusterize!(cache)
+    return Symmetric(B*Shat*B).*df
 end
