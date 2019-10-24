@@ -162,7 +162,7 @@ end
 
 ## Generic __vcov - Used by GLM, but more generic
 function __vcov(k::CRHC, cache, df)
-    B = Matrix(cache.crossx)
+    B = inv(cache.crossx)
     res = adjust_resid!(k, cache)
     cache.momentmatrix .= cache.modelmatrix.*res
     Shat = clusterize!(cache)
