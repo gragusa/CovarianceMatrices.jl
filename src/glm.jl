@@ -79,17 +79,6 @@ hasmodelmatrix(m::TableRegressionModel{T}) where T<:INNERMOD = true
 #================
 Caching mechanism
 =================#
-# TODO: move this function to util
-#
-@inline function allequal(x)
-    length(x) < 2 && return true
-    e1 = x[1]
-    i = 2
-    @inbounds for i=2:length(x)
-        x[i] == e1 || return false
-    end
-    return true
-end
 
 #==============
 HAC GLM Methods
@@ -216,3 +205,16 @@ end
 
 ## Standard errors
 stderror(k::RobustVariance, m::RegressionModel; kwargs...) = sqrt.(diag(vcov(k, m; kwargs...)))
+
+## Optimal bandwidth
+function optimal_bandwidth(k::HAC{Optimal{T}}, m::TableRegressionModel{F}; kwargs...) where {T<:OptimalBandwidth, F<:INNERMOD}
+    optimal_bandwidth(k, m.model; kwargs...)
+end
+
+function optimal_bandwidth(k::HAC{Optimal{T}}, m::F; prewhite=false) where {T<:OptimalBandwidth, F<:INNERMOD}
+    set_bw_weights!(k, m)
+    mm = momentmatrix(m)
+    mmm, D = prewhiter(mm, Val{prewhite})
+    bw = _optimal_bandwidth(k, mmm, prewhite)
+    return bw
+end
