@@ -186,7 +186,7 @@ function install_cache(k::CRHC, m::RegressionModel)
     p = size(X, 2)
     cf = chol(m)
     Shat = Matrix{eltype(res)}(undef,p,p)
-    return CRHCCache(similar(X), X, res, similar(res, (0,0)), cf, Shat, ci, sf)
+    return CRHCCache(similar(X), X, res, similar(X, (0,0)), cf, Shat, ci, sf)
 end
 
 function vcov(k::CRHC, m::RegressionModel; returntype = Matrix, factortype = Cholesky, dof_adjustment::Union{Nothing, Real} = nothing)
