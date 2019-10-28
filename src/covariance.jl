@@ -56,12 +56,12 @@ end
 D. CRHC
 =======#
 
-function covariance(k::CRHC, m::AbstractMatrix; returntype=Matrix,
-                    factortype=Cholesky, demean::Bool=true, scale::Real=inv(size(m,1)))
-    mm = demean ? m .- mean(m, dims=1) : m
+function covariance(k::CRHC, m::AbstractMatrix{T}; returntype=Matrix,
+                    factortype=Cholesky, demean::Bool=true, scale::Real=inv(size(m,1))) where T
+    mm = demean ? m .- mean(m, dims=1) : m    
     cache = install_cache(k, mm)
     Shat = clusterize!(cache)
-    return finalize(k, Shat, returntype, factortype, scale)
+    return finalize(k, Shat, returntype, factortype, convert(T, scale))
 end
 
 #=========
