@@ -64,11 +64,11 @@ function install_cache(k::CRHC, X::AbstractMatrix{T}) where T
     (X, ), sf = bysort((X,), f)
     ci = clusters_intervals(sf)
     n, p = size(X)
-    chol = cholesky(diagm(0=>repeat([1], inner=[p])))
-    em = Matrix{Float64}(undef,0,0)
+    chol = cholesky(diagm(0=>repeat([one(T)], inner=[p])))
+    em = similar(X)
     ev = T[]
     Shat= Matrix{T}(undef,p,p)
-    CRHCCache(X, em, ev, em, chol, Shat, ci, sf)
+    CRHCCache(X, em, ev, Matrix{T}(undef, 0,0), chol, Shat, ci, sf)
 end
 
 # function validate_cache(k::CRHC, X::AbstractMatrix{T}, cache::CRHCCache) where T
@@ -121,7 +121,7 @@ function adjust_resid!(v::CRHC2, c::CRHCCache)
     n, p = size(momentmatrix(c))
     X, u = modelmatrix(c), resid(c)
     invxx, indices = invcrossx(c), clusters_indices(c)
-    for index in indices
+    Threads.@threads for index in indices
         Xv = view(X, index, :)
         uv = view(u, index, :)
         xAx = Xv*invxx*Xv'
@@ -133,7 +133,7 @@ function adjust_resid!(k::CRHC3, c::CRHCCache)
     X, u = modelmatrix(c), resid(c)
     n, p = size(X)
     invxx, indices = invcrossx(c), clusters_indices(c)
-    for index in indices
+    Threads.@threads for index in indices
         Xv = view(X, index, :)
         uv = view(u, index, :)
         xAx = Xv*invxx*Xv'
@@ -150,14 +150,18 @@ Base.@propagate_inbounds function clusterize!(c::CRHCCache)
     s = Array{eltype(U)}(undef, p)
     for m in clusters_indices(c)
         fill!(s, zeroM)
-        for j in eachindex(s), i in m
-            s[j] += U[i, j]
+        for j in 1:p
+            for i in m
+                s[j] += U[i, j]
+            end
         end
-        for j in eachindex(s), i in eachindex(s)
-            M[i, j] += s[i]*s[j]
+        for j in 1:p
+            for i in 1:j
+                M[i, j] += s[i]*s[j]
+            end
         end
     end
-    return M
+    return LinearAlgebra.copytri!(M, 'U')
 end
 
 ## Generic __vcov - Used by GLM, but more generic
