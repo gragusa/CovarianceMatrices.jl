@@ -16,6 +16,39 @@ const neweywest_kernels = [:ParzenKernel, :QuadraticSpectralKernel, :BartlettKer
 
 datapath = joinpath(@__DIR__)
 
+@testset "BW Optimal......................................." begin
+    Random.seed!(1)
+    df = DataFrame(y=randn(20), x=randn(20))
+    lm1 = lm(@formula(y~x), df)
+    k = BartlettKernel(NeweyWest)
+    V = vcov(k, lm1, prewhite=true)
+    bw = optimal_bandwidth(BartlettKernel(NeweyWest), lm1, prewhite=true)
+    V2 = vcov(BartlettKernel(bw), lm1, prewhite=true)
+    @test bw==first(k.bw)
+    @test V≈V2
+
+    k = BartlettKernel(NeweyWest)
+    V = vcov(k, lm1, prewhite=false)
+    bw = optimal_bandwidth(BartlettKernel(NeweyWest), lm1, prewhite=false)
+    V2 = vcov(BartlettKernel(bw), lm1, prewhite=false)
+    @test bw==first(k.bw)
+    @test V≈V2
+
+    k = BartlettKernel(Andrews)
+    V = vcov(k, lm1, prewhite=false)
+    bw = optimal_bandwidth(BartlettKernel(Andrews), lm1, prewhite=false)
+    V2 = vcov(BartlettKernel(bw), lm1, prewhite=false)
+    @test bw==first(k.bw)
+    @test V≈V2
+
+    k = BartlettKernel(Andrews)
+    V = vcov(k, lm1, prewhite=true)
+    bw = optimal_bandwidth(BartlettKernel(Andrews), lm1, prewhite=true)
+    V2 = vcov(BartlettKernel(bw), lm1, prewhite=true)
+    @test bw==first(k.bw)
+    @test V≈V2
+end
+
 @testset "HAC - Asymptotic Covariance (Fixed).............." begin
     Random.seed!(1)
     X = randn(20,2)
@@ -503,6 +536,10 @@ end
         covariance(HC1(), Z .- mean(Z, dims=1), returntype=Matrix, factortype=Cholesky, demean = false)
     ## Need testing for CRHC
 end
+
+
+
+
 
 # @testset "NeweyWest Optimal BW............................." begin
 #     Random.seed!(9)
