@@ -52,13 +52,13 @@ function Γsign!(Q, A, j::Int, ::Type{Val{false}})
     end
 end
 
-function getbandwidth(k::HAC{Optimal{T}}, m::AbstractMatrix{F}) where {T<:OptimalBandwidth,F}
-    setupkernelweights!(k, m)
-    bw = optimal_bw(k, T(), m)
-    return bw
-end
+# function getbandwidth(k::HAC{Optimal{T}}, m::AbstractMatrix{F}, prewhite::Bool) where {T<:OptimalBandwidth,F}
+#     setupkernelweights!(k, m)
+#     bw = optimal_bw(k, T(), m, prewhite)
+#     return bw
+# end
 
-getbandwidth(k::HAC{T}, m::AbstractMatrix) where {T<:Fixed} = first(k.bw)
+# getbandwidth(k::HAC{T}, m::AbstractMatrix, prewhite) where {T<:Fixed} = first(k.bw)
 
 ##############################################################################
 ##
@@ -86,13 +86,12 @@ end
 
 function setupkernelweights!(k, m::AbstractMatrix{T}) where T
     n, p = size(m)
-    if isempty(k.weights)
-        for j in 1:p
-            push!(k.weights, one(T))
-        end
-    elseif all(iszero.(k.weights))
-        fill!(k.weights, one(T))
+    if isempty(k.weights) || length(k.weights) != p || all(iszero.(k.weights))
+        resize!(k.weights, p)
+        idx = map(x->allequal(x), eachcol(m))
+        k.weights .= 1.0 .- idx
     end
+    return nothing
 end
 
 ##############################################################################
@@ -119,13 +118,14 @@ Base.@propagate_inbounds function fit_ar(A::Matrix{T}) where T
     for j in 1:p
         y = A[2:n, j]
         x = A[1:n-1, j]
+        allequal(x) && (rho[j] = 0; σ⁴[j] = 0; continue)
         x .= x .- mean(x)
         y .= y .- mean(y)
         rho[j] = sum(x.*y)/sum(abs2, x)
         x .= x.*rho[j]
         y .= y .- x
         σ⁴[j]  = (sum(abs2, y)/(n-1))^2
-    end
+    end    
     return rho, σ⁴
 end
 
@@ -134,11 +134,10 @@ end
 ## Optimal bandwidth
 ##
 ##############################################################################
-optimal_bw(k::HAC, optype::T, mm) where T<:NeweyWest = bwNeweyWest(k, mm)
-optimal_bw(k::HAC, opttype::T, mm) where T<:Andrews = bwAndrews(k, mm)
+optimal_bw(k::HAC, optype::T, mm, prewhite::Bool) where T<:NeweyWest = bwNeweyWest(k, mm, prewhite)
+optimal_bw(k::HAC, opttype::T, mm, prewhite::Bool) where T<:Andrews = bwAndrews(k, mm, prewhite)
 
-function bwAndrews(k::HAC, mm)
-    isempty(k.weights) && (fill!(k.weights, 1.0))
+function bwAndrews(k::HAC, mm, prewhite::Bool)    
     n, p  = size(mm)
     a1, a2 = getalpha(k, mm)
     k.bw[1] = bw_andrews(k, a1, a2, n)
@@ -159,6 +158,7 @@ end
 function getalpha(k, mm)
     w = k.weights
     rho, σ⁴ = fit_ar(mm)
+    #@show rho, σ⁴
     nm = 4.0.*(rho.^2).*σ⁴./(((1.0.-rho).^6).*((1.0.+rho).^2))
     dn = σ⁴./(1.0.-rho).^4
     α₁ = sum(w.*nm)/sum(w.*dn)
@@ -167,9 +167,9 @@ function getalpha(k, mm)
     return α₁, α₂
 end
 
-function bwNeweyWest(k::HAC, mm; prewhite=false)
+function bwNeweyWest(k::HAC, mm, prewhite::Bool)
     n, p = size(mm)
-    l = getrates(k, mm, prewhite=prewhite)
+    l = getrates(k, mm, prewhite)
     w = k.weights
     xm = mm*w
     a = map(j -> dot(xm[1:n-j], xm[j+1:n])/n, 0:l)::Array{Float64, 1}
@@ -178,9 +178,10 @@ function bwNeweyWest(k::HAC, mm; prewhite=false)
     a1 = 2*sum((1:l) .* aa)
     a2 = 2*sum((1:l).^2 .* aa)
     k.bw[1] = bwnw(k, a0, a1, a2)*(n+prewhite)^growthrate(k)
+    return k.bw[1]
 end
 
-function getrates(k, mm; prewhite = false)
+function getrates(k, mm, prewhite::Bool)
     n, p = size(mm)
     lrate = lagtruncation(k)
     adj = prewhite ? 3 : 4
@@ -198,3 +199,28 @@ end
 @inline lagtruncation(k::BartlettKernel) = 2/9
 @inline lagtruncation(k::ParzenKernel) = 4/25
 @inline lagtruncation(k::QuadraticSpectralKernel) = 2/25
+
+
+## Optimal Bandwidth
+
+# TODO: move this function to util
+#
+function allequal(x)
+    length(x) < 2 && return true
+    e1 = x[1]
+    i = 2
+    @inbounds for i=2:length(x)
+        x[i] == e1 || return false
+    end
+    return true
+end
+
+function _optimal_bandwidth(k::HAC{Optimal{T}}, m::AbstractMatrix, prewhite::Bool) where T<:OptimalBandwidth
+    ## No priwhiter version
+    setupkernelweights!(k, m)
+    bw = optimal_bw(k, T(), m, prewhite)
+    #@show bw
+    return bw
+end
+
+_optimal_bandwidth(k::HAC{T}, m::AbstractMatrix, prewhite::Bool) where T<:Fixed = first(k.bw)
