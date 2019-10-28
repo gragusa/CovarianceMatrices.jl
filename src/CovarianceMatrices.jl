@@ -36,7 +36,8 @@ export QuadraticSpectralKernel, TruncatedKernel,
        ParzenKernel, BartlettKernel,
        TukeyHanningKernel,
        HC0, HC1, HC2, HC3, HC4, HC4m, HC5,
-       CRHC0, CRHC1, CRHC2, CRHC3, NeweyWest, Andrews,
-       covariance, CovarianceMatrix, vcov, stderr
+       CRHC0, CRHC1, CRHC2, CRHC3, 
+       NeweyWest, Andrews, optimal_bandwidth,
+       covariance, CovarianceMatrix, vcov, stderror 
 
 end # module
