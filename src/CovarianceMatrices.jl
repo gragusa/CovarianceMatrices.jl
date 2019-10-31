@@ -10,23 +10,19 @@ documentation.
 
 module CovarianceMatrices
 
-using Requires: @require
-using LinearAlgebra
-using Statistics
-using StatsBase
-using StatsModels
-using StatsBase: CovarianceEstimator
 using CategoricalArrays
+using LinearAlgebra
+using Requires: @require
+using StatsBase: CovarianceEstimator
+using StatsModels
+using Statistics
 include("types.jl")
 include("HAC.jl")
 include("HC.jl")
 include("CRHC.jl")
 include("VARHAC.jl")
 include("covariance.jl")
-#include("covarianceestimator.jl")
 include("CovarianceMatrix.jl")
-# using GLM
-# include("glm.jl")
 
 function __init__()
     @require GLM="38e38edf-8417-5370-95a0-9cbb8c7f171a" include("glm.jl")
