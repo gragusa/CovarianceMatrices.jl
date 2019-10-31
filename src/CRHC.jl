@@ -19,14 +19,13 @@ end
     bysort(x, f)
 
 Sort each element of `x` according to f (a categorical).
-# Arguments
 
+# Arguments
 - `x` an iterable whose elements are arrays.
 - `f::CategoricalArray` a categorical array defining the sorting order
 
-Note: If the element of x are sorted, return x. Otherwise, returns a tuple
-whose elements are sorted according to f.
-
+# Returns
+- `Tuple`: a tuple (xs, fs) containng the sorted element of x and f
 """
 function bysort(x, f)
     issorted(f) && return x, f
@@ -55,10 +54,6 @@ function clusters_intervals(f::CategoricalArray)
     return ci
 end
 
-
-"""
-When only a matrix is passed, this is assumed to be a moment function
-"""
 function install_cache(k::CRHC, X::AbstractMatrix{T}) where T
     f = categorize(k.cl)
     (X, ), sf = bysort((X,), f)
@@ -71,33 +66,33 @@ function install_cache(k::CRHC, X::AbstractMatrix{T}) where T
     CRHCCache(X, em, ev, Matrix{T}(undef, 0,0), chol, Shat, ci, sf)
 end
 
-# function validate_cache(k::CRHC, X::AbstractMatrix{T}, cache::CRHCCache) where T
-#     @assert size(X) == size(cache.momentmatrix) "CRHCCache: wrong dimension"
-#     @assert k.cl == cache.f "CRHCCache: wrong order"
-#     # The cache can only be applied to problems that are presorted
-#     # so that we can directly copy into it without resorting.
-#     Base.unsafe_copyto!(cache.momentmatrix, X)
-#     return cache
-# end
 
 """
-clusters_indices(c::CRHCCache)
+    clusters_indices(c::CRHCCache)
 
-Return an array whose element gives the indices (as a Range{Int}) of the i-th cluster. Since the data is sorted when cached, the indices are contigous.
+Return an array whose element `i` is a `Range{Int}` with indeces of the i-th cluster. Since
+the data is sorted when cached, the indices are contigous.
 """
 clusters_indices(c::CRHCCache) = c.clusters_indices
-
 StatsModels.modelmatrix(c::CRHCCache) = c.modelmatrix
 momentmatrix(c::CRHCCache) = c.momentmatrix
-
-# Cannot call this function residuals because
-# it is only exported by GLM
 resid(c::CRHCCache) = c.residuals
-#residscr(c::CRHCCache) = c.residualscr
 invcrossx(c::CRHCCache) = inv(crossx(c))
 crossx(c::CRHCCache) = c.crossx
-clusters_categorical(c::CRHCCache) = c.clusters_indices
+#clusters_categorical(c::CRHCCache) = c.clusters_indices ## TODO: remove it (??)
 
+"""
+    dofadjustment(k::CRHC, ::CRHCCache)
+
+Calculate the default degrees-of-freedom adjsutment for `CRHC`
+
+# Arguments
+- `k::CRHC`: The Cluster Robust type
+- `c::CRHCCache`: the CRHCCache from which to extract the information
+# Return
+- `Float`: the degrees-of-fredom adjustment
+# Note: the adjustment is a multyplicative factor.
+"""
 function dofadjustment(k::CRHC0, c::CRHCCache)
     g = length(clusters_indices(c))
     return g/(g-1)
@@ -117,6 +112,7 @@ end
 
 adjust_resid!(k::CRHC0, c::CRHCCache) = resid(c)
 adjust_resid!(k::CRHC1, c::CRHCCache) = resid(c)
+
 function adjust_resid!(v::CRHC2, c::CRHCCache)
     n, p = size(momentmatrix(c))
     X, u = modelmatrix(c), resid(c)
@@ -129,6 +125,7 @@ function adjust_resid!(v::CRHC2, c::CRHCCache)
     end
     return u
 end
+
 function adjust_resid!(k::CRHC3, c::CRHCCache)
     X, u = modelmatrix(c), resid(c)
     n, p = size(X)
