@@ -1,25 +1,25 @@
-#=========
-Requires
-=========#
+# --------------------------------------------------------------------
+# Requires
+# --------------------------------------------------------------------
 import .GLM
+using StatsModels
+using StatsBase
+using Tables: columntable, istable
+
 import StatsModels: TableRegressionModel, RegressionModel
 import StatsBase: modelmatrix, vcov, stderror
 
 const INNERMOD = Union{GLM.GeneralizedLinearModel, GLM.LinearModel}
-const GLMMOD = Union{INNERMOD,
-                     TableRegressionModel{GLM.GeneralizedLinearModel},
-                     TableRegressionModel{GLM.LinearModel}}
-#============
-General GLM methods
-=============#
+
+# --------------------------------------------------------------------
+# GLM Methods
+# --------------------------------------------------------------------
 
 # TODO: Find a good name for it
-# pseudolikhess
-# likhess
-# bread
+# invinvpseudohessian
 # ....
-pseudohessian(m::TableRegressionModel{T}) where T<:INNERMOD = GLM.invchol(m.model.pp).*dispersion(m.model.rr)
-pseudohessian(m::T) where T<:INNERMOD = GLM.invchol(m.pp).*dispersion(m.rr)
+invpseudohessian(m::TableRegressionModel{T}) where T<:INNERMOD = GLM.invchol(m.model.pp).*dispersion(m.model.rr)
+invpseudohessian(m::T) where T<:INNERMOD = GLM.invchol(m.pp).*dispersion(m.rr)
 
 chol(m::TableRegressionModel{T}) where T<:INNERMOD = chol(m.model)
 chol(m::T) where T<:INNERMOD = m.pp.chol
@@ -40,8 +40,13 @@ numobs(m::INNERMOD) = length(m.rr.y)
 dof_resid(m::TableRegressionModel) = numobs(m) - length(coef(m))
 dof_resid(m::INNERMOD) = numobs(m) - length(coef(m))
 
+
 StatsModels.hasintercept(m::TableRegressionModel) = "(Intercept)" ∈ coefnames(m)
 interceptindex(m::INNERMOD) = findfirst(map(x->allequal(x), eachcol(modmatrix(m))))
+function StatsModels.hasintercept(m::INNERMOD)
+    hasint = findfirst(map(x->allequal(x), eachcol(modmatrix(m))))
+    hasint === nothing ? false : true
+end
 
 dispersion(m::TableRegressionModel{T}) where T<:GLM.GeneralizedLinearModel = dispersion(m.model.rr)
 dispersion(m::TableRegressionModel{T}) where T<:GLM.LinearModel = 1
@@ -51,11 +56,6 @@ dispersion(rr::GLM.GlmResp{T1, T2, T3}) where {T1, T2, T3} = 1
 dispersion(rr::GLM.LmResp) = 1
 function dispersion(rr::GLM.GlmResp{T1, T2, T3}) where {T1, T2<:Union{GLM.Gamma, GLM.Bernoulli, GLM.InverseGaussian}, T3}
     sum(abs2, rr.wrkwt.*rr.wrkresid)/sum(rr.wrkwt)
-end
-
-function StatsModels.hasintercept(m::INNERMOD)
-    hasint = findfirst(map(x->allequal(x), eachcol(modmatrix(m))))
-    hasint === nothing ? false : true
 end
 
 resid(m::TableRegressionModel{T}) where T<:INNERMOD = resid(m.model)
@@ -74,15 +74,12 @@ momentmatrix(m::TableRegressionModel{T}) where T<:INNERMOD = momentmatrix(m.mode
 momentmatrix(m::INNERMOD) = (modmatrix(m).*resid(m))./dispersion(m)
 
 # TODO: move to the interface file
-hasresiduals(m::INNERMOD) = true
-hasmodelmatrix(m::TableRegressionModel{T}) where T<:INNERMOD = true
-#================
-Caching mechanism
-=================#
+# hasresiduals(m::INNERMOD) = true
+# hasmodelmatrix(m::TableRegressionModel{T}) where T<:INNERMOD = true
 
-#==============
-HAC GLM Methods
-===============#
+# --------------------------------------------------------------------
+# HAC GLM Methods
+# --------------------------------------------------------------------
 function set_bw_weights!(k, m::TableRegressionModel{T}) where T<:INNERMOD
     β = coef(m)
     resize!(k.weights, length(β))
@@ -96,7 +93,7 @@ function set_bw_weights!(k, m::T) where T<:INNERMOD
     i !== nothing && (k.weights[i] = 0)
 end
 function __vcov(k, m, rt, ft, pre, scale)
-    B  = pseudohessian(m)
+    B  = invpseudohessian(m)
     mm = momentmatrix(m)
     set_bw_weights!(k, m)
     A = __covariance(k, mm, rt, ft, pre, 1)
@@ -111,9 +108,9 @@ function vcov(k::T, m; returntype=Matrix, factortype=Cholesky, prewhite=false,
     return __vcov(k, m, returntype, factortype, prewhite, scale)
 end
 
-#==============
-HC GLM Methods
-===============#
+# --------------------------------------------------------------------
+# HC GLM Methods 
+# --------------------------------------------------------------------
 hatmatrix(m::TableRegressionModel{T}, x) where T<:INNERMOD = hatmatrix(m.model, x)
 function hatmatrix(m::T, x) where T<:INNERMOD
     cf = m.pp.chol.UL::UpperTriangular
@@ -130,7 +127,6 @@ function adjfactor(k::HC4, m::RegressionModel, x)
     n, p = size(x)
     tone = one(eltype(x))
     h = hatmatrix(m, x)
-    #η = similar(h)
     @inbounds for j in eachindex(h)
         delta = min(4, n*h[j]/p)
         h[j] = tone/(tone-h[j])^delta
@@ -162,7 +158,7 @@ function adjfactor(k::HC5, m::RegressionModel, x)
 end
 
 function vcov(k::HC, m::RegressionModel; returntype::UnionAll=Matrix, factortype::UnionAll=Cholesky)
-    B  = pseudohessian(m)
+    B  = invpseudohessian(m)
     mm = momentmatrix(m)
     adj = adjfactor(k, m, modmatrix(m))
     mm .= length(adj) > 1 ? mm.*sqrt.(adj) : mm
@@ -172,11 +168,10 @@ function vcov(k::HC, m::RegressionModel; returntype::UnionAll=Matrix, factortype
     return finalize(k, V, returntype, factortype)
 end
 
-# #==========
-# Cluster GLM
-# =========#
+# --------------------------------------------------------------------
+# CRHC GLM Methods
+# --------------------------------------------------------------------
 
-# CRHCCache(m::TableRegressionModel{T}) where T = CRHCCache(m.model)
 function install_cache(k::CRHC, m::RegressionModel)
     X = modmatrix(m)
     res = resid(m)
@@ -190,28 +185,80 @@ function install_cache(k::CRHC, m::RegressionModel)
 end
 
 function vcov(k::CRHC, m::RegressionModel; returntype = Matrix, factortype = Cholesky, dof_adjustment::Union{Nothing, Real} = nothing)
-    cache = install_cache(k, m)
-    df = dof_adjustment === nothing ? float(dofadjustment(k, cache)) : float(dof_adjustment)
-    return __vcov(k, m, cache, returntype, factortype, df)
+    knew = recast(k, m)
+    length(knew.cl) == numobs(m) || throw(ArgumentError(k, "the length of the cluster variable must be $(numobs(m))"))
+    cache = install_cache(knew, m)
+    df = dof_adjustment === nothing ? float(dofadjustment(knew, cache)) : float(dof_adjustment)
+    return __vcov(knew, m, cache, returntype, factortype, df)
 end
 
 function __vcov(k::CRHC, m::RegressionModel, cache::CRHCCache, rt, ft, df)
-    B = pseudohessian(m)
+    B = invpseudohessian(m)
     res = adjust_resid!(k, cache)
     cache.momentmatrix .= cache.modelmatrix.*res
     Shat = clusterize!(cache)
     finalize(k, Symmetric(B*Shat*B), rt, ft, df)
 end
 
-## Standard errors
+# --------------------------------------------------------------------
+# CRHC GLM - Trick to use vcov(CRHC1(:cluster, df), ::GLM)
+# --------------------------------------------------------------------
+recast(k::CRHC{T,D}, m::INNERMOD) where {T<:AbstractVector, D<:Nothing} = k
+recast(k::CRHC{T,D}, m::TableRegressionModel) where {T<:AbstractVector, D<:Nothing} = k
+
+# reterm(k::CRHC{T,D}, m::TableRegressionModel) where {T<:Symbol, D} = (k.cl,)
+# reterm(k::CRHC{T,D}, m::TableRegressionModel) where {T<:Tuple, D} = k.cl
+reterm(k::CRHC{T,D}, m::TableRegressionModel) where {T, D} = tuple(k.cl...)
+
+# function groupby(args...) end
+
+function recast(k::CRHC{T,D}, m::TableRegressionModel) where {T<:Symbol, D}
+    @assert istable(k.df) "`df` must be a DataFrames"
+    t = k.cl
+    if length(k.df[!, t]) == length(m.mf.data[1])
+        ## The dimension fit
+        id = compress(categorical(k.df[idx,tterms]))
+        return renew(k, id)
+    else
+        f = m.mf.f
+        frm = f.lhs ~ tuple(f.rhs.terms..., Term(t))
+        idx = StatsModels.missing_omit(NamedTuple{tuple(StatsModels.termvars(frm)...)}(columntable(k.df)))[2]
+        id = compress(categorical(k.df[idx,t]))
+        return renew(k, id)
+    end
+    # ct = columntable(clus)
+    # length_unique = map(x->length(unique(x)), ct)
+    # fg = 1:prod(length_unique)
+    # #cl = map(x->compress(categorical(x)), eachcol(x))
+    # clus[!, :clusid] .= size(clus, 2) > 1 ? zero(Int) : clus[!, tterms[1]]
+    # if length(tterms) > 1
+    #     for (i,j) in enumerate(groupby(clus, [tterms...]))
+    #         j[:, :clusid] .= fg[i]
+    #     end
+    # end
+    # id = compress(categorical(clus[!, :clusid]))    
+end
+
+renew(::CRHC0, id) = CRHC0(id, nothing)
+renew(::CRHC1, id) = CRHC1(id, nothing)
+renew(::CRHC2, id) = CRHC2(id, nothing)
+renew(::CRHC3, id) = CRHC3(id, nothing)
+
+# --------------------------------------------------------------------
+# CRHC GLM - Trick to use vcov(CRHC1(:cluster, df), ::GLM)
+# --------------------------------------------------------------------
 stderror(k::RobustVariance, m::RegressionModel; kwargs...) = sqrt.(diag(vcov(k, m; kwargs...)))
 
 ## Optimal bandwidth
-function optimal_bandwidth(k::HAC{Optimal{T}}, m::TableRegressionModel{F}; kwargs...) where {T<:OptimalBandwidth, F<:INNERMOD}
+function optimal_bandwidth(
+    k::HAC,
+    m::TableRegressionModel{F};
+    kwargs...
+) where F<:INNERMOD
     optimal_bandwidth(k, m.model; kwargs...)
 end
 
-function optimal_bandwidth(k::HAC{Optimal{T}}, m::F; prewhite=false) where {T<:OptimalBandwidth, F<:INNERMOD}
+function optimal_bandwidth(k::HAC, m::F; prewhite=false) where F<:INNERMOD
     set_bw_weights!(k, m)
     mm = momentmatrix(m)
     mmm, D = prewhiter(mm, Val{prewhite})
