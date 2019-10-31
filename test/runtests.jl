@@ -20,30 +20,30 @@ datapath = joinpath(@__DIR__)
     Random.seed!(1)
     df = DataFrame(y=randn(20), x=randn(20))
     lm1 = lm(@formula(y~x), df)
-    k = BartlettKernel(NeweyWest)
+    k = BartlettKernel{NeweyWest}()
     V = vcov(k, lm1, prewhite=true)
-    bw = optimal_bandwidth(BartlettKernel(NeweyWest), lm1, prewhite=true)
+    bw = optimal_bandwidth(BartlettKernel{NeweyWest}(), lm1, prewhite=true)
     V2 = vcov(BartlettKernel(bw), lm1, prewhite=true)
     @test bw==first(k.bw)
     @test V≈V2
 
-    k = BartlettKernel(NeweyWest)
+    k = BartlettKernel{NeweyWest}()
     V = vcov(k, lm1, prewhite=false)
-    bw = optimal_bandwidth(BartlettKernel(NeweyWest), lm1, prewhite=false)
+    bw = optimal_bandwidth(BartlettKernel{NeweyWest}(), lm1, prewhite=false)
     V2 = vcov(BartlettKernel(bw), lm1, prewhite=false)
     @test bw==first(k.bw)
     @test V≈V2
 
-    k = BartlettKernel(Andrews)
+    k = BartlettKernel{Andrews}()
     V = vcov(k, lm1, prewhite=false)
-    bw = optimal_bandwidth(BartlettKernel(Andrews), lm1, prewhite=false)
+    bw = optimal_bandwidth(BartlettKernel{Andrews}(), lm1, prewhite=false)
     V2 = vcov(BartlettKernel(bw), lm1, prewhite=false)
     @test bw==first(k.bw)
     @test V≈V2
 
-    k = BartlettKernel(Andrews)
+    k = BartlettKernel{Andrews}()
     V = vcov(k, lm1, prewhite=true)
-    bw = optimal_bandwidth(BartlettKernel(Andrews), lm1, prewhite=true)
+    bw = optimal_bandwidth(BartlettKernel{Andrews}(), lm1, prewhite=true)
     V2 = vcov(BartlettKernel(bw), lm1, prewhite=true)
     @test bw==first(k.bw)
     @test V≈V2
@@ -74,22 +74,22 @@ end
 @testset "HAC - Asymptotic Covariance (Andrews)............" begin
     Random.seed!(1)
     X = randn(20,2)
-    V = covariance(TruncatedKernel(), X)./20
+    V = covariance(TruncatedKernel{Andrews}(), X)./20
     Vr = [0.025484761508796222 3.9529856923768415e-5; 3.9529856923768415e-5 0.0652988865427441]
     @test V ≈ Vr
-    V = covariance(TruncatedKernel(), X, prewhite=true)./20
+    V = covariance(TruncatedKernel{Andrews}(), X, prewhite=true)./20
     Vr = [0.028052111106979607 0.001221868961335397; 0.001221868961335396 0.06502328402306855]
     @test V ≈ Vr
-    V = covariance(BartlettKernel(), X, prewhite=false)./20
+    V = covariance(BartlettKernel{Andrews}(), X, prewhite=false)./20
     Vr = [0.036560369091632905 0.00022441387190291295; 0.00022441387190291295 0.0555454296782523]
     @test V ≈ Vr
-    V = covariance(BartlettKernel(), X, prewhite=true)./20
+    V = covariance(BartlettKernel{Andrews}(), X, prewhite=true)./20
     Vr = [0.027270747095805972 0.001926058338627125; 0.0019260583386271257 0.07130569473664604]
     @test V ≈ Vr
-    V = covariance(ParzenKernel(), X, prewhite=false)./20
+    V = covariance(ParzenKernel{Andrews}(), X, prewhite=false)./20
     Vr = [0.03100269416916425 -0.0017562565506448816; -0.0017562565506448816 0.05796097557032457]
     @test V ≈ Vr
-    V = covariance(ParzenKernel(), X, prewhite=true)./20
+    V = covariance(ParzenKernel{Andrews}(), X, prewhite=true)./20
     Vr = [0.025984224823188636 0.0017705442482664063; 0.001770544248266405 0.07693448665125002]
     @test V ≈ Vr
 end
@@ -139,10 +139,10 @@ end
             for k in andrews_kernels
                 eval(quote
                      ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
-                     tmp = vcov(($k)(), ols, returntype=CovarianceMatrix, prewhite=$pre, dof_adjustment = false)
+                     tmp = vcov(($k){Andrews}(), ols, returntype=CovarianceMatrix, prewhite=$pre, dof_adjustment = false)
                      da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      if Symbol($k) in neweywest_kernels
-                     tmp = vcov(($k)(), ols, returntype=CovarianceMatrix, prewhite=$pre, dof_adjustment = false)
+                     tmp = vcov(($k){Andrews}(), ols, returntype=CovarianceMatrix, prewhite=$pre, dof_adjustment = false)
                      dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      end
                      end)
@@ -197,12 +197,12 @@ end
     )
 
     GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[!, :w]))
-    V = vcov(ParzenKernel(), GAMMA)
+    V = vcov(ParzenKernel{Andrews}(), GAMMA)
     Vp = [5.48898e-7 -2.60409e-7; -2.60409e-7 1.4226e-7]
     @test V ≈ Vp atol = 1e-08
 
     GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
-    V = vcov(ParzenKernel(), GAMMA)
+    V = vcov(ParzenKernel{Andrews}(), GAMMA)
     Vp = [5.81672e-7 -2.24162e-7; -2.24162e-7 1.09657e-7]
     @test V ≈ Vp atol = 1e-08
 end
