@@ -6,19 +6,13 @@ using BenchmarkTools
 
 Random.seed!(1)
 
+
 u = zeros(6000*50)
 for j in 1:2999
     u[j+1] = 0.97*u[j] + randn()
 end
 
 df = DataFrame(y = randn(300*50) .+ u[15001:30000])
-
-for j in Symbol.("x".*string.(collect(1:5)))
-    df[j] = randn(300*50)
-end
-df[:cluster] = repeat(1:50, inner = [300])
-
-
 
 df2 = DataFrame(y = sqrt(2).*randn(250))
 for j in Symbol.("x".*string.(collect(1:5)))
