@@ -21,19 +21,37 @@ include("HAC.jl")
 include("HC.jl")
 include("CRHC.jl")
 include("VARHAC.jl")
-include("covariance.jl")
+include("lrvar.jl")
 include("CovarianceMatrix.jl")
 
 function __init__()
     @require GLM="38e38edf-8417-5370-95a0-9cbb8c7f171a" include("glm.jl")
 end
 
-export QuadraticSpectralKernel, TruncatedKernel,
-       ParzenKernel, BartlettKernel,
+export Andrews,
+       BartlettKernel,
+       CRHC0,
+       CRHC1,
+       CRHC2,
+       CRHC3,
+       CovarianceMatrix,
+       HC0,
+       HC1,
+       HC2,
+       HC3,
+       HC4,
+       HC4m,
+       HC5,
+       NeweyWest,
+       ParzenKernel,
+       QuadraticSpectralKernel,
+       TruncatedKernel,
        TukeyHanningKernel,
-       HC0, HC1, HC2, HC3, HC4, HC4m, HC5,
-       CRHC0, CRHC1, CRHC2, CRHC3, 
-       NeweyWest, Andrews, optimal_bandwidth,
-       covariance, CovarianceMatrix, vcov, stderror 
+       lrvar,
+       lrvarmatrix,
+       optimal_bandwidth,
+       stderror,
+       vcov,
+       vcovmatrix
 
 end # module
