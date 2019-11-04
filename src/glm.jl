@@ -92,22 +92,52 @@ function set_bw_weights!(k, m::T) where T<:INNERMOD
     i = interceptindex(m)
     i !== nothing && (k.weights[i] = 0)
 end
-function __vcov(k, m, rt, ft, pre, scale)
+
+vcov(k::HAC, m; prewhite=false, dof_adjustment::Bool=true, scale::Real=1) =
+    _vcov(k, m, prewhite, dof_adjustment, scale)
+
+function _vcov(k::HAC, m, prewhite::Bool, dof_adjustment::Bool, scale::Real)
     B  = invpseudohessian(m)
     mm = momentmatrix(m)
     set_bw_weights!(k, m)
-    A = __covariance(k, mm, rt, ft, pre, 1)
-    V = B*A*B
-    return finalize(k, V, rt, ft, inv(scale))
+    A = lrvar(k, mm; prewhite=prewhite, demean=false)
+    scale *= (dof_adjustment ? numobs(m)^2/dof_resid(m) : numobs(m))
+    V = Symmetric((B*A*B).*scale)
+    return V
 end
 
-function vcov(k::T, m; returntype=Matrix, factortype=Cholesky, prewhite=false,
-              dof_adjustment::Bool=true) where T<:HAC
-    adj = dof_resid(m)/numobs(m)
-    scale = dof_adjustment ? adj : one(adj)
-    return __vcov(k, m, returntype, factortype, prewhite, scale)
+vcovmatrix(
+    k::HAC,
+    m::RegressionModel,
+    factorization=Cholesky;
+    prewhite=false,
+    dof_adjustment::Bool=true,
+    scale::Real=1,
+) = _vcovmatrix(k, m, prewhite, dof_adjustment, scale, factorization)
+
+function _vcovmatrix(
+    k::HAC,
+    m::RegressionModel,
+    prewhite::Bool,
+    dof_adjustment::Bool,
+    scale::Real,
+    ::Type{Cholesky},
+)
+    V = _vcov(k, m, prewhite, dof_adjustment, scale)
+    return CovarianceMatrix(cholesky(V, check=true), k, V)
 end
 
+function _vcovmatrix(
+    k::HAC,
+    m::RegressionModel,
+    prewhite::Bool,
+    dof_adjustment::Bool,
+    scale::Real,
+    ::Type{SVD},
+)
+    V = _vcov(k, m, prewhite, dof_adjustment, scale)
+    return CovarianceMatrix(svd(V.data), k, V)
+end
 # --------------------------------------------------------------------
 # HC GLM Methods 
 # --------------------------------------------------------------------
@@ -118,10 +148,10 @@ function hatmatrix(m::T, x) where T<:INNERMOD
     return sum(x.^2, dims = 2)
  end
 
-adjfactor(k::HC0, m::RegressionModel, x) = 1
+adjfactor(k::HC0, m::RegressionModel, x) = one(first(x))
 adjfactor(k::HC1, m::RegressionModel, x) = numobs(m)./dof_resid(m)
-adjfactor(k::HC2, m::RegressionModel, x) = 1.0 ./(1.0 .- hatmatrix(m, x))
-adjfactor(k::HC3, m::RegressionModel, x) = 1.0 ./(1.0 .- hatmatrix(m, x)).^2
+adjfactor(k::HC2, m::RegressionModel, x) = one(first(x)) ./(one(first(x)).-hatmatrix(m, x))
+adjfactor(k::HC3, m::RegressionModel, x) = one(first(x))./(one(first(x)).-hatmatrix(m, x)).^2
 
 function adjfactor(k::HC4, m::RegressionModel, x)
     n, p = size(x)
@@ -157,15 +187,32 @@ function adjfactor(k::HC5, m::RegressionModel, x)
     return h
 end
 
-function vcov(k::HC, m::RegressionModel; returntype::UnionAll=Matrix, factortype::UnionAll=Cholesky)
+adjust!(m, adj::AbstractFloat) = m
+adjust!(m, adj::AbstractMatrix) = m.*sqrt.(adj)
+
+vcov(k::HC, m::RegressionModel; scale::Real=1) = _vcov(k, m, scale)
+
+function _vcov(k::HC, m::RegressionModel, scale)
     B  = invpseudohessian(m)
     mm = momentmatrix(m)
     adj = adjfactor(k, m, modmatrix(m))
-    mm .= length(adj) > 1 ? mm.*sqrt.(adj) : mm
-    scale = length(adj) > 1 ? 1 : adj
-    A = covariance(k, mm; returntype = returntype, factortype = Cholesky, demean = false, scale = scale)
-    V = B*A*B
-    return finalize(k, V, returntype, factortype)
+    mm = adjust!(mm, adj)
+    scale *= length(adj) > 1 ? one(first(adj)) : adj
+    A = mm'*mm
+    return Symmetric((B*A*B).*scale)
+end
+
+vcovmatrix(k::HC, m::RegressionModel, factorization=Cholesky; scale::Real=1) =
+    _vcovmatrix(k, m, scale, Val{:factorization})
+
+function _vcovmatrix(k::HC, m::RegressionModel, scale::Real, ::Type{Cholesky})
+    V = _vcov(k, m, scale)
+    CovarianceMatrix(cholesky(V, check=true), k, V)
+end
+
+function _vcovmatrix(k::HC, m::RegressionModel, scale::Real, ::Type{SVD})
+    V = _vcov(k, m, scale)
+    CovarianceMatrix(svd(V), k, V)
 end
 
 # --------------------------------------------------------------------
@@ -184,20 +231,50 @@ function install_cache(k::CRHC, m::RegressionModel)
     return CRHCCache(similar(X), X, res, similar(X, (0,0)), cf, Shat, ci, sf)
 end
 
-function vcov(k::CRHC, m::RegressionModel; returntype = Matrix, factortype = Cholesky, dof_adjustment::Union{Nothing, Real} = nothing)
+function vcov(k::CRHC, m::RegressionModel; scale::Real=1)
     knew = recast(k, m)
     length(knew.cl) == numobs(m) || throw(ArgumentError(k, "the length of the cluster variable must be $(numobs(m))"))
     cache = install_cache(knew, m)
-    df = dof_adjustment === nothing ? float(dofadjustment(knew, cache)) : float(dof_adjustment)
-    return __vcov(knew, m, cache, returntype, factortype, df)
+    return _vcov(knew, m, cache, scale)
 end
 
-function __vcov(k::CRHC, m::RegressionModel, cache::CRHCCache, rt, ft, df)
+function vcovmatrix(k::CRHC, m::RegressionModel, factorization = Cholesky; scale::Real=1)
+    knew = recast(k, m)
+    cache = install_cache(knew, m)
+    df = dofadjustment(knew, cache)
+    return _vcovmatrix(knew, m, cache, scale, factorization)
+end
+
+function _vcov(k::CRHC, m::RegressionModel, cache::CRHCCache, scale::Real)
     B = invpseudohessian(m)
     res = adjust_resid!(k, cache)
     cache.momentmatrix .= cache.modelmatrix.*res
+    df = dofadjustment(k, cache)
+    scale *= df
     Shat = clusterize!(cache)
-    finalize(k, Symmetric(B*Shat*B), rt, ft, df)
+    return Symmetric((B*Shat*B).*scale)
+end
+
+function _vcovmatrix(
+    k::HC,
+    m::RegressionModel,
+    cache::CRHCCache,
+    scale::Real,
+    ::Type{Cholesky}
+)
+    V = _vcov(k, m, cache, scale)
+    CovarianceMatrix(cholesky(V, check=true), k, V)
+end
+
+function _vcovmatrix(
+    k::HC,
+    m::RegressionModel,
+    cache::CRHCCache,
+    scale::Real,
+    ::Type{SVD}
+)
+    V = _vcov(k, m, cache, cache)
+    CovarianceMatrix(svd(V.data), k, V)
 end
 
 # --------------------------------------------------------------------
@@ -248,7 +325,7 @@ renew(::CRHC3, id) = CRHC3(id, nothing)
 # CRHC GLM - Trick to use vcov(CRHC1(:cluster, df), ::GLM)
 # --------------------------------------------------------------------
 stderror(k::RobustVariance, m::RegressionModel; kwargs...) = sqrt.(diag(vcov(k, m; kwargs...)))
-
+stderror(v::CovarianceMatrix) = sqrt.(diag(v.V))
 ## Optimal bandwidth
 function optimal_bandwidth(
     k::HAC,
