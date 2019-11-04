@@ -316,10 +316,6 @@ function recast(k::CRHC{T,D}, m::TableRegressionModel) where {T<:Symbol, D}
     # id = compress(categorical(clus[!, :clusid]))    
 end
 
-renew(::CRHC0, id) = CRHC0(id, nothing)
-renew(::CRHC1, id) = CRHC1(id, nothing)
-renew(::CRHC2, id) = CRHC2(id, nothing)
-renew(::CRHC3, id) = CRHC3(id, nothing)
 
 # --------------------------------------------------------------------
 # CRHC GLM - Trick to use vcov(CRHC1(:cluster, df), ::GLM)

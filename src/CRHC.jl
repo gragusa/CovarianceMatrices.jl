@@ -167,5 +167,10 @@ function __vcov(k::CRHC, cache, df)
     res = adjust_resid!(k, cache)
     cache.momentmatrix .= cache.modelmatrix.*res
     Shat = clusterize!(cache)
-    return Symmetric(B*Shat*B).*df
+    return Symmetric((B*Shat*B).*df)
 end
+
+renew(::CRHC0, id) = CRHC0(id, nothing)
+renew(::CRHC1, id) = CRHC1(id, nothing)
+renew(::CRHC2, id) = CRHC2(id, nothing)
+renew(::CRHC3, id) = CRHC3(id, nothing)
