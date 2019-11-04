@@ -21,30 +21,30 @@ datapath = joinpath(@__DIR__)
     df = DataFrame(y=randn(20), x=randn(20))
     lm1 = lm(@formula(y~x), df)
     k = BartlettKernel{NeweyWest}()
-    V = vcov(k, lm1, prewhite=true)
+    V = vcov(k, lm1; prewhite=true)
     bw = optimal_bandwidth(BartlettKernel{NeweyWest}(), lm1, prewhite=true)
-    V2 = vcov(BartlettKernel(bw), lm1, prewhite=true)
+    V2 = vcov(BartlettKernel(bw), lm1; prewhite=true)
     @test bw==first(k.bw)
     @test V≈V2
 
     k = BartlettKernel{NeweyWest}()
-    V = vcov(k, lm1, prewhite=false)
+    V = vcov(k, lm1; prewhite=false)
     bw = optimal_bandwidth(BartlettKernel{NeweyWest}(), lm1, prewhite=false)
-    V2 = vcov(BartlettKernel(bw), lm1, prewhite=false)
+    V2 = vcov(BartlettKernel(bw), lm1; prewhite=false)
     @test bw==first(k.bw)
     @test V≈V2
 
     k = BartlettKernel{Andrews}()
-    V = vcov(k, lm1, prewhite=false)
+    V = vcov(k, lm1; prewhite=false)
     bw = optimal_bandwidth(BartlettKernel{Andrews}(), lm1, prewhite=false)
-    V2 = vcov(BartlettKernel(bw), lm1, prewhite=false)
+    V2 = vcov(BartlettKernel(bw), lm1; prewhite=false)
     @test bw==first(k.bw)
     @test V≈V2
 
     k = BartlettKernel{Andrews}()
-    V = vcov(k, lm1, prewhite=true)
+    V = vcov(k, lm1; prewhite=true)
     bw = optimal_bandwidth(BartlettKernel{Andrews}(), lm1, prewhite=true)
-    V2 = vcov(BartlettKernel(bw), lm1, prewhite=true)
+    V2 = vcov(BartlettKernel(bw), lm1; prewhite=true)
     @test bw==first(k.bw)
     @test V≈V2
 end
@@ -52,44 +52,44 @@ end
 @testset "HAC - Asymptotic Covariance (Fixed).............." begin
     Random.seed!(1)
     X = randn(20,2)
-    V = covariance(TruncatedKernel(2), X)./20
+    V = lrvar(TruncatedKernel(2), X)./20
     Vr = [0.023797696862680198 -0.006551463062455593; -0.006551463062455593 0.05722230754875061]
     @test V ≈ Vr
-    V = covariance(TruncatedKernel(2), X, prewhite=true)./20
+    V = lrvar(TruncatedKernel(2), X, prewhite=true)./20
     Vr = [0.02306195412692154 -0.002321811843500563; -0.0023218118435005637 0.0752916863840604]
     @test V ≈ Vr
-    V = covariance(BartlettKernel(2), X, prewhite=false)./20
+    V = lrvar(BartlettKernel(2), X, prewhite=false)./20
     Vr = [0.035714374800934555 0.000210291773413605; 0.000210291773413605 0.05629043339567539]
     @test V ≈ Vr
-    V = covariance(BartlettKernel(2), X, prewhite=true)./20
+    V = lrvar(BartlettKernel(2), X, prewhite=true)./20
     Vr = [0.026762130596397222 0.0023844392352094616; 0.0023844392352094625 0.07539513026131048]
     @test V ≈ Vr
-    V = covariance(ParzenKernel(2), X, prewhite=false)./20
+    V = lrvar(ParzenKernel(2), X, prewhite=false)./20
     Vr = [0.04082918144700371 0.00029567273165852334; 0.00029567273165852334 0.05178620682214104]
     @test V ≈ Vr
-    V = covariance(ParzenKernel(2), X, prewhite=true)./20
+    V = lrvar(ParzenKernel(2), X, prewhite=true)./20
     Vr = [0.027407120851688418 0.0018031540982724296; 0.0018031540982724307 0.0702092071421895]
     @test V ≈ Vr
 end
 @testset "HAC - Asymptotic Covariance (Andrews)............" begin
     Random.seed!(1)
     X = randn(20,2)
-    V = covariance(TruncatedKernel{Andrews}(), X)./20
+    V = lrvar(TruncatedKernel{Andrews}(), X)./20
     Vr = [0.025484761508796222 3.9529856923768415e-5; 3.9529856923768415e-5 0.0652988865427441]
     @test V ≈ Vr
-    V = covariance(TruncatedKernel{Andrews}(), X, prewhite=true)./20
+    V = lrvar(TruncatedKernel{Andrews}(), X, prewhite=true)./20
     Vr = [0.028052111106979607 0.001221868961335397; 0.001221868961335396 0.06502328402306855]
     @test V ≈ Vr
-    V = covariance(BartlettKernel{Andrews}(), X, prewhite=false)./20
+    V = lrvar(BartlettKernel{Andrews}(), X, prewhite=false)./20
     Vr = [0.036560369091632905 0.00022441387190291295; 0.00022441387190291295 0.0555454296782523]
     @test V ≈ Vr
-    V = covariance(BartlettKernel{Andrews}(), X, prewhite=true)./20
+    V = lrvar(BartlettKernel{Andrews}(), X, prewhite=true)./20
     Vr = [0.027270747095805972 0.001926058338627125; 0.0019260583386271257 0.07130569473664604]
     @test V ≈ Vr
-    V = covariance(ParzenKernel{Andrews}(), X, prewhite=false)./20
+    V = lrvar(ParzenKernel{Andrews}(), X, prewhite=false)./20
     Vr = [0.03100269416916425 -0.0017562565506448816; -0.0017562565506448816 0.05796097557032457]
     @test V ≈ Vr
-    V = covariance(ParzenKernel{Andrews}(), X, prewhite=true)./20
+    V = lrvar(ParzenKernel{Andrews}(), X, prewhite=true)./20
     Vr = [0.025984224823188636 0.0017705442482664063; 0.001770544248266405 0.07693448665125002]
     @test V ≈ Vr
 end
@@ -99,29 +99,29 @@ end
     Random.seed!(1)
     X = randn(20,2)
     v = X .- mean(X, dims = 1)
-    V = covariance(HC0(), X)
+    V = lrvar(HC0(), X)
     @test V ≈ v'*v/20
-    V = covariance(HC1(), X)
+    V = lrvar(HC1(), X)
     @test V ≈ v'*v/20
-    V = covariance(HC2(), X)
+    V = lrvar(HC2(), X)
     @test V ≈ v'*v/20
-    V = covariance(HC3(), X)
+    V = lrvar(HC3(), X)
     @test V ≈ v'*v/20
-    V = covariance(HC0(), X, demean=false)
+    V = lrvar(HC0(), X, demean=false)
     @test V ≈ X'*X/20
 end
 @testset "CRHC  - Asymptotic Covariance...................." begin
     Random.seed!(1)
     X = randn(100,2)
     f = repeat(1:20, inner=5)
-    V = covariance(CRHC0(f), X)/100
+    V = lrvar(CRHC0(f), X)/100
     Vr = [0.010003084285822686 0.002579249460680671; 0.002579249460680671 0.014440606823274103]
     @test V ≈ Vr*(19/20)
-    V = covariance(CRHC1(f), X)/100
+    V = lrvar(CRHC1(f), X)/100
     @test V ≈ Vr*(19/20)
-    V = covariance(CRHC2(f), X)/100
+    V = lrvar(CRHC2(f), X)/100
     @test V ≈ Vr*(19/20)
-    V = covariance(CRHC3(f), X)/100
+    V = lrvar(CRHC3(f), X)/100
     @test V ≈ Vr*(19/20)
 end
 
@@ -139,10 +139,10 @@ end
             for k in andrews_kernels
                 eval(quote
                      ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
-                     tmp = vcov(($k){Andrews}(), ols, returntype=CovarianceMatrix, prewhite=$pre, dof_adjustment = false)
+                     tmp = vcovmatrix(($k){Andrews}(), ols; prewhite=$pre, dof_adjustment = false)
                      da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      if Symbol($k) in neweywest_kernels
-                     tmp = vcov(($k){Andrews}(), ols, returntype=CovarianceMatrix, prewhite=$pre, dof_adjustment = false)
+                     tmp = vcovmatrix(($k){Andrews}(), ols; prewhite=$pre, dof_adjustment = false)
                      dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      end
                      end)
@@ -164,10 +164,10 @@ end
             for k in andrews_kernels
                 eval(quote
                      ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
-                     tmp = CM.vcov(($k)(1.5), ols, returntype=CovarianceMatrix, prewhite=$pre, dof_adjustment=false)
+                     tmp = vcovmatrix(($k)(1.5), ols; prewhite=$pre, dof_adjustment=false)
                      da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      if Symbol($k) in neweywest_kernels
-                         tmp = CM.vcov(($k)(1.5), ols, returntype=CovarianceMatrix, prewhite=$pre, dof_adjustment=false)
+                         tmp = vcovmatrix(($k)(1.5), ols; prewhite=$pre, dof_adjustment=false)
                          dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
                      end
                      end)
@@ -527,13 +527,13 @@ end
 @testset "Various.........................................." begin
     Random.seed!(1)
     Z = randn(10, 5)
-    @test covariance(HC1(), Z, demean = true) ≈ cov(StatsBase.SimpleCovariance(), Z)
-    @test covariance(HC1(), Z, demean = true) ≈ covariance(HC1(), Z .- mean(Z, dims=1), demean = false)
-    @test covariance(HC1(), Z, demean = false) ≈ Z'Z/size(Z,1)
-    @test covariance(HC1(), Z, returntype=Matrix, factortype=Cholesky, demean = true) ≈
+    @test lrvar(HC1(), Z, demean = true) ≈ cov(StatsBase.SimpleCovariance(), Z)
+    @test lrvar(HC1(), Z, demean = true) ≈ lrvar(HC1(), Z .- mean(Z, dims=1), demean = false)
+    @test lrvar(HC1(), Z, demean = false) ≈ Z'Z/size(Z,1)
+    @test lrvarmatrix(HC1(), Z; demean = true) ≈
         cov(StatsBase.SimpleCovariance(), Z)
-    @test covariance(HC1(), Z, returntype=Matrix, factortype=Cholesky, demean = true) ≈
-        covariance(HC1(), Z .- mean(Z, dims=1), returntype=Matrix, factortype=Cholesky, demean = false)
+    @test lrvarmatrix(HC1(), Z; demean = true) ≈
+        lrvar(HC1(), Z .- mean(Z, dims=1), demean = false)
     ## Need testing for CRHC
 end
 
@@ -590,13 +590,13 @@ end
     y = rand(30)
     df = DataFrame(y = y, x1 = X[:,2], x2 = X[:,3], x3 = X[:,4], x4 = X[:,5])
     k = TruncatedKernel(1)
-    CM1 = vcov(k, lm(X,y), returntype=CovarianceMatrix)
-    CM2 = vcov(k, lm(X,y), returntype=CovarianceMatrix, factortype=SVD)
-    CM3 = vcov(k, lm(X,y), returntype=CovarianceMatrix, factortype=Cholesky)
+    CM1 = vcovmatrix(k, lm(X,y))
+    CM2 = vcovmatrix(k, lm(X,y), SVD)
+    CM3 = vcovmatrix(k, lm(X,y), Cholesky)
 
-    CMc1 = vcov(k, lm(X,y), returntype=Matrix)
-    CMc2 = vcov(k, lm(X,y), returntype=Matrix, factortype=SVD)
-    CMc3 = vcov(k, lm(X,y), returntype=Matrix, factortype=Cholesky)
+    CMc1 = vcov(k, lm(X,y))
+    CMc2 = vcov(k, lm(X,y))
+    CMc3 = vcov(k, lm(X,y))
 
     @test CM1 ≈ CMc1
     @test CM2 ≈ CMc2
@@ -645,26 +645,26 @@ end
     k = CM.VARHAC()
     Random.seed!(1)
     g = randn(100,2);
-    G1 = covariance(k, g)
-    G2 = covariance(k, g)
+    G1 = lrvar(k, g)
+    G2 = lrvar(k, g)
     k = CM.VARHAC(maxlag=2, lagstrategy=2)
-    G2 = covariance(k, g)
+    G2 = lrvar(k, g)
     k = CM.VARHAC(maxlag=3, lagstrategy=1)
-    G2 = covariance(k, g)
+    G2 = lrvar(k, g)
 
     k = CM.VARHAC(maxlag=3, lagstrategy=1, selectionstrategy=:bic)
-    G2 = covariance(k, g)
+    G2 = lrvar(k, g)
     k = CM.VARHAC(maxlag=3, lagstrategy=2, selectionstrategy=:bic)
-    G2 = covariance(k, g)
+    G2 = lrvar(k, g)
     k = CM.VARHAC(maxlag=3, lagstrategy=3, selectionstrategy=:bic)
-    G2 = covariance(k, g)
+    G2 = lrvar(k, g)
 
     k = CM.VARHAC(maxlag=3, lagstrategy=1, selectionstrategy=:eq)
-    G2 = covariance(k, g)
+    G2 = lrvar(k, g)
 
     k = CM.VARHAC(maxlag=3, lagstrategy=2, selectionstrategy=:eq)
-    G2 = covariance(k, g)
+    G2 = lrvar(k, g)
     k = CM.VARHAC(maxlag=3, lagstrategy=3, selectionstrategy=:eq)
-    G2 = covariance(k, g)
+    G2 = lrvar(k, g)
 
 end
