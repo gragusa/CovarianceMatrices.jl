@@ -6,3 +6,6 @@ benchmark/.tune.*
 .*
 *.mem
 Manifest.toml
+File.sublime-build
+Project.sublime-workspace
+Source

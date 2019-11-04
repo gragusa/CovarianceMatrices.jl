@@ -1,216 +1,344 @@
-#=========
-Requires
-=========#
-
+# --------------------------------------------------------------------
+# Requires
+# --------------------------------------------------------------------
 import .GLM
+using StatsModels
+using StatsBase
+using Tables: columntable, istable
+
 import StatsModels: TableRegressionModel, RegressionModel
 import StatsBase: modelmatrix, vcov, stderror
 
 const INNERMOD = Union{GLM.GeneralizedLinearModel, GLM.LinearModel}
-const LINMOD = GLM.LinearModel
 
-cache(k, m::TableRegressionModel; kwargs...) = cache(k, m.model)
-cache(k, m::T; kwargs...) where T<:INNERMOD = cache(k, modelmatrix(m))
+# --------------------------------------------------------------------
+# GLM Methods
+# --------------------------------------------------------------------
 
-vcov(k::RobustVariance, m::RegressionModel; kwargs...) = vcov(k, m, cache(k, m), Matrix, Nothing; kwargs...)
+# TODO: Find a good name for it
+# invinvpseudohessian
+# ....
+invpseudohessian(m::TableRegressionModel{T}) where T<:INNERMOD = GLM.invchol(m.model.pp).*dispersion(m.model.rr)
+invpseudohessian(m::T) where T<:INNERMOD = GLM.invchol(m.pp).*dispersion(m.rr)
 
-function vcov(k::RobustVariance, m::RegressionModel, ::Type{T}; kwargs...) where T<:Matrix
-    vcov(k, m, cache(k, m), Matrix, Nothing; kwargs...)
-end
+chol(m::TableRegressionModel{T}) where T<:INNERMOD = chol(m.model)
+chol(m::T) where T<:INNERMOD = m.pp.chol
 
-function vcov(k::RobustVariance, m::RegressionModel, ::Type{T}; kwargs...) where T<:CovarianceMatrix
-    vcov(k, m, cache(k, m), T, SVD; kwargs...)
-end
-
-function vcov(k::RobustVariance, m::RegressionModel, ::Type{T}; kwargs...) where T<:Factorization
-    vcov(k, m, cache(k, m), CovarianceMatrix, T; kwargs...)
-end
-
-function vcov(k::RobustVariance, m::RegressionModel, ::Type{T}, ::Type{F}; kwargs...) where T<:CovarianceMatrix where F<:Factorization
-    vcov(k, m, cache(k, m), CovarianceMatrix, F; kwargs...)
-end
-
-function vcov(k::RobustVariance, m::RegressionModel, cache::AbstractCache, ::Type{T}; kwargs...) where T<:Factorization
-    vcov(k, m, cache, CovarianceMatrix, T; kwargs...)
-end
-
-function vcov(k::RobustVariance, m::RegressionModel, cache::AbstractCache, ::Type{T}; kwargs...) where T<:CovarianceMatrix
-    vcov(k, m, cache, T, SVD; kwargs...)
-end
-
-function vcov(k::RobustVariance, m::RegressionModel, cache::AbstractCache, ::Type{T}; kwargs...) where T<:Matrix
-    vcov(k, m, cache, Matrix, Nothing; kwargs...)
-end
-
-#============
-General GLM methods
-=============#
-modelmatrix(m::TableRegressionModel{T}) where T<:INNERMOD = m.mm.m
-modelmatrix(m::T) where T<:INNERMOD = m.pp.X
-
-
-residuals(m::TableRegressionModel{T}) where T<:INNERMOD = m.model.rr.y .- m.model.rr.mu
-residuals(m::GLM.GeneralizedLinearModel) = m.rr.y .- m.rr.mu
-residuals(m::TableRegressionModel{T}) where T<:LINMOD = m.model.rr.y .- m.model.rr.mu
-residuals(m::GLM.LinearModel) = m.rr.y .- m.rr.mu
-
-modelweights(m::TableRegressionModel{T}) where T<:INNERMOD = m.model.rr.wrkwt
-modelweights(m::TableRegressionModel{T}) where T<:LINMOD = m.model.rr.wts
-modelweights(m::GLM.GeneralizedLinearModel) = m.rr.wrkwt
-modelweights(m::GLM.LinearModel) = m.rr.wts
-
-smplweights(m::TableRegressionModel{T}) where T<:INNERMOD = m.model.rr.wts
-# smplweights(m::GLM.GeneralizedLinearModel) = m.rr.wts
-# smplweights(m::GLM.LinearModel) = m.rr.wts
-smplweights(m::RegressionModel) = m.rr.wts
-
-choleskyfactor(m::TableRegressionModel{T}) where T<:INNERMOD = m.model.pp.chol.UL
-choleskyfactor(m::T) where T<:INNERMOD = m.pp.chol.UL
-
-unweighted_nobs(m::TableRegressionModel{T}) where T<:INNERMOD = size(modelmatrix(m), 1)
-unweighted_nobs(m::T) where T<:INNERMOD = size(modelmatrix(m), 1)
-
-unweighted_dof_residual(m::TableRegressionModel{T}) where T<:INNERMOD = unweighted_nobs(m) - length(coef(m))
-unweighted_dof_residual(m::T) where T<:INNERMOD = unweighted_nobs(m) - length(coef(m))
-
-installxuw!(cache, m::T) where T<:TableRegressionModel = installxuw!(cache, m.model)
-function installxuw!(cache, m::T) where T<:INNERMOD
-    copyto!(cache.X, modelmatrix(m))
-    copyto!(cache.u, residuals(m))
+modmatrix(m::TableRegressionModel{T}) where T<:INNERMOD = modmatrix(m.model)
+modmatrix(m::T) where T<:GLM.GeneralizedLinearModel = sqrt.(m.rr.wrkwt).*modelmatrix(m)
+function modmatrix(m::T) where T<:GLM.LinearModel
+    X = modelmatrix(m)
     if !isempty(m.rr.wts)
-        broadcast!(*, cache.u, cache.u, smplweights(m))
+        sqrt.(m.rr.wts).*X
+    else
+        copy(X)
     end
-    nothing
 end
 
-function esteq!(cache, m::RegressionModel, k::T) where T<:Union{HC, CRHC}
-    broadcast!(*, cache.q, cache.X, cache.u)
-    return cache.q
+numobs(m::TableRegressionModel) = length(m.model.rr.y)
+numobs(m::INNERMOD) = length(m.rr.y)
+dof_resid(m::TableRegressionModel) = numobs(m) - length(coef(m))
+dof_resid(m::INNERMOD) = numobs(m) - length(coef(m))
+
+
+StatsModels.hasintercept(m::TableRegressionModel) = "(Intercept)" ∈ coefnames(m)
+interceptindex(m::INNERMOD) = findfirst(map(x->allequal(x), eachcol(modmatrix(m))))
+function StatsModels.hasintercept(m::INNERMOD)
+    hasint = findfirst(map(x->allequal(x), eachcol(modmatrix(m))))
+    hasint === nothing ? false : true
 end
 
-function esteq!(cache, m::RegressionModel, k::HAC)
-    copyto!(cache.q, modelmatrix(m))
-    u = copy(residuals(m))
-    if !isempty(smplweights(m))
-        broadcast!(*, u, u, smplweights(m))
+dispersion(m::TableRegressionModel{T}) where T<:GLM.GeneralizedLinearModel = dispersion(m.model.rr)
+dispersion(m::TableRegressionModel{T}) where T<:GLM.LinearModel = 1
+dispersion(m::GLM.GeneralizedLinearModel) = dispersion(m.rr)
+dispersion(m::GLM.LinearModel) = 1
+dispersion(rr::GLM.GlmResp{T1, T2, T3}) where {T1, T2, T3} = 1
+dispersion(rr::GLM.LmResp) = 1
+function dispersion(rr::GLM.GlmResp{T1, T2, T3}) where {T1, T2<:Union{GLM.Gamma, GLM.Bernoulli, GLM.InverseGaussian}, T3}
+    sum(abs2, rr.wrkwt.*rr.wrkresid)/sum(rr.wrkwt)
+end
+
+resid(m::TableRegressionModel{T}) where T<:INNERMOD = resid(m.model)
+function resid(m::T) where T<:GLM.LinearModel
+    if !isempty(m.rr.wts)
+        sqrt.(m.rr.wts).*residuals(m)
+    else
+        copy(residuals(m))
     end
-    broadcast!(*, cache.q, cache.q, u)
+end
+function resid(m::T) where T<:GLM.GeneralizedLinearModel
+    sqrt.(m.rr.wrkwt).*m.rr.wrkresid
 end
 
-pseudohessian(m::TableRegressionModel{T}) where T<:INNERMOD = GLM.invchol(m.model.pp)
-pseudohessian(m::T) where T<:INNERMOD = GLM.invchol(m.pp)
+momentmatrix(m::TableRegressionModel{T}) where T<:INNERMOD = momentmatrix(m.model)
+momentmatrix(m::INNERMOD) = (modmatrix(m).*resid(m))./dispersion(m)
 
-#==============
-HAC GLM Methods
-===============#
-function vcov(k::T, m, cache, returntype, factortype; demean::Bool=false, dof_adjustment::Bool=true) where T<:HAC
-    mf = esteq!(cache, m, k)
-    B = pseudohessian(m)
-    set_bw_weights!(k, m)
-    Ω = covariance(k, mf, cache, Matrix, demean = demean, scale = unweighted_nobs(m))
-    cache.V .= B*Ω*B'
-    rmul!(cache.V, size(mf, 1)^2)
-    scale = dof_adjustment ? unweighted_dof_residual(m) : unweighted_nobs(m)
-    finalize(cache, returntype, factortype, k, scale)
-end
+# TODO: move to the interface file
+# hasresiduals(m::INNERMOD) = true
+# hasmodelmatrix(m::TableRegressionModel{T}) where T<:INNERMOD = true
 
+# --------------------------------------------------------------------
+# HAC GLM Methods
+# --------------------------------------------------------------------
 function set_bw_weights!(k, m::TableRegressionModel{T}) where T<:INNERMOD
     β = coef(m)
     resize!(k.weights, length(β))
     "(Intercept)" ∈ coefnames(m) ? (k.weights .= 1.0; k.weights[1] = 0.0) : k.weights .= 1.0
 end
-
 function set_bw_weights!(k, m::T) where T<:INNERMOD
-    β = coef(m)
-    resize!(k.weights, length(β))
-    k.weights .= 1.0
+    cf = coef(m)
+    resize!(k.weights, length(cf))
+    fill!(k.weights, 1)
+    i = interceptindex(m)
+    i !== nothing && (k.weights[i] = 0)
 end
 
-#==============
-HC GLM Methods
-===============#
-function vcov(k::T, m, cache, returntype, factortype;
-              demean::Bool=false, dof_adjustment=false) where T<:HC
-    CovarianceMatrices.installxuw!(cache, m)
-    mf = CovarianceMatrices.esteq!(cache, m, k)
-    demean!(cache, Val{demean})
-    B = CovarianceMatrices.pseudohessian(m)
-    CovarianceMatrices.adjfactor!(cache, m, k)
-    V = mul!(cache.V, mf', broadcast!(*, cache.X, mf, cache.η))
-    V .= B*V*B'
-    finalize(cache, returntype, factortype, k, 1)
+vcov(k::HAC, m; prewhite=false, dof_adjustment::Bool=true, scale::Real=1) =
+    _vcov(k, m, prewhite, dof_adjustment, scale)
+
+function _vcov(k::HAC, m, prewhite::Bool, dof_adjustment::Bool, scale::Real)
+    B  = invpseudohessian(m)
+    mm = momentmatrix(m)
+    set_bw_weights!(k, m)
+    A = lrvar(k, mm; prewhite=prewhite, demean=false)
+    scale *= (dof_adjustment ? numobs(m)^2/dof_resid(m) : numobs(m))
+    V = Symmetric((B*A*B).*scale)
+    return V
 end
 
-## -----
-## DataFramesRegressionModel/AbstractGLM methods
-## -----
-hatmatrix(cache, m::TableRegressionModel{T}) where T<:INNERMOD = hatmatrix(cache, m.model)
-function hatmatrix(cache, m::T) where T<:INNERMOD
-      X = cache.X  ## THIS ASSUME THAT X IS WEIGHTED BY SQRT(W)
-      if !isempty(modelweights(m))
-          X .= X.*sqrt.(modelweights(m))
-      end
-      cf = choleskyfactor(m)::UpperTriangular
-      rdiv!(X, cf)
-      sum!(cache.v, X.^2)
+vcovmatrix(
+    k::HAC,
+    m::RegressionModel,
+    factorization=Cholesky;
+    prewhite=false,
+    dof_adjustment::Bool=true,
+    scale::Real=1,
+) = _vcovmatrix(k, m, prewhite, dof_adjustment, scale, factorization)
+
+function _vcovmatrix(
+    k::HAC,
+    m::RegressionModel,
+    prewhite::Bool,
+    dof_adjustment::Bool,
+    scale::Real,
+    ::Type{Cholesky},
+)
+    V = _vcov(k, m, prewhite, dof_adjustment, scale)
+    return CovarianceMatrix(cholesky(V, check=true), k, V)
+end
+
+function _vcovmatrix(
+    k::HAC,
+    m::RegressionModel,
+    prewhite::Bool,
+    dof_adjustment::Bool,
+    scale::Real,
+    ::Type{SVD},
+)
+    V = _vcov(k, m, prewhite, dof_adjustment, scale)
+    return CovarianceMatrix(svd(V.data), k, V)
+end
+# --------------------------------------------------------------------
+# HC GLM Methods 
+# --------------------------------------------------------------------
+hatmatrix(m::TableRegressionModel{T}, x) where T<:INNERMOD = hatmatrix(m.model, x)
+function hatmatrix(m::T, x) where T<:INNERMOD
+    cf = m.pp.chol.UL::UpperTriangular
+    rdiv!(x, cf)
+    return sum(x.^2, dims = 2)
  end
 
-  adjfactor!(cache, m::RegressionModel, k::HC0) = cache.η .= one(eltype(cache.u))
-  adjfactor!(cache, m::RegressionModel, k::HC1) = cache.η .= unweighted_nobs(m)./unweighted_dof_residual(m)
-  adjfactor!(cache, m::RegressionModel, k::HC2) = cache.η .= one(eltype(cache.u))./(one(eltype(cache.u)).-hatmatrix(cache, m))
-  adjfactor!(cache, m::RegressionModel, k::HC3) = cache.η .= one(eltype(cache.u))./(one(eltype(cache.u)).-hatmatrix(cache, m)).^2
+adjfactor(k::HC0, m::RegressionModel, x) = one(first(x))
+adjfactor(k::HC1, m::RegressionModel, x) = numobs(m)./dof_resid(m)
+adjfactor(k::HC2, m::RegressionModel, x) = one(first(x)) ./(one(first(x)).-hatmatrix(m, x))
+adjfactor(k::HC3, m::RegressionModel, x) = one(first(x))./(one(first(x)).-hatmatrix(m, x)).^2
 
-  function adjfactor!(cache, m::RegressionModel, k::HC4)
-      n, p = size(cache.X)
-      tone = one(eltype(cache.u))
-      h = hatmatrix(cache, m)
-      @inbounds for j in eachindex(h)
-          delta = min(4, n*h[j]/p)
-          cache.η[j] = tone/(tone-h[j])^delta
-      end
-      cache.η
-  end
-
-  function adjfactor!(cache, m::RegressionModel, k::HC4m)
-      n, p = size(cache.X)
-      tone = one(eltype(cache.u))
-      h = hatmatrix(cache, m)
-      @inbounds for j in eachindex(h)
-          delta = min(tone, n*h[j]/p) + min(1.5, n*h[j]/p)
-          cache.η[j] = tone/(tone-h[j])^delta
-      end
-      cache.η
-  end
-
-  function adjfactor!(cache, m::RegressionModel, k::HC5)
-      n, p = size(cache.X)
-      tone = one(eltype(cache.u))
-      h     = hatmatrix(cache, m)
-      mx    = max(n*0.7*maximum(h)/p, 4)
-      @inbounds for j in eachindex(h)
-          alpha =  min(n*h[j]/p, mx)
-          cache.η[j] = sqrt(tone/(tone-h[j])^alpha)
-      end
-      cache.η
-  end
-
-#==========
-Cluster GLM
-=========#
-
-function vcov(k::T, m, cache, returntype, factortype;
-              demean::Bool=false, sorted::Bool=false) where T<:CRHC
-    B = CovarianceMatrices.pseudohessian(m)
-    CovarianceMatrices.installsortedxuw!(cache, m, k, Val{sorted})
-    bstarts = (searchsorted(cache.clus, j[2]) for j in enumerate(unique(cache.clus)))
-    CovarianceMatrices.adjresid!(k, cache, B, bstarts)
-    CovarianceMatrices.esteq!(cache, m, k)
-    demean!(cache, Val{demean})
-    V = CovarianceMatrices.clusterize!(cache, bstarts)
-    df = dof_adjustment(cache, k, bstarts)
-    cache.V .= df.*(B*V*B)
-    finalize(cache, returntype, factortype, k, 1)
+function adjfactor(k::HC4, m::RegressionModel, x)
+    n, p = size(x)
+    tone = one(eltype(x))
+    h = hatmatrix(m, x)
+    @inbounds for j in eachindex(h)
+        delta = min(4, n*h[j]/p)
+        h[j] = tone/(tone-h[j])^delta
+    end
+    return h
 end
 
-stderror(k::RobustVariance, m, args...; kwargs...) = sqrt.(diag(vcov(k, m, args...; kwargs...)))
-stderror(cm::CovarianceMatrix) = sqrt.(diag(cm))
+function adjfactor(k::HC4m, m::RegressionModel, x)
+    n, p = size(x)
+    tone = one(eltype(x))
+    h = hatmatrix(m, x)
+    @inbounds for j in eachindex(h)
+        delta = min(tone, n*h[j]/p) + min(1.5, n*h[j]/p)
+        h[j] = tone/(tone-h[j])^delta
+    end
+    return h
+end
+
+function adjfactor(k::HC5, m::RegressionModel, x)
+    n, p = size(x)
+    tone = one(eltype(x))
+    h = hatmatrix(m, x)
+    mx = max(n*0.7*maximum(h)/p, 4)
+    @inbounds for j in eachindex(h)
+        alpha = min(n*h[j]/p, mx)
+        h[j] = tone/sqrt((tone-h[j])^alpha)
+    end
+    return h
+end
+
+adjust!(m, adj::AbstractFloat) = m
+adjust!(m, adj::AbstractMatrix) = m.*sqrt.(adj)
+
+vcov(k::HC, m::RegressionModel; scale::Real=1) = _vcov(k, m, scale)
+
+function _vcov(k::HC, m::RegressionModel, scale)
+    B  = invpseudohessian(m)
+    mm = momentmatrix(m)
+    adj = adjfactor(k, m, modmatrix(m))
+    mm = adjust!(mm, adj)
+    scale *= length(adj) > 1 ? one(first(adj)) : adj
+    A = mm'*mm
+    return Symmetric((B*A*B).*scale)
+end
+
+vcovmatrix(k::HC, m::RegressionModel, factorization=Cholesky; scale::Real=1) =
+    _vcovmatrix(k, m, scale, Val{:factorization})
+
+function _vcovmatrix(k::HC, m::RegressionModel, scale::Real, ::Type{Cholesky})
+    V = _vcov(k, m, scale)
+    CovarianceMatrix(cholesky(V, check=true), k, V)
+end
+
+function _vcovmatrix(k::HC, m::RegressionModel, scale::Real, ::Type{SVD})
+    V = _vcov(k, m, scale)
+    CovarianceMatrix(svd(V), k, V)
+end
+
+# --------------------------------------------------------------------
+# CRHC GLM Methods
+# --------------------------------------------------------------------
+
+function install_cache(k::CRHC, m::RegressionModel)
+    X = modmatrix(m)
+    res = resid(m)
+    f = categorize(k.cl)
+    (X, res), sf = bysort((X, res), f)
+    ci = clusters_intervals(sf)
+    p = size(X, 2)
+    cf = chol(m)
+    Shat = Matrix{eltype(res)}(undef,p,p)
+    return CRHCCache(similar(X), X, res, similar(X, (0,0)), cf, Shat, ci, sf)
+end
+
+function vcov(k::CRHC, m::RegressionModel; scale::Real=1)
+    knew = recast(k, m)
+    length(knew.cl) == numobs(m) || throw(ArgumentError(k, "the length of the cluster variable must be $(numobs(m))"))
+    cache = install_cache(knew, m)
+    return _vcov(knew, m, cache, scale)
+end
+
+function vcovmatrix(k::CRHC, m::RegressionModel, factorization = Cholesky; scale::Real=1)
+    knew = recast(k, m)
+    cache = install_cache(knew, m)
+    df = dofadjustment(knew, cache)
+    return _vcovmatrix(knew, m, cache, scale, factorization)
+end
+
+function _vcov(k::CRHC, m::RegressionModel, cache::CRHCCache, scale::Real)
+    B = invpseudohessian(m)
+    res = adjust_resid!(k, cache)
+    cache.momentmatrix .= cache.modelmatrix.*res
+    df = dofadjustment(k, cache)
+    scale *= df
+    Shat = clusterize!(cache)
+    return Symmetric((B*Shat*B).*scale)
+end
+
+function _vcovmatrix(
+    k::HC,
+    m::RegressionModel,
+    cache::CRHCCache,
+    scale::Real,
+    ::Type{Cholesky}
+)
+    V = _vcov(k, m, cache, scale)
+    CovarianceMatrix(cholesky(V, check=true), k, V)
+end
+
+function _vcovmatrix(
+    k::HC,
+    m::RegressionModel,
+    cache::CRHCCache,
+    scale::Real,
+    ::Type{SVD}
+)
+    V = _vcov(k, m, cache, cache)
+    CovarianceMatrix(svd(V.data), k, V)
+end
+
+# --------------------------------------------------------------------
+# CRHC GLM - Trick to use vcov(CRHC1(:cluster, df), ::GLM)
+# --------------------------------------------------------------------
+recast(k::CRHC{T,D}, m::INNERMOD) where {T<:AbstractVector, D<:Nothing} = k
+recast(k::CRHC{T,D}, m::TableRegressionModel) where {T<:AbstractVector, D<:Nothing} = k
+
+# reterm(k::CRHC{T,D}, m::TableRegressionModel) where {T<:Symbol, D} = (k.cl,)
+# reterm(k::CRHC{T,D}, m::TableRegressionModel) where {T<:Tuple, D} = k.cl
+reterm(k::CRHC{T,D}, m::TableRegressionModel) where {T, D} = tuple(k.cl...)
+
+# function groupby(args...) end
+
+function recast(k::CRHC{T,D}, m::TableRegressionModel) where {T<:Symbol, D}
+    @assert istable(k.df) "`df` must be a DataFrames"
+    t = k.cl
+    if length(k.df[!, t]) == length(m.mf.data[1])
+        ## The dimension fit
+        id = compress(categorical(k.df[idx,tterms]))
+        return renew(k, id)
+    else
+        f = m.mf.f
+        frm = f.lhs ~ tuple(f.rhs.terms..., Term(t))
+        idx = StatsModels.missing_omit(NamedTuple{tuple(StatsModels.termvars(frm)...)}(columntable(k.df)))[2]
+        id = compress(categorical(k.df[idx,t]))
+        return renew(k, id)
+    end
+    # ct = columntable(clus)
+    # length_unique = map(x->length(unique(x)), ct)
+    # fg = 1:prod(length_unique)
+    # #cl = map(x->compress(categorical(x)), eachcol(x))
+    # clus[!, :clusid] .= size(clus, 2) > 1 ? zero(Int) : clus[!, tterms[1]]
+    # if length(tterms) > 1
+    #     for (i,j) in enumerate(groupby(clus, [tterms...]))
+    #         j[:, :clusid] .= fg[i]
+    #     end
+    # end
+    # id = compress(categorical(clus[!, :clusid]))    
+end
+
+renew(::CRHC0, id) = CRHC0(id, nothing)
+renew(::CRHC1, id) = CRHC1(id, nothing)
+renew(::CRHC2, id) = CRHC2(id, nothing)
+renew(::CRHC3, id) = CRHC3(id, nothing)
+
+# --------------------------------------------------------------------
+# CRHC GLM - Trick to use vcov(CRHC1(:cluster, df), ::GLM)
+# --------------------------------------------------------------------
+stderror(k::RobustVariance, m::RegressionModel; kwargs...) = sqrt.(diag(vcov(k, m; kwargs...)))
+stderror(v::CovarianceMatrix) = sqrt.(diag(v.V))
+## Optimal bandwidth
+function optimal_bandwidth(
+    k::HAC,
+    m::TableRegressionModel{F};
+    kwargs...
+) where F<:INNERMOD
+    optimal_bandwidth(k, m.model; kwargs...)
+end
+
+function optimal_bandwidth(k::HAC, m::F; prewhite=false) where F<:INNERMOD
+    set_bw_weights!(k, m)
+    mm = momentmatrix(m)
+    mmm, D = prewhiter(mm, Val{prewhite})
+    bw = _optimal_bandwidth(k, mmm, prewhite)
+    return bw
+end
