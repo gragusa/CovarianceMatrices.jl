@@ -121,7 +121,7 @@ function adjust_resid!(v::CRHC2, c::CRHCCache)
         Xv = view(X, index, :)
         uv = view(u, index, :)
         xAx = Xv*invxx*Xv'
-        ldiv!(cholesky!(Symmetric(I - xAx)).L, uv)
+        ldiv!(cholesky!(I - xAx; check=false).L, uv)
     end
     return u
 end
@@ -134,7 +134,7 @@ function adjust_resid!(k::CRHC3, c::CRHCCache)
         Xv = view(X, index, :)
         uv = view(u, index, :)
         xAx = Xv*invxx*Xv'
-        ldiv!(cholesky!(Symmetric(I - xAx)), uv)
+        ldiv!(cholesky!(I - xAx; check=false), uv)
     end
     return rmul!(u, 1/sqrt(dofadjustment(k, c)))
 end
@@ -162,7 +162,7 @@ Base.@propagate_inbounds function clusterize!(c::CRHCCache)
 end
 
 ## Generic __vcov - Used by GLM, but more generic
-function __vcov(k::CRHC, cache, df)
+Base.@propagate_inbounds function __vcov(k::CRHC, cache, df)
     B = inv(cache.crossx)
     res = adjust_resid!(k, cache)
     cache.momentmatrix .= cache.modelmatrix.*res
