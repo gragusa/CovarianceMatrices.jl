@@ -22,28 +22,29 @@ datapath = joinpath(@__DIR__)
     lm1 = lm(@formula(y~x), df)
     k = BartlettKernel{NeweyWest}()
     V = vcov(k, lm1; prewhite=true)
-    bw = optimal_bandwidth(BartlettKernel{NeweyWest}(), lm1, prewhite=true)
+
+    bw = optimalbandwidth(BartlettKernel{NeweyWest}(), lm1; prewhite=true)
     V2 = vcov(BartlettKernel(bw), lm1; prewhite=true)
     @test bw==first(k.bw)
     @test V≈V2
 
     k = BartlettKernel{NeweyWest}()
     V = vcov(k, lm1; prewhite=false)
-    bw = optimal_bandwidth(BartlettKernel{NeweyWest}(), lm1, prewhite=false)
+    bw = optimalbandwidth(BartlettKernel{NeweyWest}(), lm1; prewhite=false)
     V2 = vcov(BartlettKernel(bw), lm1; prewhite=false)
     @test bw==first(k.bw)
     @test V≈V2
 
     k = BartlettKernel{Andrews}()
     V = vcov(k, lm1; prewhite=false)
-    bw = optimal_bandwidth(BartlettKernel{Andrews}(), lm1, prewhite=false)
+    bw = optimalbandwidth(BartlettKernel{Andrews}(), lm1; prewhite=false)
     V2 = vcov(BartlettKernel(bw), lm1; prewhite=false)
     @test bw==first(k.bw)
     @test V≈V2
 
     k = BartlettKernel{Andrews}()
     V = vcov(k, lm1; prewhite=true)
-    bw = optimal_bandwidth(BartlettKernel{Andrews}(), lm1, prewhite=true)
+    bw = optimalbandwidth(BartlettKernel{Andrews}(), lm1; prewhite=true)
     V2 = vcov(BartlettKernel(bw), lm1; prewhite=true)
     @test bw==first(k.bw)
     @test V≈V2
@@ -387,12 +388,12 @@ end
 
 @testset "CRHC............................................." begin
     df = TableReader.readcsv("testdata/wols_test.csv")
-    df_sorted = sort(df, [:X1])
-
+    df_unsorted = sort(df, [:X1])
+    df_sorted = sort(df, [:cl])
     St1 = [.0374668, .0497666, .0472636, .0437952, .0513613, .0435369]
 
-    OLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df, Normal(), IdentityLink())
-    cl = convert(Array, df[!, :cl])
+    OLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df_unsorted, Normal(), IdentityLink())
+    cl = convert(Array, df_unsorted[!, :cl])
     k0 = CRHC0(cl)
     k1 = CRHC1(cl)
     k2 = CRHC2(cl)
@@ -428,12 +429,12 @@ end
     @test V0s ≈ V0
     @test V1s ≈ V1
     @test V2s ≈ V2 atol=1e-04
-    @test V3s ≈ V3
+    @test V3s ≈ V3 atol=1e-05
 
-    wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
-               Normal(), IdentityLink(), wts = convert(Array{Float64}, df[!, :w]))
+    wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df_unsorted,
+               Normal(), IdentityLink(), wts = convert(Array{Float64}, df_unsorted[!, :w]))
 
-    cl = convert(Array, df[!, :cl])
+    cl = convert(Array, df_unsorted[!, :cl])
     k0 = CRHC0(cl)
     k1 = CRHC1(cl)
     k2 = CRHC2(cl)
@@ -451,6 +452,26 @@ end
                 0.000619903 2.99597e-5 -7.26396e-5 -0.00067357 0.00225446 0.00106796;
                 0.00019496 0.000133303 -0.000998524 -0.000416268 0.00106796 0.00226444] atol = 1e-07
 
+    wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df_sorted,
+               Normal(), IdentityLink(), wts = convert(Array{Float64}, df_sorted[!, :w]))
+
+    cl = convert(Array, df_sorted[!, :cl])
+    k0 = CRHC0(cl)
+    k1 = CRHC1(cl)
+    k2 = CRHC2(cl)
+    k3 = CRHC3(cl)
+
+    V0s = vcov(k0, wOLS)
+    V1s = vcov(k1, wOLS)
+    V2s = vcov(k2, wOLS)
+    V3s = vcov(k3, wOLS)
+
+    @test V0s ≈ V0
+    @test V1s ≈ V1
+    @test V2s ≈ V2 atol=1e-04
+    @test V3s ≈ V3 atol=1e-05
+
+
     innovation = TableReader.readcsv("testdata/InstInnovation.csv")
 
     innovation[!, :capemp] = log.(innovation[!, :capital]./innovation[!, :employment])
@@ -465,6 +486,8 @@ end
           0.0415234048672968]
 
     @test sqrt.(diag(vcov(CRHC0(innovation[!, :company]), pois))[1:4]) ≈ Vt atol = 1e-5
+    V = vcov(CRHC0(:company, innovation), pois)
+    @test sqrt.(diag(V))[1:4] ≈ Vt atol = 1e-05
 end
 
 
