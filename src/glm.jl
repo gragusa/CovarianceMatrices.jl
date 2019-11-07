@@ -1,7 +1,7 @@
 # --------------------------------------------------------------------
 # Requires
 # --------------------------------------------------------------------
-#import .GLM
+import .GLM
 using StatsModels
 using StatsBase
 using Tables: columntable, istable
