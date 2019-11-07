@@ -1,16 +1,15 @@
 # --------------------------------------------------------------------
 # Requires
 # --------------------------------------------------------------------
-import .GLM
+#import .GLM
 using StatsModels
 using StatsBase
 using Tables: columntable, istable
 
 import StatsModels: TableRegressionModel, RegressionModel
-import StatsBase: modelmatrix, vcov, stderror
+import StatsBase: modelmatrix
 
 const INNERMOD = Union{GLM.GeneralizedLinearModel, GLM.LinearModel}
-
 # --------------------------------------------------------------------
 # GLM Methods
 # --------------------------------------------------------------------
@@ -80,26 +79,14 @@ momentmatrix(m::INNERMOD) = (modmatrix(m).*resid(m))./dispersion(m)
 # --------------------------------------------------------------------
 # HAC GLM Methods
 # --------------------------------------------------------------------
-function set_bw_weights!(k, m::TableRegressionModel{T}) where T<:INNERMOD
-    β = coef(m)
-    resize!(k.weights, length(β))
-    "(Intercept)" ∈ coefnames(m) ? (k.weights .= 1.0; k.weights[1] = 0.0) : k.weights .= 1.0
+function StatsBase.vcov(k::HAC, m; prewhite=false, dof_adjustment::Bool=true, scale::Real=1)
+    return _vcov(k, m, prewhite, dof_adjustment, scale)
 end
-function set_bw_weights!(k, m::T) where T<:INNERMOD
-    cf = coef(m)
-    resize!(k.weights, length(cf))
-    fill!(k.weights, 1)
-    i = interceptindex(m)
-    i !== nothing && (k.weights[i] = 0)
-end
-
-vcov(k::HAC, m; prewhite=false, dof_adjustment::Bool=true, scale::Real=1) =
-    _vcov(k, m, prewhite, dof_adjustment, scale)
 
 function _vcov(k::HAC, m, prewhite::Bool, dof_adjustment::Bool, scale::Real)
+    setupkernelweights!(k, m)
     B  = invpseudohessian(m)
     mm = momentmatrix(m)
-    set_bw_weights!(k, m)
     A = lrvar(k, mm; prewhite=prewhite, demean=false)
     scale *= (dof_adjustment ? numobs(m)^2/dof_resid(m) : numobs(m))
     V = Symmetric((B*A*B).*scale)
@@ -138,10 +125,12 @@ function _vcovmatrix(
     V = _vcov(k, m, prewhite, dof_adjustment, scale)
     return CovarianceMatrix(svd(V.data), k, V)
 end
+
 # --------------------------------------------------------------------
 # HC GLM Methods 
 # --------------------------------------------------------------------
 hatmatrix(m::TableRegressionModel{T}, x) where T<:INNERMOD = hatmatrix(m.model, x)
+
 function hatmatrix(m::T, x) where T<:INNERMOD
     cf = m.pp.chol.UL::UpperTriangular
     rdiv!(x, cf)
@@ -190,7 +179,7 @@ end
 adjust!(m, adj::AbstractFloat) = m
 adjust!(m, adj::AbstractMatrix) = m.*sqrt.(adj)
 
-vcov(k::HC, m::RegressionModel; scale::Real=1) = _vcov(k, m, scale)
+StatsBase.vcov(k::HC, m::RegressionModel; scale::Real=1) = _vcov(k, m, scale)
 
 function _vcov(k::HC, m::RegressionModel, scale)
     B  = invpseudohessian(m)
@@ -219,35 +208,35 @@ end
 # CRHC GLM Methods
 # --------------------------------------------------------------------
 
-function install_cache(k::CRHC, m::RegressionModel)
+function installcache(k::CRHC, m::RegressionModel)
     X = modmatrix(m)
     res = resid(m)
     f = categorize(k.cl)
     (X, res), sf = bysort((X, res), f)
-    ci = clusters_intervals(sf)
+    ci = clustersintervals(sf)
     p = size(X, 2)
     cf = chol(m)
     Shat = Matrix{eltype(res)}(undef,p,p)
     return CRHCCache(similar(X), X, res, similar(X, (0,0)), cf, Shat, ci, sf)
 end
 
-function vcov(k::CRHC, m::RegressionModel; scale::Real=1)
+function StatsBase.vcov(k::CRHC, m::RegressionModel; scale::Real=1)
     knew = recast(k, m)
     length(knew.cl) == numobs(m) || throw(ArgumentError(k, "the length of the cluster variable must be $(numobs(m))"))
-    cache = install_cache(knew, m)
+    cache = installcache(knew, m)
     return _vcov(knew, m, cache, scale)
 end
 
 function vcovmatrix(k::CRHC, m::RegressionModel, factorization = Cholesky; scale::Real=1)
     knew = recast(k, m)
-    cache = install_cache(knew, m)
+    cache = installcache(knew, m)
     df = dofadjustment(knew, cache)
     return _vcovmatrix(knew, m, cache, scale, factorization)
 end
 
 function _vcov(k::CRHC, m::RegressionModel, cache::CRHCCache, scale::Real)
     B = invpseudohessian(m)
-    res = adjust_resid!(k, cache)
+    res = adjustresid!(k, cache)
     cache.momentmatrix .= cache.modelmatrix.*res
     df = dofadjustment(k, cache)
     scale *= df
@@ -277,29 +266,31 @@ function _vcovmatrix(
     CovarianceMatrix(svd(V.data), k, V)
 end
 
-# --------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # CRHC GLM - Trick to use vcov(CRHC1(:cluster, df), ::GLM)
-# --------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+StatsBase.stderror(k::RobustVariance, m::RegressionModel; kwargs...) = sqrt.(diag(vcov(k, m; kwargs...)))
+StatsBase.stderror(v::CovarianceMatrix) = sqrt.(diag(v.V))
+
+# -----------------------------------------------------------------------------
+# CRHC GLM - Trick to use vcov(CRHC1(:cluster, df), ::GLM)
+# -----------------------------------------------------------------------------
 recast(k::CRHC{T,D}, m::INNERMOD) where {T<:AbstractVector, D<:Nothing} = k
 recast(k::CRHC{T,D}, m::TableRegressionModel) where {T<:AbstractVector, D<:Nothing} = k
-
-# reterm(k::CRHC{T,D}, m::TableRegressionModel) where {T<:Symbol, D} = (k.cl,)
-# reterm(k::CRHC{T,D}, m::TableRegressionModel) where {T<:Tuple, D} = k.cl
 reterm(k::CRHC{T,D}, m::TableRegressionModel) where {T, D} = tuple(k.cl...)
-
-# function groupby(args...) end
 
 function recast(k::CRHC{T,D}, m::TableRegressionModel) where {T<:Symbol, D}
     @assert istable(k.df) "`df` must be a DataFrames"
     t = k.cl
     if length(k.df[!, t]) == length(m.mf.data[1])
         ## The dimension fit
-        id = compress(categorical(k.df[idx,tterms]))
+        id = compress(categorical(k.df[:,t]))
         return renew(k, id)
     else
         f = m.mf.f
         frm = f.lhs ~ tuple(f.rhs.terms..., Term(t))
-        idx = StatsModels.missing_omit(NamedTuple{tuple(StatsModels.termvars(frm)...)}(columntable(k.df)))[2]
+        nt = NamedTuple{tuple(StatsModels.termvars(frm)...)}(columntable(k.df))
+        idx = StatsModels.missing_omit(nt)[2]
         id = compress(categorical(k.df[idx,t]))
         return renew(k, id)
     end
@@ -317,24 +308,37 @@ function recast(k::CRHC{T,D}, m::TableRegressionModel) where {T<:Symbol, D}
 end
 
 
-# --------------------------------------------------------------------
-# CRHC GLM - Trick to use vcov(CRHC1(:cluster, df), ::GLM)
-# --------------------------------------------------------------------
-stderror(k::RobustVariance, m::RegressionModel; kwargs...) = sqrt.(diag(vcov(k, m; kwargs...)))
-stderror(v::CovarianceMatrix) = sqrt.(diag(v.V))
-## Optimal bandwidth
-function optimal_bandwidth(
+# -----------------------------------------------------------------------------
+# optimalbandwidth method
+# -----------------------------------------------------------------------------
+function optimalbandwidth(
     k::HAC,
     m::TableRegressionModel{F};
     kwargs...
 ) where F<:INNERMOD
-    optimal_bandwidth(k, m.model; kwargs...)
+    setupkernelweights!(k, m)
+    optimalbandwidth(k, m.model; kwargs...)
 end
 
-function optimal_bandwidth(k::HAC, m::F; prewhite=false) where F<:INNERMOD
-    set_bw_weights!(k, m)
+function optimalbandwidth(k::HAC, m::F; prewhite=false) where F<:INNERMOD    
     mm = momentmatrix(m)
+    setupkernelweights!(k, m)
     mmm, D = prewhiter(mm, Val{prewhite})
-    bw = _optimal_bandwidth(k, mmm, prewhite)
-    return bw
+    return optimalbandwidth(k, mmm; prewhite=prewhite)
+end
+
+function setupkernelweights!(k, m::TableRegressionModel{T}) where T<:INNERMOD
+    β = coef(m)
+    resize!(k.weights, length(β))
+    "(Intercept)" ∈ coefnames(m) ? (k.weights .= 1.0; k.weights[1] = 0.0) : k.weights .= 1.0
+    return nothing
+end
+
+function setupkernelweights!(k, m::T) where T<:INNERMOD
+    cf = coef(m)
+    resize!(k.weights, length(cf))
+    fill!(k.weights, 1)
+    i = interceptindex(m)
+    i !== nothing && (k.weights[i] = 0)
+    return nothing
 end

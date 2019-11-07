@@ -1,17 +1,6 @@
 #======
 A. HAC
 =======#
-prewhiter(mm, ::Type{Val{false}}) = (mm, similar(mm, (0,0)))
-prewhiter(mm, ::Type{Val{true}}) = fit_var(mm)
-dewhiter!(V, mm, D, ::Type{Val{false}}) = V
-function dewhiter!(V, mm, D, ::Type{Val{true}})
-    ## TODO: This can be done better!
-    ## V = ldiv!((I-D'), V)
-    ## return V*v'
-    v = inv(I-D')
-    V .= v*V*v'
-    return V
-end
 
 function lrvar(
     k::HAC,
@@ -28,7 +17,7 @@ end
 function _lrvar(k::HAC, mm, prewhite::Bool, scale)
     n, p = size(mm)
     m, D = prewhiter(mm, Val{prewhite})
-    bw = _optimal_bandwidth(k, m, prewhite)
+    bw = optimalbandwidth(k, m; prewhite=prewhite)
     V = triu!(m'*m)
     @inbounds for j in covindices(k, n)
         κⱼ = kernel(k, j/bw)
@@ -150,7 +139,7 @@ function lrvar(
 end
 
 function _lrvar(k::CRHC, m::AbstractMatrix{T}, scale) where T
-    cache = install_cache(k, m)
+    cache = installcache(k, m)
     Shat = clusterize!(cache)
     F = promote_type(T, eltype(Shat))
     return Symmetric(Shat.*convert(F, scale))
