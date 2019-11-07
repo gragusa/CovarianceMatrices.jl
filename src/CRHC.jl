@@ -161,7 +161,14 @@ Base.@propagate_inbounds function clusterize!(c::CRHCCache)
     return LinearAlgebra.copytri!(M, 'U')
 end
 
-## Generic __vcov - Used by GLM, but more generic
+renew(::CRHC0, id) = CRHC0(id, nothing)
+renew(::CRHC1, id) = CRHC1(id, nothing)
+renew(::CRHC2, id) = CRHC2(id, nothing)
+renew(::CRHC3, id) = CRHC3(id, nothing)
+
+# -----------------------------------------------------------------------------
+# Very Very private api (subject to continuous change - DO NOT USE!!!)
+# -----------------------------------------------------------------------------
 Base.@propagate_inbounds function __vcov(k::CRHC, cache, df)
     B = inv(cache.crossx)
     res = adjustresid!(k, cache)
@@ -169,8 +176,3 @@ Base.@propagate_inbounds function __vcov(k::CRHC, cache, df)
     Shat = clusterize!(cache)
     return Symmetric((B*Shat*B).*df)
 end
-
-renew(::CRHC0, id) = CRHC0(id, nothing)
-renew(::CRHC1, id) = CRHC1(id, nothing)
-renew(::CRHC2, id) = CRHC2(id, nothing)
-renew(::CRHC3, id) = CRHC3(id, nothing)
