@@ -1,15 +1,10 @@
 # CovarianceMatrices.jl
-# CovarianceMatrices.jl
 
 [![Build Status](https://travis-ci.org/gragusa/CovarianceMatrices.jl.svg?branch=master)](https://travis-ci.org/gragusa/CovarianceMatrices.jl)
 [![Coverage Status](https://coveralls.io/repos/gragusa/CovarianceMatrices.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/gragusa/CovarianceMatrices.jl?branch=master)
 [![codecov.io](http://codecov.io/github/gragusa/CovarianceMatrices.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/CovarianceMatrices.jl?branch=master)
 
 Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation for Julia.
-
-**Note: the master branch departs significantly for the last tagged version (0.9.0). Documentation for the master branch (which will be eventually tagged as 1.0) is under development.**
-
-
 
 ## Installation
 
