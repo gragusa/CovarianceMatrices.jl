@@ -95,7 +95,7 @@ optimalbw(NeweyWest, QuadraticSpectralKernel, lm1; prewhite = false)
 optimalbw(Andrews, QuadraticSpectralKernel, lm1; prewhite = false)
 ```
 
-### Long run variance of the average of the process
+### Long-run variance of the average of the process
 
 Sometime interest lies in estimating the long-run variance of the average of the process. At the moment this can be done by carrying out a regression on a constant (the sample mean of the realization of the process) and using `vcov` or `stderror` to obtain a consistent variance estimate (or its diagonal elements).
 
@@ -147,7 +147,7 @@ vcov(wOLS, HC4m)
 vcov(wOLS, HC5)
 ```
 
-## CRHC (Cluster robust heteroskedasticty consistent)
+## CRHC (Cluster robust heteroskedasticity consistent)
 The API of this class of variance estimators is subject to change, so please use with care. The difficulty is that `CRHC` type needs to have access to the variable along which dimension the clustering mast take place. For the moment, the following approach works --- as long as no missing values are present in the original dataframe.
 
 ```julia
