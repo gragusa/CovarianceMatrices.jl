@@ -1,3 +1,5 @@
+**THIS DOCUMENT DESCRIBE THE API FOR VERSION <= 0.9 OF THE PACKAGE.** 
+
 # CovarianceMatrices.jl
 
 [![Build Status](https://travis-ci.org/gragusa/CovarianceMatrices.jl.svg?branch=master)](https://travis-ci.org/gragusa/CovarianceMatrices.jl)
