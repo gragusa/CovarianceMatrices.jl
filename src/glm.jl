@@ -20,7 +20,7 @@ const INNERMOD = Union{GLM.GeneralizedLinearModel, GLM.LinearModel}
 invpseudohessian(m::TableRegressionModel{T}) where T<:INNERMOD = GLM.invchol(m.model.pp).*dispersion(m.model.rr)
 invpseudohessian(m::T) where T<:INNERMOD = GLM.invchol(m.pp).*dispersion(m.rr)
 
-chol(m::TableRegressionModel{T}) where T<:INNERMOD = chol(m.model)iiiii
+chol(m::TableRegressionModel{T}) where T<:INNERMOD = chol(m.model)
 chol(m::T) where T<:INNERMOD = m.pp.chol
 
 modmatrix(m::TableRegressionModel{T}) where T<:INNERMOD = modmatrix(m.model)
