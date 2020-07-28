@@ -13,9 +13,9 @@ module CovarianceMatrices
 using CategoricalArrays
 using LinearAlgebra
 using Requires: @require
+using Statistics
 using StatsBase: CovarianceEstimator
 using StatsModels
-using Statistics
 include("types.jl")
 include("HAC.jl")
 include("HC.jl")
@@ -52,8 +52,6 @@ export Andrews,
        lrvar,
        lrvarmatrix,
        optimalbandwidth,
-       #stderror,
-       #vcov,
        vcovmatrix
 
-end # module
+end 
