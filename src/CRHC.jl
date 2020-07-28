@@ -1,12 +1,12 @@
 mutable struct CRHCCache{M<:AbstractMatrix, V<:AbstractVector, C, IN}
-    momentmatrix::M       # nxm
+    momentmatrix::M
     "For regression type"
     modelmatrix::M
     residuals::V
     "Scratch matrix"
     matscr::M
     "Factorization of X'X"
-    crossx::C         # Factorization of X'*X
+    crossx::C
     "Meat"
     Shat::M
     "The cluster indices (*sorted*)"
@@ -25,7 +25,7 @@ Sort each element of `x` according to f (a categorical).
 - `f::CategoricalArray` a categorical array defining the sorting order
 
 # Returns
-- `Tuple`: a tuple (xs, fs) containng the sorted element of x and f
+- `Tuple`: a tuple (xs, fs) containing the sorted element of x and f
 """
 function bysort(x, f)
     issorted(f) && return x, f
@@ -45,11 +45,17 @@ function bysort(x, f)
     return rt, f[idx]
 end
 
-categorize(a::AbstractArray) = categorical(a)
+categorize(a::AbstractArray) = categorical(a, compress=true)
 categorize(f::CategoricalArray) = f
 
 function clustersintervals(f::CategoricalArray)
     s = CategoricalArrays.order(f.pool)[f.refs]
+    ci = collect(searchsorted(s, j) for j in unique(s))
+    return ci
+end
+
+function clustersintervals2(f::CategoricalArray)
+    s = f.refs
     ci = collect(searchsorted(s, j) for j in unique(s))
     return ci
 end
@@ -121,7 +127,7 @@ function adjustresid!(v::CRHC2, c::CRHCCache)
         Xv = view(X, index, :)
         uv = view(u, index, :)
         xAx = Xv*invxx*Xv'
-        ldiv!(cholesky!(I - xAx; check=false).L, uv)
+        ldiv!(cholesky!(Symmetric(I - xAx); check=false).L, uv)
     end
     return u
 end
@@ -134,7 +140,7 @@ function adjustresid!(k::CRHC3, c::CRHCCache)
         Xv = view(X, index, :)
         uv = view(u, index, :)
         xAx = Xv*invxx*Xv'
-        ldiv!(cholesky!(I - xAx; check=false), uv)
+        ldiv!(cholesky!(Symmetric(I - xAx); check=false), uv)
     end
     return rmul!(u, 1/sqrt(dofadjustment(k, c)))
 end
@@ -165,14 +171,3 @@ renew(::CRHC0, id) = CRHC0(id, nothing)
 renew(::CRHC1, id) = CRHC1(id, nothing)
 renew(::CRHC2, id) = CRHC2(id, nothing)
 renew(::CRHC3, id) = CRHC3(id, nothing)
-
-# -----------------------------------------------------------------------------
-# Very Very private api (subject to continuous change - DO NOT USE!!!)
-# -----------------------------------------------------------------------------
-Base.@propagate_inbounds function __vcov(k::CRHC, cache, df)
-    B = inv(cache.crossx)
-    res = adjustresid!(k, cache)
-    cache.momentmatrix .= cache.modelmatrix.*res
-    Shat = clusterize!(cache)
-    return Symmetric((B*Shat*B).*df)
-end
