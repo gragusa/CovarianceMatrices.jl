@@ -49,12 +49,9 @@ categorize(a::AbstractArray) = categorical(a, compress=true)
 categorize(f::CategoricalArray) = f
 
 function clustersintervals(f::CategoricalArray)
-    s = CategoricalArrays.order(f.pool)[f.refs]
-    ci = collect(searchsorted(s, j) for j in unique(s))
-    return ci
-end
-
-function clustersintervals2(f::CategoricalArray)
+    ## This operation was deprecated oby CategoricalArrays
+    ## s = CategoricalArrays.order(f.pool)[f.refs]
+    ## I think f.refs is equivalent....
     s = f.refs
     ci = collect(searchsorted(s, j) for j in unique(s))
     return ci
@@ -71,7 +68,6 @@ function installcache(k::CRHC, X::AbstractMatrix{T}) where T
     Shat= Matrix{T}(undef,p,p)
     CRHCCache(X, em, ev, Matrix{T}(undef, 0,0), chol, Shat, ci, sf)
 end
-
 
 """
     clustersindices(c::CRHCCache)
