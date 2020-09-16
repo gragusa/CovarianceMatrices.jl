@@ -484,61 +484,62 @@ end
 end
 
 
-# @testset "CovarianceMatrices Methods......................." begin
-    #  df = CSV.File("testdata/wols_test.csv") |> DataFrame
-    #  df_sorted = sort!(copy(df), :cl)
-    #  cl = convert(Array, df[!, :cl])
-    # wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
-    #            Normal(), IdentityLink(), wts = convert(Array{Float64}, df[!, :w]))
+@testset "CovarianceMatrices Methods......................." begin
+    df = CSV.File("testdata/wols_test.csv") |> DataFrame
+    df_sorted = sort!(copy(df), :cl)
+    cl = convert(Array, df[!, :cl])
+    wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
+               Normal(), IdentityLink(), wts = convert(Array{Float64}, df[!, :w]))
 
-    #  V0 = vcov(HC0(), wOLS)
-    #  V1 = vcov(ParzenKernel{Andrews}(), wOLS)
-    #  V2 = vcov(CRHC0(cl), wOLS)
+     V0 = vcov(HC0(), wOLS)
+     V1 = vcov(ParzenKernel{Andrews}(), wOLS)
+     V2 = vcov(CRHC0(cl), wOLS)
 
-    #  V0s = vcov(HC0(), wOLS, SVD)
-    #  V1s = vcov(ParzenKernel{Andrews}(), wOLS, CovarianceMatrix, SVD)
-    #  V2s = vcov(CRHC0(cl), wOLS, CovarianceMatrix, SVD)
+     V0s = vcovmatrix(HC0(), wOLS, SVD)
+     V1s = vcovmatrix(ParzenKernel{Andrews}(), wOLS, SVD)
+     V2s = vcovmatrix(CRHC0(cl), wOLS, SVD)
 
-#     V0s2 = vcov(HC0(), wOLS,  SVD)
-#     V1s2 = vcov(ParzenKernel(), wOLS,  SVD)
-#     V2s2 = vcov(CRHC0(cl), wOLS,  SVD)
+     V0c = vcovmatrix(HC0(), wOLS,  Cholesky)
+     V1c = vcovmatrix(ParzenKernel{Andrews}(), wOLS,  Cholesky)
+     V2c = vcovmatrix(CRHC0(cl), wOLS,  Cholesky)
 
-#     V0m = vcov(HC0(), wOLS, Matrix)
-#     V1m = vcov(ParzenKernel(), wOLS, Matrix)
-#     V2m = vcov(CRHC0(cl), wOLS, Matrix)
 
-#     V0c = vcov(HC0(), wOLS, CovarianceMatrix, Cholesky)
-#     V1c = vcov(ParzenKernel(), wOLS, CovarianceMatrix, Cholesky)
-#     V2c = vcov(CRHC0(cl), wOLS, CovarianceMatrix, Cholesky)
+     @test V0 == V0s
+     @test V1 == V1s
+     @test V2 == V2s
 
-#     V0c2 = vcov(HC0(), wOLS, Cholesky)
-#     V1c2 = vcov(ParzenKernel(), wOLS, Cholesky)
-#     V2c2 = vcov(CRHC0(cl), wOLS, Cholesky)
+     @test V0 == V0c
+     @test V1 == V1c
+     @test V2 == V2c
 
-#     @test V0 == V0m
-#     @test V1 == V1m
-#     @test V2 == V2m
 
-#     @test V0c.F == cholesky(Symmetric(V0m))
-#     @test V1c.F == cholesky(Symmetric(V1m))
-#     @test V2c.F == cholesky(Symmetric(V2m))
+     @test V0c.F == cholesky(V0)
+     @test V1c.F == cholesky(V1)
+     @test V2c.F == cholesky(V2)
 
-#     @test V0c2.F == cholesky(Symmetric(V0m))
-#     @test V1c2.F == cholesky(Symmetric(V1m))
-#     @test V2c2.F == cholesky(Symmetric(V2m))
 
-#     @test V0s.F == svd(V0m)
-#     @test V1s.F == svd(V1m)
-#     @test V2s.F == svd(V2m)
+    @test V0s.F == svd(V0)
+    @test V1s.F == svd(V1)
+    @test V2s.F == svd(V2)
 
-#     @test V0s2.F == svd(V0m)
-#     @test V1s2.F == svd(V1m)
-#     @test V2s2.F == svd(V2m)
+     @test inv(V2c) ≈ inv(Matrix(V2))
+     @test inv(V2s) ≈ inv(Matrix(V2))
 
-#     @test inv(V2s2) ≈ inv(Matrix(V2s2))
-#     @test inv(V2c2) ≈ inv(Matrix(V2c2))
+     @test inv(V1c) ≈ inv(Matrix(V1))
+     @test inv(V1s) ≈ inv(Matrix(V1))
 
-# end
+     @test inv(V0c) ≈ inv(Matrix(V0))
+     @test inv(V0s) ≈ inv(Matrix(V0))
+
+     @test inv(V0) ≈ CovarianceMatrices.invfact(V0c)'*CovarianceMatrices.invfact(V0c)
+     @test inv(V1) ≈ CovarianceMatrices.invfact(V1c)'*CovarianceMatrices.invfact(V1c)
+     @test inv(V2) ≈ CovarianceMatrices.invfact(V2c)'*CovarianceMatrices.invfact(V2c)
+
+     @test inv(V0) ≈ CovarianceMatrices.invfact(V0s)'*CovarianceMatrices.invfact(V0s)
+     @test inv(V1) ≈ CovarianceMatrices.invfact(V1s)'*CovarianceMatrices.invfact(V1s)
+     @test inv(V2) ≈ CovarianceMatrices.invfact(V2s)'*CovarianceMatrices.invfact(V2s)
+
+end
 
 @testset "Various.........................................." begin
     # Random.seed!(1)
@@ -633,7 +634,7 @@ end
     @test CM.invfact(CM2)'*CM.invfact(CM2) ≈ inv(CM3)
 
     s = svd(Matrix(CM1))
-    @test CM.invfact(CM2) ≈ diagm((1.0./sqrt.(s.S)))*s.Vt
+    @test abs.(CM.invfact(CM2)) ≈ abs.(diagm((1.0./sqrt.(s.S)))*s.Vt)
 
     @test eigmax(CM2) ≈ eigmax(Matrix(CM2))
     @test eigmax(CM3) ≈ eigmax(Matrix(CM3))
