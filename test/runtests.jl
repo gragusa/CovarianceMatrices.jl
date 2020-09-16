@@ -1,6 +1,6 @@
 using CovarianceMatrices
 using Test
-using TableReader
+using CSV
 using LinearAlgebra
 using Statistics
 using Random
@@ -17,8 +17,7 @@ const neweywest_kernels = [:ParzenKernel, :QuadraticSpectralKernel, :BartlettKer
 datapath = joinpath(@__DIR__)
 
 @testset "BW Optimal......................................." begin
-    Random.seed!(1)
-    df = DataFrame(y=randn(20), x=randn(20))
+    df = CSV.File("testdata/df20.csv") |> DataFrame
     lm1 = lm(@formula(y~x), df)
     k = BartlettKernel{NeweyWest}()
     V = vcov(k, lm1; prewhite=true)
@@ -51,8 +50,8 @@ datapath = joinpath(@__DIR__)
 end
 
 @testset "HAC - Asymptotic Covariance (Fixed).............." begin
-    Random.seed!(1)
-    X = randn(20,2)
+    X = CSV.File("testdata/X20x2.csv") |> DataFrame |> Matrix
+
     V = lrvar(TruncatedKernel(2), X)./20
     Vr = [0.023797696862680198 -0.006551463062455593; -0.006551463062455593 0.05722230754875061]
     @test V ≈ Vr
@@ -73,8 +72,7 @@ end
     @test V ≈ Vr
 end
 @testset "HAC - Asymptotic Covariance (Andrews)............" begin
-    Random.seed!(1)
-    X = randn(20,2)
+    X = CSV.File("testdata/X20x2.csv") |> DataFrame |> Matrix
     V = lrvar(TruncatedKernel{Andrews}(), X)./20
     Vr = [0.025484761508796222 3.9529856923768415e-5; 3.9529856923768415e-5 0.0652988865427441]
     @test V ≈ Vr
@@ -97,8 +95,7 @@ end
 @testset "HAC - Asymptotic Covariance (Newey).............." begin
 end
 @testset "HC  - Asymptotic Covariance......................" begin
-    Random.seed!(1)
-    X = randn(20,2)
+    X = CSV.File("testdata/X20x2.csv") |> DataFrame |> Matrix
     v = X .- mean(X, dims = 1)
     V = lrvar(HC0(), X)
     @test V ≈ v'*v/20
@@ -112,8 +109,7 @@ end
     @test V ≈ X'*X/20
 end
 @testset "CRHC  - Asymptotic Covariance...................." begin
-    Random.seed!(1)
-    X = randn(100,2)
+    X = CSV.File("testdata/X100x2.csv") |> DataFrame |> Matrix
     f = repeat(1:20, inner=5)
     V = lrvar(CRHC0(f), X)/100
     Vr = [0.010003084285822686 0.002579249460680671; 0.002579249460680671 0.014440606823274103]
@@ -128,7 +124,7 @@ end
 
 @testset "HAC OLS VCOV....................................." begin
     reg = JSON.parse(read("testdata/regression.json", String))
-    df = TableReader.readcsv("testdata/ols_df.csv")
+    df = CSV.File("testdata/ols_df.csv") |> DataFrame
     function fopt!(u)
         global da = Dict{String, Any}()
         global dn = Dict{String, Any}()
@@ -277,7 +273,6 @@ end
     wGL = fit(GeneralizedLinearModel, X, y, Normal(),
               IdentityLink(), wts = wts)
 
-
     S0 = vcov(HC0(),wOLS)
     S1 = vcov(HC1(),wOLS)
     S2 = vcov(HC2(),wOLS)
@@ -285,8 +280,6 @@ end
     S4 = vcov(HC4(),wOLS)
     S4m= vcov(HC4m(),wOLS)
     S5 = vcov(HC5(),wOLS)
-
-
 
     St0 = [717.736178076 -178.404274981; -178.404274981   45.822730697]
     St1 = [922.803657527 -229.376924975; -229.376924975 58.914939468]
@@ -387,7 +380,7 @@ end
 end
 
 @testset "CRHC............................................." begin
-    df = TableReader.readcsv("testdata/wols_test.csv")
+    df = CSV.File("testdata/wols_test.csv") |> DataFrame
     df_unsorted = sort(df, [:X1])
     df_sorted = sort(df, [:cl])
     St1 = [.0374668, .0497666, .0472636, .0437952, .0513613, .0435369]
@@ -472,7 +465,7 @@ end
     @test V3s ≈ V3 atol=1e-05
 
 
-    innovation = TableReader.readcsv("testdata/InstInnovation.csv")
+    innovation = CSV.File("testdata/InstInnovation.csv") |> DataFrame
 
     innovation[!, :capemp] = log.(innovation[!, :capital]./innovation[!, :employment])
     innovation[!, :lsales] = log.(innovation[!, :sales])
@@ -492,19 +485,19 @@ end
 
 
 # @testset "CovarianceMatrices Methods......................." begin
-#     df = TableReader.readcsv("testdata/wols_test.csv")
-#     df_sorted = sort!(copy(df), :cl)
-#     cl = convert(Array, df[!, :cl])
-#     wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
-#                Normal(), IdentityLink(), wts = convert(Array{Float64}, df[!, :w]))
+    #  df = CSV.File("testdata/wols_test.csv") |> DataFrame
+    #  df_sorted = sort!(copy(df), :cl)
+    #  cl = convert(Array, df[!, :cl])
+    # wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
+    #            Normal(), IdentityLink(), wts = convert(Array{Float64}, df[!, :w]))
 
-#     V0 = vcov(HC0(), wOLS)
-#     V1 = vcov(ParzenKernel(), wOLS)
-#     V2 = vcov(CRHC0(cl), wOLS)
+    #  V0 = vcov(HC0(), wOLS)
+    #  V1 = vcov(ParzenKernel{Andrews}(), wOLS)
+    #  V2 = vcov(CRHC0(cl), wOLS)
 
-#     V0s = vcov(HC0(), wOLS, CovarianceMatrix, SVD)
-#     V1s = vcov(ParzenKernel(), wOLS, CovarianceMatrix, SVD)
-#     V2s = vcov(CRHC0(cl), wOLS, CovarianceMatrix, SVD)
+    #  V0s = vcov(HC0(), wOLS, SVD)
+    #  V1s = vcov(ParzenKernel{Andrews}(), wOLS, CovarianceMatrix, SVD)
+    #  V2s = vcov(CRHC0(cl), wOLS, CovarianceMatrix, SVD)
 
 #     V0s2 = vcov(HC0(), wOLS,  SVD)
 #     V1s2 = vcov(ParzenKernel(), wOLS,  SVD)
@@ -548,8 +541,9 @@ end
 # end
 
 @testset "Various.........................................." begin
-    Random.seed!(1)
-    Z = randn(10, 5)
+    # Random.seed!(1)
+    # Z = randn(10, 5)
+    Z = CSV.File("testdata/Z10x5.csv") |> DataFrame |> Matrix
     @test lrvar(HC1(), Z, demean = true) ≈ cov(StatsBase.SimpleCovariance(), Z)
     @test lrvar(HC1(), Z, demean = true) ≈ lrvar(HC1(), Z .- mean(Z, dims=1), demean = false)
     @test lrvar(HC1(), Z, demean = false) ≈ Z'Z/size(Z,1)
@@ -608,10 +602,9 @@ end
 # end
 
 @testset "Covariance Matrix Methods........................" begin
-    Random.seed!(9)
-    X = randn(30,5)
-    y = rand(30)
-    df = DataFrame(y = y, x1 = X[:,2], x2 = X[:,3], x3 = X[:,4], x4 = X[:,5])
+    df = CSV.File("testdata/df30x5.csv") |> DataFrame
+    y = df[!, :y]
+    X = df[!, 1:5] |> Matrix
     k = TruncatedKernel(1)
     CM1 = vcovmatrix(k, lm(X,y))
     CM2 = vcovmatrix(k, lm(X,y), SVD)
@@ -630,7 +623,6 @@ end
     @test CM1[1,1] == CMc2[1,1]
 
     @test size(CM1) == (5,5)
-    #@test eltype(CM1) == CM.WFLOAT
 
     @test CM.invfact(CM3, true) ≈ inv(cholesky(Hermitian(Matrix(CM3))).L)
     @test CM.invfact(CM3, false) ≈ inv(cholesky(Hermitian(Matrix(CM3))).U)
@@ -657,8 +649,8 @@ end
     g = mean(X, dims = 1)
     @test CM.quadinv(g, CM1) ≈ first(g*inv(Matrix(CM1))*g')
 
-    g = rand(5)
-    @test CM.quadinv(g, CM1) ≈ first(g'*inv(Matrix(CM1))*g)
+    gt = copy(g')
+    @test CM.quadinv(g, CM1) ≈ first(gt'*inv(Matrix(CM1))*gt)
 
     @test Symmetric(CM1) == Symmetric(Matrix(CM1))
 
@@ -666,8 +658,9 @@ end
 
 @testset "VARHAC..........................................." begin
     k = CM.VARHAC()
-    Random.seed!(1)
-    g = randn(100,2);
+    # Random.seed!(1)
+    # g = randn(100,2);
+    g = CSV.File("testdata/X100x2.csv") |> DataFrame |> Matrix
     G1 = lrvar(k, g)
     G2 = lrvar(k, g)
     k = CM.VARHAC(maxlag=2, lagstrategy=2)
