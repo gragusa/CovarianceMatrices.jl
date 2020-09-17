@@ -22,6 +22,7 @@ include("HC.jl")
 include("CRHC.jl")
 include("VARHAC.jl")
 include("lrvar.jl")
+include("smoothing.jl")
 include("CovarianceMatrix.jl")
 # using GLM
 # include("glm.jl")
