@@ -18,7 +18,6 @@ using StatsBase: CovarianceEstimator
 using StatsModels
 include("types.jl")
 include("HAC.jl")
-include("HC.jl")
 include("CRHC.jl")
 include("VARHAC.jl")
 include("lrvar.jl")
