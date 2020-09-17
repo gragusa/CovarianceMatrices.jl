@@ -126,6 +126,20 @@ function _vcovmatrix(
     return CovarianceMatrix(svd(V.data), k, V)
 end
 
+function StatsBase.vcov(k::Smoothed{T}, m; prewhite=false, dof_adjustment::Bool=true, scale::Real=1) where T
+    return _vcov(k, m, prewhite, dof_adjustment, scale)
+end
+
+function _vcov(k::Smoothed{T}, m, prewhite::Bool, dof_adjustment::Bool, scale::Real) where T
+    setupkernelweights!(k.k, m)
+    B  = invpseudohessian(m)
+    mm = momentmatrix(m)
+    A = lrvar(k, mm; prewhite=prewhite, demean=false)
+    scale *= (dof_adjustment ? numobs(m)^2/dof_resid(m) : numobs(m))
+    V = Symmetric((B*A*B).*scale)
+    return V
+end
+
 # --------------------------------------------------------------------
 # HC GLM Methods 
 # --------------------------------------------------------------------
