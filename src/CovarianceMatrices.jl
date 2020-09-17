@@ -49,9 +49,9 @@ export Andrews,
        QuadraticSpectralKernel,
        TruncatedKernel,
        TukeyHanningKernel,
+       Smoothed,
        lrvar,
        lrvarmatrix,
        optimalbandwidth,
-       vcovmatrix
-
+       vcovmatrix      
 end 
