@@ -23,6 +23,7 @@ include("VARHAC.jl")
 include("lrvar.jl")
 include("smoothing.jl")
 include("CovarianceMatrix.jl")
+include("sandwich.jl")
 # using GLM
 # include("glm.jl")
 
