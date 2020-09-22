@@ -112,12 +112,12 @@ stderror(kernel, lm1, prewhite = false)
 bw = CovarianceMatrices.bandwidth(kernel)
 ```
 
-### Caovariances without `GLM.jl`
 
-One might want to calculate variance estimator when the regression (or some other model) is manually fit. Below is an example of how this can be accomplished.
+### Covariances without `GLM.jl`
+
+One might want to calculate variance estimator when the regression (or some other model) is fit "manually". Below is an example of how this can be accomplished.
 
 ```julia
-
 X   = [ones(n) x]
 _,K = size(X)
 b   = X\y
@@ -178,10 +178,10 @@ vcov(HC5(),wOLS)
 
 ```
 
-## CRHC (Cluster robust heteroskedasticty consistent)
 
-The API of this class of variance estimators is subject to change, so please use with care. The difficulty is that `CRHC` type needs to have access to the variable along which dimension the clustering must take place. For the moment, the following approach works 
+## CRHC (Cluster robust heteroskedasticity consistent)
 
+The API of this class of estimators is subject to change, so please use with care. The difficulty is that `CRHC` type needs to have access to the variable along which dimension the clustering must take place. For the moment, the following approach works 
 
 ```julia
 using RDatasets
@@ -191,7 +191,7 @@ vcov(CRHC1(:Firm, df), lm)
 stderror(CRHC1(:Firm, df),lm)
 ```
 
-Alternatively, the cluster indeicatror can be passed directly (but this will only work if there are not missing values)
+Alternatively, the cluster indicator can be passed directly (but this will only work if there are not missing values)
 
 ```julia
 vcov(CRHC1(df[:Firm]), lm)
@@ -199,8 +199,6 @@ stderror(CRHC1(df[:Firm]),lm)
 ```
 
 As in the `HAC` case, `sandwich` and `lrvar` can be leveraged to constract cluster-robust variances without relying on `GLM.jl`.
-
-
 
 ## Performances
 
