@@ -12,14 +12,18 @@ for j in 1:2999
     u[j+1] = 0.97*u[j] + randn()
 end
 
-df = DataFrame(y = randn(300*50) .+ u[15001:30000])
+y = randn(300*50) .+ u[15001:30000]
+df = DataFrame(randn(length(y), 5))
+df[!, :y] .= y
+df[:cluster] = repeat(1:150, inner = [100])
 
-df2 = DataFrame(y = sqrt(2).*randn(250))
+y = sqrt(2).*randn(250)
+df2 = DataFrame(randn(length(y), 5))
 for j in Symbol.("x".*string.(collect(1:5)))
     df2[j] = randn(250)
 end
 df2[:cluster] = repeat(1:50, inner = [5])
-
+df2[!, :y] .= y
 
 frm = @formula(y ~ x1 + x2 + x3 + x4 + x5)
 lm1 = glm(frm, df, Normal(), IdentityLink())
@@ -34,12 +38,12 @@ SUITE["HAC Fixed(30)"] = BenchmarkGroup()
 SUITE["CRHC (large)"] = BenchmarkGroup()
 SUITE["CRHC (small)"] = BenchmarkGroup()
 
-SUITE["HAC Andrews"]["Parzen"] = @benchmarkable vcov($ParzenKernel(), lm1)
-SUITE["HAC Andrews"]["Truncated"] = @benchmarkable vcov($TruncatedKernel(), lm1)
-SUITE["HAC Andrews"]["Bartlett"] = @benchmarkable vcov($BartlettKernel(), lm1)
+SUITE["HAC Andrews"]["Parzen"] = @benchmarkable vcov($ParzenKernel{Andrews}(), lm1)
+SUITE["HAC Andrews"]["Truncated"] = @benchmarkable vcov($TruncatedKernel{Andrews}(), lm1)
+SUITE["HAC Andrews"]["Bartlett"] = @benchmarkable vcov($BartlettKernel{Andrews}(), lm1)
 
-SUITE["HAC Newey"]["Parzen"] = @benchmarkable vcov($ParzenKernel(NeweyWest), lm1)
-SUITE["HAC Newey"]["Bartlett"] = @benchmarkable vcov($BartlettKernel(NeweyWest), lm1)
+SUITE["HAC Newey"]["Parzen"] = @benchmarkable vcov($ParzenKernel{NeweyWest}(), lm1)
+SUITE["HAC Newey"]["Bartlett"] = @benchmarkable vcov($BartlettKernel{NeweyWest}(), lm1)
 
 SUITE["HAC Fixed(10)"]["Parzen"] = @benchmarkable vcov($ParzenKernel(10), lm1)
 SUITE["HAC Fixed(10)"]["Truncated"] = @benchmarkable vcov($TruncatedKernel(10), lm1)

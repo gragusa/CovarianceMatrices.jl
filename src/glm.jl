@@ -123,7 +123,21 @@ function _vcovmatrix(
     ::Type{SVD},
 )
     V = _vcov(k, m, prewhite, dof_adjustment, scale)
-    return CovarianceMatrix(svd(V.data), k, V)
+    return CovarianceMatrix(svd(V), k, V)
+end
+
+function StatsBase.vcov(k::Smoothed{T}, m; prewhite=false, dof_adjustment::Bool=true, scale::Real=1) where T
+    return _vcov(k, m, prewhite, dof_adjustment, scale)
+end
+
+function _vcov(k::Smoothed{T}, m, prewhite::Bool, dof_adjustment::Bool, scale::Real) where T
+    setupkernelweights!(k.k, m)
+    B  = invpseudohessian(m)
+    mm = momentmatrix(m)
+    A = lrvar(k, mm; prewhite=prewhite, demean=false)
+    scale *= (dof_adjustment ? numobs(m)^2/dof_resid(m) : numobs(m))
+    V = Symmetric((B*A*B).*scale)
+    return V
 end
 
 # --------------------------------------------------------------------
@@ -192,7 +206,7 @@ function _vcov(k::HC, m::RegressionModel, scale)
 end
 
 vcovmatrix(k::HC, m::RegressionModel, factorization=Cholesky; scale::Real=1) =
-    _vcovmatrix(k, m, scale, Val{:factorization})
+    _vcovmatrix(k, m, scale, factorization)
 
 function _vcovmatrix(k::HC, m::RegressionModel, scale::Real, ::Type{Cholesky})
     V = _vcov(k, m, scale)
@@ -245,25 +259,25 @@ function _vcov(k::CRHC, m::RegressionModel, cache::CRHCCache, scale::Real)
 end
 
 function _vcovmatrix(
-    k::HC,
+    k::CRHC{T},
     m::RegressionModel,
     cache::CRHCCache,
     scale::Real,
     ::Type{Cholesky}
-)
+) where T
     V = _vcov(k, m, cache, scale)
     CovarianceMatrix(cholesky(V, check=true), k, V)
 end
 
 function _vcovmatrix(
-    k::HC,
+    k::CRHC{T},
     m::RegressionModel,
     cache::CRHCCache,
     scale::Real,
     ::Type{SVD}
-)
-    V = _vcov(k, m, cache, cache)
-    CovarianceMatrix(svd(V.data), k, V)
+) where T
+    V = _vcov(k, m, cache, scale)
+    CovarianceMatrix(svd(V), k, V)
 end
 
 # -----------------------------------------------------------------------------

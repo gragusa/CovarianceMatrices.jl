@@ -13,16 +13,17 @@ module CovarianceMatrices
 using CategoricalArrays
 using LinearAlgebra
 using Requires: @require
+using Statistics
 using StatsBase: CovarianceEstimator
 using StatsModels
-using Statistics
 include("types.jl")
 include("HAC.jl")
-include("HC.jl")
 include("CRHC.jl")
 include("VARHAC.jl")
 include("lrvar.jl")
+include("smoothing.jl")
 include("CovarianceMatrix.jl")
+include("sandwich.jl")
 # using GLM
 # include("glm.jl")
 
@@ -49,11 +50,9 @@ export Andrews,
        QuadraticSpectralKernel,
        TruncatedKernel,
        TukeyHanningKernel,
+       Smoothed,
        lrvar,
        lrvarmatrix,
        optimalbandwidth,
-       #stderror,
-       #vcov,
-       vcovmatrix
-
-end # module
+       vcovmatrix      
+end 

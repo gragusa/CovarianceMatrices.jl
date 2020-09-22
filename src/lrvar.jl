@@ -156,14 +156,14 @@ function lrvarmatrix(
     return _lrvarmatrix(k, mm, scale, factorization)
 end
 
-function _lrvarmatric(k::CRHC, m::AbstractMatrix, scale, ::Type{Cholesky})
+function _lrvarmatrix(k::CRHC, m::AbstractMatrix, scale, ::Type{Cholesky})
     V = _lrvar(k, m, scale)
-    CovarianceMatric(cholesky(V, check=true), k, V)
+    CovarianceMatrix(cholesky(V, check=true), k, V)
 end
 
-function _lrvarmatric(k::CRHC, m::AbstractMatrix, scale, ::Type{SVD})
+function _lrvarmatrix(k::CRHC, m::AbstractMatrix, scale, ::Type{SVD})
     V = _lrvar(k, m, scale)
-    CovarianceMatric(SVD(V.data), k, V)
+    CovarianceMatrix(SVD(V.data), k, V)
 end
 #=========
 Finalizers
