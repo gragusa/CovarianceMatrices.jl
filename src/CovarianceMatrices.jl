@@ -14,7 +14,7 @@ using CategoricalArrays
 using LinearAlgebra
 using Requires: @require
 using Statistics
-using StatsBase: CovarianceEstimator
+using StatsBase
 using StatsModels
 include("types.jl")
 include("HAC.jl")
@@ -23,7 +23,7 @@ include("VARHAC.jl")
 include("lrvar.jl")
 include("smoothing.jl")
 include("CovarianceMatrix.jl")
-include("sandwich.jl")
+include("interface_api.jl")
 # using GLM
 # include("glm.jl")
 
