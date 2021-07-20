@@ -6,9 +6,6 @@
 
 Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation for Julia.
 
-## NOTE: *The instructions below refer to the master branch.* The README of the last registered version of the package is [here](https://github.com/gragusa/CovarianceMatrices.jl/tree/v0.9.0).
-
-
 ## Installation
 
 
