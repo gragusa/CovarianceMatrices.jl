@@ -1,17 +1,15 @@
-## Public API
-
+## ------------------------------------------------------
+## Interface
+## ------------------------------------------------------
 invpseudohessian(x) = (t = typeof(x); error("Not defined for type $t", ))
 momentmatrix(x) = (t = typeof(x); error("Not defined for type $t"))
 
 numobs(x) = StatsBase.nobs(x)
 dof_resid(x) = numobs(x) - length(coef(x))
 
-
-
-
-
+## ------------------------------------------------------
 ## HAC
-## -------
+## ------------------------------------------------------
 function setupkernelweights!(k::T, m) where T<:HAC
     cf = coef(m)
     resize!(k.weights, length(cf))
@@ -67,11 +65,11 @@ function _vcovmatrix(
     V = _vcov(k, m, prewhite, dof_adjustment, scale)
     return CovarianceMatrix(svd(V), k, V)
 end
+
 ## ------------------------------------------------------
 ## HC
 ## Note: adjfactor is always n/(n-k) for H1-H5 types
 ## ------------------------------------------------------
-
 adjfactor(k::HC0, m, x) = one(first(x))
 adjfactor(k::HC1, m, x) = numobs(m)./dof_resid(m)
 
@@ -113,8 +111,6 @@ function _vcov(k::HC, m::T, scale) where T
     return Symmetric((B*A*B).*scale)
 end
 
-
-
 """
 Calculate sandwich type variance-covariance of an estimator
 
@@ -128,10 +124,7 @@ function sandwich(k::RobustVariance, B::Matrix, momentmatrix::Matrix; demean = f
     Symmetric(B*A*B)
 end
 
-
-
-
-
 ## Standard errors
 StatsBase.stderror(k::RobustVariance, m; kwargs...) = sqrt.(diag(vcov(k, m; kwargs...)))
+StatsBase.stderror(k::Smoothed, m; kwargs...) = sqrt.(diag(vcov(k, m; kwargs...)))
 StatsBase.stderror(v::CovarianceMatrix) = sqrt.(diag(v.V))
