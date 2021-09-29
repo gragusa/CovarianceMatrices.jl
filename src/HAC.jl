@@ -79,7 +79,7 @@ Calculate the optimal bandwidth according to either Andrews or Newey-West.
 function optimalbandwidth(
     k::HAC{T},
     m::AbstractMatrix;
-    prewhite::Bool
+    prewhite::Bool=false
 ) where T<:Union{Andrews, NeweyWest}
     setupkernelweights!(k, m)
     bw = _optimalbandwidth(k, m, prewhite)
