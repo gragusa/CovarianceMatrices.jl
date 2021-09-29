@@ -120,10 +120,11 @@ _,K = size(X)
 b   = X\y
 res = y .- X*b
 momentmatrix = X.*res
-B   = inv(X'X)                                                         # Jacobian of moment conditions
-A   = lrvar(QuadraticSpectralKernel(bw[1]), momentmatrix, scale = n^2/(n-K))   # df adjustment is built into vcov
+B   = inv(X'X)      # Jacobian of moment conditions
+bw = CovarianceMatrices.optimalbandwidth(kernel, momentmatrix, prewhite=false)
+A   = lrvar(QuadraticSpectralKernel(bw), momentmatrix, scale = n^2/(n-K))   # df adjustment is built into vcov
 Σ   = B*A*B
-Σ .- vcov(QuadraticSpectralKernel(bw[1]), lm1, dof_adjustment=true)
+Σ .- vcov(QuadraticSpectralKernel(bw), lm1, dof_adjustment=true)
 ```
 The utility function `sandwich` does all this automatically:
 
