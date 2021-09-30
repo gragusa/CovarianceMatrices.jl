@@ -1,7 +1,7 @@
 name = "CovarianceMatrices"
 uuid = "60f91f6f-d783-54cb-84f9-544141854719"
 author = "Giuseppe Ragusa <giuseppe.ragusa@gmail.com>"
-version = "0.10.1"
+version = "0.10.3"
 
 [deps]
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
