@@ -159,10 +159,10 @@ end
 
 # TODO: move this function to util
 function allequal(x)
-    length(x) < 2 && return true
+    lx = length(x)
+    lx < 2 && return true
     e1 = x[1]
-    i = 2
-    @inbounds for i=2:length(x)
+    @inbounds for i ∈ 2:lx
         x[i] == e1 || return false
     end
     return true
@@ -177,7 +177,7 @@ Base.@propagate_inbounds function fit_var(A::Matrix{T}) where T
     X = view(A, 1:n-1,:)
     B = X\Y
     E = Y - X*B
-    E, B
+    return E, B
 end
 
 Base.@propagate_inbounds function fit_ar(A::Matrix{T}) where T
@@ -187,13 +187,15 @@ Base.@propagate_inbounds function fit_ar(A::Matrix{T}) where T
     n, p = size(A)
     rho = Vector{T}(undef, p)
     σ⁴ = similar(rho)
+    xy = Vector{T}(undef, n-1)
     for j in 1:p
         y = A[2:n, j]
         x = A[1:n-1, j]
         allequal(x) && (rho[j] = 0; σ⁴[j] = 0; continue)
         x .= x .- mean(x)
         y .= y .- mean(y)
-        rho[j] = sum(x.*y)/sum(abs2, x)
+        xy .= x.*y
+        rho[j] = sum(xy)/sum(abs2, x)
         x .= x.*rho[j]
         y .= y .- x
         σ⁴[j]  = (sum(abs2, y)/(n-1))^2
