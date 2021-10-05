@@ -66,7 +66,8 @@ function installcache(k::CRHC, X::AbstractMatrix{T}) where T
     em = similar(X)
     ev = T[]
     Shat= Matrix{T}(undef,p,p)
-    CRHCCache(X, em, ev, Matrix{T}(undef, 0,0), chol, Shat, ci, sf)
+    Smat = Matrix{T}(undef, 0, 0)
+    CRHCCache(X, em, ev, Smat, chol, Shat, ci, sf)
 end
 
 """
@@ -96,20 +97,20 @@ Calculate the default degrees-of-freedom adjsutment for `CRHC`
 # Note: the adjustment is a multyplicative factor.
 """
 function dofadjustment(k::CRHC0, c::CRHCCache)
-    g = length(clustersindices(c))
+    g = length(clustersindices(c))::Int64
     return g/(g-1)
 end
 
 function dofadjustment(k::CRHC1, c::CRHCCache)
     g, (n, p) = length(clustersindices(c)), size(modelmatrix(c))
-    return (n-1)/(n-p) * g/(g-1)
+    return ((n-1)/(n-p) * g/(g-1))::Int64
 end
 
 dofadjustment(k::CRHC2, c::CRHCCache) = 1
 
 function dofadjustment(k::CRHC3, c::CRHCCache)
      g, (n, p) = length(clustersindices(c)), size(modelmatrix(c))
-    return g/(g-1)
+    return (g/(g-1))::Int64
 end
 
 adjustresid!(k::CRHC0, c::CRHCCache) = resid(c)
@@ -128,7 +129,7 @@ function adjustresid!(v::CRHC2, c::CRHCCache)
     return u
 end
 
-function adjustresid!(k::CRHC3, c::CRHCCache)
+Base.@propagate_inbounds function adjustresid!(k::CRHC3, c::CRHCCache)
     X, u = modelmatrix(c), resid(c)
     n, p = size(X)
     invxx, indices = invcrossx(c), clustersindices(c)
