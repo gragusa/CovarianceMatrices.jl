@@ -103,14 +103,14 @@ end
 
 function dofadjustment(k::CRHC1, c::CRHCCache)
     g, (n, p) = length(clustersindices(c)), size(modelmatrix(c))
-    return ((n-1)/(n-p) * g/(g-1))::Int64
+    return ((n-1)/(n-p) * g/(g-1))
 end
 
 dofadjustment(k::CRHC2, c::CRHCCache) = 1
 
 function dofadjustment(k::CRHC3, c::CRHCCache)
      g, (n, p) = length(clustersindices(c)), size(modelmatrix(c))
-    return (g/(g-1))::Int64
+    return (g/(g-1))
 end
 
 adjustresid!(k::CRHC0, c::CRHCCache) = resid(c)
