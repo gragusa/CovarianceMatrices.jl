@@ -69,13 +69,13 @@ bw(s::AbstractSmoother) = s.S
 
 (k::IdentitySmoother)(G) = G
 
-Base.@propagate_inbounds function (s::TruncatedSmoother)(G::AbstractMatrix)
+Base.@propagate_inbounds function (s::TruncatedSmoother)(G::Matrix)
     N, M = size(G)
     nG   = zeros(WFLOAT, N, M)
     b = bw(s)
     xi = ξ(s)
-    for m=1:M
-        for t=1:N
+    for m=axes(G,2)
+        for t=axes(G,1)
             low = max((t-N), -xi)::Int
             high = min(t-1, xi)::Int
             for s = low:high
@@ -86,13 +86,13 @@ Base.@propagate_inbounds function (s::TruncatedSmoother)(G::AbstractMatrix)
     return nG
 end
 
-Base.@propagate_inbounds function (s::BartlettSmoother)(G::AbstractMatrix)
+Base.@propagate_inbounds function (s::BartlettSmoother)(G::Matrix)
     N, M = size(G)
     b = bw(s)
     xi = ξ(s)
     nG = zeros(WFLOAT, N, M)    
-    for m=1:M
-        for t=1:N
+    for m=axes(G,2)
+        for t=axes(G, 1)
             low = max((t-N), -xi)::Int
             high = min(t-1, xi)::Int
             for s = low:high
