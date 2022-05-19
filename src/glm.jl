@@ -72,61 +72,6 @@ end
 momentmatrix(m::TableRegressionModel{T}) where T<:INNERMOD = momentmatrix(m.model)
 momentmatrix(m::INNERMOD) = (modmatrix(m).*resid(m))./dispersion(m)
 
-# TODO: move to the interface file
-# hasresiduals(m::INNERMOD) = true
-# hasmodelmatrix(m::TableRegressionModel{T}) where T<:INNERMOD = true
-
-# --------------------------------------------------------------------
-# HAC GLM Methods
-# --------------------------------------------------------------------
-# function StatsBase.vcov(k::HAC, m; prewhite=false, dof_adjustment::Bool=true, scale::Real=1)
-#     return _vcov(k, m, prewhite, dof_adjustment, scale)
-# end
-
-# function _vcov(k::HAC, m, prewhite::Bool, dof_adjustment::Bool, scale::Real)
-#     setupkernelweights!(k, m)
-#     B  = invpseudohessian(m)
-#     mm = momentmatrix(m)
-#     A = lrvar(k, mm; prewhite=prewhite, demean=false)
-#     scale *= (dof_adjustment ? numobs(m)^2/dof_resid(m) : numobs(m))
-#     V = Symmetric((B*A*B).*scale)
-#     return V
-# end
-
-# vcovmatrix(
-#     k::HAC,
-#     m::RegressionModel,
-#     factorization=Cholesky;
-#     prewhite=false,
-#     dof_adjustment::Bool=true,
-#     scale::Real=1,
-# ) = _vcovmatrix(k, m, prewhite, dof_adjustment, scale, factorization)
-
-# function _vcovmatrix(
-#     k::HAC,
-#     m::RegressionModel,
-#     prewhite::Bool,
-#     dof_adjustment::Bool,
-#     scale::Real,
-#     ::Type{Cholesky},
-# )
-#     V = _vcov(k, m, prewhite, dof_adjustment, scale)
-#     return CovarianceMatrix(cholesky(V, check=true), k, V)
-# end
-
-# function _vcovmatrix(
-#     k::HAC,
-#     m::RegressionModel,
-#     prewhite::Bool,
-#     dof_adjustment::Bool,
-#     scale::Real,
-#     ::Type{SVD},
-# )
-#     V = _vcov(k, m, prewhite, dof_adjustment, scale)
-#     return CovarianceMatrix(svd(V), k, V)
-# end
-
-
 # --------------------------------------------------------------------
 # HC GLM Methods 
 # --------------------------------------------------------------------
@@ -190,23 +135,9 @@ function _vcov(k::HC, m::RegressionModel, scale)
     return Symmetric((B*A*B).*scale)
 end
 
-# vcovmatrix(k::HC, m::RegressionModel, factorization=Cholesky; scale::Real=1) =
-#     _vcovmatrix(k, m, scale, factorization)
-
-# function _vcovmatrix(k::HC, m::RegressionModel, scale::Real, ::Type{Cholesky})
-#     V = _vcov(k, m, scale)
-#     CovarianceMatrix(cholesky(V, check=true), k, V)
-# end
-
-# function _vcovmatrix(k::HC, m::RegressionModel, scale::Real, ::Type{SVD})
-#     V = _vcov(k, m, scale)
-#     CovarianceMatrix(svd(V), k, V)
-# end
-
 # --------------------------------------------------------------------
 # CRHC GLM Methods
 # --------------------------------------------------------------------
-
 function installcache(k::CRHC, m::RegressionModel)
     X = modmatrix(m)
     res = resid(m)
@@ -265,7 +196,6 @@ function _vcovmatrix(
     CovarianceMatrix(svd(V), k, V)
 end
 
-
 # -----------------------------------------------------------------------------
 # CRHC GLM - Trick to use vcov(CRHC1(:cluster, df), ::GLM)
 # -----------------------------------------------------------------------------
@@ -288,17 +218,6 @@ function recast(k::CRHC{T,D}, m::TableRegressionModel) where {T<:Symbol, D}
         id = compress(categorical(k.df[idx,t]))
         return renew(k, id)
     end
-    # ct = columntable(clus)
-    # length_unique = map(x->length(unique(x)), ct)
-    # fg = 1:prod(length_unique)
-    # #cl = map(x->compress(categorical(x)), eachcol(x))
-    # clus[!, :clusid] .= size(clus, 2) > 1 ? zero(Int) : clus[!, tterms[1]]
-    # if length(tterms) > 1
-    #     for (i,j) in enumerate(groupby(clus, [tterms...]))
-    #         j[:, :clusid] .= fg[i]
-    #     end
-    # end
-    # id = compress(categorical(clus[!, :clusid]))    
 end
 
 
