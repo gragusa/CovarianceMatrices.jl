@@ -157,8 +157,8 @@ end
 @inline lagtruncation(k::QuadraticSpectralKernel) = 2/25
 
 
-# TODO: move this function to util
-function allequal(x)
+
+function allequal(x::Array{T,N}) where {T,N}
     lx = length(x)
     lx < 2 && return true
     e1 = x[1]
@@ -188,7 +188,7 @@ Base.@propagate_inbounds function fit_ar(A::Matrix{T}) where T
     rho = Vector{T}(undef, p)
     σ⁴ = similar(rho)
     xy = Vector{T}(undef, n-1)
-    for j in 1:p
+    for j in axes(A, 2)
         y = A[2:n, j]
         x = A[1:n-1, j]
         allequal(x) && (rho[j] = 0; σ⁴[j] = 0; continue)
@@ -199,7 +199,7 @@ Base.@propagate_inbounds function fit_ar(A::Matrix{T}) where T
         x .= x.*rho[j]
         y .= y .- x
         σ⁴[j]  = (sum(abs2, y)/(n-1))^2
-    end    
+    end
     return rho, σ⁴
 end
 
