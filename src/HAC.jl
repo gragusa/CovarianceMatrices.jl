@@ -10,14 +10,14 @@ Calculate the autocovariance of order `j` of `A`.
 # Returns
 - `AbstractMatrix{T}`: the autocovariance
 """
-function Γ(A::Matrix{T}, j::Int) where T
+function Γ(A::Matrix{T}, j::Int) where T<:Real
     n, p = size(A)
     Q = zeros(T, p, p)
     Γsign!(Q, A, j, Val{j>0})
     return Q
 end
 
-function Γsign!(Q, A, j::Int, ::Type{Val{true}})
+function Γsign!(Q, A::Matrix, j::Int, ::Type{Val{true}})
     n, p = size(A)
     for h=1:p, s = 1:h
         for t = j+1:n
@@ -26,7 +26,7 @@ function Γsign!(Q, A, j::Int, ::Type{Val{true}})
     end
 end
 
-function Γsign!(Q, A, j::Int, ::Type{Val{false}})
+function Γsign!(Q, A::Matrix, j::Int, ::Type{Val{false}})
     n, p = size(A)
     for h=1:p, s = 1:h
         for t = -j+1:n
@@ -34,6 +34,29 @@ function Γsign!(Q, A, j::Int, ::Type{Val{false}})
         end
     end
 end
+
+function Γ(A::Vector{T}, j::Int) where T<:Real
+    n = lenght(A)
+    Q = zero(T)
+    Γsign!(Q, A, j, Val{j>0})
+    return Q
+end
+
+function Γsign!(Q, A::Vector, j::Int, ::Type{Val{true}})
+    n = length(A)
+        for t = j+1:n
+            @inbounds Q[s] = Q[s] + A[t]*A[t-j]
+        end
+end
+
+function Γsign!(Q, A::Vector, j::Int, ::Type{Val{false}})
+    n = length(A)    
+    for t = -j+1:n
+        @inbounds Q[s] = Q[s] + A[t+j]*A[t]
+    end
+end
+
+
 
 covindices(k::T, n) where T<:QuadraticSpectralKernel = Iterators.filter(x -> x!=0, -n:n)
 covindices(k::HAC, n) = Iterators.filter(x -> x!=0, -floor(Int, k.bw[1]):floor(Int, k.bw[1]))
@@ -55,7 +78,7 @@ function kernel(k::QuadraticSpectralKernel, x::Real)
     return 3*(sin(z)/z-cos(z))*(1/z)^2
 end
 
-function setupkernelweights!(k::HAC, m::AbstractMatrix)
+function setupkernelweights!(k::HAC, m::Matrix)
     n, p = size(m)
     kw = kernelweights(k)
     if isempty(kw) || length(kw) != p || all(iszero.(kw))
