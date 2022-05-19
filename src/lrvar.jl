@@ -1,7 +1,6 @@
 #======
 A. HAC
 =======#
-
 function lrvar(
     k::HAC,
     m::AbstractMatrix;
@@ -66,9 +65,7 @@ end
 #=======
 B. VARHC
 =======#
-"""
 
-"""
 function lrvar(
     k::VARHAC,
     m::AbstractMatrix,
@@ -165,19 +162,3 @@ function _lrvarmatrix(k::CRHC, m::AbstractMatrix, scale, ::Type{SVD})
     V = _lrvar(k, m, scale)
     CovarianceMatrix(SVD(V.data), k, V)
 end
-#=========
-Finalizers
-==========#
-# factorizer(::Type{SVD}, V) = svd(V.data)
-# factorizer(::Type{Cholesky}, V) = cholesky(V, check = false)
-
-# finalize(k, V, M, F) = finalize(k, V, M, F, 1)
-
-# function finalize(k, V, ::Type{M}, F, scale) where M<:Matrix
-#     return Symmetric(V.*scale)
-# end
-
-# function finalize(k, V, ::Type{M}, F, scale) where M<:CovarianceMatrix
-#     V .= V.*scale
-#     CovarianceMatrix(factorizer(F, V), k, Symmetric(V))
-# end
