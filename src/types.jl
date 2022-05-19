@@ -28,7 +28,7 @@ struct Fixed<:BandwidthType end
     `TruncatedKernel`
 
 # Constructors
-    TruncatedKernel{Fixed}(x::Int)
+    TruncatedKernel(x::Int)
     TruncatedKernel{Andrews}()
     TruncatedKernel{NeweyWest}()
 # Note
