@@ -6,7 +6,7 @@ function lrvar(
     m::AbstractMatrix;
     prewhite::Bool = false,
     demean::Bool=true,
-    scale::Real=1,
+    scale::Real=one(T),
 )
     mm = demean ? m .- mean(m, dims = 1) : m
     scale *= inv(size(m,1))
@@ -24,7 +24,13 @@ function _lrvar(k::HAC, mm, prewhite::Bool, scale)
     end
     LinearAlgebra.copytri!(V, 'U')
     dewhiter!(V, m, D, Val{prewhite})
-    return Symmetric(V.*convert(eltype(V), scale))
+    
+    if eltype(V) <: AbstractFloat
+        Symmetric(V.*convert(T, scale))
+    else
+        Symmetric(V.*scale)
+    end
+
 end
 
 function lrvarmatrix(
@@ -87,27 +93,32 @@ C. HC
 =======#
 function lrvar(
     k::HC,
-    m::AbstractMatrix;
+    m::AbstractMatrix{T};
     demean::Bool=true,
-    scale::Real=1
-)
+    scale::Real=one(T)
+) where T<:Real
     mm = demean ? m .- mean(m, dims=1) : m
+    scale *= inv(size(mm, 1))
     return _lrvar(k, mm, scale)
 end
 
-function _lrvar(k::HC, m::AbstractMatrix{T}, scale) where T
-    V = m'*m
-    F = promote_type(T, eltype(V))
-    return Symmetric(V.*convert(F, inv(size(m,1))*scale))
+function _lrvar(k::HC, m::AbstractMatrix{T}, scale) where T<:Real
+    P = parent(m)
+    V = P'*P
+    if T <: AbstractFloat
+        Symmetric(V.*convert(T, scale))
+    else
+        Symmetric(V.*scale)
+    end
 end
 
 function lrvarmatrix(
     k::HC,
-    m::AbstractMatrix,
+    m::AbstractMatrix{T},
     factorization=Cholesky;
     demean::Bool=true,
-    scale::Real=1
-)
+    scale::Real=one(T)
+) where T<:Real
     mm = demean ? m .- mean(m, dims=1) : m
     return _lrvarmatrix(k, mm, scale, factorization)
 end
@@ -126,29 +137,32 @@ D. CRHC
 =======#
 function lrvar(
     k::CRHC,
-    m::AbstractMatrix;
+    m::AbstractMatrix{T};
     demean::Bool=true,
-    scale::Real=1,
-)
+    scale::Real=one(T),
+) where T
     mm = demean ? m .- mean(m, dims=1) : m
-    scale *= inv(size(m,1))*scale
+    scale *= inv(size(m,1)) ### *scale  <- ????
     return _lrvar(k, mm, scale)
 end
 
 function _lrvar(k::CRHC, m::AbstractMatrix{T}, scale) where T
     cache = installcache(k, m)
     Shat = clusterize!(cache)
-    F = promote_type(T, eltype(Shat))
-    return Symmetric(Shat.*convert(F, scale))
+    if T <: AbstractFloat
+        Symmetric(Shat.*convert(T, scale))
+    else
+        Symmetric(Shat.*scale)
+    end
 end
 
 function lrvarmatrix(
     k::CRHC,
-    m::AbstractMatrix,
+    m::AbstractMatrix{T},
     factorization=Cholesky;
     demean::Bool=true,
     scale::Real=1,
-)
+) where T<:Real
     mm = demean ? m .- mean(m, dims=1) : m
     return _lrvarmatrix(k, mm, scale, factorization)
 end

@@ -531,6 +531,11 @@ end
      @test inv(V0c) ≈ inv(Matrix(V0))
      @test inv(V0s) ≈ inv(Matrix(V0))
 
+     @test pinv(V0s) ≈ pinv(Matrix(V0))
+     @test pinv(V2s) ≈ pinv(Matrix(V2))
+
+    ## Find example of model with non full rank matric and test
+    ## invfact
      @test inv(V0) ≈ CovarianceMatrices.invfact(V0c)'*CovarianceMatrices.invfact(V0c)
      @test inv(V1) ≈ CovarianceMatrices.invfact(V1c)'*CovarianceMatrices.invfact(V1c)
      @test inv(V2) ≈ CovarianceMatrices.invfact(V2c)'*CovarianceMatrices.invfact(V2c)
@@ -625,8 +630,8 @@ end
 
     @test size(CM1) == (5,5)
 
-    @test CM.invfact(CM3, true) ≈ inv(cholesky(Hermitian(Matrix(CM3))).L)
-    @test CM.invfact(CM3, false) ≈ inv(cholesky(Hermitian(Matrix(CM3))).U)
+    @test CM.invfact(CM3; lower = true) ≈ inv(cholesky(Hermitian(Matrix(CM3))).L)
+    @test CM.invfact(CM3; lower = false) ≈ inv(cholesky(Hermitian(Matrix(CM3))).U)
 
     @test CM.invfact(CM3)'*CM.invfact(CM3) ≈ inv(CM3)
 

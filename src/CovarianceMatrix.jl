@@ -14,7 +14,7 @@ function LinearAlgebra.pinv(x::CovarianceMatrix{T}; kwargs...) where T<:SVD
     F'*F
 end
 
-invfact(x::CovarianceMatrix{T1}, lower::Bool = true) where T1<:Cholesky = !lower ? inv(x.F.U) : inv(x.F.L)
+invfact(x::CovarianceMatrix{T1}; lower::Bool = true, kwargs...) where T1<:Cholesky = !lower ? inv(x.F.U) : inv(x.F.L)
 
 function invfact(x::CovarianceMatrix{T1}; regularize::Bool = true, atol::Real = 0.0, rtol::Real = (eps(real(float(one(eltype(x)))))*min(size(x)...))*iszero(atol)) where T1<:SVD
     Sr = similar(x.F.S)
@@ -35,16 +35,16 @@ function invfact(x::CovarianceMatrix{T1}; regularize::Bool = true, atol::Real = 
     Diagonal(Sr)*Vt
 end
 
-function quadinv(g::AbstractMatrix, x::CovarianceMatrix)
+function quadinv(g::AbstractMatrix, x::CovarianceMatrix; kwargs...)
     @assert size(x, 1) == size(g, 2)
-    B = invfact(x)
+    B = invfact(x; kwargs...)
     gw = B*Transpose(g)
     dot(gw, gw)
 end
 
-function quadinv(g::AbstractVector, x::CovarianceMatrix)
+function quadinv(g::AbstractVector, x::CovarianceMatrix; kwargs...)
     @assert length(g) == size(x, 1)
-    B = invfact(x)
+    B = invfact(x; kwargs...)
     gw = B*g
     dot(gw, gw)
 end

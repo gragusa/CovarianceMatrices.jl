@@ -1,5 +1,5 @@
 """
-    Γ(A::AbstractMatrix{T}, j::Int) where T
+Γ(A::AbstractMatrix{T}, j::Int) where T
 
 Calculate the autocovariance of order `j` of `A`.
 
@@ -10,53 +10,46 @@ Calculate the autocovariance of order `j` of `A`.
 # Returns
 - `AbstractMatrix{T}`: the autocovariance
 """
-function Γ(A::Matrix{T}, j::Int) where T<:Real
+function Γ(A::AbstractMatrix{T}, j::Int) where T<:Real
     n, p = size(A)
     Q = zeros(T, p, p)
     Γsign!(Q, A, j, Val{j>0})
     return Q
 end
 
-function Γsign!(Q, A::Matrix, j::Int, ::Type{Val{true}})
-    n, p = size(A)
-    for h=1:p, s = 1:h
-        for t = j+1:n
+function Γsign!(Q::Matrix, A::AbstractMatrix, j::Int, ::Type{Val{true}})
+    for h in axes(A, 2), s in firstindex(A,1):h+firstindex(A,1)-1
+        for t in (j+firstindex(A,1)):lastindex(A, 1)
             @inbounds Q[s, h] = Q[s, h] + A[t, s]*A[t-j, h]
         end
     end
 end
 
-function Γsign!(Q, A::Matrix, j::Int, ::Type{Val{false}})
-    n, p = size(A)
-    for h=1:p, s = 1:h
-        for t = -j+1:n
+function Γsign!(Q, A::AbstractMatrix, j::Int, ::Type{Val{false}})
+    for h in axes(A, 2), s in firstindex(A,1):h+firstindex(A,1)-1
+        for t in (-j+firstindex(A,1)):lastindex(A, 1)
             @inbounds Q[s,h] = Q[s ,h] + A[t+j, s]*A[t,h]
         end
     end
 end
 
-function Γ(A::Vector{T}, j::Int) where T<:Real
-    n = lenght(A)
+function Γ(A::AbstractVector{T}, j::Int) where T<:Real
     Q = zero(T)
     Γsign!(Q, A, j, Val{j>0})
     return Q
 end
 
-function Γsign!(Q, A::Vector, j::Int, ::Type{Val{true}})
-    n = length(A)
-        for t = j+1:n
-            @inbounds Q[s] = Q[s] + A[t]*A[t-j]
-        end
-end
-
-function Γsign!(Q, A::Vector, j::Int, ::Type{Val{false}})
-    n = length(A)    
-    for t = -j+1:n
-        @inbounds Q[s] = Q[s] + A[t+j]*A[t]
+function Γsign!(Q::Matrix, A::AbstractVector, j::Int, ::Type{Val{true}})
+    for t in j+firstindex(A):lastindex(A)
+        @inbounds Q[s] = Q[s] + A[t]*A[t-j]
     end
 end
 
-
+function Γsign!(Q, A::Vector, j::Int, ::Type{Val{false}})
+    for t in -j+firstindex(A):lastindex(A)
+        @inbounds Q[s] = Q[s] + A[t+j]*A[t]
+    end
+end
 
 covindices(k::T, n) where T<:QuadraticSpectralKernel = Iterators.filter(x -> x!=0, -n:n)
 covindices(k::HAC, n) = Iterators.filter(x -> x!=0, -floor(Int, k.bw[1]):floor(Int, k.bw[1]))
@@ -93,8 +86,8 @@ end
 # Optimal bandwidth
 # -----------------------------------------------------------------------------
 """
-    optimalbandwidth(k::HAC{T}, mm; prewhite::Bool=false) where {T<:Andrews}
-    optimalbandwidth(k::HAC{T}, mm; prewhite::Bool=false) where {T<:NeweyWest}
+optimalbandwidth(k::HAC{T}, mm; prewhite::Bool=false) where {T<:Andrews}
+optimalbandwidth(k::HAC{T}, mm; prewhite::Bool=false) where {T<:NeweyWest}
 
 
 Calculate the optimal bandwidth according to either Andrews or Newey-West.
@@ -103,7 +96,7 @@ function optimalbandwidth(
     k::HAC{T},
     m::AbstractMatrix;
     prewhite::Bool=false
-) where T<:Union{Andrews, NeweyWest}
+    ) where T<:Union{Andrews, NeweyWest}
     setupkernelweights!(k, m)
     bw = _optimalbandwidth(k, m, prewhite)
     return bw
@@ -125,10 +118,14 @@ end
 function bwNeweyWest(k::HAC, mm, prewhite::Bool)
     w = kernelweights(k)
     bw = bandwidth(k)
-    n, p = size(mm)
+    n, _ = size(mm)
     l = getrates(k, mm, prewhite)
     xm = mm*w
-    a = map(j -> dot(xm[1:n-j], xm[j+1:n])/n, 0:l)::Array{Float64, 1}
+    a = Vector{Float64}(undef, l+1)
+    for j in 0:l
+        a[j+1] = dot(xm[firstindex(xm):lastindex(xm)-j], xm[j+firstindex(xm):lastindex(xm)])/n
+    end
+    #a = map(j -> dot(xm[1:n-j], xm[j+1:n])/n, 0:l)::Array{Float64, 1}
     aa = view(a, 2:l+1)
     a0 = a[1] + 2*sum(aa)
     a1 = 2*sum((1:l) .* aa)
@@ -139,10 +136,10 @@ end
 
 ## ---> Andrews Optimal bandwidth <---
 d_bw_andrews = Dict(:TruncatedKernel         => :(0.6611*(a2*n)^(0.2)),
-                    :BartlettKernel          => :(1.1447*(a1*n)^(1/3)),
-                    :ParzenKernel            => :(2.6614*(a2*n)^(0.2)),
-                    :TukeyHanningKernel      => :(1.7462*(a2*n)^(0.2)),
-                    :QuadraticSpectralKernel => :(1.3221*(a2*n)^(0.2)))
+:BartlettKernel          => :(1.1447*(a1*n)^(1/3)),
+:ParzenKernel            => :(2.6614*(a2*n)^(0.2)),
+:TukeyHanningKernel      => :(1.7462*(a2*n)^(0.2)),
+:QuadraticSpectralKernel => :(1.3221*(a2*n)^(0.2)))
 
 for kerneltype in kernels
     @eval $:(bw_andrews)(k::($kerneltype), a1, a2, n) = $(d_bw_andrews[kerneltype])
@@ -194,26 +191,28 @@ end
 # -----------------------------------------------------------------------------
 # Fit function
 # -----------------------------------------------------------------------------
-Base.@propagate_inbounds function fit_var(A::Matrix{T}) where T
-    n, p = size(A)
-    Y = view(A, 2:n,:)
-    X = view(A, 1:n-1,:)
+Base.@propagate_inbounds function fit_var(A::AbstractMatrix{T}) where T
+    P = parent(A)
+    li = lastindex(P, 1)
+    Y = view(P, 2:li, :)    
+    X = view(P, 1:li-1,:)
     B = X\Y
     E = Y - X*B
     return E, B
 end
 
-Base.@propagate_inbounds function fit_ar(A::Matrix{T}) where T
+Base.@propagate_inbounds function fit_ar(Z::AbstractMatrix{T}) where T
     ## Estimate
     ##
     ## y_{t,j} = ρ y_{t-1,j} + ϵ
+    A = parent(Z)
     n, p = size(A)
     rho = Vector{T}(undef, p)
     σ⁴ = similar(rho)
     xy = Vector{T}(undef, n-1)
-    for j in 1:p
-        y = A[2:n, j]
-        x = A[1:n-1, j]
+    for j in axes(A, 2)
+        y = A[2:lastindex(A,1), j]
+        x = A[1:lastindex(A,1)-1, j]
         allequal(x) && (rho[j] = 0; σ⁴[j] = 0; continue)
         x .= x .- mean(x)
         y .= y .- mean(y)

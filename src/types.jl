@@ -41,6 +41,8 @@ struct TruncatedKernel{G<:BandwidthType}<:HAC{G}
   weights::Vector{WFLOAT}
 end
 
+const Truncated = TruncatedKernel
+
 """
     `BartlettKernel`
 
@@ -56,6 +58,8 @@ struct BartlettKernel{G<:BandwidthType}<:HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
 end
+
+const Bartlett = BartlettKernel
 
 """
     `ParzenKernel`
@@ -73,6 +77,7 @@ struct ParzenKernel{G<:BandwidthType}<:HAC{G}
     weights::Vector{WFLOAT}
 end
 
+const Parzen = ParzenKernel
 """
     `TukeyHanningKernel`
 
@@ -88,6 +93,8 @@ struct TukeyHanningKernel{G<:BandwidthType}<:HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
 end
+
+const TukeyHanning = TukeyHanningKernel
 
 """
     `QuadraticSpectralKernel`
@@ -110,6 +117,8 @@ mutable struct VARHAC <: RobustVariance
     lagstrategy::Int
     selectionstrategy::Symbol
 end
+
+const QuadraticSpectral = QuadraticSpectralKernel
 
 ## ------------------------------------------------------------------------------------------
 # Define HAC constructor
