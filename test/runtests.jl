@@ -543,6 +543,12 @@ end
      @test inv(V0) ≈ CovarianceMatrices.invfact(V0s)'*CovarianceMatrices.invfact(V0s)
      @test inv(V1) ≈ CovarianceMatrices.invfact(V1s)'*CovarianceMatrices.invfact(V1s)
      @test inv(V2) ≈ CovarianceMatrices.invfact(V2s)'*CovarianceMatrices.invfact(V2s)
+     
+
+    mm = rand(6)
+    @test CovarianceMatrices.quadinv(mm, V0s) ≈ mm'*inv(V0s)*mm
+    @test CovarianceMatrices.quadinv(mm, V1s) ≈ mm'*inv(V1s)*mm
+    @test CovarianceMatrices.quadinv(mm, V2s) ≈ mm'*inv(V2s)*mm
 
 end
 
@@ -560,6 +566,18 @@ end
     ## Need testing for CRHC
 end
 
+@testset "Type preserving.................................." begin
+    # Random.seed!(1)
+    Z = randn(Float32, 10, 5)    
+    @test eltype(lrvar(HC1(), Z, demean = true)) <: Float32
+    @test eltype(lrvar(HC2(), Z, demean = true)) <: Float32
+    @test eltype(lrvar(BartlettKernel(2), Z, demean = true)) <: Float32
+    @test eltype(lrvar(TruncatedKernel(2), Z, demean = true)) <: Float32
+    @test eltype(lrvar(QuadraticSpectralKernel(2), Z, demean = true)) <: Float32
+    @test eltype(lrvar(QuadraticSpectralKernel{NeweyWest}(), Z, demean = true)) <: Float32
+    @test eltype(lrvar(QuadraticSpectralKernel{Andrews}(), Z, demean = true)) <: Float32
+    ## Need testing for CRHC
+end
 
 
 
