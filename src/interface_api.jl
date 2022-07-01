@@ -18,8 +18,7 @@ end
 
 setupkernelweights!(k::T, m::F) where {T<:Smoothed, F} = return nothing
 
-function StatsBase.vcov(k::T, m; 
-    prewhite=false, dof_adjustment::Bool=true, scale::Real=1) where T<:Union{HAC, Smoothed}
+function StatsBase.vcov(k::T, m; prewhite=false, dof_adjustment::Bool=true, scale::Real=1) where T<:Union{HAC, Smoothed}
     return _vcov(k, m, prewhite, dof_adjustment, scale)
 end
 

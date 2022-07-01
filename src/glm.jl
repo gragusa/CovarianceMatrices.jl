@@ -152,7 +152,7 @@ end
 
 function StatsBase.vcov(k::CRHC, m::RegressionModel; scale::Real=1)
     knew = recast(k, m)
-    length(knew.cl) == numobs(m) || throw(ArgumentError(k, "the length of the cluster variable must be $(numobs(m))"))
+    length(knew.cl) == numobs(m) || throw(ArgumentError("the length of the cluster variable must be $(numobs(m))"))
     cache = installcache(knew, m)
     return _vcov(knew, m, cache, scale)
 end

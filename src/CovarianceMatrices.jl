@@ -4,8 +4,7 @@ A package for dealing with the estimation of (co)variance matrices.
     1. Define CovarianceEstimator(s) which are robust to heteroskedasticity, time-dependence, amd spatial dependence (cluster)
     2. Optionally, interface with GLM.jl to provide estimates of coefficients' standard errors which are robust
 
-These use cases utilize different parts of this package, make sure you read the
-documentation.
+These use cases utilize different parts of this package, make sure you read the documentation.
 """
 
 module CovarianceMatrices
