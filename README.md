@@ -8,7 +8,6 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
 
 ## Installation
 
-
 ```julia
 Pkg.add("CovarianceMatrices")
 ```
@@ -48,7 +47,7 @@ Available kernel types are:
 For example, `ParzenKernel{NeweyWest}()` return an instance of `TruncatedKernel` parametrized by `NeweyWest`, the type that corresponds to the optimal bandwidth calculated following Newey and West (1994).  Similarly, `ParzenKernel{Andrews}()` corresponds to the optimal bandwidth obtained in Andrews (1991). If the bandwidth is known, it can be directly passed, i.e. `TruncatedKernel(2)`.
 
 
-### Long run variance of the regression coefficient
+### Long run variance of regression coefficients
 
 In the regression context, the function `vcov` does all the work:
 ```julia
