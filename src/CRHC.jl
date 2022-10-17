@@ -164,6 +164,10 @@ Base.@propagate_inbounds function clusterize!(c::CRHCCache)
     return LinearAlgebra.copytri!(M, 'U')
 end
 
+
+
+
+
 renew(::CRHC0, id) = CRHC0(id, nothing)
 renew(::CRHC1, id) = CRHC1(id, nothing)
 renew(::CRHC2, id) = CRHC2(id, nothing)
