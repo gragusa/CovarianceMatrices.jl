@@ -135,11 +135,12 @@ function bwNeweyWest(k::HAC, mm, prewhite::Bool)
 end
 
 ## ---> Andrews Optimal bandwidth <---
-d_bw_andrews = Dict(:TruncatedKernel         => :(0.6611*(a2*n)^(0.2)),
-:BartlettKernel          => :(1.1447*(a1*n)^(1/3)),
-:ParzenKernel            => :(2.6614*(a2*n)^(0.2)),
-:TukeyHanningKernel      => :(1.7462*(a2*n)^(0.2)),
-:QuadraticSpectralKernel => :(1.3221*(a2*n)^(0.2)))
+d_bw_andrews = Dict(
+    :Truncated         => :(0.6611*(a2*n)^(0.2)),
+    :Bartlett          => :(1.1447*(a1*n)^(1/3)),
+    :Parzen            => :(2.6614*(a2*n)^(0.2)),
+    :TukeyHanning      => :(1.7462*(a2*n)^(0.2)),
+    :QuadraticSpectral => :(1.3221*(a2*n)^(0.2)))
 
 for kerneltype in kernels
     @eval $:(bw_andrews)(k::($kerneltype), a1, a2, n) = $(d_bw_andrews[kerneltype])

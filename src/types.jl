@@ -3,18 +3,21 @@ const WFLOAT = Sys.WORD_SIZE == 64 ? Float64 : Float32
 #=========
 Abstraction
 ==========#
-abstract type RobustVariance <: CovarianceEstimator end
-abstract type HAC{G} <: RobustVariance end
-abstract type HC <: RobustVariance end
-abstract type CRHC{V,D} <: RobustVariance end
+
+abstract type AVarEstimator end
+
+abstract type TimeSeriesEstimator <: AVarEstimator end
+abstract type HAC{G} <: TimeSeriesEstimator end
+abstract type VARHAC{G} <: TimeSeriesEstimator end
+
+abstract type CrossSectionEstimator <: AVarEstimator end
+abstract type HR <: CrossSectionEstimator end
+abstract type CR{V,D} <: CrossSectionEstimator end
 
 #=========
 HAC Types
 =========#
-
-
 abstract type BandwidthType end
-#abstract type OptimalBandwidth end
 
 struct NeweyWest<:BandwidthType end
 struct Andrews<:BandwidthType end
@@ -28,9 +31,9 @@ struct Fixed<:BandwidthType end
     `TruncatedKernel`
 
 # Constructors
-    TruncatedKernel(x::Int)
-    TruncatedKernel{Andrews}()
-    TruncatedKernel{NeweyWest}()
+    Truncated(x::Int)
+    Truncated{Andrews}()
+    Truncated{NeweyWest}()
 # Note
 - `Fixed`: fixed bandwidth
 - `Andrews`: bandwidth selection a la Andrews
@@ -44,17 +47,17 @@ end
 const Truncated = TruncatedKernel
 
 """
-    `BartlettKernel`
+    `Bartlett`
 
 # Constructors
-    BartlettKernel(x::Int)
-    BartlettKernel(::Type{Andrews})
-    BartlettKernel(::Type{NeweyWest})
+    Bartlett(x::Int)
+    Bartlett(::Type{Andrews})
+    Bartlett(::Type{NeweyWest})
 # Note
 - `Andrews`: bandwidth selection a la Andrews
 - `NeweyWest`: bandwidth selection a la Andrews
 """
-struct BartlettKernel{G<:BandwidthType}<:HAC{G}
+struct Bartlett{G<:BandwidthType}<:HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
 end
@@ -62,12 +65,12 @@ end
 const Bartlett = BartlettKernel
 
 """
-    `ParzenKernel`
+    `Parzen`
 
 # Constructors
-    ParzenKernel(x::Int)
-    ParzenKernel(::Type{Andrews})
-    ParzenKernel(::Type{NeweyWest})
+    Parzen(x::Int)
+    Parzen(::Type{Andrews})
+    Parzen(::Type{NeweyWest})
 # Note
 - `Andrews`: bandwidth selection a la Andrews
 - `NeweyWest`: bandwidth selection a la Andrews
@@ -79,12 +82,12 @@ end
 
 const Parzen = ParzenKernel
 """
-    `TukeyHanningKernel`
+    `TukeyHanning`
 
 # Constructors
-    TukeyHanningKernel(x::Int)
-    TukeyHanningKernel(::Type{Andrews})
-    TukeyHanningKernel(::Type{NeweyWest})
+    TukeyHanning(x::Int)
+    TukeyHanning(::Type{Andrews})
+    TukeyHanning(::Type{NeweyWest})
 # Note
 - `Andrews`: bandwidth selection a la Andrews
 - `NeweyWest`: bandwidth selection a la Andrews
@@ -97,12 +100,12 @@ end
 const TukeyHanning = TukeyHanningKernel
 
 """
-    `QuadraticSpectralKernel`
+    `QuadraticSpectral`
 
 # Constructors
-    QuadraticSpectralKernel(x::Int)
-    QuadraticSpectralKernel(::Type{Andrews})
-    QuadraticSpectralKernel(::Type{NeweyWest})
+    QuadraticSpectral(x::Int)
+    QuadraticSpectral(::Type{Andrews})
+    QuadraticSpectral(::Type{NeweyWest})
 # Note
 - `Andrews`: bandwidth selection a la Andrews
 - `NeweyWest`: bandwidth selection a la Andrews
@@ -112,13 +115,15 @@ struct QuadraticSpectralKernel{G<:BandwidthType}<:HAC{G}
     weights::Vector{WFLOAT}
 end
 
-mutable struct VARHAC <: RobustVariance
+const QuadraticSpectral = QuadraticSpectralKernel
+
+mutable struct VARHAC <: TimeSeries
     maxlag::Int
     lagstrategy::Int
     selectionstrategy::Symbol
 end
 
-const QuadraticSpectral = QuadraticSpectralKernel
+
 
 ## ------------------------------------------------------------------------------------------
 # Define HAC constructor
@@ -129,11 +134,11 @@ const QuadraticSpectral = QuadraticSpectralKernel
 
 # Constructors
 const kernels = [
-    :BartlettKernel,
-    :ParzenKernel,
-    :QuadraticSpectralKernel,
-    :TruncatedKernel,
-    :TukeyHanningKernel,
+    :Bartlett,
+    :Parzen,
+    :QuadraticSpectral,
+    :Truncated,
+    :TukeyHanning,
 ]
 
 for kerneltype in kernels
@@ -143,7 +148,7 @@ end
 
 for kerneltype in kernels
     for opt in [:Andrews, :NeweyWest]
-        if !(opt == :NeweyWest && kerneltype in [:TukeyHanningKernel, :TruncatedKernel])
+        if !(opt == :NeweyWest && kerneltype in [:TukeyHanning, :Truncated])
             @eval ($kerneltype){$opt}() = ($kerneltype){$opt}(WFLOAT[0], WFLOAT[])
         else
             msg = "$kerneltype does not support Newey-West optimal bandwidth"
@@ -166,36 +171,36 @@ bandwidth(x::HAC) = x.bw
 kernelweights(x::HAC) = x.weights
 
 #=========
-HC Types
+HC 
 =========#
-struct HC0  <: HC end
-struct HC1  <: HC end
-struct HC2  <: HC end
-struct HC3  <: HC end
-struct HC4  <: HC end
-struct HC4m <: HC end
-struct HC5  <: HC end
+struct HR0  <: HR end
+struct HR1  <: HR end
+struct HR2  <: HR end
+struct HR3  <: HR end
+struct HR4  <: HR end
+struct HR4m <: HR end
+struct HR5  <: HR end
 
 #=========
-HC Types
+CR 
 =========#
 
-mutable struct CRHC0{V, D}  <: CRHC{V,D}
+mutable struct CR0{V, D}  <: CR{V,D}
     cl::V
     df::D
 end
 
-mutable struct CRHC1{V, D}  <: CRHC{V,D}
+mutable struct CR1{V, D}  <: CR{V,D}
     cl::V
     df::D
 end
 
-mutable struct CRHC2{V, D}  <: CRHC{V,D}
+mutable struct CR2{V, D}  <: CR{V,D}
     cl::V
     df::D
 end
 
-mutable struct CRHC3{V, D}  <: CRHC{V,D}
+mutable struct CR3{V, D}  <: CR{V,D}
     cl::V
     df::D
 end
@@ -205,17 +210,17 @@ clusterindicator(x::CRHC) = x.cl
 
 
 ## CRHC Constructors
-for tp in [:CRHC0, :CRHC1, :CRHC2, :CRHC3]
+for tp in [:CR0, :CR1, :CR2, :CR3]
     @eval $(tp)() = $(tp)(nothing, nothing)
 end
 
-for tp in [:CRHC0, :CRHC1, :CRHC2, :CRHC3]
+for tp in [:CR0, :CR1, :CR2, :CR3]
     @eval $(tp)(v::AbstractVector) = $(tp)(v, nothing)
 end
 
 
-struct CovarianceMatrix{T2<:Factorization, T3<:CovarianceMatrices.RobustVariance, F1, T1<:AbstractMatrix{F1}} <: AbstractMatrix{F1}
-    F::T2       ## Factorization
-    K::T3       ## RobustVariance, e.g. HC0()
-    V::T1       ## Covariance matrix
-end
+# struct CovarianceMatrix{T2<:Factorization, T3<:CovarianceMatrices.RobustVariance, F1, T1<:AbstractMatrix{F1}} <: AbstractMatrix{F1}
+#     F::T2       ## Factorization
+#     K::T3       ## RobustVariance, e.g. HC0()
+#     V::T1       ## Covariance matrix
+# end
