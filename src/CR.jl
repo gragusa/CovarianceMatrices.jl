@@ -1,15 +1,12 @@
 function avar(k::T, X) where T<:CR
     f = clusterindicator(k)
-    if !issorted(f) 
-        idx = sortperm(f)
-        X = X[idx, :]
-    end
-    clustersum!(X, f[idx])
+    issorted(f) ? clustersum(X, f) : (i = sortperm(f); clustersum(X[i], f[i]))  
 end
 
 clusterindicator(x::CR) = x.cl
 clusterintervals(f::CategoricalArray) = (searchsorted(f.refs, j) for j in unique(f.refs))
-avarscaler(K::CR) = length(unique(clusterindicator(K)))
+avarscaler(K::CR, X)  = length(unique(clusterindicator(K)))
+avarscaler(K::HR, X)  = size(X, 1)
 
 function sortrowby(A, by) 
     if !issorted(by) 
@@ -24,7 +21,7 @@ function sortrowby(A, by)
     end
 end
 
-function clustersum!(X::Matrix{T}, cl) where T<:Real
+function clustersum(X::Matrix{T}, cl) where T<:Real
     n, p = size(X)
     Shat = zeros(T, p, p)
     s = Array{T}(undef, p)

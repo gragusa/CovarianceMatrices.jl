@@ -10,6 +10,7 @@ function avar(k::T, X) where T<:HAC
     return V
 end
 
+avarscaler(K::HAC, X) = size(X, 1)
 
 """
 Γ(A::AbstractMatrix{T}, j::Int) where T

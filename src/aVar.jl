@@ -22,12 +22,12 @@
 #     - `unscaled=false`: When false the scale is `n` for HR and HAC and `G` for CR. 
 #       When true do not attempt to scale the variance estimator so it simply return sum
 # """
-    
+ 
 function aVar(k::AVarEstimator, X::AbstractMatrix{T}; demean::Bool=true, prewhiten::Bool=false, dof::Int64=0, mean::Any=nothing, unscaled::Bool = false) where T<:AbstractFloat
-    Z = if demean 
+    Z = if demean
             if mean===nothing 
                 mean = Statistics.mean(X; dims = 1)
-            end 
+            end
             X .- mean
         else 
             X 
@@ -39,5 +39,5 @@ function aVar(k::AVarEstimator, X::AbstractMatrix{T}; demean::Bool=true, prewhit
     end
     Shat = avar(k, Z)
     k isa HAC && prewhiten ? dewhiter!(Shat, Z, D) : nothing
-    return !unscaled ? Shat./size(X,1) : Shat
+    return !unscaled ? Shat./avarscaler(k, X) : Shat
 end
