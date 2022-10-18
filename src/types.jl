@@ -42,6 +42,7 @@ struct Fixed<:BandwidthType end
 struct TruncatedKernel{G<:BandwidthType}<:HAC{G}
   bw::Vector{WFLOAT}
   weights::Vector{WFLOAT}
+  prewhiten::Base.RefValue{Bool} 
 end
 
 const Truncated = TruncatedKernel
@@ -60,6 +61,7 @@ const Truncated = TruncatedKernel
 struct BartlettKernel{G<:BandwidthType}<:HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
+    prewhiten::Base.RefValue{Bool}
 end
 
 const Bartlett = BartlettKernel
@@ -78,6 +80,7 @@ const Bartlett = BartlettKernel
 struct ParzenKernel{G<:BandwidthType}<:HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
+    prewhiten::Base.RefValue{Bool}
 end
 
 const Parzen = ParzenKernel
@@ -95,6 +98,7 @@ const Parzen = ParzenKernel
 struct TukeyHanningKernel{G<:BandwidthType}<:HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
+    prewhiten::Base.RefValue{Bool}
 end
 
 const TukeyHanning = TukeyHanningKernel
@@ -113,6 +117,7 @@ const TukeyHanning = TukeyHanningKernel
 struct QuadraticSpectralKernel{G<:BandwidthType}<:HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
+    prewhiten::Base.RefValue{Bool}
 end
 
 const QuadraticSpectral = QuadraticSpectralKernel
@@ -142,14 +147,14 @@ const kernels = [
 ]
 
 for kerneltype in kernels
-    @eval ($kerneltype(x::Number)) = ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[])
-    @eval ($kerneltype{Fixed}(x::Number)) = ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[])
+    @eval ($kerneltype(x::Number)) = ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[], Base.RefValue(false))
+    @eval ($kerneltype{Fixed}(x::Number)) = ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[], Base.RefValue(false))
 end
 
 for kerneltype in kernels
     for opt in [:Andrews, :NeweyWest]
         if !(opt == :NeweyWest && kerneltype in [:TukeyHanning, :Truncated])
-            @eval ($kerneltype){$opt}() = ($kerneltype){$opt}(WFLOAT[0], WFLOAT[])
+            @eval ($kerneltype){$opt}() = ($kerneltype){$opt}(WFLOAT[0], WFLOAT[], Base.RefValue(false))
         else
             msg = "$kerneltype does not support Newey-West optimal bandwidth"
             @eval ($kerneltype){$opt}() = throw(ArgumentError($msg))

@@ -34,9 +34,10 @@ function aVar(k::AVarEstimator, X::AbstractMatrix{T}; demean::Bool=true, prewhit
     end 
     
     if k isa HAC && prewhiten
-        Z = prewhiter(Z)
+        Z, D = prewhiter(Z)
+        k.prewhiten.x = true        
     end
     Shat = avar(k, Z)
-    k isa HAC && prewhiten ? dewhiter!(Shat, Z) : nothing
-    return !unscaled ? Shat./avarscaler(k) : Shat
+    k isa HAC && prewhiten ? dewhiter!(Shat, Z, D) : nothing
+    return !unscaled ? Shat./size(X,1) : Shat
 end

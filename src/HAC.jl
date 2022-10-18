@@ -1,3 +1,16 @@
+function avar(k::T, X) where T<:HAC
+    n, p = size(X)
+    bw = optimalbandwidth(k, X; prewhiten=k.prewhiten.x)
+    V = triu!(X'*X)
+    @inbounds for j in covindices(k, n)
+        κⱼ = kernel(k, j/bw)
+        LinearAlgebra.axpy!(κⱼ, Γ(X, j), V)
+    end
+    LinearAlgebra.copytri!(V, 'U')
+    return V
+end
+
+
 """
 Γ(A::AbstractMatrix{T}, j::Int) where T
 
@@ -86,8 +99,8 @@ end
 # Optimal bandwidth
 # -----------------------------------------------------------------------------
 """
-optimalbandwidth(k::HAC{T}, mm; prewhite::Bool=false) where {T<:Andrews}
-optimalbandwidth(k::HAC{T}, mm; prewhite::Bool=false) where {T<:NeweyWest}
+optimalbandwidth(k::HAC{T}, mm; prewhiten::Bool=false) where {T<:Andrews}
+optimalbandwidth(k::HAC{T}, mm; prewhiten::Bool=false) where {T<:NeweyWest}
 
 
 Calculate the optimal bandwidth according to either Andrews or Newey-West.
@@ -95,31 +108,31 @@ Calculate the optimal bandwidth according to either Andrews or Newey-West.
 function optimalbandwidth(
     k::HAC{T},
     m::AbstractMatrix;
-    prewhite::Bool=false
+    prewhiten::Bool=false
     ) where T<:Union{Andrews, NeweyWest}
     setupkernelweights!(k, m)
-    bw = _optimalbandwidth(k, m, prewhite)
+    bw = _optimalbandwidth(k, m, prewhiten)
     return bw
 end
 
 optimalbandwidth(k::HAC{<:Fixed}, m::AbstractMatrix; kwargs...) = first(k.bw)
 
-_optimalbandwidth(k::HAC{T}, mm, prewhite::Bool=false) where {T<:NeweyWest} = bwNeweyWest(k, mm, prewhite)
-_optimalbandwidth(k::HAC{T}, mm, prewhite::Bool=false) where {T<:Andrews} = bwAndrews(k, mm, prewhite)
-_optimalbandwidth(k::HAC{T}, mm, prewhite::Bool=false) where {T<:Fixed} = first(k.bw)
+_optimalbandwidth(k::HAC{T}, mm, prewhiten::Bool=false) where {T<:NeweyWest} = bwNeweyWest(k, mm, prewhiten)
+_optimalbandwidth(k::HAC{T}, mm, prewhiten::Bool=false) where {T<:Andrews} = bwAndrews(k, mm, prewhiten)
+_optimalbandwidth(k::HAC{T}, mm, prewhiten::Bool=false) where {T<:Fixed} = first(k.bw)
 
-function bwAndrews(k::HAC, mm, prewhite::Bool)
+function bwAndrews(k::HAC, mm, prewhiten::Bool)
     n, p  = size(mm)
     a1, a2 = getalpha(k, mm)
     k.bw[1] = bw_andrews(k, a1, a2, n)
     return k.bw[1]
 end
 
-function bwNeweyWest(k::HAC, mm, prewhite::Bool)
+function bwNeweyWest(k::HAC, mm, prewhiten::Bool)
     w = kernelweights(k)
     bw = bandwidth(k)
     n, _ = size(mm)
-    l = getrates(k, mm, prewhite)
+    l = getrates(k, mm, prewhiten)
     xm = mm*w
     a = Vector{Float64}(undef, l+1)
     for j in 0:l
@@ -130,7 +143,7 @@ function bwNeweyWest(k::HAC, mm, prewhite::Bool)
     a0 = a[1] + 2*sum(aa)
     a1 = 2*sum((1:l) .* aa)
     a2 = 2*sum((1:l).^2 .* aa)
-    bw[1] = bwnw(k, a0, a1, a2)*(n+prewhite)^growthrate(k)
+    bw[1] = bwnw(k, a0, a1, a2)*(n+prewhiten)^growthrate(k)
     return bw[1]
 end
 
@@ -158,10 +171,10 @@ function getalpha(k, mm)
     return α₁, α₂
 end
 
-function getrates(k, mm, prewhite::Bool)
+function getrates(k, mm, prewhiten::Bool)
     n, p = size(mm)
     lrate = lagtruncation(k)
-    adj = prewhite ? 3 : 4
+    adj = prewhiten ? 3 : 4
     floor(Int, adj*(n/100)^lrate)
 end
 
