@@ -229,10 +229,9 @@ end
 # -----------------------------------------------------------------------------
 # Prewhiter and dewhiter functions    
 # -----------------------------------------------------------------------------
-prewhiter(mm, ::Type{Val{false}}) = (mm, similar(mm, (0,0)))
-prewhiter(mm, ::Type{Val{true}}) = fit_var(mm)
-dewhiter!(V, mm, D, ::Type{Val{false}}) = V
-function dewhiter!(V, mm, D, ::Type{Val{true}})
+#prewhiter(mm, ::Type{Val{false}}) = (mm, similar(mm, (0,0)))
+prewhiter(M) = fit_var(M)
+function dewhiter!(V, M, D)
     v = inv(I-D')
     V .= v*V*v'
     return V

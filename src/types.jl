@@ -57,7 +57,7 @@ const Truncated = TruncatedKernel
 - `Andrews`: bandwidth selection a la Andrews
 - `NeweyWest`: bandwidth selection a la Andrews
 """
-struct Bartlett{G<:BandwidthType}<:HAC{G}
+struct BartlettKernel{G<:BandwidthType}<:HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
 end
@@ -117,11 +117,11 @@ end
 
 const QuadraticSpectral = QuadraticSpectralKernel
 
-mutable struct VARHAC <: TimeSeries
-    maxlag::Int
-    lagstrategy::Int
-    selectionstrategy::Symbol
-end
+# mutable struct VARHAC <: TimeSeries
+#     maxlag::Int
+#     lagstrategy::Int
+#     selectionstrategy::Symbol
+# end
 
 
 
@@ -205,17 +205,13 @@ mutable struct CR3{V, D}  <: CR{V,D}
     df::D
 end
 
-## CRHC accessor
-clusterindicator(x::CRHC) = x.cl
-
-
 ## CRHC Constructors
 for tp in [:CR0, :CR1, :CR2, :CR3]
     @eval $(tp)() = $(tp)(nothing, nothing)
 end
 
 for tp in [:CR0, :CR1, :CR2, :CR3]
-    @eval $(tp)(v::AbstractVector) = $(tp)(v, nothing)
+    @eval $(tp)(v::AbstractVector) = $(tp)(categorical(v), nothing)
 end
 
 
