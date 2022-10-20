@@ -16,11 +16,13 @@ using Statistics
 using StatsBase
 using StatsModels
 include("types.jl")
-include("HAC.jl")
 include("aVar.jl")
-include("CR.jl")
-include("HR.jl")
 include("burger.jl")
+include("HR.jl")
+include("HAC.jl")
+include("CR.jl")
+
+
 #include("VARHAC.jl")
 #include("lrvar.jl")
 #include("smoothing.jl")
