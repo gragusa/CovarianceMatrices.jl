@@ -23,7 +23,7 @@
 #       When true do not attempt to scale the variance estimator so it simply return sum
 # """
  
-function aVar(k::AVarEstimator, X::AbstractMatrix{T}; demean::Bool=true, prewhiten::Bool=false, dof::Int64=0, mean::Any=nothing, unscaled::Bool = false) where T<:AbstractFloat
+function aVar(k::AVarEstimator, X::AbstractMatrix{T}; demean::Bool=true, prewhiten::Bool=false, dof::Int64=0, mean::Any=nothing, unscaled::Bool = false) where T<:Real
     Z = if demean
             if mean===nothing 
                 mean = Statistics.mean(X; dims = 1)

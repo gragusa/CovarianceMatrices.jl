@@ -1,5 +1,4 @@
 ## The bun and the meat!
-
 function burger(K::AVarEstimator, m::AbstractMatrix{T}, bun::Union{AbstractMatrix{F}, Factorization{F}}; demean=false, prewhiten::Bool=false, dof::Int64=0) where {T<:Real, F<:Real}
     kwargs = (demean=demean, prewhiten=prewhiten, dof=dof, unscaled=true)
     P = patty(K, m; kwargs...)
@@ -23,17 +22,18 @@ Burger function for generalized linear model.
 """
 
 
-function burger(K::AVarEstimator, residuals::AbstractVector, modelmatrix::AbstractMatrix, bun::Union{AbstractMatrix{F}, Factorization{F}}; demean=false, prewhiten::Bool=false, dof::Int64=0)
-    kwargs = (demean=demean, prewhiten=prewhiten, dof=dof, unscaled=true)
-    P = patty(K, residuals, modelmatrix; kwargs...)
-    ## Form A^{-1}BA^{-1}'
-    return (bun\P)/bun
-end
+# function burger(K::AVarEstimator, residuals::AbstractVector, modelmatrix::AbstractMatrix, bun::Union{AbstractMatrix, Factorization}; demean=false, prewhiten::Bool=false, dof::Int64=0)
+#     kwargs = (demean=demean, prewhiten=prewhiten, dof=dof, unscaled=true)
+#     P = patty(K, residuals, modelmatrix; kwargs...)
+#     ## Form A^{-1}BA^{-1}'
+#     return (bun\P)/bun
+# end
 
 
-function patty(K, residuals, modelmatrix; kwargs...) 
-    ## implement this
-end
+# function patty(K, residuals, modelmatrix; kwargs...) 
+#     ## implement this
+    
+# end
 
 
 
