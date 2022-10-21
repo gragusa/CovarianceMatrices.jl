@@ -1,6 +1,6 @@
 function avar(k::T, X) where T<:HAC
     n, p = size(X)
-    bw = optimalbandwidth(k, X; prewhiten=k.prewhiten.x)
+    bw = optimalbandwidth(k, X, k.prewhiten.x)
     V = triu!(X'*X)
     @inbounds for j in covindices(k, n)
         κⱼ = kernel(k, j/bw)
@@ -108,11 +108,27 @@ Calculate the optimal bandwidth according to either Andrews or Newey-West.
 """
 function optimalbandwidth(
     k::HAC{T},
-    m::AbstractMatrix;
-    prewhiten::Bool=false
+    m::AbstractMatrix, 
+    prewhiten::Bool
     ) where T<:Union{Andrews, NeweyWest}
     setupkernelweights!(k, m)
     bw = _optimalbandwidth(k, m, prewhiten)
+    return bw
+end
+
+function optimalbw(
+    k::HAC{T},
+    m::AbstractMatrix;
+    prewhiten=false,
+    demean=true
+    ) where T<:Union{Andrews, NeweyWest}
+    X = if demean
+        m .- mean(m, dims=1)
+    else
+        m
+    end
+    setupkernelweights!(k, X)
+    bw = _optimalbandwidth(k, X, prewhiten)
     return bw
 end
 

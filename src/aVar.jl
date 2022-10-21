@@ -41,3 +41,5 @@ function aVar(k::AVarEstimator, X::AbstractMatrix{T}; demean::Bool=true, prewhit
     k isa HAC && prewhiten ? dewhiter!(Shat, Z, D) : nothing
     return !unscaled ? Shat./avarscaler(k, X) : Shat
 end
+
+const a𝕍ar = aVar

@@ -37,4 +37,3 @@ function adjustment(k::HR5, m::RegressionModel)
     end
     return h
 end
-
