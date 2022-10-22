@@ -127,6 +127,7 @@ function optimalbw(
     else
         m
     end
+    X, _ = prewhiter(X)
     setupkernelweights!(k, X)
     bw = _optimalbandwidth(k, X, prewhiten)
     return bw
@@ -252,7 +253,7 @@ Base.@propagate_inbounds function fit_ar(Z::AbstractMatrix{T}) where T
         x .= x.*rho[j]
         y .= y .- x
         σ⁴[j]  = (sum(abs2, y)/(n-1))^2
-    end    
+    end
     return rho, σ⁴
 end
 
