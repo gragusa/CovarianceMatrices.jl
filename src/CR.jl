@@ -1,6 +1,6 @@
 function avar(k::T, X) where T<:CR
     f = clusterindicator(k)
-    issorted(f) ? clustersum(X, f) : (i = sortperm(f); clustersum(X[i], f[i]))  
+    issorted(f) ? clustersum(X, f) : (i = sortperm(f); clustersum(X[i], f[i]))
 end
 
 clusterindicator(x::CR) = x.cl
@@ -21,10 +21,15 @@ function sortrowby(A, by)
     end
 end
 
-function clustersum(X::Matrix{T}, cl) where T<:Real
-    n, p = size(X)
-    Shat = zeros(T, p, p)
-    s = Array{T}(undef, p)
+function clustersum(X::Matrix{T}, cl) where T<:Real 
+    _, p = size(X)
+    Shat = fill!(similar(X, (p, p)), zero(T))
+    s = Vector{T}(undef, size(Shat, 1))
+    clustersum!(Shat, s, X, cl)
+end
+
+function clustersum!(Shat::Matrix{T}, s::Array{T}, X::Matrix{T}, cl) where T<:Real
+    _, p = size(X)
 
     for m in clusterintervals(cl)
         fill!(s, zero(T))

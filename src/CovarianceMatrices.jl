@@ -21,7 +21,7 @@ include("burger.jl")
 include("HR.jl")
 include("HAC.jl")
 include("CR.jl")
-
+include("glue_glm.jl")
 
 #include("VARHAC.jl")
 #include("lrvar.jl")
