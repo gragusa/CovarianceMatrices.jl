@@ -21,6 +21,13 @@ function sortrowby(A, by)
     end
 end
 
+function clustersum(X::Vector{T}, cl) where T<:Real     
+    Shat = fill!(similar(X, (1, 1)), zero(T))
+    s = Vector{T}(undef, size(Shat, 1))
+    clustersum!(Shat, s, X[:,:], cl)
+    vec(Shat)
+end
+
 function clustersum(X::Matrix{T}, cl) where T<:Real 
     _, p = size(X)
     Shat = fill!(similar(X, (p, p)), zero(T))
@@ -28,7 +35,15 @@ function clustersum(X::Matrix{T}, cl) where T<:Real
     clustersum!(Shat, s, X, cl)
 end
 
-function clustersum!(Shat::Matrix{T}, s::Array{T}, X::Matrix{T}, cl) where T<:Real
+
+function clustersum_slow(X::Matrix{T}, cl) where T<:Real 
+    _, p = size(X)
+    Shat = fill!(similar(X, (p, p)), zero(T))
+    s = Vector{T}(undef, size(Shat, 1))
+    clustersum!(Shat, s, X, cl)
+end
+
+function clustersum_slow!(Shat::Matrix{T}, s::Vector{T}, X::Matrix{T}, cl) where T<:Real
     _, p = size(X)
 
     for m in clusterintervals(cl)
@@ -45,4 +60,28 @@ function clustersum!(Shat::Matrix{T}, s::Array{T}, X::Matrix{T}, cl) where T<:Re
         end
     end
     return LinearAlgebra.copytri!(Shat, 'U')
+end
+
+function clustersum!(Shat::Matrix{T}, s::Vector{T}, X::Matrix{T}, cl) where T<:Real
+    _, p = size(X)
+    for m in clusterintervals(cl)
+        @inbounds fill!(s, zero(T))
+        innerXiXi!(s, m, X)
+        innerXiXj!(Shat, s)         
+    end
+    return LinearAlgebra.copytri!(Shat, 'U')
+end
+
+function innerXiXi!(s, m, X)
+    @turbo for j in eachindex(s)
+        for i in m
+            s[j] += X[i, j]
+        end
+    end
+end
+
+function innerXiXj!(Shat, s) 
+    @inbounds for j in eachindex(s), i in 1:j
+            Shat[i, j] += s[i]*s[j]
+    end
 end
