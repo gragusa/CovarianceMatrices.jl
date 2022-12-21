@@ -23,23 +23,12 @@
 #       When true do not attempt to scale the variance estimator so it simply return sum
 # """
  
-function aVar(k::AVarEstimator, X::AbstractMatrix{T}; demean::Bool=true, prewhiten::Bool=false, dof::Int64=0, mean::Any=nothing, unscaled::Bool = false) where T<:Real
-    Z = if demean
-            if mean===nothing 
-                mean = Statistics.mean(X; dims = 1)
-            end
-            X .- mean
-        else 
-            X 
-    end 
-    
-    if k isa HAC && prewhiten
-        Z, D = prewhiter(Z)
-        k.prewhiten.x = true        
-    end
-    Shat = avar(k, Z)
-    k isa HAC && prewhiten ? dewhiter!(Shat, Z, D) : nothing
-    return !unscaled ? Shat./avarscaler(k, X) : Shat
+function aVar(k::AVarEstimator, X::AbstractMatrix{T}; demean::Bool=true, prewhiten::Bool=false, scaled::Bool=false) where T<:Real    
+    Shat = avar(k, X; demean=demean, prewhiten=prewhiten)
+    @show Shat    
+    return !scaled ? Shat./avarscaler(k, X; prewhiten=prewhiten) : Shat
 end
 
 const a𝕍ar = aVar
+    
+

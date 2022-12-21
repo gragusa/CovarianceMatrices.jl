@@ -1,16 +1,18 @@
-function avar(k::T, X) where T<:HAC
-    n, p = size(X)
-    bw = optimalbandwidth(k, X, k.prewhiten.x)
-    V = triu!(X'*X)
-    @inbounds for j in covindices(k, n)
+function avar(k::T, X; prewhiten=false, demean=false) where T<:HAC
+    Z, D, bw = workingoptimalbw(k, X; prewhiten=prewhiten, demean=demean)
+    @show bw
+    V = triu!(Z'*Z)
+    @show collect(covindices(k, size(Z,1)))
+    @inbounds for j in covindices(k, size(Z,1))
         κⱼ = kernel(k, j/bw)
-        LinearAlgebra.axpy!(κⱼ, Γ(X, j), V)
+        LinearAlgebra.axpy!(κⱼ, Γ(Z, j), V)
     end
     LinearAlgebra.copytri!(V, 'U')
-    return V
+    @show V
+    return dewhiter!(V, D, Val{prewhiten})
 end
 
-avarscaler(K::HAC, X) = size(X, 1)
+avarscaler(K::HAC, X; prewhiten=false) = size(X, 1)
 
 """
 Γ(A::AbstractMatrix{T}, j::Int) where T
@@ -106,14 +108,31 @@ optimalbandwidth(k::HAC{T}, mm; prewhiten::Bool=false) where {T<:NeweyWest}
 
 Calculate the optimal bandwidth according to either Andrews or Newey-West.
 """
-function optimalbandwidth(
+# function optimalbandwidth(
+#     k::HAC{T},
+#     m::AbstractMatrix, 
+#     prewhiten::Bool
+#     ) where T<:Union{Andrews, NeweyWest}
+#     setupkernelweights!(k, m)
+#     bw = _optimalbandwidth(k, m, prewhiten)
+#     return bw
+# end
+
+function workingoptimalbw(
     k::HAC{T},
-    m::AbstractMatrix, 
-    prewhiten::Bool
+    m::AbstractMatrix;
+    prewhiten=false,
+    demean=true
     ) where T<:Union{Andrews, NeweyWest}
-    setupkernelweights!(k, m)
-    bw = _optimalbandwidth(k, m, prewhiten)
-    return bw
+    X = if demean
+        m .- mean(m, dims=1)
+    else
+        m
+    end
+    X, D = prewhiter(X, Val{prewhiten})
+    setupkernelweights!(k, X)
+    bw = _optimalbandwidth(k, X, prewhiten)
+    return X, D, bw
 end
 
 function optimalbw(
@@ -127,7 +146,7 @@ function optimalbw(
     else
         m
     end
-    X, _ = prewhiter(X)
+    X, _ = prewhiter(X, Val{prewhiten})
     setupkernelweights!(k, X)
     bw = _optimalbandwidth(k, X, prewhiten)
     return bw
@@ -135,9 +154,9 @@ end
 
 optimalbandwidth(k::HAC{<:Fixed}, m::AbstractMatrix; kwargs...) = first(k.bw)
 
-_optimalbandwidth(k::HAC{T}, mm, prewhiten::Bool=false) where {T<:NeweyWest} = bwNeweyWest(k, mm, prewhiten)
-_optimalbandwidth(k::HAC{T}, mm, prewhiten::Bool=false) where {T<:Andrews} = bwAndrews(k, mm, prewhiten)
-_optimalbandwidth(k::HAC{T}, mm, prewhiten::Bool=false) where {T<:Fixed} = first(k.bw)
+_optimalbandwidth(k::HAC{T}, mm, prewhiten) where {T<:NeweyWest} = bwNeweyWest(k, mm, prewhiten)
+_optimalbandwidth(k::HAC{T}, mm, prewhiten) where {T<:Andrews} = bwAndrews(k, mm, prewhiten)
+_optimalbandwidth(k::HAC{T}, mm, prewhiten) where {T<:Fixed} = first(k.bw)
 
 function bwAndrews(k::HAC, mm, prewhiten::Bool)
     n, p  = size(mm)
@@ -222,12 +241,32 @@ end
 # -----------------------------------------------------------------------------
 # Fit function
 # -----------------------------------------------------------------------------
-Base.@propagate_inbounds function fit_var(A::AbstractMatrix{T}) where T
+Base.@propagate_inbounds function fit_varv(A::AbstractMatrix{T}) where T
     P = parent(A)
     li = lastindex(P, 1)
     Y = view(P, 2:li, :)    
     X = view(P, 1:li-1,:)
     B = X\Y
+    E = Y - X*B
+    return E, B
+end
+
+Base.@propagate_inbounds function fit_var(A::AbstractMatrix{T}) where T
+    P = parent(A)
+    li = lastindex(P, 1)
+    Y = P[2:li,:]
+    X = P[1:li-1, :]
+    B = X\Y
+    E = Y - X*B
+    return E, B
+end
+
+Base.@propagate_inbounds function fit_var(A::AbstractSparseMatrix{T}) where T
+    P = parent(A)
+    li = lastindex(P, 1)
+    Y = P[2:li,:]
+    X = P[1:li-1, :]
+    B = qr!(X'X)\Matrix(X'Y)
     E = Y - X*B
     return E, B
 end
@@ -260,9 +299,15 @@ end
 # Prewhiter and dewhiter functions    
 # -----------------------------------------------------------------------------
 #prewhiter(mm, ::Type{Val{false}}) = (mm, similar(mm, (0,0)))
-prewhiter(M) = fit_var(M)
-function dewhiter!(V, M, D)
+
+prewhiter(M, ::Type{Val{true}}) = fit_var(M)
+prewhiter(M, ::Type{Val{false}}) = M, nothing
+prewhiter(M) = prewhiter(M, Val{true})
+
+function dewhiter!(V, D, ::Type{Val{true}})
     v = inv(I-D')
     V .= v*V*v'
     return V
 end
+
+dewhiter!(V, D, ::Type{Val{false}}) = V
