@@ -47,23 +47,23 @@ function Γsign!(Q, A::AbstractMatrix, j::Int, ::Type{Val{false}})
     end
 end
 
-function Γ(A::AbstractVector{T}, j::Int) where T<:Real
-    Q = zero(T)
-    Γsign!(Q, A, j, Val{j>0})
-    return Q
-end
+# function Γ(A::AbstractVector{T}, j::Int) where T<:Real
+#     Q = zero(T)
+#     Γsign!(Q, A, j, Val{j>0})
+#     return Q
+# end
 
-function Γsign!(Q::Matrix, A::AbstractVector, j::Int, ::Type{Val{true}})
-    for t in j+firstindex(A):lastindex(A)
-        @inbounds Q[s] = Q[s] + A[t]*A[t-j]
-    end
-end
+# function Γsign!(Q::Matrix, A::AbstractVector, j::Int, ::Type{Val{true}})
+#     for t in j+firstindex(A):lastindex(A)
+#         @inbounds Q[s] = Q[s] + A[t]*A[t-j]
+#     end
+# end
 
-function Γsign!(Q, A::Vector, j::Int, ::Type{Val{false}})
-    for t in -j+firstindex(A):lastindex(A)
-        @inbounds Q[s] = Q[s] + A[t+j]*A[t]
-    end
-end
+# function Γsign!(Q, A::Vector, j::Int, ::Type{Val{false}})
+#     for t in -j+firstindex(A):lastindex(A)
+#         @inbounds Q[s] = Q[s] + A[t+j]*A[t]
+#     end
+# end
 
 covindices(k::T, n) where T<:QuadraticSpectralKernel = Iterators.filter(x -> x!=0, -n:n)
 covindices(k::HAC, n) = Iterators.filter(x -> x!=0, -floor(Int, k.bw[1]):floor(Int, k.bw[1]))
@@ -156,7 +156,6 @@ function bwNeweyWest(k::HAC, mm, prewhiten::Bool)
     for j in 0:l
         a[j+1] = dot(xm[firstindex(xm):lastindex(xm)-j], xm[j+firstindex(xm):lastindex(xm)])/n
     end
-    #a = map(j -> dot(xm[1:n-j], xm[j+1:n])/n, 0:l)::Array{Float64, 1}
     aa = view(a, 2:l+1)
     a0 = a[1] + 2*sum(aa)
     a1 = 2*sum((1:l) .* aa)
@@ -193,7 +192,7 @@ function getrates(k, mm, prewhiten::Bool)
     n, p = size(mm)
     lrate = lagtruncation(k)
     adj = prewhiten ? 3 : 4
-    floor(Int, adj*(n/100)^lrate)
+    floor(Int, adj*((n+prewhiten)/100)^lrate)
 end
 
 @inline bwnw(k::BartlettKernel, s0, s1, s2) = 1.1447*((s1/s0)^2)^growthrate(k)

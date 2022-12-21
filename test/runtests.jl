@@ -2,9 +2,9 @@
 using CovarianceMatrices, DataFrames, CSV, Test, StableRNGs, CategoricalArrays
 
 datadir = dirname(@__FILE__)
+X = rand(StableRNG(123), 100, 3)
 
-@testset "clustersum" begin    
-    X = rand(StableRNG(123), 100, 3)
+@testset "clustersum" begin        
     f = repeat(1:20, inner=5);
     𝐉 = CovarianceMatrices.clusterintervals(categorical(f))
     𝐉₀ = map(x->x:x+4, 1:5:100)
@@ -18,42 +18,43 @@ datadir = dirname(@__FILE__)
 end
 
 @testset "Optimal Bandwidth (NeweyWest)" begin
+    ## -- 
     𝒦 = Bartlett{NeweyWest}()
     Σ = a𝕍ar(𝒦, X)
     @test 𝒦.bw[1] ≈ 5.326955 atol=1e-6
-    @test optimalbw(𝒦, X; prewhiten=false, demean=true) ≈ 𝒦.bw[1] atol=1e-9
+    @test optimalbw(𝒦, X; prewhiten=false, demean=true) ≈ 𝒦.bw[1] rtol=1e-9
 
     𝒦 = Parzen{NeweyWest}()
     Σ = a𝕍ar(𝒦, X)
     @test 𝒦.bw[1] ≈ 9.72992 atol=1e-6
-    @test optimalbw(𝒦, X; prewhiten=false, demean=true) ≈ 𝒦.bw[1] atol=1e-9
+    @test optimalbw(𝒦, X; prewhiten=false, demean=true) ≈ 𝒦.bw[1] rtol=1e-9
 
     𝒦 = QuadraticSpectral{NeweyWest}()
     Σ = a𝕍ar(𝒦, X)
     @test 𝒦.bw[1] ≈ 4.833519 atol=1e-6
-    @test optimalbw(𝒦, X; prewhiten=false, demean=true) ≈ 𝒦.bw[1] atol=1e-10
-    
+    @test optimalbw(𝒦, X; prewhiten=false, demean=true) ≈ 𝒦.bw[1] rtol=1e-9
+    ## ---
     𝒦 = Bartlett{NeweyWest}()
     Σ = a𝕍ar(𝒦, X; prewhiten=true)
-    @test 𝒦.bw[1] ≈ 1.96 atol=1e-2
-    @test optimalbw(𝒦, X; prewhiten=true) ≈ 𝒦.bw[1] atol=1e-6
+    @test 𝒦.bw[1] ≈ 1.946219 rtol=1e-7
+    @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1] 
 
     𝒦 = Parzen{NeweyWest}()
     Σ = a𝕍ar(𝒦, X; prewhiten=true)
-    @test 𝒦.bw[1] ≈ 6.433401 atol=1e-2
-    @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1] atol=1e-2
+    @test 𝒦.bw[1] ≈ 6.409343 rtol=1e-7
+    @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
 
     𝒦 = QuadraticSpectral{NeweyWest}()
     Σ = a𝕍ar(𝒦, X; prewhiten=true)
-    @test 𝒦.bw[1] ≈ 3.195912 atol=1e-6
-    @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1] atol=1e-2   
+    @test 𝒦.bw[1] ≈ 3.183961 atol=1e-6
+    @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
 end
 
 @testset "Optimal Bandwidth (Andrews)" begin
     𝒦 = Bartlett{Andrews}()
     Σ = a𝕍ar(𝒦, X; prewhiten=true);
     @test 𝒦.bw[1] ≈ 0.3826726 atol=1e-5
-    @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1] atol=1e-6
+    @test optimalbw(𝒦, X; prewhiten=true) ≈ 𝒦.bw[1] atol=1e-6
 
     𝒦 = Parzen{Andrews}()
     Σ = a𝕍ar(𝒦, X; prewhiten=true);
