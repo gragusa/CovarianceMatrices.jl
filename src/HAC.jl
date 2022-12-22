@@ -1,16 +1,29 @@
-function avar(k::T, X; prewhiten=false, demean=false) where T<:HAC
-    Z, D, bw = workingoptimalbw(k, X; prewhiten=prewhiten, demean=demean)
-    @show bw
+function avar(k::T, X::AbstractMatrix{F}; prewhiten=false) where {T<:HAC, F<:AbstractFloat}
+    Z, D, bw = workingoptimalbw(k, X; prewhiten=prewhiten)
     V = triu!(Z'*Z)
-    @show collect(covindices(k, size(Z,1)))
+    Q = fill!(similar(V), zero(F))
     @inbounds for j in covindices(k, size(Z,1))
         κⱼ = kernel(k, j/bw)
-        LinearAlgebra.axpy!(κⱼ, Γ(Z, j), V)
+        LinearAlgebra.axpy!(κⱼ, Γsign!(fill!(Q, zero(F)), Z, j, Val{j>0}), V)
     end
     LinearAlgebra.copytri!(V, 'U')
-    @show V
     return dewhiter!(V, D, Val{prewhiten})
 end
+
+# function avar_(k::T, X; prewhiten=false, demean=false) where T<:HAC
+#     Z, D, bw = workingoptimalbw(k, X; prewhiten=prewhiten)
+#     V = zeros(eltype(Z), (size(Z,2), size(Z,2)))    
+#     @inbounds for j in halfcovindices(k, size(Z,1))
+#         κⱼ = kernel(k, j/bw)
+#         LinearAlgebra.axpy!(κⱼ, Γ(Z, j), V)
+#     end
+#     #LinearAlgebra.copytri!(V, 'U')
+#     V += V' 
+#     V = V + Z'Z
+#     return dewhiter!(V, D, Val{prewhiten})
+# end
+
+
 
 avarscaler(K::HAC, X; prewhiten=false) = size(X, 1)
 
@@ -34,19 +47,21 @@ function Γ(A::AbstractMatrix{T}, j::Int) where T<:Real
 end
 
 function Γsign!(Q::Matrix, A::AbstractMatrix, j::Int, ::Type{Val{true}})
-    for h in axes(A, 2), s in firstindex(A,1):h+firstindex(A,1)-1
+    @inbounds for h in axes(A, 2), s in firstindex(A,1):h+firstindex(A,1)-1
         for t in (j+firstindex(A,1)):lastindex(A, 1)
-            @inbounds Q[s, h] = Q[s, h] + A[t, s]*A[t-j, h]
+            Q[s, h] = Q[s, h] + A[t, s]*A[t-j, h]
         end
     end
+    Q
 end
 
 function Γsign!(Q, A::AbstractMatrix, j::Int, ::Type{Val{false}})
-    for h in axes(A, 2), s in firstindex(A,1):h+firstindex(A,1)-1
+    @inbounds for h in axes(A, 2), s in firstindex(A,1):h+firstindex(A,1)-1
         for t in (-j+firstindex(A,1)):lastindex(A, 1)
-            @inbounds Q[s,h] = Q[s ,h] + A[t+j, s]*A[t,h]
+            Q[s,h] = Q[s ,h] + A[t+j, s]*A[t,h]
         end
     end
+    Q
 end
 
 # function Γ(A::AbstractVector{T}, j::Int) where T<:Real
@@ -87,7 +102,7 @@ function kernel(k::QuadraticSpectralKernel, x::Real)
     return 3*(sin(z)/z-cos(z))*(1/z)^2
 end
 
-function setupkernelweights!(k::HAC, m::Matrix)
+function setupkernelweights!(k::HAC, m::AbstractMatrix)
     n, p = size(m)
     kw = kernelweights(k)
     if isempty(kw) || length(kw) != p || all(iszero.(kw))
@@ -121,15 +136,9 @@ Calculate the optimal bandwidth according to either Andrews or Newey-West.
 function workingoptimalbw(
     k::HAC{T},
     m::AbstractMatrix;
-    prewhiten=false,
-    demean=true
-    ) where T<:Union{Andrews, NeweyWest}
-    X = if demean
-        m .- mean(m, dims=1)
-    else
-        m
-    end
-    X, D = prewhiter(X, Val{prewhiten})
+    prewhiten::Bool=false,    
+    ) where T<:Union{Andrews, NeweyWest}    
+    X, D = prewhiter(m, Val{prewhiten})
     setupkernelweights!(k, X)
     bw = _optimalbandwidth(k, X, prewhiten)
     return X, D, bw
@@ -138,21 +147,15 @@ end
 function optimalbw(
     k::HAC{T},
     m::AbstractMatrix;
-    prewhiten=false,
-    demean=true
+    demean::Bool = false,
+    dims::Int = 1,
+    means::Union{Nothing, AbstractArray} = nothing,
+    prewhiten::Bool=false
     ) where T<:Union{Andrews, NeweyWest}
-    X = if demean
-        m .- mean(m, dims=1)
-    else
-        m
-    end
-    X, _ = prewhiter(X, Val{prewhiten})
-    setupkernelweights!(k, X)
-    bw = _optimalbandwidth(k, X, prewhiten)
+    X = demean ? demeaner(m; dims=dims, means=means) : m
+    _, _, bw = workingoptimalbw(k, X; prewhiten=prewhiten)
     return bw
 end
-
-optimalbandwidth(k::HAC{<:Fixed}, m::AbstractMatrix; kwargs...) = first(k.bw)
 
 _optimalbandwidth(k::HAC{T}, mm, prewhiten) where {T<:NeweyWest} = bwNeweyWest(k, mm, prewhiten)
 _optimalbandwidth(k::HAC{T}, mm, prewhiten) where {T<:Andrews} = bwAndrews(k, mm, prewhiten)
@@ -171,9 +174,9 @@ function bwNeweyWest(k::HAC, mm, prewhiten::Bool)
     n, _ = size(mm)
     l = getrates(k, mm, prewhiten)
     xm = mm*w
-    a = Vector{Float64}(undef, l+1)
-    for j in 0:l
-        a[j+1] = dot(xm[firstindex(xm):lastindex(xm)-j], xm[j+firstindex(xm):lastindex(xm)])/n
+    a = Vector{eltype(xm)}(undef, l+1)
+    @inbounds for j in 0:l
+        a[j+1] = dot(view(xm, firstindex(xm):lastindex(xm)-j), view(xm, j+firstindex(xm):lastindex(xm)))/n
     end
     aa = view(a, 2:l+1)
     a0 = a[1] + 2*sum(aa)
@@ -241,21 +244,12 @@ end
 # -----------------------------------------------------------------------------
 # Fit function
 # -----------------------------------------------------------------------------
-Base.@propagate_inbounds function fit_varv(A::AbstractMatrix{T}) where T
-    P = parent(A)
-    li = lastindex(P, 1)
-    Y = view(P, 2:li, :)    
-    X = view(P, 1:li-1,:)
-    B = X\Y
-    E = Y - X*B
-    return E, B
-end
 
 Base.@propagate_inbounds function fit_var(A::AbstractMatrix{T}) where T
-    P = parent(A)
-    li = lastindex(P, 1)
-    Y = P[2:li,:]
-    X = P[1:li-1, :]
+    fi = firstindex(A, 1)
+    li = lastindex(A, 1) 
+    Y = view(A, fi+1:li,:)
+    X = view(A, fi:li-1, :)
     B = X\Y
     E = Y - X*B
     return E, B

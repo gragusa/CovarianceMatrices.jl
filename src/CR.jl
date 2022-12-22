@@ -1,10 +1,23 @@
-function avar(k::T, X) where T<:CR
+function avar(k::T, X; kwargs...) where T<:CR    
     f = clusterindicator(k)
-    issorted(f) ? clustersum(X, f) : (i = sortperm(f); clustersum(X[i], f[i]))
+    length(f) != size(X,1) && throw(ArgumentError("The length of the cluster indicator, $(length(f)), does not match the number of row of the matrix, $(size(X,1))"))
+    #M = issorted(f) ? clustersum(X, f) : (i = sortperm(f); clustersum(X[i, :], f[i]))
+    M = clustersum(parent(X), f)
+    ## G/n^2 M
+    G = length(levels(f))
+    n = length(f) 
+    (G.*M./n^2)
 end
 
+
 clusterindicator(x::CR) = x.cl
-clusterintervals(f::CategoricalArray) = (searchsorted(f.refs, j) for j in unique(f.refs))
+function clusterintervals(f::CategoricalArray) 
+    if issorted(f)
+        (searchsorted(f.refs, j) for j in unique(f.refs))
+    else
+        (findall(f.refs.==j) for j in unique(f.refs))
+    end
+end
 avarscaler(K::CR, X)  = length(unique(clusterindicator(K)))
 avarscaler(K::HR, X)  = size(X, 1)
 
@@ -35,6 +48,36 @@ function clustersum(X::Matrix{T}, cl) where T<:Real
     clustersum!(Shat, s, X, cl)
 end
 
+function clustersum!(Shat::Matrix{T}, s::Vector{T}, X::Matrix{T}, cl) where T<:Real
+    _, p = size(X)
+    for m in clusterintervals(cl)
+        @inbounds fill!(s, zero(T))
+        innerXiXi!(s, m, X)
+        innerXiXj!(Shat, s)         
+    end
+    return LinearAlgebra.copytri!(Shat, 'U')
+end
+
+function innerXiXi!(s, m, X)
+    @tturbo for j in eachindex(s)
+        for i in eachindex(m)
+            s[j] += X[m[i], j]
+        end
+    end
+end
+
+function innerXiXj!(Shat, s) 
+    @inbounds for j in eachindex(s)
+        @tturbo for i in 1:j
+            Shat[i, j] += s[i]*s[j]
+        end
+    end
+end
+
+
+
+
+
 
 function clustersum_slow(X::Matrix{T}, cl) where T<:Real 
     _, p = size(X)
@@ -60,28 +103,4 @@ function clustersum_slow!(Shat::Matrix{T}, s::Vector{T}, X::Matrix{T}, cl) where
         end
     end
     return LinearAlgebra.copytri!(Shat, 'U')
-end
-
-function clustersum!(Shat::Matrix{T}, s::Vector{T}, X::Matrix{T}, cl) where T<:Real
-    _, p = size(X)
-    for m in clusterintervals(cl)
-        @inbounds fill!(s, zero(T))
-        innerXiXi!(s, m, X)
-        innerXiXj!(Shat, s)         
-    end
-    return LinearAlgebra.copytri!(Shat, 'U')
-end
-
-function innerXiXi!(s, m, X)
-    @turbo for j in eachindex(s)
-        for i in m
-            s[j] += X[i, j]
-        end
-    end
-end
-
-function innerXiXj!(Shat, s) 
-    @inbounds for j in eachindex(s), i in 1:j
-            Shat[i, j] += s[i]*s[j]
-    end
 end
