@@ -10,7 +10,7 @@ function demeaner(X::AbstractMatrix{T}; dims=1, means::Union{Nothing, AbstractAr
         dims == 1 ? p == r || Base.throw(ArgumentError("The `means` vector is of dimension ($n x $p). It should be of dimension ($p x $n)")) : n == m || Base.throw(ArgumentError("The `means` vector is of dimension ($n x $p). It should be of dimension ($p x $n)"))
         X .- means
     end
-    dims == 1 ? Z : Z'
+    dims == 1 ? Z : collect(Z')
 end
 
 function demeaner(k::CR, X::AbstractMatrix{T}; dims=1, kwargs...) where T<:AbstractFloat
