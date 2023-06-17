@@ -230,6 +230,24 @@ end
 end
 
 
+@testset "Driscol and Kraay"
+  df = CSV,read("testdata/produc.csv", DataFrame)
+  ## Estimate POOLED Regression
+  X = [ones(size(df,1)) log.(df.PCap) log.(df.PC) log.(df.Emp) df.UnEmp]
+  y = log.(df.GSP)
+  β = X\y
+  ## Moment Matrix
+  m = X.*(y .- X*β)
+
+  ## Driscol Kraay Standard Errors
+  T = length(unique(df.Year)
+
+  bw = floor(Int, 4*(T/100)^(2/9))
+  𝒦 = DriscolKraay(df.State, df.Year, Bartlett{Fixed}(bw))
+
+  Σ = a𝕍ar(𝒦, m)
+end
+
 # X = rand(StableRNG(123), 100, 3)
 # cl = repeat(1:5, inner=20)
 # 𝒦 = CR0(cl)

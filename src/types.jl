@@ -6,13 +6,12 @@ Abstraction
 
 abstract type AVarEstimator end
 
-abstract type TimeSeriesEstimator <: AVarEstimator end
-abstract type HAC{G} <: TimeSeriesEstimator end
-abstract type VARHAC{G} <: TimeSeriesEstimator end
+abstract type HAC{G} <: AVarEstimator end
+abstract type VARHAC{G} <: AVarEstimator end
 
 abstract type CrossSectionEstimator <: AVarEstimator end
-abstract type HR <: CrossSectionEstimator end
-abstract type CR{V,D} <: CrossSectionEstimator end
+abstract type HR <: AVarEstimator end
+abstract type CR{V,D} <: AVarEstimator end
 
 #=========
 HAC Types
@@ -218,6 +217,30 @@ end
 for tp in [:CR0, :CR1, :CR2, :CR3]
     @eval $(tp)(v::AbstractVector) = $(tp)(categorical(v), nothing)
 end
+
+#======== 
+DriscollKraay
+=========#
+"""
+DriscollKraay
+
+  t the time dimension indeces
+  i the cross-section dimension indeces
+  K the kernel type
+  df the degrees of freedom
+
+"""
+mutable struct DriscollKraay{K, D} <: AVarEstimator
+    t::CategoricalArray
+    i::CategoricalArray
+    K::K
+    df::D
+end
+
+DriscollKraay(t::AbstractVector, i::AbstractVector, K::HAC) = DriscollKraay(categorical(t), categorical(i), K, nothing)
+
+
+
 
 
 # struct CovarianceMatrix{T2<:Factorization, T3<:CovarianceMatrices.RobustVariance, F1, T1<:AbstractMatrix{F1}} <: AbstractMatrix{F1}
