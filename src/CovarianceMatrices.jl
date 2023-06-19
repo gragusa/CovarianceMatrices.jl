@@ -22,7 +22,7 @@ include("types.jl")
 include("aVar.jl")
 include("HAC.jl")
 include("CR.jl")
-include("DriscolKraay.jl")
+include("DriscollKraay.jl")
 include("demeaner.jl")
 
 #include("HR.jl")

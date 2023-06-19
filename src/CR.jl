@@ -9,7 +9,6 @@ function avar(k::T, X; kwargs...) where T<:CR
     (G.*M./n^2)
 end
 
-
 clusterindicator(x::CR) = x.cl
 function clusterintervals(f::CategoricalArray) 
     if issorted(f)

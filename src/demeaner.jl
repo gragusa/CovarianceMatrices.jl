@@ -1,7 +1,6 @@
-function demeaner(X::AbstractMatrix{T}; dims=1, means::Union{Nothing, AbstractArray{F}}=nothing) where {T<:AbstractFloat, F<:AbstractFloat}
+function demeaner(X::AbstractMatrix{T}, means::Union{Nothing, AbstractArray}; dims=1) where {T<:Real}
     ## dims = 1 - calculate means for each columns
     ## dims = 2 - calculate mean for each row
-
     Z = if means === nothing
         X .- mean(X; dims=dims)
     else

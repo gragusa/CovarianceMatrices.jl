@@ -231,30 +231,28 @@ end
 
 
 @testset "Driscol and Kraay"
-  df = CSV,read("testdata/produc.csv", DataFrame)
-  ## Estimate POOLED Regression
-  X = [ones(size(df,1)) log.(df.PCap) log.(df.PC) log.(df.Emp) df.UnEmp]
-  y = log.(df.GSP)
+  df = CSV.read(joinpath(datadir,"testdata/grunfeld.csv"), DataFrame)
+  df = RDatasets.dataset("Ecdat", "Grunfeld")
+  X = [ones(size(df,1)) df.Value df.Capital]
+  y = df.Inv
   β = X\y
   ## Moment Matrix
   m = X.*(y .- X*β)
-
-  ## Driscol Kraay Standard Errors
-  T = length(unique(df.Year)
-
-  bw = floor(Int, 4*(T/100)^(2/9))
-  𝒦 = DriscolKraay(df.State, df.Year, Bartlett{Fixed}(bw))
-
+  ## Driscol Kraay Variance Covariance Matrix
+  T = length(unique(df.Year))
+  bw = 5
+  𝒦 = CovarianceMatrices.DriscollKraay(df.Year, df.Firm, Bartlett(bw))
   Σ = a𝕍ar(𝒦, m)
+  F = inv(cholesky(X'X))
+  Σ₀ = F*Σ*F
+  #library(Ecdat)
+  #library(plm)
+  #data("Grunfeld")
+  #zz <- plm(inv~value+capital, data=Grunfeld, model = "pooling")
+  #vcovSCC(zz, maxlag = 4, )
+  # Note: maxlag = 4 is equivalent to bw = 5
+  Σ_ssc = [148.60459392965311     -0.067282610486606179   -0.32394796987915847;
+    -0.067282610486606151  0.00018052654961234828 -0.00035661048571690061; 
+    -0.32394796987915825  -0.00035661048571690066  0.0024312798435615107]
+  @test Σ₀ ≈ Σ_ssc rtol=1e-6
 end
-
-# X = rand(StableRNG(123), 100, 3)
-# cl = repeat(1:5, inner=20)
-# 𝒦 = CR0(cl)
-# Σ = a𝕍ar(𝒦, X)
-
-# Z = CovarianceMatrices.demeaner(X; dims =1)
-# ci = CovarianceMatrices.clusterintervals(𝒦.cl)
-# o =ThreadsX.map(j -> (t = Z[j,:]; t't), ci)
-
-# @btime ThreadsX.mapreduce(j -> (t = sum(Z[j,:]; dims=1); t't), +, ci)

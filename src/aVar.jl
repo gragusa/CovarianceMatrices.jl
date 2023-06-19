@@ -14,7 +14,7 @@
 # """
  
 function aVar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhiten::Bool=false) where T<:AbstractFloat
-    X = demean ? demeaner(m; dims=dims, means=means) : m    
+    X = demean ? demeaner(float.(m), means; dims=dims) : float.(m)
     Shat = avar(k, X; prewhiten=prewhiten)
     return Shat
 end

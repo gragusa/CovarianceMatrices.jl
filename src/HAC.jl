@@ -1,27 +1,24 @@
 function avar(k::T, X::AbstractMatrix{F}; prewhiten=false) where {T<:HAC, F<:AbstractFloat}
-    Z, D, bw = workingoptimalbw(k, X; prewhiten=prewhiten)
-    V = triu!(Z'*Z)
-    Q = fill!(similar(V), zero(F))
-    @inbounds for j in covindices(k, size(Z,1))
-        κⱼ = kernel(k, j/bw)
-        LinearAlgebra.axpy!(κⱼ, Γsign!(fill!(Q, zero(F)), Z, j, Val{j>0}), V)
+    Z, D, bw = CovarianceMatrices.workingoptimalbw(k, X; prewhiten=prewhiten)
+    V = _avar(Z, k, bw)
+    if prewhiten
+      v = I-D'
+      R = cholesky!(Symmetric(V))
+      s = v\R.L
+      V .= s*s'
     end
-    LinearAlgebra.copytri!(V, 'U')
-    return dewhiter!(V, D, Val{prewhiten})
+    return Symmetric(V)
 end
 
-# function avar_(k::T, X; prewhiten=false, demean=false) where T<:HAC
-#     Z, D, bw = workingoptimalbw(k, X; prewhiten=prewhiten)
-#     V = zeros(eltype(Z), (size(Z,2), size(Z,2)))    
-#     @inbounds for j in halfcovindices(k, size(Z,1))
-#         κⱼ = kernel(k, j/bw)
-#         LinearAlgebra.axpy!(κⱼ, Γ(Z, j), V)
-#     end
-#     #LinearAlgebra.copytri!(V, 'U')
-#     V += V' 
-#     V = V + Z'Z
-#     return dewhiter!(V, D, Val{prewhiten})
-# end
+function _avar(Z::Matrix{T}, k, bw) where T
+  V = triu!(Z'*Z)
+  Q = fill!(similar(V), zero(T))
+  @inbounds for j in CovarianceMatrices.covindices(k, size(Z,1))
+    κⱼ = CovarianceMatrices.kernel(k, j/bw)
+    LinearAlgebra.axpy!(κⱼ, CovarianceMatrices.Γsign!(fill!(Q, zero(T)), Z, j, Val{j>0}), V)
+  end
+  LinearAlgebra.copytri!(V, 'U')
+end
 
 
 
@@ -89,7 +86,7 @@ covindices(k::HAC, n) = Iterators.filter(x -> x!=0, -floor(Int, k.bw[1]):floor(I
 # Kernels
 # -----------------------------------------------------------------------------
 kernel(k::TruncatedKernel, x::Real) = (abs(x)<=1) ? one(x) : zero(x)
-kernel(k::BartlettKernel, x::Real) = (abs(x)<=1) ? (one(x)-abs(x)) : zero(x)
+kernel(k::BartlettKernel, x::Real) = (abs(x)<1) ? (one(x)-abs(x)) : zero(x)
 kernel(k::TukeyHanningKernel, x::Real) = (abs(x)<=1) ? one(x)/2*(one(x)+cospi(x)) : zero(x)
 
 function kernel(k::ParzenKernel, x::Real)
@@ -144,6 +141,8 @@ function workingoptimalbw(
     return X, D, bw
 end
 
+workingoptimalbw(k::HAC{T}, m::AbstractMatrix; kwargs...) where T<:Fixed = (m, Matrix{eltype{m}}(undef,0,0), first(k.bw))
+
 function optimalbw(
     k::HAC{T},
     m::AbstractMatrix;
@@ -152,7 +151,7 @@ function optimalbw(
     means::Union{Nothing, AbstractArray} = nothing,
     prewhiten::Bool=false
     ) where T<:Union{Andrews, NeweyWest}
-    X = demean ? demeaner(m; dims=dims, means=means) : m
+    X = demean ? demeaner(m, means; dims=dims) : m
     _, _, bw = workingoptimalbw(k, X; prewhiten=prewhiten)
     return bw
 end
@@ -201,7 +200,6 @@ end
 function getalpha(k, mm)
     w = k.weights
     rho, σ⁴ = fit_ar(mm)
-    #@show rho, σ⁴
     nm = 4.0.*(rho.^2).*σ⁴./(((1.0.-rho).^6).*((1.0.+rho).^2))
     dn = σ⁴./(1.0.-rho).^4
     α₁ = sum(w.*nm)/sum(w.*dn)
@@ -211,7 +209,7 @@ function getalpha(k, mm)
 end
 
 function getrates(k, mm, prewhiten::Bool)
-    n, p = size(mm)
+    n, _ = size(mm)
     lrate = lagtruncation(k)
     adj = prewhiten ? 3 : 4
     floor(Int, adj*((n+prewhiten)/100)^lrate)
@@ -252,7 +250,7 @@ Base.@propagate_inbounds function fit_var(A::AbstractMatrix{T}) where T
     X = view(A, fi:li-1, :)
     B = X\Y
     E = Y - X*B
-    return E, B
+    return E::Matrix{T}, B::Matrix{T}
 end
 
 Base.@propagate_inbounds function fit_var(A::AbstractSparseMatrix{T}) where T
@@ -286,7 +284,7 @@ Base.@propagate_inbounds function fit_ar(Z::AbstractMatrix{T}) where T
         y .= y .- x
         σ⁴[j]  = (sum(abs2, y)/(n-1))^2
     end
-    return rho, σ⁴
+    return rho::Vector{T}, σ⁴::Vector{T}
 end
 
 # -----------------------------------------------------------------------------
@@ -295,13 +293,20 @@ end
 #prewhiter(mm, ::Type{Val{false}}) = (mm, similar(mm, (0,0)))
 
 prewhiter(M, ::Type{Val{true}}) = fit_var(M)
-prewhiter(M, ::Type{Val{false}}) = M, nothing
+prewhiter(M::Matrix{T}, ::Type{Val{false}}) where T= (M::Matrix{T}, Matrix{T}(undef, 0, 0))
 prewhiter(M) = prewhiter(M, Val{true})
 
 function dewhiter!(V, D, ::Type{Val{true}})
     v = inv(I-D')
     V .= v*V*v'
     return V
+end
+
+function dewhiter2!(V, D, ::Type{Val{true}})
+  v = I-D'
+  F = cholesky!(Symmetric(V))
+  s = v\F.L
+  V .= s*s'
 end
 
 dewhiter!(V, D, ::Type{Val{false}}) = V
