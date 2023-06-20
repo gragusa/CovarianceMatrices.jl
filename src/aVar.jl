@@ -12,15 +12,14 @@
 #     - `prewhite=false`: should the data be prewithened. Relevant for `HAC` estimator.
     
 # """
- 
+
+aVar(k::AVarEstimator, m::AbstractMatrix; kwargs...) = aVar(k, float.(m), kwargs...)
+
 function aVar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhiten::Bool=false) where T<:AbstractFloat
-    X = demean ? demeaner(float.(m), means; dims=dims) : float.(m)
+    X = demean ? demeaner(m, means; dims=dims) : m
     Shat = avar(k, X; prewhiten=prewhiten)
     return Shat
 end
-
-aVar(k::AVarEstimator, m::AbstractMatrix{T}; kwargs...) where T<:Integer = aVar(k, float.(m); kwargs...)
-
 
 const a𝕍ar = aVar
     

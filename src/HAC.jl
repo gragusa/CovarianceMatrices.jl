@@ -1,49 +1,47 @@
 function avar(k::T, X::AbstractMatrix{F}; prewhiten=false) where {T<:HAC, F<:AbstractFloat}
     Z, D, bw = CovarianceMatrices.workingoptimalbw(k, X; prewhiten=prewhiten)
-    V = _avar(Z, k, bw)
+    V = _avar(k, Z)
     if prewhiten
-      v = I-D'
-      R = cholesky!(Symmetric(V))
-      s = v\R.L
-      V .= s*s'
+      v = inv(I-D')
+      V .= v*V*v'
     end
     return Symmetric(V)
 end
 
-function _avar(Z::Matrix{T}, k, bw) where T
-  V = triu!(Z'*Z)
-  Q = fill!(similar(V), zero(T))
-  @inbounds for j in CovarianceMatrices.covindices(k, size(Z,1))
-    κⱼ = CovarianceMatrices.kernel(k, j/bw)
-    LinearAlgebra.axpy!(κⱼ, CovarianceMatrices.Γsign!(fill!(Q, zero(T)), Z, j, Val{j>0}), V)
-  end
-  LinearAlgebra.copytri!(V, 'U')
+function _avar(k::HAC, Z::Matrix{T}) where T<:AbstractFloat
+    V = triu!(Z'*Z)
+    F = eltype(V)
+    idx = CovarianceMatrices.covindices(k, size(Z,1))
+    bw = first(k.bw)
+    Q = zeros(F, size(V))
+    @inbounds for j in idx
+      κⱼ = CovarianceMatrices.kernel(k, j/bw)
+      CovarianceMatrices.Γplus!(Q, Z, j)    
+      LinearAlgebra.axpy!(κⱼ, Q, V)
+      fill!(Q, zero(F))
+      CovarianceMatrices.Γminus!(Q, Z, -j)
+      LinearAlgebra.axpy!(κⱼ, Q, V)
+      fill!(Q, zero(F))
+    end
+    LinearAlgebra.copytri!(V, 'U')
 end
-
-
 
 avarscaler(K::HAC, X; prewhiten=false) = size(X, 1)
 
 """
-Γ(A::AbstractMatrix{T}, j::Int) where T
+Γplus!(Q, A::AbstractMatrix{T}, j::Int) where T
 
-Calculate the autocovariance of order `j` of `A`.
+Calculate the autocovariance of order `|j|` of `A`.
 
 # Arguments
+- `Q`::AbstractMatrix{T}`: the matrix where the autocovariance will be stored
 - `A::AbstractMatrix{T}`: the matrix whose autocorrelation need to be calculated
-- `j::Int`: the autocorrelation order
+- `j::Int`: the autocorrelation order (must be positive)
 
 # Returns
-- `AbstractMatrix{T}`: the autocovariance
+- `AbstractMatrix{T}`: the autocovariance (upper triangular) 
 """
-function Γ(A::AbstractMatrix{T}, j::Int) where T<:Real
-    n, p = size(A)
-    Q = zeros(T, p, p)
-    Γsign!(Q, A, j, Val{j>0})
-    return Q
-end
-
-function Γsign!(Q::Matrix, A::AbstractMatrix, j::Int, ::Type{Val{true}})
+function Γplus!(Q::Matrix, A::AbstractMatrix, j::Int)
     @inbounds for h in axes(A, 2), s in firstindex(A,1):h+firstindex(A,1)-1
         for t in (j+firstindex(A,1)):lastindex(A, 1)
             Q[s, h] = Q[s, h] + A[t, s]*A[t-j, h]
@@ -52,7 +50,20 @@ function Γsign!(Q::Matrix, A::AbstractMatrix, j::Int, ::Type{Val{true}})
     Q
 end
 
-function Γsign!(Q, A::AbstractMatrix, j::Int, ::Type{Val{false}})
+"""
+Γminus!(Q, A::AbstractMatrix{T}, j::Int) where T
+
+Calculate the autocovariance of order `j` of `A`.
+
+# Arguments
+- `Q`::AbstractMatrix{T}`: the matrix where the autocovariance will be stored
+- `A::AbstractMatrix{T}`: the matrix whose autocorrelation need to be calculated
+- `j::Int`: the autocorrelation order (must be negative)
+
+# Returns
+- `AbstractMatrix{T}`: the autocovariance (upper triangular) 
+"""
+function Γminus!(Q::Matrix, A::AbstractMatrix, j::Int)
     @inbounds for h in axes(A, 2), s in firstindex(A,1):h+firstindex(A,1)-1
         for t in (-j+firstindex(A,1)):lastindex(A, 1)
             Q[s,h] = Q[s ,h] + A[t+j, s]*A[t,h]
@@ -61,26 +72,8 @@ function Γsign!(Q, A::AbstractMatrix, j::Int, ::Type{Val{false}})
     Q
 end
 
-# function Γ(A::AbstractVector{T}, j::Int) where T<:Real
-#     Q = zero(T)
-#     Γsign!(Q, A, j, Val{j>0})
-#     return Q
-# end
-
-# function Γsign!(Q::Matrix, A::AbstractVector, j::Int, ::Type{Val{true}})
-#     for t in j+firstindex(A):lastindex(A)
-#         @inbounds Q[s] = Q[s] + A[t]*A[t-j]
-#     end
-# end
-
-# function Γsign!(Q, A::Vector, j::Int, ::Type{Val{false}})
-#     for t in -j+firstindex(A):lastindex(A)
-#         @inbounds Q[s] = Q[s] + A[t+j]*A[t]
-#     end
-# end
-
-covindices(k::T, n) where T<:QuadraticSpectralKernel = Iterators.filter(x -> x!=0, -n:n)
-covindices(k::HAC, n) = Iterators.filter(x -> x!=0, -floor(Int, k.bw[1]):floor(Int, k.bw[1]))
+covindices(k::T, n) where T<:QuadraticSpectralKernel = 1:n
+covindices(k::HAC, n) = 1:floor(Int, k.bw[1])
 
 # -----------------------------------------------------------------------------
 # Kernels
@@ -113,29 +106,13 @@ end
 # -----------------------------------------------------------------------------
 # Optimal bandwidth
 # -----------------------------------------------------------------------------
-"""
-optimalbandwidth(k::HAC{T}, mm; prewhiten::Bool=false) where {T<:Andrews}
-optimalbandwidth(k::HAC{T}, mm; prewhiten::Bool=false) where {T<:NeweyWest}
-
-
-Calculate the optimal bandwidth according to either Andrews or Newey-West.
-"""
-# function optimalbandwidth(
-#     k::HAC{T},
-#     m::AbstractMatrix, 
-#     prewhiten::Bool
-#     ) where T<:Union{Andrews, NeweyWest}
-#     setupkernelweights!(k, m)
-#     bw = _optimalbandwidth(k, m, prewhiten)
-#     return bw
-# end
 
 function workingoptimalbw(
     k::HAC{T},
     m::AbstractMatrix;
     prewhiten::Bool=false,    
     ) where T<:Union{Andrews, NeweyWest}    
-    X, D = prewhiter(m, Val{prewhiten})
+    X, D = prewhiter(m, prewhiten)
     setupkernelweights!(k, X)
     bw = _optimalbandwidth(k, X, prewhiten)
     return X, D, bw
@@ -143,6 +120,13 @@ end
 
 workingoptimalbw(k::HAC{T}, m::AbstractMatrix; kwargs...) where T<:Fixed = (m, Matrix{eltype{m}}(undef,0,0), first(k.bw))
 
+"""
+optimalbandwidth(k::HAC{T}, mm; prewhiten::Bool=false) where {T<:Andrews}
+optimalbandwidth(k::HAC{T}, mm; prewhiten::Bool=false) where {T<:NeweyWest}
+
+
+Calculate the optimal bandwidth according to either Andrews or Newey-West.
+"""
 function optimalbw(
     k::HAC{T},
     m::AbstractMatrix;
@@ -250,7 +234,7 @@ Base.@propagate_inbounds function fit_var(A::AbstractMatrix{T}) where T
     X = view(A, fi:li-1, :)
     B = X\Y
     E = Y - X*B
-    return E::Matrix{T}, B::Matrix{T}
+    return E, B
 end
 
 Base.@propagate_inbounds function fit_var(A::AbstractSparseMatrix{T}) where T
@@ -284,29 +268,20 @@ Base.@propagate_inbounds function fit_ar(Z::AbstractMatrix{T}) where T
         y .= y .- x
         σ⁴[j]  = (sum(abs2, y)/(n-1))^2
     end
-    return rho::Vector{T}, σ⁴::Vector{T}
+    return rho, σ⁴
 end
 
 # -----------------------------------------------------------------------------
-# Prewhiter and dewhiter functions    
+# Prewhiter
 # -----------------------------------------------------------------------------
-#prewhiter(mm, ::Type{Val{false}}) = (mm, similar(mm, (0,0)))
-
-prewhiter(M, ::Type{Val{true}}) = fit_var(M)
-prewhiter(M::Matrix{T}, ::Type{Val{false}}) where T= (M::Matrix{T}, Matrix{T}(undef, 0, 0))
-prewhiter(M) = prewhiter(M, Val{true})
-
-function dewhiter!(V, D, ::Type{Val{true}})
-    v = inv(I-D')
-    V .= v*V*v'
-    return V
+function prewhiter(M::AbstractMatrix{T}, prewhiten::Bool) where T<:AbstractFloat
+    if prewhiten
+        return fit_var(M)
+    else
+      if eltype(M) ∈ (Float32, Float64)
+        return (M::Matrix{T}, Matrix{T}(undef, 0, 0))
+      else
+        return (float(M), zeros(0, 0))
+      end
+    end
 end
-
-function dewhiter2!(V, D, ::Type{Val{true}})
-  v = I-D'
-  F = cholesky!(Symmetric(V))
-  s = v\F.L
-  V .= s*s'
-end
-
-dewhiter!(V, D, ::Type{Val{false}}) = V
