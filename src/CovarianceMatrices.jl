@@ -11,35 +11,16 @@ module CovarianceMatrices
 
 using CategoricalArrays
 using LinearAlgebra
-using Requires: @require
+using SparseArrays
 using Statistics
 using StatsBase
-using StatsModels
-using LoopVectorization
-using SparseArrays
-#using ForwardDiff
+
 include("types.jl")
 include("aVar.jl")
 include("HAC.jl")
 include("CR.jl")
 include("DriscollKraay.jl")
 include("demeaner.jl")
-
-#include("HR.jl")
-#include("burger.jl")
-#include("glue_glm.jl")
-
-#include("VARHAC.jl")
-#include("lrvar.jl")
-#include("smoothing.jl")
-#include("CovarianceMatrix.jl")
-#include("interface_api.jl")
-# using GLM
-# include("glm.jl")
-
-# function __init__()
-#     @require GLM="38e38edf-8417-5370-95a0-9cbb8c7f171a" include("glm.jl")
-# end
 
 export Andrews,
        Bartlett,

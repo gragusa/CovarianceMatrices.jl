@@ -1,22 +1,43 @@
-function avar(k::T, X; kwargs...) where T<:CR    
+  abstract type Evaluation end
+  struct Sequential  <: Evaluation end
+  struct Threaded  <: Evaluation end
+
+function avar(k::T, X::Union{Matrix{F},Vector{F}}, evaluation::Evaluation=Sequential(); kwargs...) where {T<:CR, F<:AbstractFloat}    
     f = clusterindicator(k)
-    length(f) != size(X,1) && throw(ArgumentError("The length of the cluster indicator, $(length(f)), does not match the number of row of the matrix, $(size(X,1))"))
-    #M = issorted(f) ? clustersum(X, f) : (i = sortperm(f); clustersum(X[i, :], f[i]))
-    M = clustersum(parent(X), f)
-    ## G/n^2 M
-    G = length(levels(f))
-    n = length(f) 
-    (G.*M./n^2)
+    V = _avar(k, X, f, evaluation; kwargs...)
+    return V
+end
+
+function _avar(k::T, X::Union{Matrix{F},Vector{F}}, f::C, evaluation::Evaluation=Sequential(); kwargs...) where {T<:CR, F<:AbstractFloat, C<:Tuple}
+  f1 = f[1]
+  length(f1) != size(X,1) && throw(ArgumentError("The length of the cluster indicators is $(length(f1)) while it should be $(size(X,1))"))
+  M1 = clustersum(parent(X), f1, evaluation)
+  if length(f) == 1
+    return M1
+  end
+  f2 = f[2]
+  length(f2) != size(X,1) && throw(ArgumentError("The length of the cluster indicators is $(length(f2)) while it should be $(size(X,1))"))
+  M2 = clustersum(parent(X), f2, evaluation)
+  f0 = f1 .& f2
+  if sum(f0) == 0
+    return M1+M2
+  else
+    M0 = clustersum(parent(X), f1 .& f2, evaluation)
+    return M1+M2-2M0
+  end
 end
 
 clusterindicator(x::CR) = x.cl
-function clusterintervals(f::CategoricalArray) 
-    if issorted(f)
-        (searchsorted(f.refs, j) for j in unique(f.refs))
-    else
-        (findall(f.refs.==j) for j in unique(f.refs))
-    end
+
+function clusterintervals(f::CategoricalArray)
+  if issorted(f)
+      (searchsorted(f.refs, j) for j in unique(f.refs))
+  else
+      (findall(f.refs.==j) for j in unique(f.refs))
+  end
 end
+
+
 avarscaler(K::CR, X)  = length(unique(clusterindicator(K)))
 avarscaler(K::HR, X)  = size(X, 1)
 
@@ -33,52 +54,47 @@ function sortrowby(A, by)
     end
 end
 
-function clustersum(X::Vector{T}, cl) where T<:Real     
+function clustersum(X::Vector{T}, cl, ::Sequential) where T<:Real
     Shat = fill!(similar(X, (1, 1)), zero(T))
     s = Vector{T}(undef, size(Shat, 1))
-    clustersum!(Shat, s, X[:,:], cl)
+    clustersum!(Shat, s, X[:,:], cl, Sequential())
     vec(Shat)
 end
 
-function clustersum(X::Matrix{T}, cl) where T<:Real 
+function clustersum(X::Matrix{T}, cl, ::Sequential) where T<:Real 
     _, p = size(X)
     Shat = fill!(similar(X, (p, p)), zero(T))
     s = Vector{T}(undef, size(Shat, 1))
-    clustersum!(Shat, s, X, cl)
+    clustersum!(Shat, s, X, cl, Sequential())
 end
 
-function clustersum!(Shat::Matrix{T}, s::Vector{T}, X::Matrix{T}, cl) where T<:Real
-    _, p = size(X)
+function clustersum!(Shat::Matrix{T}, s::Vector{T}, X::Matrix{T}, cl, ::Sequential) where T<:Real
     for m in clusterintervals(cl)
         @inbounds fill!(s, zero(T))
-        innerXiXi!(s, m, X)
-        innerXiXj!(Shat, s)         
+        innerXiXi!(s, m, X, Sequential())
+        innerXiXj!(Shat, s, Sequential())
     end
     return LinearAlgebra.copytri!(Shat, 'U')
 end
 
-function innerXiXi!(s, m, X)
-    @tturbo for j in eachindex(s)
+function innerXiXi!(s, m, X, ::Sequential)
+    @inbounds @fastmath for j in eachindex(s)
         for i in eachindex(m)
             s[j] += X[m[i], j]
         end
     end
 end
 
-function innerXiXj!(Shat, s) 
-    @inbounds for j in eachindex(s)
-        @tturbo for i in 1:j
+function innerXiXj!(Shat, s, ::Sequential)
+    @inbounds @fastmath for j in eachindex(s)
+         for i in 1:j
             Shat[i, j] += s[i]*s[j]
         end
     end
 end
 
 
-
-
-
-
-function clustersum_slow(X::Matrix{T}, cl) where T<:Real 
+function clustersum_slow(X::Matrix{T}, cl) where T<:Real
     _, p = size(X)
     Shat = fill!(similar(X, (p, p)), zero(T))
     s = Vector{T}(undef, size(Shat, 1))
@@ -87,7 +103,6 @@ end
 
 function clustersum_slow!(Shat::Matrix{T}, s::Vector{T}, X::Matrix{T}, cl) where T<:Real
     _, p = size(X)
-
     for m in clusterintervals(cl)
         fill!(s, zero(T))
         for j in 1:p

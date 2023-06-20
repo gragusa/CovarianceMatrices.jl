@@ -215,7 +215,11 @@ for tp in [:CR0, :CR1, :CR2, :CR3]
 end
 
 for tp in [:CR0, :CR1, :CR2, :CR3]
-    @eval $(tp)(v::AbstractVector) = $(tp)(categorical(v), nothing)
+    @eval $(tp)(v::AbstractVector) = $(tp)((categorical(v),), nothing)
+end
+
+for tp in [:CR0, :CR1, :CR2, :CR3]
+  @eval $(tp)(v::AbstractVector, z::AbstractVector) = $(tp)((categorical(v),categorical(z)), nothing)
 end
 
 #======== 
