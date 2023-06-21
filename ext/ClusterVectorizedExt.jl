@@ -20,8 +20,8 @@ end
 function CovarianceMatrices.clustersum!(Shat::Matrix{T}, s::Vector{T}, X::Matrix{T}, cl, ::CovarianceMatrices.Threaded) where T<:AbstractFloat
   for m in CovarianceMatrices.clusterintervals(cl)
       @inbounds fill!(s, zero(T))
-      CovarianceMatrices.innerXiXi!(s, m, X, CovarianceMatrices.Sequential())
-      CovarianceMatrices.innerXiXj!(Shat, s, CovarianceMatrices.Sequential())
+      CovarianceMatrices.innerXiXi!(s, m, X, CovarianceMatrices.Threaded())
+      CovarianceMatrices.innerXiXj!(Shat, s, CovarianceMatrices.Threaded())
   end
   return LinearAlgebra.copytri!(Shat, 'U')
 end
