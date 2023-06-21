@@ -1,6 +1,6 @@
 module ClusterVectorizedExt
 
-using CovarianceMatrices, LoopVectorization, Folds, CategoricalArrays, LinearAlgebra
+using CovarianceMatrices, LoopVectorization, CategoricalArrays, LinearAlgebra
 
 
 function CovarianceMatrices.clustersum(X::Vector{T}, cl, ::CovarianceMatrices.Threaded) where T<:AbstractFloat
