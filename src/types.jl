@@ -175,6 +175,19 @@ bandwidth(x::HAC) = x.bw
 kernelweights(x::HAC) = x.weights
 
 #=========
+EWC 
+=========#
+
+struct EWC <: AVarEstimator
+  B::Int64
+end
+
+
+
+#EWC(B::Int64) = EWC(B)
+
+
+#=========
 HC 
 =========#
 struct HR0  <: HR end

@@ -21,7 +21,7 @@ include("HAC.jl")
 include("CR.jl")
 include("DriscollKraay.jl")
 include("demeaner.jl")
-
+include("EWC.jl")
 export Andrews,
        Bartlett,
        CR0,
