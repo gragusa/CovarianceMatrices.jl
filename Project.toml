@@ -13,14 +13,17 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [weakdeps]
 LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
+GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 
 [extensions]
 ClusterVectorizedExt = ["LoopVectorization"]
+GLMExt = ["GLM"]
 
 [compat]
 CategoricalArrays = "0.8, 0.9, 0.10"
 StatsBase = "0.34"
-julia = "1"
+GLM = "1.9"
+julia = "1.9"
 
 [extras]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"

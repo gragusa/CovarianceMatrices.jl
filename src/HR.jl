@@ -1,1 +1,1 @@
-avar(k::T, X::M) where {T<:HR, M<:Matrix} = X'X
+avar(k::T, X::M; kwargs...) where {T<:HR, M<:Matrix} = X'X

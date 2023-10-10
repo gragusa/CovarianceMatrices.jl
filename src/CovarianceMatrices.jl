@@ -19,9 +19,11 @@ include("types.jl")
 include("aVar.jl")
 include("HAC.jl")
 include("CR.jl")
+include("HR.jl")
 include("DriscollKraay.jl")
 include("demeaner.jl")
 include("EWC.jl")
+include("api.jl")
 export Andrews,
        Bartlett,
        CR0,
@@ -38,6 +40,7 @@ export Andrews,
        HR4m,
        HR5,
        HAC,
+       EWC,
        NeweyWest,
        Parzen,
        QuadraticSpectral,
@@ -47,8 +50,4 @@ export Andrews,
        aVar,
        a𝕍ar,
        optimalbw
-    #    lrvar,
-    #    lrvarmatrix,
-    #    optimalbandwidth,
-    #    vcovmatrix      
-end 
+end
