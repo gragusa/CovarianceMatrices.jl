@@ -2,26 +2,35 @@ module GLMExt
 
 using CovarianceMatrices, GLM, LinearAlgebra
 
-
+## using DataFrames, GLM
 ## df = DataFrame(y=randn(100), x = randn(100), w=rand(100))
 
 ## lm1 = lm(@formula(y~x), df)
+## lmp = lm(@formula(y~x), df; dropcollinear=false)
 ## lm2 = lm(@formula(y~x), df; wts=df.w)
 ## ols = glm(@formula(y~x), df, Normal(), IdentityLink())
-
-
-
-
 
 
 ##=================================================
 ## Moment Matrix 
 ##=================================================
 
+_dispersion(r::RegressionModel) = _dispersion(r.model)
+_dispersion(m::GLM.LinearModel) = 1
+_dispersion(m::GLM.GeneralizedLinearModel) = _dispersion(m.rr)
+
+_dispersion(rr::GLM.GlmResp{T1, T2, T3}) where {T1, T2, T3} = 1
+_dispersion(rr::GLM.LmResp) = 1
+function _dispersion(rr::GLM.GlmResp{T1, T2, T3}) where {T1, T2<:Union{GLM.Gamma, GLM.Bernoulli, GLM.InverseGaussian}, T3}
+    sum(abs2, rr.wrkwt.*rr.wrkresid)/sum(rr.wrkwt)
+end
+
+
+
+
 CovarianceMatrices.bread(r::RegressionModel) = CovarianceMatrices.bread(r.model)
-CovarianceMatrices.bread(m::LinearModel) = CovarianceMatrices.bread(r.model)
-
-
+CovarianceMatrices.bread(m::LinearModel) = GLM.invchol(m.pp)
+CovarianceMatrices.bread(m::GeneralizedLinearModel) = GLM.invchol(m.pp).*_dispersion(m)
 
 CovarianceMatrices.resid(r::RegressionModel) = CovarianceMatrices.resid(r.model)
 
@@ -41,7 +50,7 @@ function CovarianceMatrices.momentmatrix(m::M) where M<:Union{LinearModel, Gener
 end
 
 function CovarianceMatrices.aVar(k::K, m::RegressionModel; kwargs...) where K<:Union{HR, HAC, EWC}    
-    mm = if K isa HR0 || K isa HR1
+    mm = if K isa HR0
         momentmatrix(m)
     else
         X = modelmatrix(m)
@@ -51,12 +60,13 @@ function CovarianceMatrices.aVar(k::K, m::RegressionModel; kwargs...) where K<:U
     Σ = aVar(k, mm; kwargs...)    
 end
 
-
-CovarianceMatrices.leverage(r::RegressionModel) = leverage(r.model.pp.chol)
-
-function CovarianceMatrices.leverage(pp::LinearAlgebra.CholeskyPivoted)
-    X = modelmatrix(pp)
+function CovarianceMatrices.leverage(r::RegressionModel) 
+    X = modelmatrix(r)
     _, k = size(X)
+    _leverage(r.model.pp, X)
+end
+
+function _leverage(pp::GLM.DensePredChol{F, C}, X) where {F, C<:LinearAlgebra.CholeskyPivoted}
     ch = pp.chol
     rnk = rank(ch)
     p = ch.p
@@ -64,75 +74,73 @@ function CovarianceMatrices.leverage(pp::LinearAlgebra.CholeskyPivoted)
     sum(x -> x^2, view(X, :, 1:rnk)/ch.U[1:rnk, idx], dims=2)
 end
 
-function CovarianceMatrices.leverage(pp::LinearAlgebra.Cholesky)
-    X = modelmatrix(pp)
+function _leverage(pp::GLM.DensePredChol{F, C}, X) where {F, C<:LinearAlgebra.Cholesky}
     sum(x -> x^2, X/pp.chol.U, dims=2)
 end
 
-function CovarianceMatrices.leverage(pp::QRPivoted)
-  X = modelmatrix(pp)
-  _, k = size(X)
-  ch = pp.qr
-  rnk = length(ch.p)
-  p = ch.p
-  idx = invperm(p)[1:rnk]
-  sum(x -> x^2, view(X, :, 1:rnk)/ch.R[1:rnk, idx], dims=2)
-end
-
-function CovarianceMatrices.leverage(pp::GLM.DensePredQR{C}) where {C<:GLM.QRPivoted}
-  X = modelmatrix(pp)
-  sum(x -> x^2, X/pp.chol.R, dims=2)
-end
+## function CovarianceMatrices.leverage(pp::QRPivoted)
+##  X = modelmatrix(pp)
+##   _, k = size(X)
+##   ch = pp.qr
+##   rnk = length(ch.p)
+##   p = ch.p
+##   idx = invperm(p)[1:rnk]
+##   sum(x -> x^2, view(X, :, 1:rnk)/ch.R[1:rnk, idx], dims=2)
+## end
+## 
+## function CovarianceMatrices.leverage(pp::GLM.DensePredQR{C}) where {C<:GLM.QRPivoted}
+##   X = modelmatrix(pp)
+##   sum(x -> x^2, X/pp.chol.R, dims=2)
+## end
 
 
 adjustedresiduals(k::CovarianceMatrices.AVarEstimator, r::RegressionModel) = CovarianceMatrices.resid(r.model)
 
-adjustedresiduals(k::HR0, r::RegressionModel) = CovarianceMatrices.resid(r).*(1/√length(residuals(r)))
-adjustedresiduals(k::HR1, r::RegressionModel) = CovarianceMatrices.resid(r).*(√length(residuals(r))/dof_residual(r))
-adjustedresiduals(k::HR2, r::RegressionModel) = CovarianceMatrices.resid(r).*(length(residuals(r)) ./ (1 .- hatvalues(r)))
-adjustedresiduals(k::HR3, r::RegressionModel) = CovarianceMatrices.resid(r).*(length(residuals(r)) ./ (1 .- hatvalues(r)).^2)
+adjustedresiduals(k::HR0, r::RegressionModel) = CovarianceMatrices.resid(r).*(1/√length(CovarianceMatrices.resid(r)))
+adjustedresiduals(k::HR1, r::RegressionModel) = CovarianceMatrices.resid(r).*(√length(CovarianceMatrices.resid(r))/dof_residual(r))
+adjustedresiduals(k::HR2, r::RegressionModel) = CovarianceMatrices.resid(r).*(1.0 ./ (1 .- CovarianceMatrices.leverage(r)))./√length(resid(r))
+adjustedresiduals(k::HR3, r::RegressionModel) = CovarianceMatrices.resid(r).*(1.0 ./ (1 .- CovarianceMatrices.leverage(r)).^2)/√length(resid(r))
 
-function adjustedresiduals(k::HR4, m::RegressionModel)
-    n, p = nobs(m), sum(.!(coef(m).==0))
-    h = GLM.hatvalues(m)
+function adjustedresiduals(k::HR4, r::RegressionModel)
+    n, p = nobs(r), sum(.!(coef(r).==0))
+    h = CovarianceMatrices.leverage(r)
     @inbounds for j in eachindex(h)
         delta = min(4.0, n*h[j]/p)
         h[j] = 1/(1-h[j])^delta
     end
-    return residuals(m).*h  ## This can be done above
+    return resid(r).*h ./ √length(resid(r))
 end
 
-function adjustedresiduals(k::HR4m, m::RegressionModel)
-    n, p = length(response(y)), sum(.!(coef(m).==0))
-    h = GLM.hatvalues(m)
+function adjustedresiduals(k::HR4m, r::RegressionModel)
+    n, p = length(response(r)), sum(.!(coef(r).==0))
+    h = CovarianceMatrices.leverage(r)
     @inbounds for j in eachindex(h)
         delta = min(1, n*h[j]/p) + min(1.5, n*h[j]/p)
         h[j] = 1/(1-h[j])^delta
     end
-    return residuals(m).*h
+    return resid(r).* h ./ √length(resid(r))
 end
 
-function adjustedresiduals(k::HR5, m::RegressionModel)
-    n, p = length(response(y)), sum(.!(coef(m).==0))
-    h = GLM.hatvalues(m)
+function adjustedresiduals(k::HR5, r::RegressionModel)
+    n, p = length(response(r)), sum(.!(coef(r).==0))
+    h = CovarianceMatrices.leverage(r)
     mx = max(n*0.7*maximum(h)/p, 4.0)
     @inbounds for j in eachindex(h)
         alpha = min(n*h[j]/p, mx)
         h[j] = 1/sqrt((1-h[j])^alpha)
     end
-    return residuals(m).*h
+    return resid(r).*h ./ √length(resid(r))
 end
-
 
 ##=================================================
 ## RegressionModel - CR
 ##=================================================
-adjustment!(k::CR0, m) = 1/(length(level(k.f))-1)
-adjustment!(k::CR1, m) = ((nobs(n)-1)/dof_residuls(m) * length(level(k.f))/(length(level(k.f))-1))
+adjustment!(k::CR0, r) = 1/(length(level(k.f))-1)
+adjustment!(k::CR1, r) = ((nobs(n)-1)/dof_residuls(m) * length(level(k.f))/(length(level(k.f))-1))
 
-function adjustment(v::CR2, m::RegressionModel)    
-    X, u = modelmatrix(m), residual(m)
-    XX⁻¹ = crossmodelmatrix(m)
+function adjustment(v::CR2, r::RegressionModel)    
+    X, u = modelmatrix(r), residual(r)
+    XX⁻¹ = crossmodelmatrix(r)
     indices = clustersindices(v)
     for j in eachindex(indices)
         Xg = view(X, index[j], :)
@@ -143,9 +151,8 @@ function adjustment(v::CR2, m::RegressionModel)
     return u
 end
 
-Base.@propagate_inbounds function adjustment(k::CR3,  m::RegressionModel)
-    
-    X, u = modelmatrix(m), resid(c)
+Base.@propagate_inbounds function adjustment(k::CR3,  r::RegressionModel)
+    X, u = modelmatrix(r), resid(c)
     n, p = size(X)
     invxx, indices = invcrossx(c), clustersindices(c)
     Threads.@threads for index in indices
