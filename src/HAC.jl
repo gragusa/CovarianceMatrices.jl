@@ -97,7 +97,7 @@ function Γplus(A::AbstractMatrix, j::Int)
 end
 
 covindices(k::T, n) where T<:QuadraticSpectral = 1:n
-covindices(k::T, n) where T<:Bartlett = 1:(floor(Int, k.bw[1])-1)
+covindices(k::T, n) where T<:Bartlett = 1:(floor(Int, k.bw[1]))
 covindices(k::HAC, n) = 1:floor(Int, k.bw[1])
 
 # -----------------------------------------------------------------------------
@@ -117,7 +117,7 @@ function kernel(k::QuadraticSpectral, x::Real)
   return 3*(sin(z)/z-cos(z))*(1/z)^2
 end
 
-function setupkernelweights!(k::HAC, m::AbstractMatrix)
+function setkernelweights!(k::HAC, m::AbstractMatrix)
   n, p = size(m)
   kw = kernelweights(k)
   if isempty(kw) || length(kw) != p || all(iszero.(kw))
@@ -132,18 +132,18 @@ end
 # Optimal bandwidth
 # -----------------------------------------------------------------------------
 
-# function workingoptimalbw(
-#     k::HAC{T},
-#     m::AbstractMatrix;
-#     prewhiten::Bool=false,    
-#     ) where T<:Union{Andrews, NeweyWest}    
-#     X, D = prewhiter(m, prewhiten)
-#     setupkernelweights!(k, X)
-#     bw = _optimalbandwidth(k, X, prewhiten)
-#     return X, D, bw
-# end
+function workingoptimalbw(
+    k::HAC{T},
+    m::AbstractMatrix;
+    prewhiten::Bool=false,    
+    ) where T<:Union{Andrews, NeweyWest}    
+    X, D = prewhiter(m, prewhiten)
+    setkernelweights!(k, X)
+    bw = _optimalbandwidth(k, X, prewhiten)
+    return X, D, bw
+end
 
-# workingoptimalbw(k::HAC{T}, m::AbstractMatrix; kwargs...) where T<:Fixed = (m, Matrix{eltype{m}}(undef,0,0), first(k.bw))
+workingoptimalbw(k::HAC{T}, m::AbstractMatrix; kwargs...) where T<:Fixed = (m, Matrix{eltype{m}}(undef,0,0), first(k.bw))
 
 """
 optimalbandwidth(k::HAC{T}, mm; prewhiten::Bool=false) where {T<:Andrews}

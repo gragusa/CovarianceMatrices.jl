@@ -15,10 +15,10 @@
 
 aVar(k::AVarEstimator, m::AbstractMatrix; kwargs...) = aVar(k, float.(m), kwargs...)
 
-function aVar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhiten::Bool=false) where T<:AbstractFloat
+function aVar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhiten::Bool=false, scale=true) where T<:AbstractFloat
     X = demean ? demeaner(m, means; dims=dims) : m
     Shat = avar(k, X; prewhiten=prewhiten)
-    return Shat
+    return scale ? Shat./size(X,dims) : Shat
 end
 
 const a𝕍ar = aVar

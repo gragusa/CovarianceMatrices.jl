@@ -1,8 +1,14 @@
 ## Test for CovarianceMatrices.jl
-using CovarianceMatrices, DataFrames, CSV, Test, StableRNGs, CategoricalArrays
+using CovarianceMatrices, DataFrames, CSV, Test, StableRNGs, CategoricalArrays, Statistics, LinearAlgebra
+using JSON
+
+const CM = CovarianceMatrices
 
 datadir = dirname(@__FILE__)
 X = rand(StableRNG(123), 100, 3)
+Y = rand(StableRNG(123), 100)
+df = DataFrame(X, :auto)
+df.y = Y
 
 @testset "demean" begin
     @test demean(X; dims = 1) == X .- mean(X; dims=1)
@@ -16,18 +22,6 @@ X = rand(StableRNG(123), 100, 3)
 
     m = mean(X; dims = 2)
     @test demean(X; dims=2, means=m) == demean(X; dims=2)
-end
-
-@testset "clustersum" begin        
-    f = repeat(1:20, inner=5);
-    𝐉 = CovarianceMatrices.clusterintervals(categorical(f))
-    𝐉₀ = map(x->x:x+4, 1:5:100)
-    @test collect(𝐉) == 𝐉₀
-    M = CovarianceMatrices.clustersum(X, categorical(f))
-    M₀= [134.8844  120.9909  123.9828
-         120.9909  124.3984  120.7009
-         123.9828  120.7009  127.6566]    
-    @test M ≈ M₀ atol=1e-4
 end
 
 @testset "Optimal Bandwidth (NeweyWest)" begin
@@ -117,9 +111,20 @@ end
 
 end
 
+@testset "clustersum" begin        
+  f = repeat(1:20, inner=5);
+  𝐉 = CovarianceMatrices.clusterintervals(categorical(f))
+  𝐉₀ = map(x->x:x+4, 1:5:100)
+  @test collect(𝐉) == 𝐉₀
+  M = CovarianceMatrices.clustersum(X, categorical(f))
+  M₀= [134.8844  120.9909  123.9828
+       120.9909  124.3984  120.7009
+       123.9828  120.7009  127.6566]    
+  @test M ≈ M₀ atol=1e-4
+end
 
 Σ₀₀ = [
-    [0.07978827089743976 0.005560324649425609 0.009703799309186547
+       [0.07978827089743976 0.005560324649425609 0.009703799309186547
         0.005560324649425609 0.08276474874770062 0.0010530436728554352
         0.009703799309186547 0.0010530436728554352 0.07431486592263496],
     
@@ -183,7 +188,7 @@ end
         0.021873704773883562 0.09162619720253418 0.009583822285400886
         0.015973407916786978 0.009583822285400884 0.07403525954398654]
         
-        ].*100
+        ]
 
 kernels = (Bartlett{Andrews}(), 
             Parzen{Andrews}(), 
@@ -196,12 +201,30 @@ kernels = (Bartlett{Andrews}(),
 
 pre = (false, true)            
 
-@testset "aVar" begin
+@testset "aVar HAC" begin
     for ((𝒦, prewhiten), Σ₀) in zip(Iterators.product(kernels, pre), Σ₀₀)
         Σ = a𝕍ar(𝒦, X; prewhiten=prewhiten)
         @test Σ ≈ Σ₀ rtol=1e-6
     end
 end
+
+kernels = (HR0(), HR1(), HR2(), HR3(), HR4(), HR4m(), HR5())
+
+Σ₀ = [ 0.06415873470586395 -0.004015858202035743 -6.709834054283887e-5; 
+      -0.004015858202035743 0.07800552644879759 -0.00615707811722861; 
+      -6.709834054283887e-5 -0.00615707811722861 0.07184846516936118]
+
+
+@testset "aVar HRx" begin
+        for 𝒦 in kernels
+            Σ = a𝕍ar(𝒦, X)
+            @test Σ ≈ Σ₀ rtol=1e-6
+        end
+    end
+    
+
+
+
 
 @testset "CRHC............................................." begin        
     cl = repeat(1:5, inner=20)
@@ -232,7 +255,7 @@ end
 
 @testset "Driscol and Kraay"
   df = CSV.read(joinpath(datadir,"testdata/grunfeld.csv"), DataFrame)
-  df = RDatasets.dataset("Ecdat", "Grunfeld")
+  #df = RDatasets.dataset("Ecdat", "Grunfeld")
   X = [ones(size(df,1)) df.Value df.Capital]
   y = df.Inv
   β = X\y
@@ -242,9 +265,9 @@ end
   T = length(unique(df.Year))
   bw = 5
   𝒦 = CovarianceMatrices.DriscollKraay(df.Year, df.Firm, Bartlett(bw))
-  Σ = a𝕍ar(𝒦, m)
+  Σ = a𝕍ar(𝒦, m; scale=false)
   F = inv(cholesky(X'X))
-  Σ₀ = F*Σ*F
+  Σ₀ = F*Σ*F.*T
   #library(Ecdat)
   #library(plm)
   #data("Grunfeld")
@@ -252,7 +275,98 @@ end
   #vcovSCC(zz, maxlag = 4, )
   # Note: maxlag = 4 is equivalent to bw = 5
   Σ_ssc = [148.60459392965311     -0.067282610486606179   -0.32394796987915847;
-    -0.067282610486606151  0.00018052654961234828 -0.00035661048571690061; 
-    -0.32394796987915825  -0.00035661048571690066  0.0024312798435615107]
+            -0.067282610486606151  0.00018052654961234828 -0.00035661048571690061; 
+            -0.32394796987915825  -0.00035661048571690066  0.0024312798435615107]
   @test Σ₀ ≈ Σ_ssc rtol=1e-6
 end
+
+
+## Test GLM Interface
+const andrews_kernels = [:Truncated, :Parzen, :TukeyHanning, :QuadraticSpectral, :Bartlett]
+const neweywest_kernels = [:Parzen, :QuadraticSpectral, :Bartlett]
+
+using GLM
+
+function Base.String(k::Type{<:CovarianceMatrices.})
+    return string(k)
+end
+
+reg = JSON.parse(read(joinpath(datadir, "testdata/regression.json"), String))
+df = CSV.File(joinpath(datadir, "testdata/ols_df.csv")) |> DataFrame
+
+df2 = CSV.File(joinpath("/home/gragusa", "df.csv")) |> DataFrame
+function fopt!(u)
+    global da = Dict{String, Any}()
+    global dn = Dict{String, Any}()
+    for pre in (:false, :true)
+        da["bwtype"] = "auto"
+        da["prewhite"] = pre == :true ? true : false
+        dn["bwtype"] = "auto"
+        dn["prewhite"] = pre == :true ? true : false
+        
+        for k in andrews_kernels
+            eval(quote
+                 ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
+                 𝒦 = ($k){Andrews}()
+                 𝒦.weights = [1,0.0,0.0]
+                 tmp = vcov(𝒦, ols; prewhiten=$pre)
+                 da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
+          end)
+        end
+        
+        for k in neweywest_kernels
+          eval(quote
+            𝒦 = ($k){NeweyWest}()
+            ## To get the same results of R, the weights given to the intercept should be 0
+            𝒦.weights = [0.0,1.0,1.0,1.0]
+            tmp = vcov(𝒦, ols; prewhiten=$pre)
+            dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
+          end)
+        end
+        push!(u, Dict("andrews" => da, "neweywest" => dn))
+        da = Dict{String, Any}()
+        dn = Dict{String, Any}()
+    end
+end
+
+function ffix!(u)
+  global da = Dict{String, Any}()
+  global dn = Dict{String, Any}()
+  for pre in (:false, :true)
+      da["bwtype"] = "auto"
+      da["prewhite"] = pre == :true ? true : false
+      dn["bwtype"] = "auto"
+      dn["prewhite"] = pre == :true ? true : false
+      for k in andrews_kernels
+          eval(quote
+               ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
+               𝒦 = ($k)(1.5)
+               𝒦.weights = [1,0.0,0.0]
+               tmp = vcov(𝒦, ols; prewhiten=$pre)
+               da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp.V)
+               if Symbol($k) in neweywest_kernels
+                  𝒦 = ($k)(1.5)
+                  tmp = vcov(𝒦, ols; prewhiten=$pre)
+                  dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp.V)
+               end
+               end)
+      end
+      push!(u, Dict("andrews" => da, "neweywest" => dn))
+      da = Dict{String, Any}()
+      dn = Dict{String, Any}()
+  end
+end
+
+u = Any[]
+fopt!(u)
+
+for j in 1:4, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
+  @test hcat(reg[j][h][k]["V"]...) ≈ u[j][h][k]["V"]
+  @test reg[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
+end
+
+
+
+
+
+

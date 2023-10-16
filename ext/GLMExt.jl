@@ -55,10 +55,19 @@ function mask(pp::GLM.DensePredChol)
   return mask
 end
 
+function setglmkernelweights!(k::HAC, m::AbstractMatrix)
+  n, p = size(m)
+  kw = kernelweights(k)
+  resize!(kw, p)
+  idx = map(x->allequal(x), eachcol(m))
+  kw .= 1.0 .- idx  
+end
+
 
 function _aVar(k::K, m::RegressionModel; kwargs...) where K<:Union{HR, HAC, EWC}
-  mm = begin
-    X = modelmatrix(m)        
+  mm = begin    
+    X = modelmatrix(m)
+    setglmkernelweights!(k, X)
     midx = mask(m)
     Xm = X[:, midx]
     u = adjustedresiduals(k, m)
