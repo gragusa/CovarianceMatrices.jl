@@ -1,11 +1,19 @@
 module GLMExt
 
 using CovarianceMatrices, GLM, LinearAlgebra
-
+using Statistics
 ##=================================================
 ## Moment Matrix 
 ##=================================================
 const FAM = Union{GLM.Gamma, GLM.Bernoulli, GLM.InverseGaussian}
+
+weights(r::RegressionModel) = weights(r.model)
+weights(m::GLM.LinearModel) = isempty(m.rr.wts) ? ones(eltype(m.rr.wts),1) : m.rr.wts
+weights(m::GLM.GeneralizedLinearModel) = m.rr.wrkwt
+
+_modelmatrix(r::RegressionModel) = _modelmatrix(r.model)
+_modelmatrix(m::GLM.LinearModel) = modelmatrix(m).*sqrt.(weights(m))
+_modelmatrix(m::GLM.GeneralizedLinearModel) = modelmatrix(m).*sqrt.(weights(m))
 
 numobs(r::GLM.RegressionModel) = size(r.model.pp.X,1)
 numobs(m::GLM.LinPredModel) = size(m.pp.X,1)
@@ -24,22 +32,24 @@ CovarianceMatrices.bread(r::RegressionModel) = CovarianceMatrices.bread(r.model)
 CovarianceMatrices.bread(m::GLM.LinearModel) = GLM.invchol(m.pp)
 CovarianceMatrices.bread(m::GLM.GeneralizedLinearModel) = GLM.invchol(m.pp).*_dispersion(m)
 
-CovarianceMatrices.resid(r::RegressionModel) = CovarianceMatrices.resid(r.model)
+GLM.residuals(m::GLM.GeneralizedLinearModel) = m.rr.wrkresid
 
-function CovarianceMatrices.resid(m::GeneralizedLinearModel)
-  sqrt.(m.rr.wrkwt).*m.rr.wrkresid
-end
+# CovarianceMatrices.resid(r::RegressionModel) = CovarianceMatrices.resid(r.model)
 
-function CovarianceMatrices.resid(m::LinearModel)
-  u = residuals(m)
-  isempty(m.rr.wts) ? u : sqrt.(m.rr.wts).u
-end
+# function CovarianceMatrices.resid(m::GeneralizedLinearModel)
+#   sqrt.(m.rr.wrkwt).*m.rr.wrkresid
+# end
 
-CovarianceMatrices.momentmatrix(r::RegressionModel) = CovarianceMatrices.momentmatrix(r.model)
+# function CovarianceMatrices.resid(m::LinearModel)
+#   weights(m).*residuals(m)  
+# end
 
-function CovarianceMatrices.momentmatrix(m::M) where M<:Union{LinearModel, GeneralizedLinearModel}
-  return CovarianceMatrices.resid(m).*modelmatrix(m) 
-end
+# CovarianceMatrices.momentmatrix(r::RegressionModel) = CovarianceMatrices.momentmatrix(r.model)
+
+# function CovarianceMatrices.momentmatrix(m::M) where M<:Union{LinearModel, GeneralizedLinearModel}
+#   return CovarianceMatrices.residuals(m).*modelmatrix(m).*weight
+#   s(m)
+# end
 
 mask(r::RegressionModel) = mask(r.model)
 mask(m::GLM.LinPredModel) = mask(m.pp)
@@ -55,9 +65,11 @@ function mask(pp::GLM.DensePredChol)
   return mask
 end
 
+setglmkernelweights!(k::CovarianceMatrices.AVarEstimator, m::AbstractMatrix) = nothing
+
 function setglmkernelweights!(k::HAC, m::AbstractMatrix)
   n, p = size(m)
-  kw = kernelweights(k)
+  kw = CovarianceMatrices.kernelweights(k)
   resize!(kw, p)
   idx = map(x->allequal(x), eachcol(m))
   kw .= 1.0 .- idx  
@@ -67,18 +79,18 @@ end
 function _aVar(k::K, m::RegressionModel; kwargs...) where K<:Union{HR, HAC, EWC}
   mm = begin    
     X = modelmatrix(m)
-    setglmkernelweights!(k, X)
+    setglmkernelweights!(k, X)    
     midx = mask(m)
     Xm = X[:, midx]
     u = adjustedresiduals(k, m)
-    Xm.*u
-  end
+    Xm.*u.*weights(m)
+  end  
   return aVar(k, mm; kwargs...)
 end   
 
-function CovarianceMatrices.aVar(k::K, m::RegressionModel; kwargs...) where K<:Union{HR, HAC, EWC}    
+function CovarianceMatrices.aVar(k::K, m::RegressionModel; kwargs...) where K<:Union{HR, HAC, EWC}
    midx = mask(m)
-   Σ = _aVar(k, m; kwargs...)
+   Σ = _aVar(k, m; kwargs...)   
    Ω = if sum(midx) > 0
       O = similar(Σ, (size(midx, 1), size(midx, 1)))
       O[midx, midx] .= Σ
@@ -91,7 +103,7 @@ function CovarianceMatrices.aVar(k::K, m::RegressionModel; kwargs...) where K<:U
 end
 
 function CovarianceMatrices.leverage(r::RegressionModel) 
-    X = modelmatrix(r)
+    X = modelmatrix(r).*sqrt.(weights(r))
     _, k = size(X)
     _leverage(r.model.pp, X)
 end
@@ -120,44 +132,49 @@ end
 #   return B, B_masked, mask_col, mask_row
 # end
 
+dofresiduals(r::RegressionModel) = numobs(r) - rank(modelmatrix(r))
+residuals(r::GeneralizedLinearModel) = residuals(r.model)
 
+adjustedresiduals(k::CovarianceMatrices.AVarEstimator, r::RegressionModel) = CovarianceMatrices.residuals(r.model)
 
-adjustedresiduals(k::CovarianceMatrices.AVarEstimator, r::RegressionModel) = CovarianceMatrices.resid(r.model)
+adjustedresiduals(k::HR0, r::RegressionModel) = CovarianceMatrices.residuals(r)
+adjustedresiduals(k::HR1, r::RegressionModel) = CovarianceMatrices.residuals(r).*((√numobs(r))/√dofresiduals(r))
+adjustedresiduals(k::HR2, r::RegressionModel) = CovarianceMatrices.residuals(r).*( 1.0 ./ (1 .- CovarianceMatrices.leverage(r)).^0.5)
+adjustedresiduals(k::HR3, r::RegressionModel) = CovarianceMatrices.residuals(r).*( 1.0 ./ (1 .- CovarianceMatrices.leverage(r)))
 
-adjustedresiduals(k::HR0, r::RegressionModel) = CovarianceMatrices.resid(r).*(1/√numobs(r))
-adjustedresiduals(k::HR1, r::RegressionModel) = CovarianceMatrices.resid(r).*(1/√dof_residual(r))
-adjustedresiduals(k::HR2, r::RegressionModel) = CovarianceMatrices.resid(r).*(1.0 ./ (1 .- CovarianceMatrices.leverage(r)))./√numobs(r)
-adjustedresiduals(k::HR3, r::RegressionModel) = CovarianceMatrices.resid(r).*(1.0 ./ (1 .- CovarianceMatrices.leverage(r)).^2)/√numobs(r)
 
 function adjustedresiduals(k::HR4, r::RegressionModel)
-    n, p = nobs(r), sum(.!(coef(r).==0))
-    h = CovarianceMatrices.leverage(r)
+  n = length(response(r))
+  h = CovarianceMatrices.leverage(r)
+  p = round(Int, sum(h))
     @inbounds for j in eachindex(h)
         delta = min(4.0, n*h[j]/p)
-        h[j] = 1/(1-h[j])^delta
+        h[j] = 1/(1-h[j])^(delta/2)
     end
-    return CovarianceMatrices.resid(r).*h ./ √numobs(r)
+    CovarianceMatrices.residuals(r).*h
 end
 
 function adjustedresiduals(k::HR4m, r::RegressionModel)
-    n, p = length(response(r)), sum(.!(coef(r).==0))
+    n = length(response(r))
     h = CovarianceMatrices.leverage(r)
+    p = round(Int, sum(h))
     @inbounds for j in eachindex(h)
         delta = min(1, n*h[j]/p) + min(1.5, n*h[j]/p)
-        h[j] = 1/(1-h[j])^delta
+        h[j] = 1/(1-h[j])^(delta/2)
     end
-    return CovarianceMatrices.resid(r).* h ./ √numobs(r)
+    return CovarianceMatrices.residuals(r).* h
 end
 
 function adjustedresiduals(k::HR5, r::RegressionModel)
-    n, p = length(response(r)), sum(.!(coef(r).==0))
-    h = CovarianceMatrices.leverage(r)
+  n = length(response(r))
+  h = CovarianceMatrices.leverage(r)
+  p = round(Int, sum(h))
     mx = max(n*0.7*maximum(h)/p, 4.0)
     @inbounds for j in eachindex(h)
         alpha = min(n*h[j]/p, mx)
-        h[j] = 1/sqrt((1-h[j])^alpha)
+        h[j] = 1/(1-h[j])^(alpha/4)
     end
-    return CovarianceMatrices.resid(r).*h ./ √numobs(r)
+    return CovarianceMatrices.residuals(r).*h
 end
 
 ##=================================================

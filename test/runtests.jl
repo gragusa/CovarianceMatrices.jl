@@ -292,10 +292,11 @@ function Base.String(k::Type{<:CovarianceMatrices.})
 end
 
 reg = JSON.parse(read(joinpath(datadir, "testdata/regression.json"), String))
+wreg = JSON.parse(read(joinpath(datadir, "testdata/wregression.json"), String))
 df = CSV.File(joinpath(datadir, "testdata/ols_df.csv")) |> DataFrame
 
-df2 = CSV.File(joinpath("/home/gragusa", "df.csv")) |> DataFrame
-function fopt!(u)
+
+function fopt!(u; weighted=false)
     global da = Dict{String, Any}()
     global dn = Dict{String, Any}()
     for pre in (:false, :true)
@@ -306,9 +307,8 @@ function fopt!(u)
         
         for k in andrews_kernels
             eval(quote
-                 ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
+                 ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink(), wts=$weighted ? $(df).w : Float64[])
                  𝒦 = ($k){Andrews}()
-                 𝒦.weights = [1,0.0,0.0]
                  tmp = vcov(𝒦, ols; prewhiten=$pre)
                  da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
           end)
@@ -317,8 +317,7 @@ function fopt!(u)
         for k in neweywest_kernels
           eval(quote
             𝒦 = ($k){NeweyWest}()
-            ## To get the same results of R, the weights given to the intercept should be 0
-            𝒦.weights = [0.0,1.0,1.0,1.0]
+            ## To get the same results of R, the weights given to the intercept should be 0            
             tmp = vcov(𝒦, ols; prewhiten=$pre)
             dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
           end)
@@ -329,27 +328,31 @@ function fopt!(u)
     end
 end
 
-function ffix!(u)
+function ffix!(u; weighted=false)
   global da = Dict{String, Any}()
   global dn = Dict{String, Any}()
   for pre in (:false, :true)
-      da["bwtype"] = "auto"
+      da["bwtype"] = "fixed"
       da["prewhite"] = pre == :true ? true : false
-      dn["bwtype"] = "auto"
+      dn["bwtype"] = "fixed"
       dn["prewhite"] = pre == :true ? true : false
+      
       for k in andrews_kernels
           eval(quote
-               ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
-               𝒦 = ($k)(1.5)
-               𝒦.weights = [1,0.0,0.0]
+               ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink(), wts=$weighted ? $(df).w : Float64[])
+               𝒦 = ($k)(3)
                tmp = vcov(𝒦, ols; prewhiten=$pre)
-               da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp.V)
-               if Symbol($k) in neweywest_kernels
-                  𝒦 = ($k)(1.5)
-                  tmp = vcov(𝒦, ols; prewhiten=$pre)
-                  dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp.V)
-               end
-               end)
+               da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
+        end)
+      end
+      
+      for k in neweywest_kernels
+        eval(quote
+          𝒦 = ($k)(3)
+          ## To get the same results of R, the weights given to the intercept should be 0            
+          tmp = vcov(𝒦, ols; prewhiten=$pre)
+          dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
+        end)
       end
       push!(u, Dict("andrews" => da, "neweywest" => dn))
       da = Dict{String, Any}()
@@ -359,14 +362,31 @@ end
 
 u = Any[]
 fopt!(u)
+ffix!(u)
+
 
 for j in 1:4, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
   @test hcat(reg[j][h][k]["V"]...) ≈ u[j][h][k]["V"]
   @test reg[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
 end
 
+for j in 1:4, h in ("neweywest",), k in ("Bartlett", "Quadratic Spectral")
+  @test hcat(reg[j][h][k]["V"]...) ≈ u[j][h][k]["V"]
+  @test reg[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
+end
+
+uw = Any[]
+fopt!(uw; weighted=true)
+ffix!(uw; weighted=true)
 
 
+for j in 1:4, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
+  @test hcat(wreg[j][h][k]["V"]...) ≈ uw[j][h][k]["V"]
+  @test wreg[j][h][k]["bw"] ≈ uw[j][h][k]["bw"]
+end
 
-
+for j in 1:4, h in ("neweywest",), k in ("Bartlett", "Quadratic Spectral")
+  @test hcat(wreg[j][h][k]["V"]...) ≈ uw[j][h][k]["V"]
+  @test wreg[j][h][k]["bw"] ≈ uw[j][h][k]["bw"]
+end
 

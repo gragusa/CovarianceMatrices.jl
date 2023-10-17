@@ -1,8 +1,8 @@
 ## Testing VCOV
-
+set.seed(1234)
 library(sandwich)
-
-
+library(tibble)
+library(readr)
 
 build_vcov <- function(x, bw, prewhite) {
   
@@ -11,7 +11,7 @@ build_vcov <- function(x, bw, prewhite) {
       bwAndrews(x, prewhite = prewhite, kernel = kernel)
     }
     bw_neweywest <- function(x, kernel, prewhite) {
-      bwNeweyWest(x, prewhite = prewhite)
+      bwNeweyWest(x, prewhite = prewhite, kernel = kernel)
     }
   } else {
     if (is.numeric(bw)) {
@@ -139,8 +139,8 @@ X <-
 
 multivariateout <- list(build_lrcovariances(X, bw = "auto", prewhite = 0),
                        build_lrcovariances(X, bw = "auto", prewhite = 1),
-                         build_lrcovariances(X, bw = 1.5, prewhite = 0),
-                         build_lrcovariances(X, bw = 1.5, prewhite = 1))
+                         build_lrcovariances(X, bw = 3, prewhite = 0),
+                         build_lrcovariances(X, bw = 3, prewhite = 1))
 
 w <-
   c(0.878586419392377, 0.16248927381821, 0.0735696377232671, 0.588177684927359, 
@@ -163,19 +163,19 @@ Y <-
     1.16394141583204, -0.992333328196718, 1.21330671046369, -1.22531524573956, 
     -1.71491353921502, 0.23890444712464)
 
-df <- data_frame(y = Y, x1 = X[,1], x2 = X[,2], x3 = X[,3], w = w)
+df <- tibble(y = Y, x1 = X[,1], x2 = X[,2], x3 = X[,3], w = w)
 
 
 regout <- list(build_vcov(lm(y~x1+x2+x3, data = df), bw = "auto", prewhite = 0),
                build_vcov(lm(y~x1+x2+x3, data = df), bw = "auto", prewhite = 1),
-               build_vcov(lm(y~x1+x2+x3, data = df), bw = 1.5, prewhite = 0),
-               build_vcov(lm(y~x1+x2+x3, data = df), bw = 1.5, prewhite = 1))
+               build_vcov(lm(y~x1+x2+x3, data = df), bw = 3, prewhite = 0),
+               build_vcov(lm(y~x1+x2+x3, data = df), bw = 3, prewhite = 1))
 
 
 wregout <- list(build_vcov(lm(y~x1+x2+x3, weights = w, data = df), bw = "auto", prewhite = 0),
                build_vcov(lm(y~x1+x2+x3, weights = w, data = df), bw = "auto", prewhite = 1),
-               build_vcov(lm(y~x1+x2+x3, weights = w, data = df), bw = 1.5, prewhite = 0),
-               build_vcov(lm(y~x1+x2+x3, weights = w, data = df), bw = 1.5, prewhite = 1))
+               build_vcov(lm(y~x1+x2+x3, weights = w, data = df), bw = 3, prewhite = 0),
+               build_vcov(lm(y~x1+x2+x3, weights = w, data = df), bw = 3, prewhite = 1))
 
 
 write(x = jsonlite::toJSON(univariateout, digits = 30), file = "univariate.json")
@@ -183,4 +183,4 @@ write(jsonlite::toJSON(multivariateout, digits = 30), file = "multivariate.json"
 write(jsonlite::toJSON(regout, digits = 30), file = "regression.json")
 write(jsonlite::toJSON(wregout, digits = 30), file = "wregression.json")
 
-write_csv(df, path = "~/.julia/dev/CovarianceMatrices/test/testdata/ols_df.csv")
+write_csv(df, file = "~/.julia/dev/CovarianceMatrices/test/testdata/ols_df.csv")
