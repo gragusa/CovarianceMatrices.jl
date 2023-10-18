@@ -256,13 +256,19 @@ end
 
 DriscollKraay(t::AbstractVector, i::AbstractVector, K::HAC) = DriscollKraay(categorical(t), categorical(i), K, nothing)
 
+const HC0  = HR0 
+const HC1  = HR1 
+const HC2  = HR2 
+const HC3  = HR3 
+const HC4  = HR4 
+const HC4m = HR4m
+const HC5  = HR5
 
-
-Base.String(::Type{T}) where T<:TruncatedKernel = "Truncated"
-Base.String(::Type{T}) where T<:ParzenKernel = "Parzen"
-Base.String(::Type{T}) where T<:TukeyHanningKernel = "Tukey-Hanning"
-Base.String(::Type{T}) where T<:BartlettKernel = "Bartlett"
-Base.String(::Type{T}) where T<:QuadraticSpectralKernel = "Quadratic Spectral"
+Base.String(::Type{T}) where T<:Truncated = "Truncated"
+Base.String(::Type{T}) where T<:Parzen = "Parzen"
+Base.String(::Type{T}) where T<:TukeyHanning = "Tukey-Hanning"
+Base.String(::Type{T}) where T<:Bartlett = "Bartlett"
+Base.String(::Type{T}) where T<:QuadraticSpectral = "Quadratic Spectral"
 Base.String(::Type{T}) where T<:HR0 = "HR0"
 Base.String(::Type{T}) where T<:HR1 = "HR1"
 Base.String(::Type{T}) where T<:HR2 = "HR2"
@@ -277,6 +283,7 @@ Base.String(::Type{T}) where T<:CR3 = "CR3"
 Base.String(::Type{T}) where T<:EWC = "EWC"
 Base.String(::Type{T}) where T<:DriscollKraay = "Driscoll-Kraay"
 Base.String(::Type{T}) where T<:VARHAC = "VARHAC"
+
 
 
 # struct CovarianceMatrix{T2<:Factorization, T3<:CovarianceMatrices.RobustVariance, F1, T1<:AbstractMatrix{F1}} <: AbstractMatrix{F1}

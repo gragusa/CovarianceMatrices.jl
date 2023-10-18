@@ -1,4 +1,4 @@
-function demeaner(X::AbstractMatrix{T}, means::Union{Nothing, AbstractArray}; dims=1) where {T<:Real}
+function demeaner(X::AbstractMatrix{T}; means::Union{Nothing, AbstractArray}=nothing, dims=1) where {T<:Real}
     ## dims = 1 - calculate means for each columns
     ## dims = 2 - calculate mean for each row
     Z = if means === nothing
@@ -18,7 +18,6 @@ function demeaner(k::CR, X::AbstractMatrix{T}; dims=1, kwargs...) where T<:Abstr
     ## Calculate partitions mean
     f = clusterindicator(k)
     Z = dims==1 ? copy(X) : collect(X')
-
     for j in clusterintervals(f)
         W = view(Z, j, :)
         W .= W .- mean(W, dims = 1)

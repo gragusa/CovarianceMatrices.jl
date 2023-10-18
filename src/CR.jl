@@ -44,40 +44,36 @@ avarscaler(K::HR, X)  = size(X, 1)
 function sortrowby(A, by) 
     if !issorted(by) 
         sortedperm = sortperm(by); 
-        map(A) do M
-            let sortedperm = sortedperm 
-                M[sortedperm, :]
-            end
-        end, by[sortedperm] 
+        A[sortedperm, :], by[sortedperm] 
     else 
         return A, by
     end
 end
 
-function clustersum(X::Vector{T}, cl, ::Sequential) where T<:Real
+function clustersum(X::Vector{T}, cl) where T<:Real
     Shat = fill!(similar(X, (1, 1)), zero(T))
     s = Vector{T}(undef, size(Shat, 1))
-    clustersum!(Shat, s, X[:,:], cl, Sequential())
+    clustersum!(Shat, s, X[:,:], cl)
     vec(Shat)
 end
 
-function clustersum(X::Matrix{T}, cl, ::Sequential) where T<:Real 
+function clustersum(X::Matrix{T}, cl) where T<:Real 
     _, p = size(X)
     Shat = fill!(similar(X, (p, p)), zero(T))
     s = Vector{T}(undef, size(Shat, 1))
-    clustersum!(Shat, s, X, cl, Sequential())
+    clustersum!(Shat, s, X, cl)
 end
 
-function clustersum!(Shat::Matrix{T}, s::Vector{T}, X::Matrix{T}, cl, ::Sequential) where T<:Real
+function clustersum!(Shat::Matrix{T}, s::Vector{T}, X::Matrix{T}, cl) where T<:Real
     for m in clusterintervals(cl)
         @inbounds fill!(s, zero(T))
-        innerXiXi!(s, m, X, Sequential())
-        innerXiXj!(Shat, s, Sequential())
+        innerXiXi!(s, m, X)
+        innerXiXj!(Shat, s)
     end
     return LinearAlgebra.copytri!(Shat, 'U')
 end
 
-function innerXiXi!(s, m, X, ::Sequential)
+function innerXiXi!(s, m, X)
     @inbounds @fastmath for j in eachindex(s)
         for i in eachindex(m)
             s[j] += X[m[i], j]
@@ -85,7 +81,7 @@ function innerXiXi!(s, m, X, ::Sequential)
     end
 end
 
-function innerXiXj!(Shat, s, ::Sequential)
+function innerXiXj!(Shat, s)
     @inbounds @fastmath for j in eachindex(s)
          for i in 1:j
             Shat[i, j] += s[i]*s[j]

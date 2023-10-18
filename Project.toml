@@ -5,6 +5,7 @@ version = "0.10.4"
 
 [deps]
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
+Infiltrator = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 SortingAlgorithms = "a2af1166-a08f-5f64-846c-94a0d3cef48c"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
@@ -12,8 +13,8 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [weakdeps]
-LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
+LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
 
 [extensions]
 ClusterVectorizedExt = ["LoopVectorization"]
@@ -21,8 +22,8 @@ GLMExt = ["GLM"]
 
 [compat]
 CategoricalArrays = "0.8, 0.9, 0.10"
-StatsBase = "0.34"
 GLM = "1.9"
+StatsBase = "0.34"
 julia = "1.9"
 
 [extras]

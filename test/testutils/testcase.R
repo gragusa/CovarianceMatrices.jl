@@ -41,6 +41,26 @@ build_vcov <- function(x, bw, prewhite) {
   out
 }
 
+build_hcvcov <- function(x) {
+  
+  hr <- list()
+
+  for (k in paste0("HC", c(0,1,2,3,4,"4m",5))) {
+    l = list(bw = NaN, V = vcovHC(x, adjust = FALSE, type = k))
+    substr(k, start = 2, stop = 2) <- "R"
+    hr[[k]] <- l
+  }
+  
+
+  hr$prewhite <- FALSE
+  hr$bwtype <- 0
+
+  out <- list(hr = hr)
+  out
+}
+
+
+
 
 build_lrcovariances <- function(x, bw, prewhite) {
   
@@ -169,18 +189,20 @@ df <- tibble(y = Y, x1 = X[,1], x2 = X[,2], x3 = X[,3], w = w)
 regout <- list(build_vcov(lm(y~x1+x2+x3, data = df), bw = "auto", prewhite = 0),
                build_vcov(lm(y~x1+x2+x3, data = df), bw = "auto", prewhite = 1),
                build_vcov(lm(y~x1+x2+x3, data = df), bw = 3, prewhite = 0),
-               build_vcov(lm(y~x1+x2+x3, data = df), bw = 3, prewhite = 1))
+               build_vcov(lm(y~x1+x2+x3, data = df), bw = 3, prewhite = 1),
+               build_hcvcov(lm(y~x1+x2+x3, data = df)))
 
 
 wregout <- list(build_vcov(lm(y~x1+x2+x3, weights = w, data = df), bw = "auto", prewhite = 0),
                build_vcov(lm(y~x1+x2+x3, weights = w, data = df), bw = "auto", prewhite = 1),
                build_vcov(lm(y~x1+x2+x3, weights = w, data = df), bw = 3, prewhite = 0),
-               build_vcov(lm(y~x1+x2+x3, weights = w, data = df), bw = 3, prewhite = 1))
+               build_vcov(lm(y~x1+x2+x3, weights = w, data = df), bw = 3, prewhite = 1),
+               build_hcvcov(lm(y~x1+x2+x3, data = df, weights=df$w)))
 
 
-write(x = jsonlite::toJSON(univariateout, digits = 30), file = "univariate.json")
-write(jsonlite::toJSON(multivariateout, digits = 30), file = "multivariate.json")
-write(jsonlite::toJSON(regout, digits = 30), file = "regression.json")
-write(jsonlite::toJSON(wregout, digits = 30), file = "wregression.json")
+write(x = jsonlite::toJSON(univariateout, digits = 30), file = "~/.julia/dev/CovarianceMatrices/test/testdata/univariate.json")
+write(jsonlite::toJSON(multivariateout, digits = 30), file = "~/.julia/dev/CovarianceMatrices/test/testdata/multivariate.json")
+write(jsonlite::toJSON(regout, digits = 30), file = "~/.julia/dev/CovarianceMatrices/test/testdata/regression.json")
+write(jsonlite::toJSON(wregout, digits = 30), file = "~/.julia/dev/CovarianceMatrices/test/testdata/wregression.json")
 
 write_csv(df, file = "~/.julia/dev/CovarianceMatrices/test/testdata/ols_df.csv")

@@ -160,7 +160,7 @@ function optimalbw(
   means::Union{Nothing, AbstractArray} = nothing,
   prewhiten::Bool=false
   ) where T<:Union{Andrews, NeweyWest}
-  X = demean ? demeaner(m, means; dims=dims) : m
+  X = demean ? demeaner(m; means=means, dims=dims) : m
   _, _, bw = workingoptimalbw(k, X; prewhiten=prewhiten)
   return bw
 end
