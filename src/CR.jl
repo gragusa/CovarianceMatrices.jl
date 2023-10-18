@@ -11,18 +11,18 @@ end
 function _avar(k::T, X::Union{Matrix{F},Vector{F}}, f::C, evaluation::Evaluation=Sequential(); kwargs...) where {T<:CR, F<:AbstractFloat, C<:Tuple}
   f1 = f[1]
   length(f1) != size(X,1) && throw(ArgumentError("The length of the cluster indicators is $(length(f1)) while it should be $(size(X,1))"))
-  M1 = clustersum(parent(X), f1, evaluation)
+  M1 = clustersum(parent(X), f1)
   if length(f) == 1
     return M1
   end
   f2 = f[2]
   length(f2) != size(X,1) && throw(ArgumentError("The length of the cluster indicators is $(length(f2)) while it should be $(size(X,1))"))
-  M2 = clustersum(parent(X), f2, evaluation)
+  M2 = clustersum(parent(X), f2)
   f0 = f1 .& f2
   if sum(f0) == 0
     return M1+M2
   else
-    M0 = clustersum(parent(X), f1 .& f2, evaluation)
+    M0 = clustersum(parent(X), f1 .& f2)
     return M1+M2-2M0
   end
 end
@@ -44,7 +44,11 @@ avarscaler(K::HR, X)  = size(X, 1)
 function sortrowby(A, by) 
     if !issorted(by) 
         sortedperm = sortperm(by); 
-        A[sortedperm, :], by[sortedperm] 
+        mapreduce(hcat, eachcol(A)) do M
+            let sortedperm = sortedperm 
+                M[sortedperm, :]
+            end
+        end, by[sortedperm] 
     else 
         return A, by
     end
