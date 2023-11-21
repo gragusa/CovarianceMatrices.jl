@@ -1,31 +1,43 @@
-  abstract type Evaluation end
-  struct Sequential  <: Evaluation end
-  struct Threaded  <: Evaluation end
-
-function avar(k::T, X::Union{Matrix{F},Vector{F}}, evaluation::Evaluation=Sequential(); kwargs...) where {T<:CR, F<:AbstractFloat}    
-    f = clusterindicator(k)
-    V = _avar(k, X, f, evaluation; kwargs...)
-    return V
+function clusterize(X::Matrix, g::GroupedArray)
+  X2 = zeros(eltype(X), g.ngroups, size(X, 2))
+  idx = 0  
+  for j in 1:size(X, 2)
+          idx += 1
+          @inbounds @simd for i in 1:size(X, 1)
+              X2[g.groups[i], idx] += X[i, j]
+          end
+      end
+  return Symmetric(X2' * X2)
 end
 
-function _avar(k::T, X::Union{Matrix{F},Vector{F}}, f::C, evaluation::Evaluation=Sequential(); kwargs...) where {T<:CR, F<:AbstractFloat, C<:Tuple}
-  f1 = f[1]
-  length(f1) != size(X,1) && throw(ArgumentError("The length of the cluster indicators is $(length(f1)) while it should be $(size(X,1))"))
-  M1 = clustersum(parent(X), f1)
-  if length(f) == 1
-    return M1
+function avar(k::T, X::Union{Matrix{F},Vector{F}}; kwargs...) where {T<:CR0, F<:AbstractFloat}    
+  f = k.g
+  S = zeros(eltype(X), (size(X, 2), size(X,2)))
+  for c in combinations(1:length(f))    
+    if length(c) == 1
+        g = GroupedArray(f[c[1]])
+    else
+        g = GroupedArray((f[i] for i in c)..., sort = nothing)
+    end    
+    S += (-1)^(length(c) - 1) * clusterize(parent(X), g)
   end
-  f2 = f[2]
-  length(f2) != size(X,1) && throw(ArgumentError("The length of the cluster indicators is $(length(f2)) while it should be $(size(X,1))"))
-  M2 = clustersum(parent(X), f2)
-  f0 = f1 .& f2
-  if sum(f0) == 0
-    return M1+M2
-  else
-    M0 = clustersum(parent(X), f1 .& f2)
-    return M1+M2-2M0
-  end
+  return Symmetric(S)
 end
+
+##function _avar(k::T, X::Union{Matrix{F},Vector{F}}, f::C; kwargs...) where {T<:CR, F<:AbstractFloat, C<:Tuple}
+##  f1 = f[1]
+##  length(f1) != size(X,1) && throw(ArgumentError("The length of the cluster indicators is $(length(f1)) while it should be $(size(X,1))"))
+##  M1 = clustersum(parent(X), f1)
+##  if length(f) == 1
+##    return M1
+##  end
+##  f2 = f[2]
+##  length(f2) != size(X,1) && throw(ArgumentError("The length of the cluster indicators is $(length(f2)) while it should be $(size(X,1))"))
+##  M2 = clustersum(parent(X), f2)
+##  f0 = CategoricalArray(GroupedArray(f1, f2).groups)
+##  M0 = clustersum(parent(X), f0)
+##  return M1+M2-M0
+##end
 
 clusterindicator(x::CR) = x.cl
 

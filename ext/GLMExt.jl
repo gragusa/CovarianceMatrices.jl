@@ -8,7 +8,7 @@ using Infiltrator
 ##=================================================
 const FAM = Union{GLM.Gamma, GLM.Bernoulli, GLM.InverseGaussian}
 
-weights(r::RegressionModel) = weights(r.model)
+weights(r::GLM.RegressionModel) = weights(r.model)
 weights(m::GLM.LinearModel) = isempty(m.rr.wts) ? ones(eltype(m.rr.wts),1) : m.rr.wts
 weights(m::GLM.GeneralizedLinearModel) = m.rr.wrkwt
 
@@ -19,7 +19,7 @@ weights(m::GLM.GeneralizedLinearModel) = m.rr.wrkwt
 numobs(r::GLM.RegressionModel) = size(r.model.pp.X,1)
 numobs(m::GLM.LinPredModel) = size(m.pp.X,1)
 
-_dispersion(r::RegressionModel) = _dispersion(r.model)
+_dispersion(r::GLM.RegressionModel) = _dispersion(r.model)
 _dispersion(m::GLM.LinearModel) = 1
 _dispersion(m::GLM.GeneralizedLinearModel) = _dispersion(m.rr)
 
@@ -76,7 +76,7 @@ function setglmkernelweights!(k::HAC, m::AbstractMatrix)
   kw .= 1.0 .- idx  
 end
 
-function _aVar(k::K, m::RegressionModel; demean=false, prewhiten=false) where K<:Union{HR, HAC, EWC}
+function _aVar(k::K, m::RegressionModel; demean=false, prewhiten=false) where K<:CovarianceMatrices.AVarEstimator 
   mm = begin    
     X = modelmatrix(m)
     setglmkernelweights!(k, X)    
@@ -88,7 +88,7 @@ function _aVar(k::K, m::RegressionModel; demean=false, prewhiten=false) where K<
   return aVar(k, mm; demean=demean, prewhiten=prewhiten)
 end
 
-function CovarianceMatrices.aVar(k::K, m::RegressionModel; demean=false, prewhiten=false) where K<:Union{HR, HAC, EWC}
+function CovarianceMatrices.aVar(k::K, m::RegressionModel; demean=false, prewhiten=false) where K<:CovarianceMatrices.AVarEstimator
    midx = mask(m)   
    Σ = _aVar(k, m; demean=demean, prewhiten=prewhiten)   
    Ω = if sum(midx) > 0

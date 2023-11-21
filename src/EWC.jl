@@ -25,6 +25,7 @@ function avar(k::EWC, X::Matrix{F}; prewhiten=false) where {F<:AbstractFloat}
     @. Ω += L*L'
   end
     @. Ω /= B
+    return Symmetric(Ω)
 end
 
 

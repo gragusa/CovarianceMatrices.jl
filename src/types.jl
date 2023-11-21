@@ -11,7 +11,7 @@ abstract type VARHAC{G} <: AVarEstimator end
 
 abstract type CrossSectionEstimator <: AVarEstimator end
 abstract type HR <: AVarEstimator end
-abstract type CR{V,D} <: AVarEstimator end
+abstract type CR{G} <: AVarEstimator end
 
 #=========
 HAC Types
@@ -182,11 +182,6 @@ struct EWC <: AVarEstimator
   B::Int64
 end
 
-
-
-#EWC(B::Int64) = EWC(B)
-
-
 #=========
 HC 
 =========#
@@ -202,41 +197,75 @@ struct HR5  <: HR end
 CR 
 =========#
 
-mutable struct CR0{V, D}  <: CR{V,D}
-    cl::V
-    df::D
+
+struct CR0{G}
+    g::G
+    CR0(g::G) where G <: AbstractVector = new{Tuple}((g,))
+    CR0(g::G) where G <: Tuple = new{Tuple}(g)
+  
 end
 
-mutable struct CR1{V, D}  <: CR{V,D}
-    cl::V
-    df::D
+struct CR1{G}
+  g::G
+  CR1(g::G) where G <: AbstractVector = new{Tuple}((g,))
+  CR1(g::G) where G <: Tuple = new{Tuple}(g)
+
 end
 
-mutable struct CR2{V, D}  <: CR{V,D}
-    cl::V
-    df::D
+struct CR2{G}
+  g::G
+  CR2(g::G) where G <: AbstractVector = new{Tuple}((g,))
+  CR2(g::G) where G <: Tuple = new{Tuple}(g)
+
 end
 
-mutable struct CR3{V, D}  <: CR{V,D}
-    cl::V
-    df::D
+struct CR3{G}
+  g::G
+  CR3(g::G) where G <: AbstractVector = new{Tuple}((g,))
+  CR3(g::G) where G <: Tuple = new{Tuple}(g)
 end
 
-## CRHC Constructors
-for tp in [:CR0, :CR1, :CR2, :CR3]
-    @eval $(tp)() = $(tp)(nothing, nothing)
+for k in [:CR0, :CR1, :CR2, :CR3]
+  @eval $(k)(args...) = $(k)(args)
 end
 
-for tp in [:CR0, :CR1, :CR2, :CR3]
-    @eval $(tp)(v::AbstractVector) = $(tp)((categorical(v),), nothing)
-end
 
-for tp in [:CR0, :CR1, :CR2, :CR3]
-  @eval $(tp)(v::AbstractVector, z::AbstractVector) = $(tp)((categorical(v),categorical(z)), nothing)
-end
+
+##mutable struct CR0{V, D}  <: CR{V,D}
+##    cl::V
+##    df::D
+##end
+##
+##mutable struct CR1{V, D}  <: CR{V,D}
+##    cl::V
+##    df::D
+##end
+##
+##mutable struct CR2{V, D}  <: CR{V,D}
+##    cl::V
+##    df::D
+##end
+##
+##mutable struct CR3{V, D}  <: CR{V,D}
+##    cl::V
+##    df::D
+##end
+##
+#### CRHC Constructors
+##for tp in [:CR0, :CR1, :CR2, :CR3]
+##    @eval $(tp)() = $(tp)(nothing, nothing)
+##end
+##
+##for tp in [:CR0, :CR1, :CR2, :CR3]
+##    @eval $(tp)(v::AbstractVector) = $(tp)((categorical(v),), nothing)
+##end
+##
+##for tp in [:CR0, :CR1, :CR2, :CR3]
+##  @eval $(tp)(v::AbstractVector, z::AbstractVector) = $(tp)((categorical(v),categorical(z)), nothing)
+##end
 
 #======== 
-DriscollKraay
+##DriscollKraay
 =========#
 """
 DriscollKraay
