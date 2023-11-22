@@ -23,14 +23,15 @@ Three classes of estimators are considered:
 1. **HAC** - heteroskedasticity and autocorrelation consistent (Andrews, 1996; Newey and West, 1994)
 2. **VARHAC** - Vector Autoregression based HAC (Den Haan and Levine)
 3. **Smoothed** - (Smith, 2014)
-2. **HC**  - hetheroskedasticity consistent (White, 1982)
-3. **CRVE** - cluster robust (Arellano, 1986)
+4. **HC**  - hetheroskedasticity consistent (White, 1982)
+5. **CRVE** - cluster robust (Arellano, 1986)
+6. **DriscolKray**
 
 The typical application of these estimators is to conduct robust inference about parameters of a statistical model. 
 
-The package extends methods defined in [StatsBase.jl](http://github.com/JuliaStat/StatsBase.jl) and [GLM.jl](http://github.com/JuliaStat/GLM.jl) to provide a plug-and-play replacement for the  standard errors calculated by default by [GLM.jl](http://github.com/JuliaStat/GLM.jl).
+The package extends methods defined in [StatsBase.jl](http://github.com/JuliaStat/StatsBase.jl) and [GLM.jl](http://github.com/JuliaStat/GLM.jl) to provide a plug-and-play replacement for the standard errors calculated by default by [GLM.jl](http://github.com/JuliaStat/GLM.jl).
 
-The API can be used regardless of whether the model is fit with [GLM.jl](http://github.com/JuliaStat/GLM.jl) and developer can extend their fit functions to provides robust standard errors. 
+The API can be used regardless of whether the model is fit with [GLM.jl](http://github.com/JuliaStat/GLM.jl) and developers can extend their fit functions to provide robust standard errors. 
 
 # Quick tour
 
@@ -44,10 +45,10 @@ Available kernel types are:
 - `TukeyHanningKernel`
 - `QuadraticSpectralKernel`
 
-For example, `ParzenKernel{NeweyWest}()` return an instance of `TruncatedKernel` parametrized by `NeweyWest`, the type that corresponds to the optimal bandwidth calculated following Newey and West (1994).  Similarly, `ParzenKernel{Andrews}()` corresponds to the optimal bandwidth obtained in Andrews (1991). If the bandwidth is known, it can be directly passed, i.e. `TruncatedKernel(2)`.
+For example, `ParzenKernel{NeweyWest}()` returns an instance of `TruncatedKernel` parametrized by `NeweyWest`, the type that corresponds to the optimal bandwidth calculated following Newey and West (1994).  Similarly, `ParzenKernel{Andrews}()` corresponds to the optimal bandwidth obtained in Andrews (1991). If the bandwidth is known, it can be directly passed, i.e. `TruncatedKernel(2)`.
 
 
-### Long run variance of regression coefficients
+### Long-run variance of regression coefficients
 
 In the regression context, the function `vcov` does all the work:
 ```julia
@@ -96,7 +97,7 @@ For the previous example:
 stderror(QuadraticSpectralKernel{NeweyWest}(), lm1, prewhite = false)
 ```
 
-Sometime is useful to access the bandwidth selected by the automatic procedures. This can be done using the `optimalbandwidth` method
+Sometimes is useful to access the bandwidth selected by the automatic procedures. This can be done using the `optimalbandwidth` method
 ```julia
 optimalbandwidth(QuadraticSpectralKernel{NeweyWest}(), lm1; prewhite = false)
 optimalbandwidth(QuadraticSpectralKernel{Andrews}(), lm1; prewhite = false)
@@ -111,7 +112,7 @@ bw = CovarianceMatrices.bandwidth(kernel)
 
 ### Covariances without `GLM.jl`
 
-One might want to calculate variance estimator when the regression (or some other model) is fit "manually". Below is an example of how this can be accomplished.
+One might want to calculate a variance estimator when the regression (or some other model) is fit "manually". Below is an example of how this can be accomplished.
 
 ```julia
 X   = [ones(n) x]

@@ -1,5 +1,5 @@
 ## Test for CovarianceMatrices.jl
-using CovarianceMatrices, DataFrames, CSV, Test, Random, StableRNGs, CategoricalArrays, Statistics, LinearAlgebra
+using CovarianceMatrices, DataFrames, CSV, Test, Random, StableRNGs, Statistics, LinearAlgebra, GroupedArrays
 using JSON
 
 const CM = CovarianceMatrices
@@ -8,7 +8,7 @@ datadir = dirname(@__FILE__)
 X = rand(StableRNG(123), 100, 3)
 Y = rand(StableRNG(123), 100)
 df = DataFrame(X, :auto)
-df.y = Y
+df.y = Y;
 
 @testset "demean" begin
   @test CM.demeaner(X; dims = 1) == X .- mean(X; dims=1)
@@ -109,10 +109,7 @@ end
 
 @testset "clustersum" begin
   f = repeat(1:20, inner=5);
-  𝐉 = CovarianceMatrices.clusterintervals(categorical(f))
-  𝐉₀ = map(x->x:x+4, 1:5:100)
-  @test collect(𝐉) == 𝐉₀
-  M = CovarianceMatrices.clustersum(X, categorical(f))
+  M = CovarianceMatrices.clusterize(X, GroupedArray(f))
   M₀= [134.8844  120.9909  123.9828
   120.9909  124.3984  120.7009
   123.9828  120.7009  127.6566]
@@ -121,8 +118,8 @@ end
   shuffler = shuffle(StableRNG(123), 1:size(X,1))
   Xo = X[shuffler, :]
   fo = f[shuffler]
-  Mo = CovarianceMatrices.clustersum(Xo, categorical(fo))
-  @test Mo ≈ M    
+  Mo = CovarianceMatrices.clusterize(Xo, GroupedArray(fo))
+  @test Mo ≈ M
 end
 
 Σ₀₀ = [
@@ -224,10 +221,6 @@ kernels = (HR0(), HR1(), HR2(), HR3(), HR4(), HR4m(), HR5())
   end
 end
 
-
-
-
-
 @testset "CRHC............................................." begin
   cl = repeat(1:5, inner=20)
   𝒦 = CR0(cl)
@@ -254,7 +247,7 @@ end
   ## Driscol Kraay Variance Covariance Matrix
   T = length(unique(df.Year))
   bw = 5
-  𝒦 = CovarianceMatrices.DriscollKraay(df.Year, df.Firm, Bartlett(bw))
+  𝒦 = CovarianceMatrices.DriscollKraay(Bartlett(bw), tis=df.Year, iis=df.Firm)
   Σ = a𝕍ar(𝒦, m; scale=false)
   F = inv(cholesky(X'X))
   Σ₀ = F*Σ*F.*T
@@ -438,7 +431,35 @@ end
   @test V1[.!isnan.(V1)] ≈ V2[.!isnan.(V2)] 
 end
 
+@testset "Linear Model CR" begin
+  df = CSV.read(joinpath(datadir,"testdata/PetersenCl.csv"), DataFrame)
+  m = lm(@formula(y~x), df)
+  V0 = vcov(CR0(df.firm), m)
+  V1 = vcov(CR1(df.firm), m)
+  V2 = vcov(CR2(df.firm), m)
+  V3 = vcov(CR3(df.firm), m)
+  R0 = [ 0.0044808245285903594 -6.4592772035200005e-05;
+        -6.4592772035200005e-05 0.0025542965590391016]
+  R1 = [ 0.0044907024570195212  -6.4735166091279167e-05;
+        -6.4735166091279154e-05  0.002559927477731868]
+  R2 = [ 0.0044944872570531966  -6.5929118692432861e-05;
+        -6.5929118692432861e-05  0.0025682360417855431]
+  R3 = [ 0.0045082022937877244   -6.7280836115793117e-05;
+        -6.7280836115793117e-05   0.0025822624320339092]
+  @test V0 ≈ R0 rtol=1e-6
+  @test V1 ≈ R1 rtol=1e-6
+  @test V2 ≈ R2 rtol=1e-4
+  @test V3 ≈ R3 rtol=1e-6
 
-df = CSV.read(joinpath(datadir,"testdata/PetersenCl.csv"), DataFrame)
-m = lm(@formula(y~x), df)
-vcov(CR0(df.firm, df.year), m)
+  df.w = rand(StableRNG(123), size(df,1))
+  m = lm(@formula(y~x), df, wts=df.w)
+  V0 = vcov(CR0(df.firm), m)
+  V1 = vcov(CR1(df.firm), m)
+  V2 = vcov(CR2(df.firm), m)
+  V3 = vcov(CR3(df.firm), m)
+  R0 = [ 0.0045082022937877244  -6.7280836115793117e-05;
+        -6.7280836115793117e-05  0.0025822624320339092]
+  R1 = [ 0.0049053700487226215  -9.5427517835511321e-05;
+        -9.5427517835511335e-05  0.0029731471224780704]
+  R2 = [ 0.0049089397057057056  -9.5589911891580489e-05;
+end
