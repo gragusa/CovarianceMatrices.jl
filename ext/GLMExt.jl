@@ -145,15 +145,13 @@ end
 function residualadjustment(k::CR2, r::RegressionModel)
     @assert length(k.g) == 1
     g = k.g[1]
-    X, u = modelmatrix(r), copy(GLM.residuals(r))
+    X, u = modelmatrix(r) .* sqrt.(weights(r)), copy(GLM.residuals(r))
     XX   = bread(r)
     for groups in 1:g.ngroups
         ind = findall(x -> x .== groups, g)        
         Xg = view(X, ind, :)
         ug = view(u, ind, :)
         Hᵧᵧ = Xg * XX * Xg'
-        #xAx = Symmetric(I - Hᵧᵧ)
-        #ug .= cholesky!(xAx; check = false).L\ug
         ldiv!(ug, cholesky!(Symmetric(I - Hᵧᵧ); check=false).L, ug)
     end    
     return u
@@ -162,10 +160,11 @@ end
 function residualadjustment(k::CR3, r::RegressionModel)
     @assert length(k.g) == 1
     g = k.g[1]
-    X, u = modelmatrix(r), copy(GLM.residuals(r))
+    X, u = modelmatrix(r) .* sqrt.(weights(r)), copy(GLM.residuals(r))
     XX  = bread(r)
     for groups in 1:g.ngroups
-        ind = findall(x -> x .== groups, g)
+        #ind = findall(x -> x .== groups, g)
+        ind = findall(g .== groups)
         Xg = view(X, ind, :)
         ug = view(u, ind, :)
         Hᵧᵧ = Xg * XX * Xg'
