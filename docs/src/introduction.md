@@ -27,13 +27,13 @@ where
 \mu = E(X_t), \quad \text{and} \quad V \equiv \lim_{n\to\infty} 
 ```
 
-Estimation of $V$ is central in many applications of statistics. For instance, we might be interested in constructing asymptotically valid conficence intervals for a linear combination of the unknown expected value of the process $\mu$, that is, we are interested in making inference about ``c'\mu`` for some ``p``-dimensional vector ``c``. For any random random matrix ``\hat{V}`` tending in probability (as ``n\to\infty``) to $V$, a confidence interval for ``c'\bar{X}`` with asymptotic coverage ``(\alpha\times 100)\%`` is given by
+Estimation of $V$ is central in many applications of statistics. For instance, we might be interested in constructing asymptotically valid confidence intervals for a linear combination of the unknown expected value of the process $\mu$, that is, we are interested in making inference about ``c'\mu`` for some ``p``-dimensional vector ``c``. For any random random matrix ``\hat{V}`` tending in probability (as ``n\to\infty``) to $V$, a confidence interval for ``c'\bar{X}`` with asymptotic coverage ``(\alpha\times 100)\%`` is given by
 ```math
 \left[c'\bar{X}_{n}-q_{(1-\alpha)/2}\frac{c'\hat{V}c}{\sqrt{n}},c'\bar{X}_{n}+q_{(1-\alpha)/2}\frac{c'\hat{V}c}{\sqrt{n}}\right]
 ```
 where ``q_{\alpha}`` is the ``\alpha``-quantile of the standard normal distribution.
 
-[CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl/) provides methods to estimate $V$ under a variety of assumption on the correlation stracture of the random process. We know explore them one by one starting from the simplest case. 
+[CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl/) provides methods to estimate $V$ under a variety of assumptions on the correlation structure of the random process. We now explore them one by one starting from the simplest case. 
 
 ## Serially uncorrelated process
 
@@ -51,13 +51,9 @@ Vhat = lrvar(Uncorrelated(), X)
 ```
 `Uncorrelated` is the type signalling that the random sequence is assumed to be uncorrelated. 
 
-# Api
-
 ## Serially correlated process
 
-
-
-## Correlated process (time-series)
+1## Correlated process (time-series)
 
 ## Correlated process (spatial)
 

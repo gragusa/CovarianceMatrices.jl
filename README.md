@@ -16,7 +16,7 @@ Pkg.add("CovarianceMatrices")
 
 ## Introduction
 
-This package provides types and methods useful to obtain consistent estimates of the long run covariance matrix of a random process.
+This package provides types and methods useful to obtain consistent estimates of the long-run covariance matrix of a random process.
 
 Three classes of estimators are considered:
 
@@ -27,7 +27,13 @@ Three classes of estimators are considered:
 5. **CRVE** - cluster robust (Arellano, 1986)
 6. **DriscolKray**
 
-The typical application of these estimators is to conduct robust inference about parameters of a statistical model. 
+The typical application of these estimators is to conduct robust inference about the parameters of a statistical model. 
+
+
+
+
+
+
 
 The package extends methods defined in [StatsBase.jl](http://github.com/JuliaStat/StatsBase.jl) and [GLM.jl](http://github.com/JuliaStat/GLM.jl) to provide a plug-and-play replacement for the standard errors calculated by default by [GLM.jl](http://github.com/JuliaStat/GLM.jl).
 
