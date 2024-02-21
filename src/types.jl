@@ -206,8 +206,8 @@ struct CR2{G} <: CR
     g::G
     CR2(g::G) where G <: AbstractVector = new{Tuple}(map(x -> GroupedArray(x), (g,)))
     CR2(g::G) where G <: Tuple = new{Tuple}(map(x -> GroupedArray(x), g))
-    
 end
+
 struct CR3{G} <: CR
     g::G
     CR3(g::G) where G <: AbstractVector = new{Tuple}(map(x -> GroupedArray(x), (g,)))

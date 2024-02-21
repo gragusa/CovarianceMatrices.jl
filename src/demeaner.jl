@@ -12,6 +12,8 @@ function demeaner(X::AbstractMatrix{T}; means::Union{Nothing, AbstractArray}=not
     dims == 1 ? Z : collect(Z')
 end
 
+## TODO - Implement the following function
+## Not working now because changed the way the clusterindicator is implemented
 function demeaner(k::CR, X::AbstractMatrix{T}; dims=1, kwargs...) where T<:AbstractFloat
     ## dims = 1 - calculate means for each columns
     ## dims = 2 - calculate mean for each row

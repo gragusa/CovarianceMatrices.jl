@@ -19,7 +19,7 @@ function avar(k::T, X::AbstractMatrix{F}; prewhiten=false) where {T<:HAC, F<:Abs
   end
 end
 
-function _avar(k::HAC, Z::Matrix{T}) where T<:AbstractFloat
+function _avar(k::HAC, Z::AbstractMatrix{T}) where T<:AbstractFloat
   V = triu!(Z'*Z)
   F = eltype(V)
   idx = CovarianceMatrices.covindices(k, size(Z,1))

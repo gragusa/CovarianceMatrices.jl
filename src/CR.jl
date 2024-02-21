@@ -1,9 +1,9 @@
 function clusterize(X::Matrix, g::GroupedArray)
     X2 = zeros(eltype(X), g.ngroups, size(X, 2))
     idx = 0
-    for j in 1:size(X, 2)
+    for j in axes(X, 2)
         idx += 1
-        @inbounds @simd for i in 1:size(X, 1)
+        @inbounds @simd for i in axes(X, 1)
             X2[g.groups[i], idx] += X[i, j]
         end
     end
@@ -17,7 +17,7 @@ function avar(k::T, X::Union{Matrix{F},Vector{F}}; kwargs...) where {T<:Union{CR
     @assert gmin == gmax "All groups must have the same size"
     @assert gmin > 1 "All groups must have at least 2 observations"
     @assert size(X, 1) == gmin "X must have the same number of observations the groups"
-    for c in combinations(1:length(f))    
+    for c in combinations(1:length(f))
         if length(c) == 1
             g = GroupedArray(f[c[1]])
         else

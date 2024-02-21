@@ -8,9 +8,15 @@ using Statistics
 ##=================================================
 const FAM = Union{GLM.Gamma, GLM.Bernoulli, GLM.InverseGaussian}
 
-weights(r::GLM.RegressionModel) = weights(r.model)
-weights(m::GLM.LinearModel) = isempty(m.rr.wts) ? ones(eltype(m.rr.wts), 1) : m.rr.wts
-weights(m::GLM.GeneralizedLinearModel) = m.rr.wrkwt
+# modelweights(r::GLM.RegressionModel) = modelweights(r.model)
+# modelweights(m::GLM.LinearModel) = isempty(m.rr.wts) ? ones(eltype(m.rr.wts), 1) : m.rr.wts
+# modelweights(m::GLM.GeneralizedLinearModel) = m.rr.wts
+
+# CovarianceMatrices.modelresiduals(r::GLM.RegressionModel) = CovarianceMatrices.modelresiduals(r.model)
+# CovarianceMatrices.modelresiduals(m::GLM.LinearModel) = GLM.residuals(m).*sqrt.(weights(m))
+# CovarianceMatrices.modelresiduals(m::GLM.GeneralizedLinearModel) = m.rr.wrkresid.*sqrt.(m.rr.wrkwt).*sqrt.(modelweights(m))
+
+
 
 numobs(r::GLM.RegressionModel) = size(r.model.pp.X, 1)
 numobs(m::GLM.LinPredModel) = size(m.pp.X, 1)
@@ -55,21 +61,38 @@ function setglmkernelweights!(k::HAC, m::AbstractMatrix)
     kw .= 1.0 .- idx
 end
 
-function _aVar(k::K, m::RegressionModel; demean = false, prewhiten = false) where K <: CovarianceMatrices.AVarEstimator
-    mm = begin
-        X = modelmatrix(m)
-        setglmkernelweights!(k, X)
-        midx = mask(m)
-        Xm = X[:, midx]
-        u = residualadjustment(k, m)
-        Xm .* u .* weights(m)
-    end
-    return aVar(k, mm; demean = demean, prewhiten = prewhiten)
+
+CovarianceMatrices.momentmatrix(m::RegressionModel) = momentmatrix(m.model)
+
+function CovarianceMatrices.momentmatrix(m::GLM.GeneralizedLinearModel)
+    X = modelmatrix(m)
+    M = m.pp.scratchm1
+    wrkwt = m.rr.wrkwt
+    d = _dispersion(m)
+    @. M = (X * wrkwt * m.rr.wrkresid)/d
+    M
 end
 
-function CovarianceMatrices.aVar(k::K, m::RegressionModel; demean = false, prewhiten = false) where K <: CovarianceMatrices.AVarEstimator
-    midx = mask(m)
-    Σ = _aVar(k, m; demean = demean, prewhiten = prewhiten)
+function CovarianceMatrices.momentmatrix(m::GLM.LinearModel)
+    X = modelmatrix(m)
+    M = m.pp.scratchm1
+    wrkwt = m.rr.wts
+    wrkresid = GLM.residuals(m)
+    @. M = X * wrkresid
+    !isempty(wrkwt) && @. M *= wrkwt
+    M
+end
+
+function CovarianceMatrices.aVar(k::K, m::RegressionModel; demean = false, prewhiten = false, kwargs...) where K <: CovarianceMatrices.AVarEstimator
+    mm = begin
+        M = momentmatrix(m)
+        u = residualadjustment(k, m)
+        @. M = M * u
+        setglmkernelweights!(k, modelmatrix(m))
+        midx = mask(m)
+        @view M[:, midx]
+    end
+    Σ = aVar(k, mm; demean = demean, prewhiten = prewhiten)
     Ω = if sum(midx) > 0
         O = similar(Σ, (size(midx, 1), size(midx, 1)))
         O[midx, midx] .= Σ
@@ -81,11 +104,20 @@ function CovarianceMatrices.aVar(k::K, m::RegressionModel; demean = false, prewh
     end
 end
 
-function CovarianceMatrices.leverage(r::RegressionModel)
-    X = modelmatrix(r) .* sqrt.(weights(r))
-    _, k = size(X)
-    _leverage(r.model.pp, X)
+CovarianceMatrices.leverage(r::StatsModels.TableRegressionModel) = CovarianceMatrices.leverage(r.model)
+
+function CovarianceMatrices.leverage(r::GLM.RegressionModel)
+    X = modelmatrix(r)
+    !isempty(r.rr.wts) && @. r.pp.scratchm1 .= X .* sqrt(r.rr.wts)
+    _leverage(r.pp, r.pp.scratchm1)
 end
+
+function CovarianceMatrices.leverage(r::GLM.GeneralizedLinearModel)
+    X = modelmatrix(r)
+    !isempty(r.rr.wts) && @. r.pp.scratchm1 .= X .* sqrt(r.rr.wts)
+    _leverage(r.pp, r.pp.scratchm1)
+end
+
 
 function _leverage(pp::GLM.DensePredChol{F, C}, X) where {F, C <: LinearAlgebra.CholeskyPivoted}
     ch = pp.chol
@@ -100,13 +132,13 @@ function _leverage(pp::GLM.DensePredChol{F, C}, X) where {F, C <: LinearAlgebra.
 end
 
 dofresiduals(r::RegressionModel) = numobs(r) - rank(modelmatrix(r))
-residuals(r::GeneralizedLinearModel) = residuals(r.model)
+#residuals(r::GeneralizedLinearModel) = residuals(r)
 
-residualadjustment(k::CovarianceMatrices.AVarEstimator, r::RegressionModel) = CovarianceMatrices.residuals(r.model)
-residualadjustment(k::HR0, r::RegressionModel) = CovarianceMatrices.residuals(r)
-residualadjustment(k::HR1, r::RegressionModel) = CovarianceMatrices.residuals(r) .* ((√numobs(r)) / √dofresiduals(r))
-residualadjustment(k::HR2, r::RegressionModel) = CovarianceMatrices.residuals(r) .* (1.0 ./ (1 .- CovarianceMatrices.leverage(r)) .^ 0.5)
-residualadjustment(k::HR3, r::RegressionModel) = CovarianceMatrices.residuals(r) .* (1.0 ./ (1 .- CovarianceMatrices.leverage(r)))
+residualadjustment(k::CovarianceMatrices.AVarEstimator, r::RegressionModel) = 1.0
+residualadjustment(k::HR0, r::RegressionModel) = 1.0
+residualadjustment(k::HR1, r::RegressionModel) = ((√numobs(r)) / √dofresiduals(r))
+residualadjustment(k::HR2, r::RegressionModel) = (1.0 ./ (1 .- CovarianceMatrices.leverage(r)) .^ 0.5)
+residualadjustment(k::HR3, r::RegressionModel) = (1.0 ./ (1 .- CovarianceMatrices.leverage(r)))
 function residualadjustment(k::HR4, r::RegressionModel)
     n = length(response(r))
     h = CovarianceMatrices.leverage(r)
@@ -115,7 +147,7 @@ function residualadjustment(k::HR4, r::RegressionModel)
         delta = min(4.0, n * h[j] / p)
         h[j] = 1 / (1 - h[j])^(delta / 2)
     end
-    CovarianceMatrices.residuals(r) .* h
+    h
 end
 function residualadjustment(k::HR4m, r::RegressionModel)
     n = length(response(r))
@@ -125,7 +157,7 @@ function residualadjustment(k::HR4m, r::RegressionModel)
         delta = min(1, n * h[j] / p) + min(1.5, n * h[j] / p)
         h[j] = 1 / (1 - h[j])^(delta / 2)
     end
-    return CovarianceMatrices.residuals(r) .* h
+    h
 end
 function residualadjustment(k::HR5, r::RegressionModel)
     n = length(response(r))
@@ -136,7 +168,7 @@ function residualadjustment(k::HR5, r::RegressionModel)
         alpha = min(n * h[j] / p, mx)
         h[j] = 1 / (1 - h[j])^(alpha / 4)
     end
-    return CovarianceMatrices.residuals(r) .* h
+    return h
 end
 
 ##=================================================
@@ -163,7 +195,6 @@ function residualadjustment(k::CR3, r::RegressionModel)
     X, u = modelmatrix(r) .* sqrt.(weights(r)), copy(GLM.residuals(r))
     XX  = bread(r)
     for groups in 1:g.ngroups
-        #ind = findall(x -> x .== groups, g)
         ind = findall(g .== groups)
         Xg = view(X, ind, :)
         ug = view(u, ind, :)
@@ -173,23 +204,38 @@ function residualadjustment(k::CR3, r::RegressionModel)
     return u
 end
 
-function CovarianceMatrices.vcov(k::CovarianceMatrices.AVarEstimator, m::RegressionModel; kwargs...)
-    A = _aVar(k, m; kwargs...)
+function CovarianceMatrices.vcov(k::CovarianceMatrices.AVarEstimator, m::RegressionModel; dofcorrection = true, kwargs...)
+    A = aVar(k, m; kwargs...)
     T = numobs(m)
     B = CovarianceMatrices.bread(m)
-    k = size(B, 2)
+    p = size(B, 2)
     midx = mask(m)
     Bm = sum(midx) > 0 ? Bm = B[midx, midx] : B
     V = T .* Bm * A * Bm
     if sum(midx) > 0
-        Vo = similar(A, (k, k))
+        Vo = similar(A, (p, p))
         Vo[midx, midx] .= V
         Vo[.!midx, :] .= NaN
         Vo[:, .!midx] .= NaN
     else
         Vo = V
     end
+    if haskey(kwargs, :dofcorrection)
+        dofcorrect!(Vo, k, m)
+    end
     return Vo
 end
+
+
+## Make df correction - only useful for HAC - for other estimator HR CR it depends on the type
+dofcorrect!(V, k::CovarianceMatrices.AVarEstimator, m) = nothing
+
+function dofcorrect!(V, k::HAC, m)
+    dof = dofresiduals(m)
+    n = numobs(m)
+    k = size(V, 2)
+    rmul!(V, n/dof)
+end
+
 
 end

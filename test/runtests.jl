@@ -470,3 +470,199 @@ end
   @test V2 ≈ R2 atol=1e-5
   @test V3 ≈ R3 atol=1e-5
 end
+
+
+@testset "HAC - GLM........................................" begin
+    clotting = DataFrame(
+        u    = log.([5,10,15,20,30,40,60,80,100]),
+        lot1 = [118,58,42,35,27,25,21,19,18],
+        lot2 = [69,35,26,21,18,16,13,12,12],
+        w    = 9.0*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
+    )
+
+    GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[!, :w]))
+    V = vcov(ParzenKernel{Andrews}(), GAMMA)
+    Vp = [5.48898e-7 -2.60409e-7; -2.60409e-7 1.4226e-7]
+    @test V ≈ Vp atol = 1e-08
+
+    GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
+    V = vcov(ParzenKernel{Andrews}(), GAMMA)
+    Vp = [5.81672e-7 -2.24162e-7; -2.24162e-7 1.09657e-7]
+    @test V ≈ Vp atol = 1e-08
+end
+
+@testset "HC..............................................." begin
+    # A Gamma example, from McCullagh & Nelder (1989, pp. 300-2)
+    clotting = DataFrame(
+        u    = log.([5,10,15,20,30,40,60,80,100]),
+        lot1 = [118,58,42,35,27,25,21,19,18],
+        lot2 = [69,35,26,21,18,16,13,12,12],
+        w    = 9.0*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
+    )
+
+    ## Unweighted OLS though GLM interface
+    OLS = fit(GeneralizedLinearModel, @formula(lot1~u),clotting, Normal(), IdentityLink())
+    mf = ModelFrame(@formula(lot1~u),clotting)
+    X = ModelMatrix(mf).m
+    y = clotting[!, :lot1]
+    GL  = fit(GeneralizedLinearModel, X,y, Normal(), IdentityLink())
+    LM  = lm(X,y)
+
+    S0 = vcov(HC0(),OLS)
+    S1 = vcov(HC1(),OLS)
+    S2 = vcov(HC2(),OLS)
+    S3 = vcov(HC3(),OLS)
+    S4 = vcov(HC4(),OLS)
+    S4m = vcov(HC4m(),OLS)
+    S5 = vcov(HC5(),OLS)
+
+    St0 = [720.621306411 -190.064512543; -190.064512543 51.163333742]
+    St1 = [926.513108242 -244.368658984; -244.368658984 65.781429097]
+    St2 = [1300.895673284 -343.330672699; -343.330672699  91.997186033]
+    St3 = [2384.50393347 -628.97499232; -628.97499232 167.78976878]
+    St4 = [2538.74635384 -667.95972319; -667.95972319 177.26308957]
+    St4m = [3221.09520169 -849.64802585; -849.64802585 226.17046981]
+    St5 = [1334.670541439 -351.751377823; -351.751377823  93.949230276]
+
+
+    @test S0 ≈ St0
+    @test S1 ≈ St1
+    @test S2 ≈ St2
+    @test S3 ≈ St3
+    @test S4 ≈ St4
+    @test S4m ≈ St4m
+    @test S5 ≈ St5
+
+    S0 = vcov(HC0(), GL)
+    S1 = vcov(HC1(), GL)
+    S2 = vcov(HC2(), GL)
+    S3 = vcov(HC3(), GL)
+    S4 = vcov(HC4(), GL)
+    S4m = vcov(HC4m(), GL)
+    S5 = vcov(HC5(), GL)
+
+    @test S0 ≈ St0
+    @test S1 ≈ St1
+    @test S2 ≈ St2
+    @test S3 ≈ St3
+    @test S4 ≈ St4
+    @test S4m ≈ St4m
+    @test S5 ≈ St5
+
+    ## Weighted OLS though GLM interface
+    wOLS = fit(GeneralizedLinearModel, @formula(lot1~u), clotting, Normal(),
+               IdentityLink(), wts = Vector{Float64}(clotting[!, :w]))
+
+    wts = Vector{Float64}(clotting[!, :w])
+    X = [fill(1,size(clotting[!, :u])) clotting[!, :u]]
+    y = clotting[!, :lot1]
+    wLM = lm(X, y)
+    wGL = fit(GeneralizedLinearModel, X, y, Normal(), IdentityLink(), wts = wts)
+
+    S0 = vcov(HC0(),wOLS)
+    S1 = vcov(HC1(),wOLS)
+    S2 = vcov(HC2(),wOLS)
+    S3 = vcov(HC3(),wOLS)
+    S4 = vcov(HC4(),wOLS)
+    S4m= vcov(HC4m(),wOLS)
+    S5 = vcov(HC5(),wOLS)
+
+    St0 = [717.736178076 -178.404274981; -178.404274981   45.822730697]
+    St1 = [922.803657527 -229.376924975; -229.376924975 58.914939468]
+    St2 = [1412.940497584 -361.329969345; -361.329969345 95.912520696]
+    St3 = [2869.53068690 -756.29761027; -756.29761027 208.23437869]
+    St4 = [3969.9130263 -1131.3577578; -1131.3577578 342.2858663]
+    St4m= [4111.62611908 -1103.17362711; -1103.17362711   310.19430896]
+    St5 = [1597.40932634 -420.66907485; -420.66907485 115.99180777]
+
+    @test S0  ≈ St0
+    @test S1  ≈ St1
+    @test S2  ≈ St2
+    @test S3  ≈ St3
+    @test S4  ≈ St4
+    @test S4m ≈ St4m
+    @test S5  ≈ St5
+
+    ## Unweighted GLM - Gamma
+    GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
+
+    S0 = vcov(HC0(),GAMMA)
+    S1 = vcov(HC1(),GAMMA)
+    S2 = vcov(HC2(),GAMMA)
+    S3 = vcov(HC3(),GAMMA)
+    S4 = vcov(HC4(),GAMMA)
+    S4m = vcov(HC4m(),GAMMA)
+    S5 = vcov(HC5(),GAMMA)
+
+    St0 = [4.504287921232951e-07 -1.700020601541489e-07;
+           -1.700020601541490e-07  8.203697048568913e-08]
+
+    St1 = [5.791227327299548e-07 -2.185740773410504e-07;
+       -2.185740773410510e-07  1.054761049101728e-07]
+
+    St2 = [3.192633083111232e-06 -9.942484630848573e-07;
+           -9.942484630848578e-07  3.329973305723091e-07]
+
+    St3 = [2.982697811926944e-05 -8.948137019946751e-06;
+           -8.948137019946738e-06  2.712024459305714e-06]
+
+    St4 = [0.002840158946368653 -0.0008474436578800430;
+           -0.000847443657880045  0.0002528819761961959]
+
+    St4m= [9.2891282926e-05  -2.7759505159e-05;
+           -2.7759505159e-05  8.3203461732e-06]
+
+    St5 = [2.9781374021e-05  -8.9232514073e-06
+           -8.9232514073e-06  2.6952175350e-06]
+
+    @test S0  ≈ St0 atol = 1e-08
+    @test S1  ≈ St1 atol = 1e-08
+    @test S2  ≈ St2 atol = 1e-08
+    @test S3  ≈ St3 atol = 1e-06
+    @test S4  ≈ St4 atol = 1e-05
+    @test S4m ≈ St4m atol = 1e-06
+    @test S5  ≈ St5 atol = 1e-06
+
+    ## Weighted Gamma
+
+    GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[!, :w]))
+
+    S0 = vcov(HC0(),GAMMA)
+    S1 = vcov(HC1(),GAMMA)
+    S2 = vcov(HC2(),GAMMA)
+    S3 = vcov(HC3(),GAMMA)
+    S4 = vcov(HC4(),GAMMA)
+    S4m = vcov(HC4m(),GAMMA)
+    S5 = vcov(HC5(),GAMMA)
+
+    St0 = [4.015104e-07 -1.615094e-07;
+           -1.615094e-07  8.378363e-08]
+
+    St1 = [5.162277e-07 -2.076549e-07;
+           -2.076549e-07  1.077218e-07]
+
+    St2 = [2.720127e-06 -8.490977e-07;
+           -8.490977e-07  2.963563e-07]
+
+    St3 = [2.638128e-05 -7.639883e-06;
+           -7.639883e-06  2.259590e-06]
+
+    St4 = [0.0029025754 -0.0008275858;
+           -0.0008275858  0.0002360053]
+
+    St4m = [8.493064e-05 -2.436180e-05;
+            -2.436180e-05  7.042101e-06]
+
+    St5 = [2.6206554518e-05 -7.5421496876e-06
+          -7.5421496876e-06  2.2017813312e-06]
+
+    @test S0  ≈ St0 atol = 1e-08
+    @test S1  ≈ St1 atol = 1e-08
+    @test S2  ≈ St2 atol = 1e-08
+    @test S3  ≈ St3 atol = 1e-07
+    @test S4  ≈ St4 atol = 1e-05
+    @test S4m ≈ St4m atol = 1e-07
+    @test S5  ≈ St5 atol = 1e-07
+end
+
+
