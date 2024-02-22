@@ -9,12 +9,12 @@ These use cases utilize different parts of this package, make sure you read the 
 
 module CovarianceMatrices
 
+using Combinatorics
+using GroupedArrays
 using LinearAlgebra
 using SparseArrays
 using Statistics
 using StatsBase
-using GroupedArrays
-using Combinatorics
 
 include("types.jl")
 include("aVar.jl")

@@ -50,9 +50,9 @@ end
 
 function rescale!(k::T, S::Matrix) where {T<:CR3}
   # scale total vcov estimate by ((N-1)/(N-K)) * (G/(G-1))
-  ## G = minimum(nclusters(k))
+  ##G = minimum(nclusters(k))
   ## N = length(k.g[1])
   ## K = size(S, 1)
-  ## @. S *= 1
+  ##@. S *= 1
   nothing
 end

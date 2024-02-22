@@ -290,7 +290,7 @@ function fopt!(u; weighted=false)
       eval(quote
         ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink(), wts=$weighted ? $(df).w : Float64[])
         𝒦 = ($k){Andrews}()
-        tmp = vcov(𝒦, ols; prewhiten=$pre)
+        tmp = vcov(𝒦, ols; prewhiten=$pre, dofadjust=false)
         da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
           end)
     end
@@ -299,7 +299,7 @@ function fopt!(u; weighted=false)
       eval(quote
         𝒦 = ($k){NeweyWest}()
         ## To get the same results of R, the weights given to the intercept should be 0
-        tmp = vcov(𝒦, ols; prewhiten=$pre)
+        tmp = vcov(𝒦, ols; prewhiten=$pre, dofadjust=false)
         dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
           end)
     end
@@ -313,14 +313,14 @@ function fopt!(u; weighted=false)
     eval(quote
           𝒦 = ($k)()
           ## To get the same results of R, the weights given to the intercept should be 0
-          tmp = vcov(𝒦, ols)
+          tmp = vcov(𝒦, ols; dofadjust=false)
           hr_glm[String($k)] = Dict{String, Any}("V" => tmp)
           end)
     eval(quote
           𝒦 = ($k)()
           ols = lm(@formula(y~x1+x2+x3), $df, wts=$weighted ? $(df).w : Float64[])
           ## To get the same results of R, the weights given to the intercept should be 0
-          tmp = vcov(𝒦, ols)
+          tmp = vcov(𝒦, ols; dofadjust=false)
           hr_lm[String($k)] = Dict{String, Any}("V" => tmp)
           end)
 
@@ -341,7 +341,7 @@ function ffix!(u; weighted=false)
       eval(quote
             ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink(), wts=$weighted ? $(df).w : Float64[])
             𝒦 = ($k)(3)
-            tmp = vcov(𝒦, ols; prewhiten=$pre)
+            tmp = vcov(𝒦, ols; prewhiten=$pre, dofadjust=false)
             da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
           end)
     end
@@ -349,7 +349,7 @@ function ffix!(u; weighted=false)
       eval(quote
             𝒦 = ($k)(3)
             ## To get the same results of R, the weights given to the intercept should be 0
-            tmp = vcov(𝒦, ols; prewhiten=$pre)
+            tmp = vcov(𝒦, ols; prewhiten=$pre, dofadjust=false)
             dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
           end)
     end
@@ -481,12 +481,13 @@ end
     )
 
     GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[!, :w]))
-    V = vcov(ParzenKernel{Andrews}(), GAMMA)
+    V = vcov(Parzen{Andrews}(), GAMMA)
     Vp = [5.48898e-7 -2.60409e-7; -2.60409e-7 1.4226e-7]
     @test V ≈ Vp atol = 1e-08
 
     GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
-    V = vcov(ParzenKernel{Andrews}(), GAMMA)
+    k = Parzen{Andrews}()
+    V = vcov(k, GAMMA)
     Vp = [5.81672e-7 -2.24162e-7; -2.24162e-7 1.09657e-7]
     @test V ≈ Vp atol = 1e-08
 end
@@ -664,5 +665,4 @@ end
     @test S4m ≈ St4m atol = 1e-07
     @test S5  ≈ St5 atol = 1e-07
 end
-
 
