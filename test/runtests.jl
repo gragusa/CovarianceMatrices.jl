@@ -422,6 +422,10 @@ for k in ("HR".*[string.(1:4); "4m"; "5"])
 end
 end
 
+
+df = CSV.File(joinpath(datadir, "testdata/ols_df.csv")) |> DataFrame
+df.w = rand(StableRNG(123), size(df,1))
+
 @testset "Rank deficient" begin
   df.z = df.x1+df.x2
   lm1 = lm(@formula(y~x1+x2+x3+z), df, wts=df.w)
@@ -625,7 +629,6 @@ end
     @test S5  ≈ St5 atol = 1e-06
 
     ## Weighted Gamma
-
     GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[!, :w]))
 
     S0 = vcov(HC0(),GAMMA)
