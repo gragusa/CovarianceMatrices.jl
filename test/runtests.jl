@@ -432,7 +432,9 @@ df.w = rand(StableRNG(123), size(df,1))
   lmm = lm(@formula(y~x2+x3+z), df, wts=df.w)
   V1 = vcov(HC1(), lm1)
   V2 = vcov(HC1(), lmm)
-  @test V1[.!isnan.(V1)] ≈ V2[.!isnan.(V2)] 
+  idxr = isempty.(map(i->findall(all(isnan.(i))), eachrow(V1)))
+  idxc = isempty.(map(i->findall(all(isnan.(i))), eachcol(V1)))
+  @test V1[idxr, idxc] ≈ V2 
 end
 
 @testset "Linear Model CR" begin
