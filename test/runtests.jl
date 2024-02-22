@@ -20,7 +20,7 @@ df.y = Y;
   @test CM.demeaner(X; dims=2, means=m) == CM.demeaner(X; dims=2)
 end
 
-@testset "Optimal Bandwidth (NeweyWest)" begin
+@testset "OB NeweyWest" begin
   ## --
   𝒦 = Bartlett{NeweyWest}()
   Σ = a𝕍ar(𝒦, X)
@@ -53,7 +53,7 @@ end
   @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
 end
 
-@testset "Optimal Bandwidth (Andrews)" begin
+@testset "OB Andrews" begin
   𝒦 = Bartlett{Andrews}()
   Σ = a𝕍ar(𝒦, X; prewhiten=false);
   @test 𝒦.bw[1] ≈ 2.329739 rtol=1e-6
@@ -107,7 +107,7 @@ end
   
 end
 
-@testset "clustersum" begin
+@testset "Clustersum" begin
   f = repeat(1:20, inner=5);
   M = CovarianceMatrices.clusterize(X, GroupedArray(f))
   M₀= [134.8844  120.9909  123.9828
@@ -221,7 +221,7 @@ kernels = (HR0(), HR1(), HR2(), HR3(), HR4(), HR4m(), HR5())
   end
 end
 
-@testset "CRHC............................................." begin
+@testset "CRHC" begin
   cl = repeat(1:5, inner=20)
   𝒦 = CR0(cl)
   Σ = a𝕍ar(𝒦, X)
@@ -236,7 +236,7 @@ end
   ## standard error and then multiply by G/(G-1) to apply the correction.
 end
 
-@testset "Driscol and Kraay" begin
+@testset "Driscol&Kraay" begin
   df = CSV.read(joinpath(datadir,"testdata/grunfeld.csv"), DataFrame)
   #df = RDatasets.dataset("Ecdat", "Grunfeld")
   X = [ones(size(df,1)) df.Value df.Capital]
@@ -364,7 +364,7 @@ fopt!(u)
 ffix!(u)
 
 
-@testset "Linear model HAC" begin
+@testset "LM HAC" begin
   for j in 1:2, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
     @test hcat(reg[j][h][k]["V"]...) ≈ u[j][h][k]["V"]
     @test reg[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
@@ -391,7 +391,7 @@ uw = Any[]
 fopt!(uw; weighted=true)
 ffix!(uw; weighted=true)
 
-@testset "Linear model HAC (weighted)" begin
+@testset "LM HAC (W)" begin
   for j in 1:2, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
     @test hcat(wreg[j][h][k]["V"]...) ≈ uw[j][h][k]["V"]
     @test wreg[j][h][k]["bw"] ≈ uw[j][h][k]["bw"]
@@ -413,7 +413,7 @@ ffix!(uw; weighted=true)
   end
 end
 
-@testset "Linear model HC" begin
+@testset "LM HC" begin
 for k in ("HR".*[string.(1:4); "4m"; "5"])
   @test hcat(reg[5]["hr"][k]["V"]...) ≈ u[3]["hr_glm"][k]["V"]
   @test hcat(reg[5]["hr"][k]["V"]...) ≈ u[3]["hr_lm"][k]["V"]
@@ -426,7 +426,7 @@ end
 df = CSV.File(joinpath(datadir, "testdata/ols_df.csv")) |> DataFrame
 df.w = rand(StableRNG(123), size(df,1))
 
-@testset "Rank deficient" begin
+@testset "DefRank" begin
   df.z = df.x1+df.x2
   lm1 = lm(@formula(y~x1+x2+x3+z), df, wts=df.w)
   lmm = lm(@formula(y~x2+x3+z), df, wts=df.w)
@@ -434,11 +434,13 @@ df.w = rand(StableRNG(123), size(df,1))
   V2 = vcov(HC1(), lmm)
   idxr = isempty.(map(i->findall(all(isnan.(i))), eachrow(V1)))
   idxc = isempty.(map(i->findall(all(isnan.(i))), eachcol(V1)))
-  @show V1[idxr, idxc] 
+  @show V1
   @show V2 
+  @show idxr
+  @show idxc
 end
 
-@testset "Linear Model CR" begin
+@testset "LM CR" begin
   df = CSV.read(joinpath(datadir,"testdata/PetersenCl.csv"), DataFrame)
   m = lm(@formula(y~x), df)
   V0 = vcov(CR0(df.firm), m)
@@ -479,7 +481,7 @@ end
 end
 
 
-@testset "HAC - GLM........................................" begin
+@testset "GLM HAC" begin
     clotting = DataFrame(
         u    = log.([5,10,15,20,30,40,60,80,100]),
         lot1 = [118,58,42,35,27,25,21,19,18],
@@ -499,7 +501,7 @@ end
     @test V ≈ Vp atol = 1e-08
 end
 
-@testset "HC..............................................." begin
+@testset "GLM HC" begin
     # A Gamma example, from McCullagh & Nelder (1989, pp. 300-2)
     clotting = DataFrame(
         u    = log.([5,10,15,20,30,40,60,80,100]),
@@ -672,3 +674,4 @@ end
     @test S5  ≈ St5 atol = 1e-07
 end
 
+## TODO: Add more tests for the GLM interface for CR & DK
