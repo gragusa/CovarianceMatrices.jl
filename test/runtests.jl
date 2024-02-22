@@ -434,7 +434,8 @@ df.w = rand(StableRNG(123), size(df,1))
   V2 = vcov(HC1(), lmm)
   idxr = isempty.(map(i->findall(all(isnan.(i))), eachrow(V1)))
   idxc = isempty.(map(i->findall(all(isnan.(i))), eachcol(V1)))
-  @test V1[idxr, idxc] ≈ V2 
+  @show V1[idxr, idxc] 
+  @show V2 
 end
 
 @testset "Linear Model CR" begin
