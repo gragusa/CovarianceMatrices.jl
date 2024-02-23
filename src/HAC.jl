@@ -28,7 +28,7 @@ function _avar(k::HAC, Z::AbstractMatrix{T}) where T<:AbstractFloat
   @inbounds tril!(Q, -1)
   @inbounds for j in idx
     κⱼ = CovarianceMatrices.kernel(k, j/bw)
-    CovarianceMatrices.Γplus!(Q, Z, j)    
+    CovarianceMatrices.Γplus!(Q, Z, j)
     LinearAlgebra.axpy!(κⱼ, Q, V)
     tril!(Q, -1)
     CovarianceMatrices.Γminus!(Q, Z, -j)
@@ -54,7 +54,7 @@ Calculate the autocovariance of order `|j|` of `A`.
 - `AbstractMatrix{T}`: the autocovariance (upper triangular) 
 """
 function Γplus!(Q::Matrix, A::AbstractMatrix, j::Int)
-  @inbounds for h in axes(A, 2), s in firstindex(A,1):h+firstindex(A,1)-1
+  @inbounds @fastmath for h in axes(A, 2), s in firstindex(A,1):h+firstindex(A,1)-1
         for t in (j+firstindex(A,1)):lastindex(A, 1)
             Q[s, h] = Q[s, h] + A[t, s]*A[t-j, h]
         end
@@ -76,7 +76,7 @@ Calculate the autocovariance of order `j` of `A`.
 - `AbstractMatrix{T}`: the autocovariance (upper triangular) 
 """
 function Γminus!(Q::Matrix, A::AbstractMatrix, j::Int)
-  @inbounds for h in axes(A, 2), s in firstindex(A,1):h+firstindex(A,1)-1
+  @inbounds @fastmath for h in axes(A, 2), s in firstindex(A,1):h+firstindex(A,1)-1
     for t in (-j+firstindex(A,1)):lastindex(A, 1)
       Q[s,h] = Q[s ,h] + A[t+j, s]*A[t,h]
     end
@@ -135,8 +135,8 @@ end
 function workingoptimalbw(
     k::HAC{T},
     m::AbstractMatrix;
-    prewhiten::Bool=false,    
-    ) where T<:Union{Andrews, NeweyWest}    
+    prewhiten::Bool=false,
+    ) where T<:Union{Andrews, NeweyWest}
     X, D = prewhiter(m, prewhiten)
     setkernelweights!(k, X)
     bw = _optimalbandwidth(k, X, prewhiten)

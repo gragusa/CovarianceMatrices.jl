@@ -15,6 +15,7 @@ using LinearAlgebra
 using SparseArrays
 using Statistics
 using StatsBase
+using Base.Threads
 
 include("types.jl")
 include("aVar.jl")
