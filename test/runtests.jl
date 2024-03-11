@@ -1,191 +1,487 @@
-using CovarianceMatrices
-using Test
-using CSV
-using LinearAlgebra
-using Statistics
-using Random
-using GLM
-using DataFrames
+## Test for CovarianceMatrices.jl
+using CovarianceMatrices, DataFrames, CSV, Test, Random, StableRNGs, Statistics, LinearAlgebra, GroupedArrays
 using JSON
-using StatsBase
-using CategoricalArrays
 
 const CM = CovarianceMatrices
-const andrews_kernels = [:TruncatedKernel, :ParzenKernel, :TukeyHanningKernel, :QuadraticSpectralKernel, :BartlettKernel]
-const neweywest_kernels = [:ParzenKernel, :QuadraticSpectralKernel, :BartlettKernel]
 
-datapath = joinpath(@__DIR__)
+datadir = dirname(@__FILE__)
+X = rand(StableRNG(123), 100, 3)
+Y = rand(StableRNG(123), 100)
+df = DataFrame(X, :auto)
+df.y = Y;
 
-@testset "BW Optimal......................................." begin
-    df = CSV.File("testdata/df20.csv") |> DataFrame
-    lm1 = lm(@formula(y~x), df)
-    k = BartlettKernel{NeweyWest}()
-    V = vcov(k, lm1; prewhite=true)
-
-    bw = optimalbandwidth(BartlettKernel{NeweyWest}(), lm1; prewhite=true)
-    V2 = vcov(BartlettKernel(bw), lm1; prewhite=true)
-    @test bw==first(k.bw)
-    @test V≈V2
-
-    k = BartlettKernel{NeweyWest}()
-    V = vcov(k, lm1; prewhite=false)
-    bw = optimalbandwidth(BartlettKernel{NeweyWest}(), lm1; prewhite=false)
-    V2 = vcov(BartlettKernel(bw), lm1; prewhite=false)
-    @test bw==first(k.bw)
-    @test V≈V2
-
-    k = BartlettKernel{Andrews}()
-    V = vcov(k, lm1; prewhite=false)
-    bw = optimalbandwidth(BartlettKernel{Andrews}(), lm1; prewhite=false)
-    V2 = vcov(BartlettKernel(bw), lm1; prewhite=false)
-    @test bw==first(k.bw)
-    @test V≈V2
-
-    k = BartlettKernel{Andrews}()
-    V = vcov(k, lm1; prewhite=true)
-    bw = optimalbandwidth(BartlettKernel{Andrews}(), lm1; prewhite=true)
-    V2 = vcov(BartlettKernel(bw), lm1; prewhite=true)
-    @test bw==first(k.bw)
-    @test V≈V2
+@testset "demean" begin
+  @test CM.demeaner(X; dims = 1) == X .- mean(X; dims=1)
+  @test mean(CM.demeaner(X; dims = 1); dims=1) == mean(X .- mean(X; dims=1); dims = 1)
+  @test CM.demeaner(X'; dims = 2) == (X' .- mean(X'; dims=2))'
+  m = mean(X; dims = 1)
+  @test CM.demeaner(X; dims=1, means=m) == CM.demeaner(X; dims=1)
+  m = mean(X; dims = 2)
+  @test CM.demeaner(X; dims=2, means=m) == CM.demeaner(X; dims=2)
 end
 
-@testset "HAC - Asymptotic Covariance (Fixed).............." begin
-    X = CSV.File("testdata/X20x2.csv") |> DataFrame |> Matrix
-
-    V = lrvar(TruncatedKernel(2), X)./20
-    Vr = [0.023797696862680198 -0.006551463062455593; -0.006551463062455593 0.05722230754875061]
-    @test V ≈ Vr
-    V = lrvar(TruncatedKernel(2), X, prewhite=true)./20
-    Vr = [0.02306195412692154 -0.002321811843500563; -0.0023218118435005637 0.0752916863840604]
-    @test V ≈ Vr
-    V = lrvar(BartlettKernel(2), X, prewhite=false)./20
-    Vr = [0.035714374800934555 0.000210291773413605; 0.000210291773413605 0.05629043339567539]
-    @test V ≈ Vr
-    V = lrvar(BartlettKernel(2), X, prewhite=true)./20
-    Vr = [0.026762130596397222 0.0023844392352094616; 0.0023844392352094625 0.07539513026131048]
-    @test V ≈ Vr
-    V = lrvar(ParzenKernel(2), X, prewhite=false)./20
-    Vr = [0.04082918144700371 0.00029567273165852334; 0.00029567273165852334 0.05178620682214104]
-    @test V ≈ Vr
-    V = lrvar(ParzenKernel(2), X, prewhite=true)./20
-    Vr = [0.027407120851688418 0.0018031540982724296; 0.0018031540982724307 0.0702092071421895]
-    @test V ≈ Vr
-end
-@testset "HAC - Asymptotic Covariance (Andrews)............" begin
-    X = CSV.File("testdata/X20x2.csv") |> DataFrame |> Matrix
-    V = lrvar(TruncatedKernel{Andrews}(), X)./20
-    Vr = [0.025484761508796222 3.9529856923768415e-5; 3.9529856923768415e-5 0.0652988865427441]
-    @test V ≈ Vr
-    V = lrvar(TruncatedKernel{Andrews}(), X, prewhite=true)./20
-    Vr = [0.028052111106979607 0.001221868961335397; 0.001221868961335396 0.06502328402306855]
-    @test V ≈ Vr
-    V = lrvar(BartlettKernel{Andrews}(), X, prewhite=false)./20
-    Vr = [0.036560369091632905 0.00022441387190291295; 0.00022441387190291295 0.0555454296782523]
-    @test V ≈ Vr
-    V = lrvar(BartlettKernel{Andrews}(), X, prewhite=true)./20
-    Vr = [0.027270747095805972 0.001926058338627125; 0.0019260583386271257 0.07130569473664604]
-    @test V ≈ Vr
-    V = lrvar(ParzenKernel{Andrews}(), X, prewhite=false)./20
-    Vr = [0.03100269416916425 -0.0017562565506448816; -0.0017562565506448816 0.05796097557032457]
-    @test V ≈ Vr
-    V = lrvar(ParzenKernel{Andrews}(), X, prewhite=true)./20
-    Vr = [0.025984224823188636 0.0017705442482664063; 0.001770544248266405 0.07693448665125002]
-    @test V ≈ Vr
-end
-@testset "HAC - Asymptotic Covariance (Newey).............." begin
-end
-@testset "HC  - Asymptotic Covariance......................" begin
-    X = CSV.File("testdata/X20x2.csv") |> DataFrame |> Matrix
-    v = X .- mean(X, dims = 1)
-    V = lrvar(HC0(), X)
-    @test V ≈ v'*v/20
-    V = lrvar(HC1(), X)
-    @test V ≈ v'*v/20
-    V = lrvar(HC2(), X)
-    @test V ≈ v'*v/20
-    V = lrvar(HC3(), X)
-    @test V ≈ v'*v/20
-    V = lrvar(HC0(), X, demean=false)
-    @test V ≈ X'*X/20
-end
-@testset "CRHC  - Asymptotic Covariance...................." begin
-    X = CSV.File("testdata/X100x2.csv") |> DataFrame |> Matrix
-    f = repeat(1:20, inner=5)
-    V = lrvar(CRHC0(f), X)/100
-    Vr = [0.010003084285822686 0.002579249460680671; 0.002579249460680671 0.014440606823274103]
-    @test V ≈ Vr*(19/20)
-    V = lrvar(CRHC1(f), X)/100
-    @test V ≈ Vr*(19/20)
-    V = lrvar(CRHC2(f), X)/100
-    @test V ≈ Vr*(19/20)
-    V = lrvar(CRHC3(f), X)/100
-    @test V ≈ Vr*(19/20)
+@testset "OB NeweyWest" begin
+  ## --
+  𝒦 = Bartlett{NeweyWest}()
+  Σ = a𝕍ar(𝒦, X)
+  @test 𝒦.bw[1] ≈ 5.326955 atol=1e-6
+  @test optimalbw(𝒦, X; prewhiten=false, demean=true) ≈ 𝒦.bw[1] rtol=1e-9
+  
+  𝒦 = Parzen{NeweyWest}()
+  Σ = a𝕍ar(𝒦, X)
+  @test 𝒦.bw[1] ≈ 9.72992 atol=1e-6
+  @test optimalbw(𝒦, X; prewhiten=false, demean=true) ≈ 𝒦.bw[1] rtol=1e-9
+  
+  𝒦 = QuadraticSpectral{NeweyWest}()
+  Σ = a𝕍ar(𝒦, X)
+  @test 𝒦.bw[1] ≈ 4.833519 atol=1e-6
+  @test optimalbw(𝒦, X; prewhiten=false, demean=true) ≈ 𝒦.bw[1] rtol=1e-9
+  ## ---
+  𝒦 = Bartlett{NeweyWest}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=true)
+  @test 𝒦.bw[1] ≈ 1.946219 rtol=1e-7
+  @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
+  
+  𝒦 = Parzen{NeweyWest}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=true)
+  @test 𝒦.bw[1] ≈ 6.409343 rtol=1e-7
+  @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
+  
+  𝒦 = QuadraticSpectral{NeweyWest}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=true)
+  @test 𝒦.bw[1] ≈ 3.183961 atol=1e-6
+  @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
 end
 
-@testset "HAC OLS VCOV....................................." begin
-    reg = JSON.parse(read("testdata/regression.json", String))
-    df = CSV.File("testdata/ols_df.csv") |> DataFrame
-    function fopt!(u)
-        global da = Dict{String, Any}()
-        global dn = Dict{String, Any}()
-        for pre in (:false, :true)
-            da["bwtype"] = "auto"
-            da["prewhite"] = pre == :true ? true : false
-            dn["bwtype"] = "auto"
-            dn["prewhite"] = pre == :true ? true : false
-            for k in andrews_kernels
-                eval(quote
-                     ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
-                     tmp = vcovmatrix(($k){Andrews}(), ols; prewhite=$pre, dof_adjustment = false)
-                     da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
-                     if Symbol($k) in neweywest_kernels
-                     tmp = vcovmatrix(($k){Andrews}(), ols; prewhite=$pre, dof_adjustment = false)
-                     dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
-                     end
-                     end)
-            end
-            push!(u, Dict("andrews" => da, "neweywest" => dn))
-            da = Dict{String, Any}()
-            dn = Dict{String, Any}()
-        end
+@testset "OB Andrews" begin
+  𝒦 = Bartlett{Andrews}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=false);
+  @test 𝒦.bw[1] ≈ 2.329739 rtol=1e-6
+  @test optimalbw(𝒦, X; prewhiten=false) == 𝒦.bw[1]
+  
+  𝒦 = Parzen{Andrews}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=false);
+  @test 𝒦.bw[1] ≈ 4.81931 rtol=1e-6
+  @test CovarianceMatrices.optimalbw(𝒦, X; prewhiten=false) == 𝒦.bw[1]
+  
+  𝒦 = QuadraticSpectral{Andrews}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=false)
+  @test 𝒦.bw[1] ≈ 2.394082 atol=1e-6
+  @test optimalbw(𝒦, X) == 𝒦.bw[1]
+  
+  𝒦 = TukeyHanning{Andrews}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=false)
+  @test 𝒦.bw[1] ≈ 3.162049 rtol=1e-6
+  @test optimalbw(𝒦, X) == 𝒦.bw[1]
+  
+  𝒦 = Truncated{Andrews}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=false)
+  @test 𝒦.bw[1] ≈ 1.197131 rtol=1e-6
+  @test optimalbw(𝒦, X) == 𝒦.bw[1]
+  
+  ## --
+  𝒦 = Bartlett{Andrews}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=true);
+  @test 𝒦.bw[1] ≈ 0.3836096 rtol=1e-6
+  @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
+  
+  𝒦 = Parzen{Andrews}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=true);
+  @test 𝒦.bw[1] ≈ 1.380593 rtol=1e-6
+  @test CovarianceMatrices.optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
+  
+  𝒦 = QuadraticSpectral{Andrews}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=true)
+  @test 𝒦.bw[1] ≈ 0.6858351 atol=1e-6
+  @test optimalbw(𝒦, X) == 𝒦.bw[1]
+  
+  𝒦 = TukeyHanning{Andrews}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=true)
+  @test 𝒦.bw[1] ≈ 0.9058356 rtol=1e-6
+  @test optimalbw(𝒦, X) == 𝒦.bw[1]
+  
+  𝒦 = Truncated{Andrews}()
+  Σ = a𝕍ar(𝒦, X; prewhiten=true)
+  @test 𝒦.bw[1] ≈ 0.3429435 rtol=1e-6
+  @test optimalbw(𝒦, X) == 𝒦.bw[1]
+  
+end
+
+@testset "Clustersum" begin
+  f = repeat(1:20, inner=5);
+  M = CovarianceMatrices.clusterize(X, GroupedArray(f))
+  M₀= [134.8844  120.9909  123.9828
+  120.9909  124.3984  120.7009
+  123.9828  120.7009  127.6566]
+  @test M ≈ M₀ atol=1e-4
+  ## Out of order
+  shuffler = shuffle(StableRNG(123), 1:size(X,1))
+  Xo = X[shuffler, :]
+  fo = f[shuffler]
+  Mo = CovarianceMatrices.clusterize(Xo, GroupedArray(fo))
+  @test Mo ≈ M
+end
+
+Σ₀₀ = [
+[0.07978827089743976 0.005560324649425609 0.009703799309186547
+0.005560324649425609 0.08276474874770062 0.0010530436728554352
+0.009703799309186547 0.0010530436728554352 0.07431486592263496],
+
+[0.08824047441166522 0.01185475583687493 0.014226486564055717
+0.01185475583687493 0.08753222220168377 0.005137675013885958
+0.014226486564055717 0.005137675013885958 0.07382524667188076],
+
+[0.08304722971511129 0.009566557076336682 0.015084732026814018
+0.009566557076336682 0.08487958325675327 0.0033678564195238933
+0.015084732026814018 0.0033678564195238933 0.07782361388868414],
+
+[0.08559572719755348 0.010100014851936187 0.014007312794571108
+0.010100014851936187 0.0854452011439353 0.003987375876407169
+0.014007312794571108 0.003987375876407169 0.07530458218249476],
+
+[0.09113048508616475 0.01012761283802301 0.014949485990870565
+0.01012761283802301 0.08417657485409089 0.005652466376470253
+0.014949485990870565 0.005652466376470253 0.07567045699291326],
+
+[0.10403285139514229 0.017161666552281015 0.012937499243192903
+0.017161666552281015 0.09461953256288745 0.009862502341427618
+0.012937499243192903 0.009862502341427618 0.06415361805073096],
+
+[0.11919732774525865 0.022941382516275952 0.015095058906094373
+0.022941382516275952 0.10152132051735772 0.012217515924874448
+0.015095058906094373 0.012217515924874448 0.060401394896807015],
+
+[0.11286141828969598 0.020980921344488233 0.01823291328076095
+0.020980921344488233 0.09941184965586379 0.015319761791783473
+0.01823291328076095 0.015319761791783473 0.06292735773558823],
+
+[0.10214970819829594 0.01795183790594208 0.023765383078499024
+0.017951837905942077 0.08626897790931316 0.009428159436790295
+0.023765383078499024 0.009428159436790299 0.07941946726668297],
+
+[0.10203584285781796 0.01799717571386372 0.02359634430350738
+0.017997175713863715 0.08633822583613252 0.00940840735139296
+0.02359634430350738 0.009408407351392964 0.07932583171604031],
+
+[0.1027070205998854 0.01785906774640339 0.024081614850023098
+0.017859067746403393 0.08624976234548798 0.0095727497846355
+0.024081614850023098 0.009572749784635497 0.07940007875065369],
+
+[0.10214970819829594 0.01795183790594208 0.023765383078499024
+0.017951837905942077 0.08626897790931316 0.009428159436790295
+0.023765383078499024 0.009428159436790299 0.07941946726668297],
+
+[0.10214970819829594 0.01795183790594208 0.023765383078499024
+0.017951837905942077 0.08626897790931316 0.009428159436790295
+0.023765383078499024 0.009428159436790299 0.07941946726668297],
+
+[0.10082848215180824 0.018477911006547318 0.021803957139334383
+0.01847791100654732 0.0870724898840273 0.009198967923465359
+0.021803957139334383 0.009198967923465357 0.0783329757332015],
+
+[0.10319135331171438 0.02444221028323441 0.01847305161846699
+0.02444221028323441 0.09549523073371463 0.012448284901890937
+0.01847305161846699 0.012448284901890937 0.07093488602565269],
+
+[0.09310133199441366 0.02187370477388356 0.01597340791678698
+0.021873704773883562 0.09162619720253418 0.009583822285400886
+0.015973407916786978 0.009583822285400884 0.07403525954398654]
+
+]
+
+kernels = (Bartlett{Andrews}(),
+Parzen{Andrews}(),
+QuadraticSpectral{Andrews}(),
+TukeyHanning{Andrews}(),
+Truncated{Andrews}(),
+Bartlett{NeweyWest}(),
+Parzen{NeweyWest}(),
+QuadraticSpectral{NeweyWest}())
+
+pre = (false, true)
+
+@testset "aVar HAC" begin
+  for ((𝒦, prewhiten), Σ₀) in zip(Iterators.product(kernels, pre), Σ₀₀)
+    Σ = a𝕍ar(𝒦, X; prewhiten=prewhiten)
+    @test Σ ≈ Σ₀ rtol=1e-6
+  end
+end
+
+kernels = (HR0(), HR1(), HR2(), HR3(), HR4(), HR4m(), HR5())
+
+Σ₀ = [ 0.06415873470586395 -0.004015858202035743 -6.709834054283887e-5;
+-0.004015858202035743 0.07800552644879759 -0.00615707811722861;
+-6.709834054283887e-5 -0.00615707811722861 0.07184846516936118]
+
+
+@testset "aVar HRx" begin
+  for 𝒦 in kernels
+    Σ = a𝕍ar(𝒦, X)
+    @test Σ ≈ Σ₀ rtol=1e-6
+  end
+end
+
+@testset "CRHC" begin
+  cl = repeat(1:5, inner=20)
+  𝒦 = CR0(cl)
+  Σ = a𝕍ar(𝒦, X)
+  ## sandwich package uses HC0 but always scales by G/(G-1)
+  ## below is the result of
+  ## v = vcovCL(lm(X~1), cl, type="HC0")
+  Σ₀ =  [0.0013477493837805246 0.0001411950613289987 4.6345925014758175e-5;
+  0.0001411950613289987 0.0004985361461159058 -0.00039126414097571385;
+  4.6345925014758175e-5 -0.00039126414097571385 0.00033308110226548546]
+  @test Σ*5/(5-1) ≈ Σ₀*100 rtol = 1e-8
+  ## Since a𝕍ar is scaled by (G/n^2), this is equivalent to  dividing by (1/G) to get the
+  ## standard error and then multiply by G/(G-1) to apply the correction.
+end
+
+@testset "Driscol&Kraay" begin
+  df = CSV.read(joinpath(datadir,"testdata/grunfeld.csv"), DataFrame)
+  #df = RDatasets.dataset("Ecdat", "Grunfeld")
+  X = [ones(size(df,1)) df.Value df.Capital]
+  y = df.Inv
+  β = X\y
+  ## Moment Matrix
+  m = X.*(y .- X*β)
+  ## Driscol Kraay Variance Covariance Matrix
+  T = length(unique(df.Year))
+  bw = 5
+  𝒦 = CovarianceMatrices.DriscollKraay(Bartlett(bw), tis=df.Year, iis=df.Firm)
+  Σ = a𝕍ar(𝒦, m; scale=false)
+  F = inv(cholesky(X'X))
+  Σ₀ = F*Σ*F.*T
+  #library(Ecdat)
+  #library(plm)
+  #data("Grunfeld")
+  #zz <- plm(inv~value+capital, data=Grunfeld, model = "pooling")
+  #vcovSCC(zz, maxlag = 4, )
+  # Note: maxlag = 4 is equivalent to bw = 5
+  Σ_ssc = [148.60459392965311     -0.067282610486606179   -0.32394796987915847;
+  -0.067282610486606151  0.00018052654961234828 -0.00035661048571690061;
+  -0.32394796987915825  -0.00035661048571690066  0.0024312798435615107]
+  @test Σ₀ ≈ Σ_ssc rtol=1e-6
+end
+
+
+## Test GLM Interface
+const andrews_kernels = [:Truncated, :Parzen, :TukeyHanning, :QuadraticSpectral, :Bartlett]
+const neweywest_kernels = [:Parzen, :QuadraticSpectral, :Bartlett]
+
+using GLM
+
+reg = JSON.parse(read(joinpath(datadir, "testdata/regression.json"), String))
+wreg = JSON.parse(read(joinpath(datadir, "testdata/wregression.json"), String))
+df = CSV.File(joinpath(datadir, "testdata/ols_df.csv")) |> DataFrame
+
+
+function fopt!(u; weighted=false)
+  global da = Dict{String, Any}()
+  global dn = Dict{String, Any}()
+  global hr_glm = Dict{String, Any}()
+  global hr_lm = Dict{String, Any}()
+  for pre in (:false, :true)
+    da["bwtype"] = "auto"
+    da["prewhite"] = pre == :true ? true : false
+    dn["bwtype"] = "auto"
+    dn["prewhite"] = pre == :true ? true : false
+    
+    for k in andrews_kernels
+      eval(quote
+        ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink(), wts=$weighted ? $(df).w : Float64[])
+        𝒦 = ($k){Andrews}()
+        tmp = vcov(𝒦, ols; prewhiten=$pre, dofadjust=false)
+        da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
+          end)
     end
-
-    function ffix!(u)
-        global da = Dict{String, Any}()
-        global dn = Dict{String, Any}()
-        for pre in (:false, :true)
-            da["bwtype"] = "auto"
-            da["prewhite"] = pre == :true ? true : false
-            dn["bwtype"] = "auto"
-            dn["prewhite"] = pre == :true ? true : false
-            for k in andrews_kernels
-                eval(quote
-                     ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
-                     tmp = vcovmatrix(($k)(1.5), ols; prewhite=$pre, dof_adjustment=false)
-                     da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
-                     if Symbol($k) in neweywest_kernels
-                         tmp = vcovmatrix(($k)(1.5), ols; prewhite=$pre, dof_adjustment=false)
-                         dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
-                     end
-                     end)
-            end
-            push!(u, Dict("andrews" => da, "neweywest" => dn))
-            da = Dict{String, Any}()
-            dn = Dict{String, Any}()
-        end
+  
+    for k in neweywest_kernels
+      eval(quote
+        𝒦 = ($k){NeweyWest}()
+        ## To get the same results of R, the weights given to the intercept should be 0
+        tmp = vcov(𝒦, ols; prewhiten=$pre, dofadjust=false)
+        dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
+          end)
     end
+    push!(u, Dict("andrews" => da, "neweywest" => dn))
+    da = Dict{String, Any}()
+    dn = Dict{String, Any}()
 
-    u = Any[]
-    fopt!(u)
-    ffix!(u)
-    for j in 1:4, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
-        @test hcat(reg[j][h][k]["V"]...) ≈ u[j][h][k]["V"]
-        @test reg[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
-    end
+  end
 
+  for k in Symbol.(("HC".*[string.(0:4); "4m"; "5"]))
+    eval(quote
+          𝒦 = ($k)()
+          ## To get the same results of R, the weights given to the intercept should be 0
+          tmp = vcov(𝒦, ols; dofadjust=false)
+          hr_glm[String($k)] = Dict{String, Any}("V" => tmp)
+          end)
+    eval(quote
+          𝒦 = ($k)()
+          ols = lm(@formula(y~x1+x2+x3), $df, wts=$weighted ? $(df).w : Float64[])
+          ## To get the same results of R, the weights given to the intercept should be 0
+          tmp = vcov(𝒦, ols; dofadjust=false)
+          hr_lm[String($k)] = Dict{String, Any}("V" => tmp)
+          end)
+
+  end
+  push!(u, Dict("hr_lm" => hr_lm, "hr_glm" => hr_glm))
+  return u
 end
 
-@testset "HAC - GLM........................................" begin
+function ffix!(u; weighted=false)
+  global da = Dict{String, Any}()
+  global dn = Dict{String, Any}()
+  for pre in (:false, :true)
+    da["bwtype"] = "fixed"
+    da["prewhite"] = pre == :true ? true : false
+    dn["bwtype"] = "fixed"
+    dn["prewhite"] = pre == :true ? true : false  
+    for k in andrews_kernels
+      eval(quote
+            ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink(), wts=$weighted ? $(df).w : Float64[])
+            𝒦 = ($k)(3)
+            tmp = vcov(𝒦, ols; prewhiten=$pre, dofadjust=false)
+            da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
+          end)
+    end
+    for k in neweywest_kernels
+      eval(quote
+            𝒦 = ($k)(3)
+            ## To get the same results of R, the weights given to the intercept should be 0
+            tmp = vcov(𝒦, ols; prewhiten=$pre, dofadjust=false)
+            dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
+          end)
+    end
+    push!(u, Dict("andrews" => da, "neweywest" => dn))
+    da = Dict{String, Any}()
+    dn = Dict{String, Any}()
+  end
+end
+
+u = Any[]
+fopt!(u)
+ffix!(u)
+
+
+@testset "LM HAC" begin
+  for j in 1:2, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
+    @test hcat(reg[j][h][k]["V"]...) ≈ u[j][h][k]["V"]
+    @test reg[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
+  end
+  
+  for j in 1:2, h in ("neweywest",), k in ("Bartlett", "Quadratic Spectral")
+    @test hcat(reg[j][h][k]["V"]...) ≈ u[j][h][k]["V"]
+    @test reg[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
+  end
+  
+  for j in 3:4, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
+    @test hcat(reg[j][h][k]["V"]...) ≈ u[j+1][h][k]["V"]
+    @test reg[j][h][k]["bw"] ≈ u[j+1][h][k]["bw"]
+  end
+  
+  for j in 3:4, h in ("neweywest",), k in ("Bartlett", "Quadratic Spectral")
+    @test hcat(reg[j][h][k]["V"]...) ≈ u[j+1][h][k]["V"]
+    @test reg[j][h][k]["bw"] ≈ u[j+1][h][k]["bw"]
+  end
+end
+
+
+uw = Any[]
+fopt!(uw; weighted=true)
+ffix!(uw; weighted=true)
+
+@testset "LM HAC (W)" begin
+  for j in 1:2, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
+    @test hcat(wreg[j][h][k]["V"]...) ≈ uw[j][h][k]["V"]
+    @test wreg[j][h][k]["bw"] ≈ uw[j][h][k]["bw"]
+  end
+  
+  for j in 1:2, h in ("neweywest",), k in ("Bartlett", "Quadratic Spectral")
+    @test hcat(wreg[j][h][k]["V"]...) ≈ uw[j][h][k]["V"]
+    @test wreg[j][h][k]["bw"] ≈ uw[j][h][k]["bw"]
+  end
+  
+  for j in 3:4, h in ("andrews",), k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
+    @test hcat(wreg[j][h][k]["V"]...) ≈ uw[j+1][h][k]["V"]
+    @test wreg[j][h][k]["bw"] ≈ uw[j+1][h][k]["bw"]
+  end
+  
+  for j in 3:4, h in ("neweywest",), k in ("Bartlett", "Quadratic Spectral")
+    @test hcat(wreg[j][h][k]["V"]...) ≈ uw[j+1][h][k]["V"]
+    @test wreg[j][h][k]["bw"] ≈ uw[j+1][h][k]["bw"]
+  end
+end
+
+@testset "LM HC" begin
+for k in ("HR".*[string.(1:4); "4m"; "5"])
+  @test hcat(reg[5]["hr"][k]["V"]...) ≈ u[3]["hr_glm"][k]["V"]
+  @test hcat(reg[5]["hr"][k]["V"]...) ≈ u[3]["hr_lm"][k]["V"]
+  @test hcat(wreg[5]["hr"][k]["V"]...) ≈ uw[3]["hr_glm"][k]["V"]
+  @test hcat(wreg[5]["hr"][k]["V"]...) ≈ uw[3]["hr_lm"][k]["V"]
+end
+end
+
+
+df = CSV.File(joinpath(datadir, "testdata/ols_df.csv")) |> DataFrame
+df.w = rand(StableRNG(123), size(df,1))
+
+@testset "DefRank" begin
+  df.z = df.x1+df.x2
+  lm1 = lm(@formula(y~x1+x2+x3+z), df, wts=df.w)
+  lmm = lm(@formula(y~x2+x3+z), df, wts=df.w)
+  V1 = vcov(HC1(), lm1)
+  V2 = vcov(HC1(), lmm)
+  idxr = isempty.(map(i->findall(all(isnan.(i))), eachrow(V1)))
+  idxc = isempty.(map(i->findall(all(isnan.(i))), eachcol(V1)))
+  @show V1
+  @show V2 
+  @show idxr
+  @show idxc
+end
+
+@testset "LM CR" begin
+  df = CSV.read(joinpath(datadir,"testdata/PetersenCl.csv"), DataFrame)
+  m = lm(@formula(y~x), df)
+  V0 = vcov(CR0(df.firm), m)
+  V1 = vcov(CR1(df.firm), m)
+  V2 = vcov(CR2(df.firm), m)
+  V3 = vcov(CR3(df.firm), m)
+  R0 = [ 0.0044808245285903594 -6.4592772035200005e-05;
+        -6.4592772035200005e-05 0.0025542965590391016]
+  R1 = [ 0.0044907024570195212  -6.4735166091279167e-05;
+        -6.4735166091279154e-05  0.002559927477731868]
+  R2 = [ 0.0044944872570531966  -6.5929118692432861e-05;
+        -6.5929118692432861e-05  0.0025682360417855431]
+  R3 = [ 0.0045082022937877244   -6.7280836115793117e-05;
+        -6.7280836115793117e-05   0.0025822624320339092]
+  @test V0 ≈ R0 rtol=1e-6
+  @test V1 ≈ R1 rtol=1e-6
+  @test V2 ≈ R2 rtol=1e-4
+  @test V3 ≈ R3 rtol=1e-6
+
+  df.w = rand(StableRNG(123), size(df,1))
+  m = lm(@formula(y~x), df, wts=df.w)
+  V0 = vcov(CR0(df.firm), m)
+  V1 = vcov(CR1(df.firm), m)
+  V2 = vcov(CR2(df.firm), m)
+  V3 = vcov(CR3(df.firm), m)
+  R0 = [ 0.0048945800009019078 -9.5217611657051797e-05; 
+        -9.5217611657051783e-05 0.0029666072693556918]
+  R1 = [ 0.0049053700487226215  -9.5427517835511321e-05;
+        -9.5427517835511335e-05  0.0029731471224780704]
+  R2 = [ 0.0049055911851245753 -9.6888552025056022e-05;
+        -9.6888552025055995e-05 0.0029835249179155422]
+  R3 = [ 0.0049264936435635398 -9.8773895065056182e-05;
+        -9.8773895065056168e-05 0.0030065617267332799]
+  @test V0 ≈ R0
+  @test V1 ≈ R1
+  @test V2 ≈ R2 atol=1e-5
+  @test V3 ≈ R3 atol=1e-5
+end
+
+
+@testset "GLM HAC" begin
     clotting = DataFrame(
         u    = log.([5,10,15,20,30,40,60,80,100]),
         lot1 = [118,58,42,35,27,25,21,19,18],
@@ -194,17 +490,18 @@ end
     )
 
     GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[!, :w]))
-    V = vcov(ParzenKernel{Andrews}(), GAMMA)
+    V = vcov(Parzen{Andrews}(), GAMMA)
     Vp = [5.48898e-7 -2.60409e-7; -2.60409e-7 1.4226e-7]
     @test V ≈ Vp atol = 1e-08
 
     GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink())
-    V = vcov(ParzenKernel{Andrews}(), GAMMA)
+    k = Parzen{Andrews}()
+    V = vcov(k, GAMMA)
     Vp = [5.81672e-7 -2.24162e-7; -2.24162e-7 1.09657e-7]
     @test V ≈ Vp atol = 1e-08
 end
 
-@testset "HC..............................................." begin
+@testset "GLM HC" begin
     # A Gamma example, from McCullagh & Nelder (1989, pp. 300-2)
     clotting = DataFrame(
         u    = log.([5,10,15,20,30,40,60,80,100]),
@@ -270,8 +567,7 @@ end
     X = [fill(1,size(clotting[!, :u])) clotting[!, :u]]
     y = clotting[!, :lot1]
     wLM = lm(X, y)
-    wGL = fit(GeneralizedLinearModel, X, y, Normal(),
-              IdentityLink(), wts = wts)
+    wGL = fit(GeneralizedLinearModel, X, y, Normal(), IdentityLink(), wts = wts)
 
     S0 = vcov(HC0(),wOLS)
     S1 = vcov(HC1(),wOLS)
@@ -338,7 +634,6 @@ end
     @test S5  ≈ St5 atol = 1e-06
 
     ## Weighted Gamma
-
     GAMMA = glm(@formula(lot1~u), clotting, Gamma(),InverseLink(), wts = convert(Array, clotting[!, :w]))
 
     S0 = vcov(HC0(),GAMMA)
@@ -379,332 +674,4 @@ end
     @test S5  ≈ St5 atol = 1e-07
 end
 
-@testset "CRHC............................................." begin
-    df = CSV.File("testdata/wols_test.csv") |> DataFrame
-    df_unsorted = sort(df, [:X1])
-    df_sorted = sort(df, [:cl])
-    St1 = [.0374668, .0497666, .0472636, .0437952, .0513613, .0435369]
-
-    OLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df_unsorted, Normal(), IdentityLink())
-    cl = convert(Array, df_unsorted[!, :cl])
-    k0 = CRHC0(cl)
-    k1 = CRHC1(cl)
-    k2 = CRHC2(cl)
-    k3 = CRHC3(cl)
-
-    V0 = vcov(k0, OLS)
-    V1 = vcov(k1, OLS)
-    V2 = vcov(k2, OLS)
-    V3 = vcov(k3, OLS)
-
-    @test V1 ≈ [0.00140376 0.000215526 -5.99768e-5 0.000296271 0.000460622 -0.000139741;
-                0.000215526 0.00247671 -0.000270429 0.000218622 0.000610127 7.23345e-5;
-                -5.99768e-5 -0.000270429 0.00223385 -0.000145166 -0.00018859 -0.000903561;
-                0.000296271 0.000218622 -0.000145166 0.00191802 -0.000444364 -0.000420563;
-                0.000460622 0.000610127 -0.00018859 -0.000444364 0.00263798 0.000736363;
-                -0.000139741 7.23345e-5 -0.000903561 -0.000420563 0.000736363 0.00189546] atol = 1e-08
-
-    ## Note sandwich in R has HC3 without G/(G-1) and CRHC2 is problematic
-
-    @test sqrt.(diag(vcov(k0, OLS))) == sqrt.(diag(V0))
-    @test sqrt.(diag(vcov(k0, OLS))) == stderror(k0, OLS)
-    OLS_sorted = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df_sorted, Normal(), IdentityLink())
-    cl = convert(Array, df_sorted[!, :cl])
-    k0 = CRHC0(cl)
-    k1 = CRHC1(cl)
-    k2 = CRHC2(cl)
-    k3 = CRHC3(cl)
-    V0s = vcov(k0, OLS_sorted)
-    V1s = vcov(k1, OLS_sorted)
-    V2s = vcov(k2, OLS_sorted)
-    V3s = vcov(k3, OLS_sorted)
-
-    @test V0s ≈ V0
-    @test V1s ≈ V1
-    @test V2s ≈ V2 atol=1e-04
-    @test V3s ≈ V3 atol=1e-05
-
-    wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df_unsorted,
-               Normal(), IdentityLink(), wts = convert(Array{Float64}, df_unsorted[!, :w]))
-
-    cl = convert(Array, df_unsorted[!, :cl])
-    k0 = CRHC0(cl)
-    k1 = CRHC1(cl)
-    k2 = CRHC2(cl)
-    k3 = CRHC3(cl)
-
-    V0 = vcov(k0, wOLS)
-    V1 = vcov(k1, wOLS)
-    V2 = vcov(k2, wOLS)
-    V3 = vcov(k3, wOLS)
-
-    @test V1 ≈ [0.00183525 0.000137208 -0.00038971 0.000389943 0.000619903 0.00019496;
-                0.000137208 0.00242781 -0.000272316 0.000462353 2.99597e-5 0.000133303;
-                -0.00038971 -0.000272316 0.00273479 -0.000113765 -7.26396e-5 -0.000998524;
-                0.000389943 0.000462353 -0.000113765 0.00171538 -0.00067357 -0.000416268;
-                0.000619903 2.99597e-5 -7.26396e-5 -0.00067357 0.00225446 0.00106796;
-                0.00019496 0.000133303 -0.000998524 -0.000416268 0.00106796 0.00226444] atol = 1e-07
-
-    wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df_sorted,
-               Normal(), IdentityLink(), wts = convert(Array{Float64}, df_sorted[!, :w]))
-
-    cl = convert(Array, df_sorted[!, :cl])
-    k0 = CRHC0(cl)
-    k1 = CRHC1(cl)
-    k2 = CRHC2(cl)
-    k3 = CRHC3(cl)
-
-    V0s = vcov(k0, wOLS)
-    V1s = vcov(k1, wOLS)
-    V2s = vcov(k2, wOLS)
-    V3s = vcov(k3, wOLS)
-
-    @test V0s ≈ V0
-    @test V1s ≈ V1
-    @test V2s ≈ V2 atol=1e-04
-    @test V3s ≈ V3 atol=1e-05
-
-
-    innovation = CSV.File("testdata/InstInnovation.csv") |> DataFrame
-
-    innovation[!, :capemp] = log.(innovation[!, :capital]./innovation[!, :employment])
-    innovation[!, :lsales] = log.(innovation[!, :sales])
-    innovation[!, :year] = categorical(innovation[!, :year])
-    innovation[!, :industry] = categorical(innovation[!, :industry])
-    #innovation[:company] = categorical(innovation[:company])
-    pois = glm(@formula(cites ~ institutions + capemp + lsales + industry + year), innovation, Poisson(), LogLink())
-    Vt = [0.904094640946072,
-          0.00240638781048165,
-          0.135953255431155,
-          0.0415234048672968]
-
-    @test sqrt.(diag(vcov(CRHC0(innovation[!, :company]), pois))[1:4]) ≈ Vt atol = 1e-5
-    V = vcov(CRHC0(:company, innovation), pois)
-    @test sqrt.(diag(V))[1:4] ≈ Vt atol = 1e-05
-end
-
-
-@testset "CovarianceMatrices Methods......................." begin
-    df = CSV.File("testdata/wols_test.csv") |> DataFrame
-    df_sorted = sort!(copy(df), :cl)
-    cl = convert(Array, df[!, :cl])
-    wOLS = fit(GeneralizedLinearModel, @formula(Y~X1+X2+X3+X4+X5), df,
-               Normal(), IdentityLink(), wts = convert(Array{Float64}, df[!, :w]))
-
-     V0 = vcov(HC0(), wOLS)
-     V1 = vcov(ParzenKernel{Andrews}(), wOLS)
-     V2 = vcov(CRHC0(cl), wOLS)
-
-     V0s = vcovmatrix(HC0(), wOLS, SVD)
-     V1s = vcovmatrix(ParzenKernel{Andrews}(), wOLS, SVD)
-     V2s = vcovmatrix(CRHC0(cl), wOLS, SVD)
-
-     V0c = vcovmatrix(HC0(), wOLS,  Cholesky)
-     V1c = vcovmatrix(ParzenKernel{Andrews}(), wOLS,  Cholesky)
-     V2c = vcovmatrix(CRHC0(cl), wOLS,  Cholesky)
-
-
-     @test V0 == V0s
-     @test V1 == V1s
-     @test V2 == V2s
-
-     @test V0 == V0c
-     @test V1 == V1c
-     @test V2 == V2c
-
-
-     @test V0c.F == cholesky(V0)
-     @test V1c.F == cholesky(V1)
-     @test V2c.F == cholesky(V2)
-
-
-    @test V0s.F == svd(V0)
-    @test V1s.F == svd(V1)
-    @test V2s.F == svd(V2)
-
-     @test inv(V2c) ≈ inv(Matrix(V2))
-     @test inv(V2s) ≈ inv(Matrix(V2))
-
-     @test inv(V1c) ≈ inv(Matrix(V1))
-     @test inv(V1s) ≈ inv(Matrix(V1))
-
-     @test inv(V0c) ≈ inv(Matrix(V0))
-     @test inv(V0s) ≈ inv(Matrix(V0))
-
-     @test pinv(V0s) ≈ pinv(Matrix(V0))
-     @test pinv(V2s) ≈ pinv(Matrix(V2))
-
-    ## Find example of model with non full rank matric and test
-    ## invfact
-     @test inv(V0) ≈ CovarianceMatrices.invfact(V0c)'*CovarianceMatrices.invfact(V0c)
-     @test inv(V1) ≈ CovarianceMatrices.invfact(V1c)'*CovarianceMatrices.invfact(V1c)
-     @test inv(V2) ≈ CovarianceMatrices.invfact(V2c)'*CovarianceMatrices.invfact(V2c)
-
-     @test inv(V0) ≈ CovarianceMatrices.invfact(V0s)'*CovarianceMatrices.invfact(V0s)
-     @test inv(V1) ≈ CovarianceMatrices.invfact(V1s)'*CovarianceMatrices.invfact(V1s)
-     @test inv(V2) ≈ CovarianceMatrices.invfact(V2s)'*CovarianceMatrices.invfact(V2s)
-     
-
-    mm = rand(6)
-    @test CovarianceMatrices.quadinv(mm, V0s) ≈ mm'*inv(V0s)*mm
-    @test CovarianceMatrices.quadinv(mm, V1s) ≈ mm'*inv(V1s)*mm
-    @test CovarianceMatrices.quadinv(mm, V2s) ≈ mm'*inv(V2s)*mm
-
-end
-
-@testset "Various.........................................." begin
-    # Random.seed!(1)
-    # Z = randn(10, 5)
-    Z = CSV.File("testdata/Z10x5.csv") |> DataFrame |> Matrix
-    @test lrvar(HC1(), Z, demean = true) ≈ cov(StatsBase.SimpleCovariance(), Z)
-    @test lrvar(HC1(), Z, demean = true) ≈ lrvar(HC1(), Z .- mean(Z, dims=1), demean = false)
-    @test lrvar(HC1(), Z, demean = false) ≈ Z'Z/size(Z,1)
-    @test lrvarmatrix(HC1(), Z; demean = true) ≈
-        cov(StatsBase.SimpleCovariance(), Z)
-    @test lrvarmatrix(HC1(), Z; demean = true) ≈
-        lrvar(HC1(), Z .- mean(Z, dims=1), demean = false)
-    ## Need testing for CRHC
-end
-
-@testset "Type preserving.................................." begin
-    # Random.seed!(1)
-    Z = randn(Float32, 10, 5)    
-    @test eltype(lrvar(HC1(), Z, demean = true)) <: Float32
-    @test eltype(lrvar(HC2(), Z, demean = true)) <: Float32
-    @test eltype(lrvar(BartlettKernel(2), Z, demean = true)) <: Float32
-    @test eltype(lrvar(TruncatedKernel(2), Z, demean = true)) <: Float32
-    @test eltype(lrvar(QuadraticSpectralKernel(2), Z, demean = true)) <: Float32
-    @test eltype(lrvar(QuadraticSpectralKernel{NeweyWest}(), Z, demean = true)) <: Float32
-    @test eltype(lrvar(QuadraticSpectralKernel{Andrews}(), Z, demean = true)) <: Float32
-    ## Need testing for CRHC
-end
-
-
-
-
-# @testset "NeweyWest Optimal BW............................." begin
-#     Random.seed!(9)
-#     X = randn(30,5)
-#     y = rand(30)
-#     df = DataFrame(y = y, x1 = X[:,2], x2 = X[:,3], x3 = X[:,4], x4 = X[:,5])
-#     V = [0.0014234570920295653 -0.0003203609358696263 0.0002145224188789533;
-#         -0.00032036093586962626 0.002030239858282678 0.0006792335197493722;
-#         0.0002145224188789535 0.0006792335197493722 0.0010400408350070508]
-#     nwbw = 8.895268
-#     k = ParzenKernel(NeweyWest)
-#     Vj = vcov(k, lm(@formula(y~x1+x2), df))
-#     @test V ≈ Vj
-#     @test k.bw[1] ≈ nwbw
-
-#     V = [0.0022881871780231766 -0.0008842029695304288 0.000442063353905825;
-#     -0.0008842029695304284 0.0026011141571525057 0.0006638051071556448;
-#      0.00044206335390582503 0.0006638051071556448 0.0013358590259366617]
-#     nwbw = 4.23744676121782
-#     k = BartlettKernel(NeweyWest)
-#     Vj = vcov(k, lm(@formula(y~x1+x2), df))
-#     @test V ≈ Vj
-#     @test k.bw[1] ≈ nwbw
-
-#     V = [0.0015938483461041284 -0.0004443550089371629 0.00022923187497491063;
-#         -0.0004443550089371628 0.0022415134516427515 0.0007630674168323773;
-#          0.0002292318749749108 0.0007630674168323773 0.0010705259313823915]
-#     nwbw  = 4.41888992824362
-#     k = QuadraticSpectralKernel(NeweyWest)
-#     Vj = vcov(k, lm(@formula(y~x1+x2), df))
-#     @test V ≈ Vj
-#     @test k.bw[1] ≈ nwbw
-
-#     V = [0.017662022128800667 -0.012810546226779051 -0.0008881499052458461 -0.007806577092014024 0.011568272552465097;
-#         -0.012810546226779051 0.02892731512920205 0.005309632973967233 0.0061614622214174065 -0.007451816342478188;
-#         -0.0008881499052458454 0.005309632973967234 0.009892573169329903 0.001242952114188168 -0.0027346850659789946;
-#         -0.007806577092014025 0.0061614622214174065 0.0012429521141881681 0.010322298771795132 -0.013148100284155506;
-#         0.011568272552465097 -0.007451816342478188 -0.0027346850659789946 -0.013148100284155504 0.028997064190718284]
-
-#     @test  vcov(ParzenKernel(), lm(X, y)) ≈ V
-
-
-# end
-
-@testset "Covariance Matrix Methods........................" begin
-    df = CSV.File("testdata/df30x5.csv") |> DataFrame
-    y = df[!, :y]
-    X = df[!, 1:5] |> Matrix
-    k = TruncatedKernel(1)
-    CM1 = vcovmatrix(k, lm(X,y))
-    CM2 = vcovmatrix(k, lm(X,y), SVD)
-    CM3 = vcovmatrix(k, lm(X,y), Cholesky)
-
-    CMc1 = vcov(k, lm(X,y))
-    CMc2 = vcov(k, lm(X,y))
-    CMc3 = vcov(k, lm(X,y))
-
-    @test CM1 ≈ CMc1
-    @test CM2 ≈ CMc2
-    @test CM3 ≈ CMc3
-
-
-    @test CM1[1,1] == CMc1[1,1]
-    @test CM1[1,1] == CMc2[1,1]
-
-    @test size(CM1) == (5,5)
-
-    @test CM.invfact(CM3; lower = true) ≈ inv(cholesky(Hermitian(Matrix(CM3))).L)
-    @test CM.invfact(CM3; lower = false) ≈ inv(cholesky(Hermitian(Matrix(CM3))).U)
-
-    @test CM.invfact(CM3)'*CM.invfact(CM3) ≈ inv(CM3)
-
-
-    @test CM.invfact(CM2)'*CM.invfact(CM2) ≈ inv(CM3)
-
-    s = svd(Matrix(CM1))
-    @test abs.(CM.invfact(CM2)) ≈ abs.(diagm((1.0./sqrt.(s.S)))*s.Vt)
-
-    @test eigmax(CM2) ≈ eigmax(Matrix(CM2))
-    @test eigmax(CM3) ≈ eigmax(Matrix(CM3))
-
-    @test eigmin(CM2) ≈ eigmin(Matrix(CM2))
-    @test eigmin(CM3) ≈ eigmin(Matrix(CM3))
-
-    @test logdet(CM3) ≈ logdet(Matrix(CM3))
-    @test logdet(CM2) ≈ logdet(Matrix(CM2))
-
-    @test inv(CM1) ≈ pinv(Matrix(CM1))
-
-    g = mean(X, dims = 1)
-    @test CM.quadinv(g, CM1) ≈ first(g*inv(Matrix(CM1))*g')
-
-    gt = copy(g')
-    @test CM.quadinv(g, CM1) ≈ first(gt'*inv(Matrix(CM1))*gt)
-
-    @test Symmetric(CM1) == Symmetric(Matrix(CM1))
-
-end
-
-@testset "VARHAC..........................................." begin
-    k = CM.VARHAC()
-    # Random.seed!(1)
-    # g = randn(100,2);
-    g = CSV.File("testdata/X100x2.csv") |> DataFrame |> Matrix
-    G1 = lrvar(k, g)
-    G2 = lrvar(k, g)
-    k = CM.VARHAC(maxlag=2, lagstrategy=2)
-    G2 = lrvar(k, g)
-    k = CM.VARHAC(maxlag=3, lagstrategy=1)
-    G2 = lrvar(k, g)
-
-    k = CM.VARHAC(maxlag=3, lagstrategy=1, selectionstrategy=:bic)
-    G2 = lrvar(k, g)
-    k = CM.VARHAC(maxlag=3, lagstrategy=2, selectionstrategy=:bic)
-    G2 = lrvar(k, g)
-    k = CM.VARHAC(maxlag=3, lagstrategy=3, selectionstrategy=:bic)
-    G2 = lrvar(k, g)
-
-    k = CM.VARHAC(maxlag=3, lagstrategy=1, selectionstrategy=:eq)
-    G2 = lrvar(k, g)
-
-    k = CM.VARHAC(maxlag=3, lagstrategy=2, selectionstrategy=:eq)
-    G2 = lrvar(k, g)
-    k = CM.VARHAC(maxlag=3, lagstrategy=3, selectionstrategy=:eq)
-    G2 = lrvar(k, g)
-
-end
+## TODO: Add more tests for the GLM interface for CR & DK

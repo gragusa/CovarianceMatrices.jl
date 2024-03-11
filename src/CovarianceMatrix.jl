@@ -1,7 +1,7 @@
-Base.String(::Type{T}) where T<:TruncatedKernel = "Truncated"
+Base.String(::Type{T}) where T<:Truncated = "Truncated"
 Base.String(::Type{T}) where T<:ParzenKernel = "Parzen"
 Base.String(::Type{T}) where T<:TukeyHanningKernel = "Tukey-Hanning"
-Base.String(::Type{T}) where T<:BartlettKernel = "Bartlett"
+Base.String(::Type{T}) where T<:Bartlett = "Bartlett"
 Base.String(::Type{T}) where T<:QuadraticSpectralKernel = "Quadratic Spectral"
 
 Base.size(x::CovarianceMatrix) = size(x.V)

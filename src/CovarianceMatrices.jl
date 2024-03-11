@@ -9,35 +9,44 @@ These use cases utilize different parts of this package, make sure you read the 
 
 module CovarianceMatrices
 
-using CategoricalArrays
+using Combinatorics
+using GroupedArrays
 using LinearAlgebra
-using Requires: @require
+using SparseArrays
 using Statistics
 using StatsBase
-using StatsModels
+using Base.Threads
+
 include("types.jl")
+include("aVar.jl")
 include("HAC.jl")
-include("CRHC.jl")
-include("VARHAC.jl")
-include("lrvar.jl")
-include("smoothing.jl")
-include("CovarianceMatrix.jl")
-include("interface_api.jl")
-# using GLM
-# include("glm.jl")
-
-function __init__()
-    @require GLM="38e38edf-8417-5370-95a0-9cbb8c7f171a" include("glm.jl")
-end
-
+include("CR.jl")
+include("HR.jl")
+include("DriscollKraay.jl")
+include("demeaner.jl")
+include("EWC.jl")
+include("api.jl")
 export Andrews,
-       BartlettKernel,
-       CRHC0,
-       CRHC1,
-       CRHC2,
-       CRHC3,
-       CovarianceMatrix,
-       HC,
+       NeweyWest,
+       Bartlett,
+       Parzen,
+       QuadraticSpectral,
+       Truncated,
+       TukeyHanning,
+       CR0,
+       CR1,
+       CR2,
+       CR3,
+       #Covariance,
+       HR,
+       HR0,
+       HR1,
+       HR2,
+       HR3,
+       HR4,
+       HR4m,
+       HR5,
+       HR,
        HC0,
        HC1,
        HC2,
@@ -46,14 +55,12 @@ export Andrews,
        HC4m,
        HC5,
        HAC,
-       NeweyWest,
-       ParzenKernel,
-       QuadraticSpectralKernel,
-       TruncatedKernel,
-       TukeyHanningKernel,
+       EWC,       
        Smoothed,
-       lrvar,
-       lrvarmatrix,
-       optimalbandwidth,
-       vcovmatrix      
-end 
+       aVar,
+       a𝕍ar,
+       optimalbw,
+       bread,
+       momentmatrix,
+       residualadjustment
+end

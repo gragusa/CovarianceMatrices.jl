@@ -12,31 +12,116 @@ Heteroskedasticity and Autocorrelation Consistent Covariance Matrix Estimation f
 Pkg.add("CovarianceMatrices")
 ```
 
----
-
 ## Introduction
 
-This package provides types and methods useful to obtain consistent estimates of the long run covariance matrix of a random process.
+This package provides types and methods applicable to obtain consistent estimates of the long-run covariance matrix of a random process.
 
 Three classes of estimators are considered:
 
-1. **HAC** - heteroskedasticity and autocorrelation consistent (Andrews, 1996; Newey and West, 1994)
-2. **VARHAC** - Vector Autoregression based HAC (Den Haan and Levine)
-3. **Smoothed** - (Smith, 2014)
-2. **HC**  - hetheroskedasticity consistent (White, 1982)
-3. **CRVE** - cluster robust (Arellano, 1986)
+1. **HAC**
+   a. **Kernel** 
+   b. **EWC** 
+   c. **Smoothed**
+   d. **VarHAC**
 
-The typical application of these estimators is to conduct robust inference about parameters of a statistical model. 
+2. **HC**
 
-The package extends methods defined in [StatsBase.jl](http://github.com/JuliaStat/StatsBase.jl) and [GLM.jl](http://github.com/JuliaStat/GLM.jl) to provide a plug-and-play replacement for the  standard errors calculated by default by [GLM.jl](http://github.com/JuliaStat/GLM.jl).
+3. **CR** 
 
-The API can be used regardless of whether the model is fit with [GLM.jl](http://github.com/JuliaStat/GLM.jl) and developer can extend their fit functions to provides robust standard errors. 
+4. **DriscolKray**
 
-# Quick tour
+
+The typical application of these estimators is to conduct robust inference about the parameters of a statistical model. 
+
+
+The package extends methods defined in [StatsBase.jl](http://github.com/JuliaStat/StatsBase.jl) and [GLM.jl](http://github.com/JuliaStat/GLM.jl) to provide a plug-and-play replacement for the standard errors calculated by default by [GLM.jl](http://github.com/JuliaStat/GLM.jl). The [GLM.jl](http://github.com/JuliaStat/GLM.jl) are implemented as an extension. 
+
+The API can be used regardless of whether the model is fit with [GLM.jl](http://github.com/JuliaStat/GLM.jl) and developers can extend their estimation methods to provide robust standard errors. 
 
 ## HAC (Heteroskedasticity and Autocorrelation Consistent)
 
-Available kernel types are:
+Let $\{X_t, t=1,\ldots\}$ be a random vector process. Under suitable conditions, we have that as $T\to\infty$
+
+$$
+\sqrt{T}\Sigma_T^{-1/2}(\bar{X}_T - \mu_T) \xrightarrow{d} N(0, I_k),
+$$
+where 
+$$
+\bar{X}_T = \frac{1}{T}\sum_{t=1}^T X_t,\quad \mu_T = E\bar{X}_T,
+$$
+and $\Sigma_T$ is the asymptotic variance of $\sqrt{T}\bar{X}_T$, that is, 
+$$
+\Sigma_T := \lim_{T\to\infty} \mathrm{Var}\left(\frac{1}{\sqrt{T}}\sum_{t=1}^T X_t \right).
+$$
+
+### Kernel methods
+
+The covariance matrix $\Sigma_T$ can be estimated using kernel method:
+$$
+\hat{\Sigma}_T = \sum_{h=-T+1}^{T-1} k\left(\frac{h}{B_T}\right) \hat\Gamma(h) + \hat\Gamma(h)'
+$$
+
+where 
+$$
+\hat{\Gamma}(h) = \frac{1}{T-h}\sum_{t=h+1}^T (X_t - \bar{X}_T)(X_t - \bar{X}_T)',
+$$
+and $k(\cdot)$ is a _kernel_ function, and $B_T$ is the bandwidth parameter. 
+
+The kernel is a symmetric, real-valued, and non-negative function that determines the weights given to each sample autocovariance. 
+
+The kernel implemented in `CovarianceMatrices` are:
+
+_Truncated_
+
+$$
+k(u)=\begin{cases}
+1 & |u|\leqslant1\\
+0 & \text{otherwise}
+\end{cases}
+$$
+
+_Bartlett_
+
+$$
+k(u)=\begin{cases}
+1-|u| & |u|\leqslant1\\
+0 & \text{otherwise}
+\end{cases}
+$$
+
+_Parzen_
+
+$$
+k(u) = \begin{cases}
+1-6|u|^{2}+6|u|^{3} & |u|\leqslant1/2\\
+2(1-|u|)^{2} & \text{otherwise}
+\end{cases}
+$$
+
+_Tukey-Hanning_
+
+$$
+k(u)=\begin{cases}
+0.5(1+\cos(\pi u)) & |u|\leqslant1\\
+0 & \text{otherwise}
+\end{cases}
+$$
+
+
+_Quadratic Spectral_
+
+$$
+k(u)=\frac{25}{12\pi^{2}u^{2}}\left(\frac{\sin(6\pi u/5)}{\frac{6}{5}\pi x}-cos(6\pi u/5)\right)
+$$
+
+
+A kernel based estimate of $\Sigma_T$ can be obtained by
+
+```julia
+Sigma_hat = aVar(Truncated(3.4), X)
+Sigma_hat = aVar(Bartlett(3.4), X)
+Sigma_hat = aVar(Parzen(3.4), X)
+```
 
 - `TruncatedKernel`
 - `BartlettKernel`
@@ -44,10 +129,11 @@ Available kernel types are:
 - `TukeyHanningKernel`
 - `QuadraticSpectralKernel`
 
-For example, `ParzenKernel{NeweyWest}()` return an instance of `TruncatedKernel` parametrized by `NeweyWest`, the type that corresponds to the optimal bandwidth calculated following Newey and West (1994).  Similarly, `ParzenKernel{Andrews}()` corresponds to the optimal bandwidth obtained in Andrews (1991). If the bandwidth is known, it can be directly passed, i.e. `TruncatedKernel(2)`.
+For example, `ParzenKernel{NeweyWest}()` returns an instance of `TruncatedKernel` parametrized by `NeweyWest`, the type that corresponds to the optimal bandwidth calculated following Newey and West (1994).  Similarly, `ParzenKernel{Andrews}()` corresponds to the optimal bandwidth obtained in Andrews (1991). If the bandwidth is known, it can be directly passed, i.e. `TruncatedKernel(2)`.
 
 
-### Long run variance of regression coefficients
+
+### Long-run variance of regression coefficients
 
 In the regression context, the function `vcov` does all the work:
 ```julia
@@ -73,7 +159,8 @@ y = 0.1 .+ x*[0.2, 0.3, 0.0, 0.0, 0.5] + u
 df = convert(DataFrame,x)
 df[!,:y] = y
 ```
-Using the data in `df`, the coefficient of the regression can be estimated using `GLM`
+
+The coefficient of the regression can be estimated using `GLM`
 
 ```julia
 lm1 = glm(@formula(y~x1+x2+x3+x4+x5), df, Normal(), IdentityLink())
@@ -89,19 +176,19 @@ vcov(QuadraticSpectralKernel{NeweyWest}(), lm1, prewhite = false)
 ```
 The standard errors can be obtained by the `stderror` method
 ```julia
-stderror( ::HAC, ::DataFrameRegressionModel; prewhite::Bool)
+stderror(::HAC, ::DataFrameRegressionModel; prewhite::Bool)
 ```
 For the previous example:
 ```julia
 stderror(QuadraticSpectralKernel{NeweyWest}(), lm1, prewhite = false)
 ```
 
-Sometime is useful to access the bandwidth selected by the automatic procedures. This can be done using the `optimalbandwidth` method
+The bandwidth selected by the automatic procedures can be accessed by `optimalbandwidth`
 ```julia
 optimalbandwidth(QuadraticSpectralKernel{NeweyWest}(), lm1; prewhite = false)
 optimalbandwidth(QuadraticSpectralKernel{Andrews}(), lm1; prewhite = false)
 ```
-Alternatively, the optimal bandwidth is stored in the kernel structure (upon calculation of the variance) and can be accessed. This requires however that the kernel type is materialized:
+Alternatively, the optimal bandwidth is stored in the kernel structure (upon variance calculation) and can be accessed (this way requires, however, that the kernel type is materialized)
 ```julia
 kernel = QuadraticSpectralKernel{NeweyWest}()
 stderror(kernel, lm1, prewhite = false)
@@ -111,7 +198,7 @@ bw = CovarianceMatrices.bandwidth(kernel)
 
 ### Covariances without `GLM.jl`
 
-One might want to calculate variance estimator when the regression (or some other model) is fit "manually". Below is an example of how this can be accomplished.
+One might want to calculate a variance estimator when the regression (or some other model) is fit "manually". Below is an example of how this can be accomplished.
 
 ```julia
 X   = [ones(n) x]
