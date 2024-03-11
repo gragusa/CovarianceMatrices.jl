@@ -1,5 +1,5 @@
 """
-DriscolKraay variance covariance matrix estimator
+DriscolKraay variance-covariance matrix estimator
 
 Driscol and Kraay (1998) 
 """
