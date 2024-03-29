@@ -1,6 +1,6 @@
 module GLMExt
 
-using CovarianceMatrices, GLM, LinearAlgebra
+using CovarianceMatrices, GLM, LinearAlgebra, StatsBase
 using Statistics
 
 ##=================================================
