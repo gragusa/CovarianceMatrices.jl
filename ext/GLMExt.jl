@@ -88,7 +88,7 @@ scratchm1(m::StatsModels.TableRegressionModel{T}) where T = scratchm1(m.model)
 scratchm1(m::GLM.LinPredModel) = m.pp.scratchm1
 scratchm1(m::GLM.GeneralizedLinearModel) = m.pp.scratchm1
 
-function CM.aVar(k::K, m::RegressionModel; demean = false, prewhiten = false, scale=true, kwargs...) where K <: CM.AVarEstimator
+function CM.aVar(k::K, m::RegressionModel; demean = false, prewhite = false, scale=true, kwargs...) where K <: CM.AVarEstimator
     setglmkernelweights!(k, m)
     mm = begin
         u = CM.residualadjustment(k, m)
@@ -103,9 +103,9 @@ function CM.aVar(k::K, m::RegressionModel; demean = false, prewhiten = false, sc
     end
     midx = mask(m)
     Σ =  if sum(midx) == size(mm, 2)
-        aVar(k, mm; demean = demean, prewhiten = prewhiten, scale=scale)
+        aVar(k, mm; demean = demean, prewhite = prewhite, scale=scale)
     else
-        aVar(k, mm[:, midx]; demean = demean, prewhiten = prewhiten, scale=scale)
+        aVar(k, mm[:, midx]; demean = demean, prewhite = prewhite, scale=scale)
     end
     return Σ
 end
@@ -129,16 +129,16 @@ function crmomentmatrix!(M::AbstractMatrix, res, m::GLM.LinearModel)
     return M
 end
 
-function CM.aVar(k::K, m::RegressionModel; demean = false, prewhiten = false, scale=true, kwargs...) where K <: CM.CR
+function CM.aVar(k::K, m::RegressionModel; demean = false, prewhite = false, scale=true, kwargs...) where K <: CM.CR
     mm = begin
         u = CM.residualadjustment(k, m)
         crmomentmatrix!(scratchm1(m), u, m)
     end
     midx = mask(m)
     Σ =  if sum(midx) == size(mm, 2)
-        aVar(k, mm; demean = demean, prewhiten = prewhiten, scale=scale)
+        aVar(k, mm; demean = demean, prewhite = prewhite, scale=scale)
     else
-        aVar(k, mm[:, midx]; demean = demean, prewhiten = prewhiten, scale=scale)
+        aVar(k, mm[:, midx]; demean = demean, prewhite = prewhite, scale=scale)
     end
     return Σ
 end
@@ -304,6 +304,9 @@ function CM.vcov(k::CM.AVarEstimator, m::RegressionModel; dofadjust=true, kwargs
     return Vo
 end
 
+function StatsBase.stderr(k::CM.AVarEstimator, m::RegressionModel; kwargs...)
+    sqrt.(diag(CM.vcov(k, m; kwargs...)))
+end
 
 ## Make df correction - only useful for HAC - for other estimator HR CR it depends on the type
 dofcorrect!(V, k::CM.AVarEstimator, m) = nothing
