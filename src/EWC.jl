@@ -10,8 +10,8 @@ Base.@propagate_inbounds function Λ(j::Integer, m::AbstractMatrix{F}) where F<:
   return L *= sqrt(2/T)
 end
 
-function avar(k::EWC, X::Matrix{F}; prewhiten=false) where {F<:AbstractFloat}
-  if prewhiten
+function avar(k::EWC, X::Matrix{F}; prewhite=false) where {F<:AbstractFloat}
+  if prewhite
     Z, D = fit_var(X)
   else
     Z = X

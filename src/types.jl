@@ -36,7 +36,7 @@ Truncated{NeweyWest}()
 struct TruncatedKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
-    prewhiten::Base.RefValue{Bool}
+    prewhite::Base.RefValue{Bool}
 end
 
 const Truncated = TruncatedKernel
@@ -55,7 +55,7 @@ Bartlett(::Type{NeweyWest})
 struct BartlettKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
-    prewhiten::Base.RefValue{Bool}
+    prewhite::Base.RefValue{Bool}
 end
 
 const Bartlett = BartlettKernel
@@ -74,7 +74,7 @@ Parzen(::Type{NeweyWest})
 struct ParzenKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
-    prewhiten::Base.RefValue{Bool}
+    prewhite::Base.RefValue{Bool}
 end
 
 const Parzen = ParzenKernel
@@ -92,7 +92,7 @@ TukeyHanning(::Type{NeweyWest})
 struct TukeyHanningKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
-    prewhiten::Base.RefValue{Bool}
+    prewhite::Base.RefValue{Bool}
 end
 
 const TukeyHanning = TukeyHanningKernel
@@ -111,7 +111,7 @@ QuadraticSpectral(::Type{NeweyWest})
 struct QuadraticSpectralKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
     weights::Vector{WFLOAT}
-    prewhiten::Base.RefValue{Bool}
+    prewhite::Base.RefValue{Bool}
 end
 
 const QuadraticSpectral = QuadraticSpectralKernel

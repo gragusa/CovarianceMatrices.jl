@@ -1,7 +1,7 @@
 """
 Asymptotic Variance Estimators
 
-aVar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhiten::Bool=false, scale=true)
+aVar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhite::Bool=false, scale=true)
 
 Caclulate the asymptotic variance of \\bar{X}_{,j}=\\frac{1}{b_n}\\sum{i=1}^n X_{i,j}, where \\bar{X}_{,j} is the j-th column of `X`.
 
@@ -14,10 +14,10 @@ Caclulate the asymptotic variance of \\bar{X}_{,j}=\\frac{1}{b_n}\\sum{i=1}^n X_
 
 aVar(k::AVarEstimator, m::AbstractMatrix; kwargs...) = aVar(k, float.(m), kwargs...)
 
-function aVar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhiten::Bool=false, scale=true) where T<:AbstractFloat
+function aVar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhite::Bool=false, scale=true) where T<:AbstractFloat
     Base.require_one_based_indexing(m)
     X = demean ? demeaner(m; means=means, dims=dims) : m
-    Shat = avar(k, X; prewhiten=prewhiten)
+    Shat = avar(k, X; prewhite=prewhite)
     return scale ? Shat./size(X,dims) : Shat
 end
 

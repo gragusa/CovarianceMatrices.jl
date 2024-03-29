@@ -25,83 +25,83 @@ end
   𝒦 = Bartlett{NeweyWest}()
   Σ = a𝕍ar(𝒦, X)
   @test 𝒦.bw[1] ≈ 5.326955 atol=1e-6
-  @test optimalbw(𝒦, X; prewhiten=false, demean=true) ≈ 𝒦.bw[1] rtol=1e-9
+  @test optimalbw(𝒦, X; prewhite=false, demean=true) ≈ 𝒦.bw[1] rtol=1e-9
   
   𝒦 = Parzen{NeweyWest}()
   Σ = a𝕍ar(𝒦, X)
   @test 𝒦.bw[1] ≈ 9.72992 atol=1e-6
-  @test optimalbw(𝒦, X; prewhiten=false, demean=true) ≈ 𝒦.bw[1] rtol=1e-9
+  @test optimalbw(𝒦, X; prewhite=false, demean=true) ≈ 𝒦.bw[1] rtol=1e-9
   
   𝒦 = QuadraticSpectral{NeweyWest}()
   Σ = a𝕍ar(𝒦, X)
   @test 𝒦.bw[1] ≈ 4.833519 atol=1e-6
-  @test optimalbw(𝒦, X; prewhiten=false, demean=true) ≈ 𝒦.bw[1] rtol=1e-9
+  @test optimalbw(𝒦, X; prewhite=false, demean=true) ≈ 𝒦.bw[1] rtol=1e-9
   ## ---
   𝒦 = Bartlett{NeweyWest}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=true)
+  Σ = a𝕍ar(𝒦, X; prewhite=true)
   @test 𝒦.bw[1] ≈ 1.946219 rtol=1e-7
-  @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
+  @test optimalbw(𝒦, X; prewhite=true) == 𝒦.bw[1]
   
   𝒦 = Parzen{NeweyWest}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=true)
+  Σ = a𝕍ar(𝒦, X; prewhite=true)
   @test 𝒦.bw[1] ≈ 6.409343 rtol=1e-7
-  @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
+  @test optimalbw(𝒦, X; prewhite=true) == 𝒦.bw[1]
   
   𝒦 = QuadraticSpectral{NeweyWest}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=true)
+  Σ = a𝕍ar(𝒦, X; prewhite=true)
   @test 𝒦.bw[1] ≈ 3.183961 atol=1e-6
-  @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
+  @test optimalbw(𝒦, X; prewhite=true) == 𝒦.bw[1]
 end
 
 @testset "OB Andrews" begin
   𝒦 = Bartlett{Andrews}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=false);
+  Σ = a𝕍ar(𝒦, X; prewhite=false);
   @test 𝒦.bw[1] ≈ 2.329739 rtol=1e-6
-  @test optimalbw(𝒦, X; prewhiten=false) == 𝒦.bw[1]
+  @test optimalbw(𝒦, X; prewhite=false) == 𝒦.bw[1]
   
   𝒦 = Parzen{Andrews}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=false);
+  Σ = a𝕍ar(𝒦, X; prewhite=false);
   @test 𝒦.bw[1] ≈ 4.81931 rtol=1e-6
-  @test CovarianceMatrices.optimalbw(𝒦, X; prewhiten=false) == 𝒦.bw[1]
+  @test CovarianceMatrices.optimalbw(𝒦, X; prewhite=false) == 𝒦.bw[1]
   
   𝒦 = QuadraticSpectral{Andrews}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=false)
+  Σ = a𝕍ar(𝒦, X; prewhite=false)
   @test 𝒦.bw[1] ≈ 2.394082 atol=1e-6
   @test optimalbw(𝒦, X) == 𝒦.bw[1]
   
   𝒦 = TukeyHanning{Andrews}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=false)
+  Σ = a𝕍ar(𝒦, X; prewhite=false)
   @test 𝒦.bw[1] ≈ 3.162049 rtol=1e-6
   @test optimalbw(𝒦, X) == 𝒦.bw[1]
   
   𝒦 = Truncated{Andrews}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=false)
+  Σ = a𝕍ar(𝒦, X; prewhite=false)
   @test 𝒦.bw[1] ≈ 1.197131 rtol=1e-6
   @test optimalbw(𝒦, X) == 𝒦.bw[1]
   
   ## --
   𝒦 = Bartlett{Andrews}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=true);
+  Σ = a𝕍ar(𝒦, X; prewhite=true);
   @test 𝒦.bw[1] ≈ 0.3836096 rtol=1e-6
-  @test optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
+  @test optimalbw(𝒦, X; prewhite=true) == 𝒦.bw[1]
   
   𝒦 = Parzen{Andrews}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=true);
+  Σ = a𝕍ar(𝒦, X; prewhite=true);
   @test 𝒦.bw[1] ≈ 1.380593 rtol=1e-6
-  @test CovarianceMatrices.optimalbw(𝒦, X; prewhiten=true) == 𝒦.bw[1]
+  @test CovarianceMatrices.optimalbw(𝒦, X; prewhite=true) == 𝒦.bw[1]
   
   𝒦 = QuadraticSpectral{Andrews}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=true)
+  Σ = a𝕍ar(𝒦, X; prewhite=true)
   @test 𝒦.bw[1] ≈ 0.6858351 atol=1e-6
   @test optimalbw(𝒦, X) == 𝒦.bw[1]
   
   𝒦 = TukeyHanning{Andrews}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=true)
+  Σ = a𝕍ar(𝒦, X; prewhite=true)
   @test 𝒦.bw[1] ≈ 0.9058356 rtol=1e-6
   @test optimalbw(𝒦, X) == 𝒦.bw[1]
   
   𝒦 = Truncated{Andrews}()
-  Σ = a𝕍ar(𝒦, X; prewhiten=true)
+  Σ = a𝕍ar(𝒦, X; prewhite=true)
   @test 𝒦.bw[1] ≈ 0.3429435 rtol=1e-6
   @test optimalbw(𝒦, X) == 𝒦.bw[1]
   
@@ -201,8 +201,8 @@ QuadraticSpectral{NeweyWest}())
 pre = (false, true)
 
 @testset "aVar HAC" begin
-  for ((𝒦, prewhiten), Σ₀) in zip(Iterators.product(kernels, pre), Σ₀₀)
-    Σ = a𝕍ar(𝒦, X; prewhiten=prewhiten)
+  for ((𝒦, prewhite), Σ₀) in zip(Iterators.product(kernels, pre), Σ₀₀)
+    Σ = a𝕍ar(𝒦, X; prewhite=prewhite)
     @test Σ ≈ Σ₀ rtol=1e-6
   end
 end
@@ -290,7 +290,7 @@ function fopt!(u; weighted=false)
       eval(quote
         ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink(), wts=$weighted ? $(df).w : Float64[])
         𝒦 = ($k){Andrews}()
-        tmp = vcov(𝒦, ols; prewhiten=$pre, dofadjust=false)
+        tmp = vcov(𝒦, ols; prewhite=$pre, dofadjust=false)
         da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
           end)
     end
@@ -299,7 +299,7 @@ function fopt!(u; weighted=false)
       eval(quote
         𝒦 = ($k){NeweyWest}()
         ## To get the same results of R, the weights given to the intercept should be 0
-        tmp = vcov(𝒦, ols; prewhiten=$pre, dofadjust=false)
+        tmp = vcov(𝒦, ols; prewhite=$pre, dofadjust=false)
         dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
           end)
     end
@@ -341,7 +341,7 @@ function ffix!(u; weighted=false)
       eval(quote
             ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink(), wts=$weighted ? $(df).w : Float64[])
             𝒦 = ($k)(3)
-            tmp = vcov(𝒦, ols; prewhiten=$pre, dofadjust=false)
+            tmp = vcov(𝒦, ols; prewhite=$pre, dofadjust=false)
             da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
           end)
     end
@@ -349,7 +349,7 @@ function ffix!(u; weighted=false)
       eval(quote
             𝒦 = ($k)(3)
             ## To get the same results of R, the weights given to the intercept should be 0
-            tmp = vcov(𝒦, ols; prewhiten=$pre, dofadjust=false)
+            tmp = vcov(𝒦, ols; prewhite=$pre, dofadjust=false)
             dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
           end)
     end
