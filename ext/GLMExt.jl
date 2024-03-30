@@ -304,13 +304,12 @@ function CM.vcov(k::CM.AVarEstimator, m::RegressionModel; dofadjust=true, kwargs
     return Vo
 end
 
-function StatsBase.stderr(k::CM.AVarEstimator, m::RegressionModel; kwargs...)
+function StatsBase.stderror(k::CM.AVarEstimator, m::RegressionModel; kwargs...)
     sqrt.(diag(CM.vcov(k, m; kwargs...)))
 end
 
 ## Make df correction - only useful for HAC - for other estimator HR CR it depends on the type
 dofcorrect!(V, k::CM.AVarEstimator, m) = nothing
-
 
 ## Add method for Other if needed
 function dofcorrect!(V, k::HAC, m)
