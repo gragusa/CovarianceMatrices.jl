@@ -48,20 +48,6 @@ function mask(pp::GLM.DensePredChol{F, C}) where {F, C <: LinearAlgebra.Cholesky
     return ones(Bool, k)
 end
 
-setglmkernelweights!(k::CM.AVarEstimator, m) = nothing
-
-function setglmkernelweights!(k::HAC, m::GLM.RegressionModel)
-    kw = CM.kernelweights(k)
-    k = size(modelmatrix(m), 2)
-    if isempty(kw)
-        [push!(kw, 1.0) for i in 1:k]
-        idx = map(i -> all(==(1), view(modelmatrix(m), :, i)), 1:k)
-        kw[idx] .= 0.0
-    else
-        @assert length(kw) == k "The length of kernelweights should be equal to the number of columns in the model matrix."
-    end
-end
-
 CM.momentmatrix(m::RegressionModel) = momentmatrix(m.model)
 CM.momentmatrix!(M::AbstractMatrix, m::RegressionModel) = CM.momentmatrix!(M, m.model)
 
@@ -89,7 +75,7 @@ scratchm1(m::GLM.LinPredModel) = m.pp.scratchm1
 scratchm1(m::GLM.GeneralizedLinearModel) = m.pp.scratchm1
 
 function CM.aVar(k::K, m::RegressionModel; demean = false, prewhite = false, scale=true, kwargs...) where K <: CM.AVarEstimator
-    setglmkernelweights!(k, m)
+    CM.setkernelweights!(k, m)
     mm = begin
         u = CM.residualadjustment(k, m)
         ## Important:
@@ -318,5 +304,9 @@ function dofcorrect!(V, k::HAC, m)
     rmul!(V, n/dof)
 end
 
+function CM.setkernelweights!(k::HAC{T}, X::RegressionModel) where T<:Union{CM.NeweyWest, CM.Andrews} 
+    CM.setkernelweights!(k, modelmatrix(X))
+    k.wlock .= true
+end
 
 end

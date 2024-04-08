@@ -111,8 +111,8 @@ end
   f = repeat(1:20, inner=5);
   M = CovarianceMatrices.clusterize(X, GroupedArray(f))
   M₀= [134.8844  120.9909  123.9828
-  120.9909  124.3984  120.7009
-  123.9828  120.7009  127.6566]
+       120.9909  124.3984  120.7009
+       123.9828  120.7009  127.6566]
   @test M ≈ M₀ atol=1e-4
   ## Out of order
   shuffler = shuffle(StableRNG(123), 1:size(X,1))

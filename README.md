@@ -1,5 +1,6 @@
 # CovarianceMatrices.jl
-![example workflow](https://github.com/gragusa/CovarianceMatrices.jl/actions/workflows/ci.yml/badge.svg)
+
+[![Build Status](https://travis-ci.org/gragusa/CovarianceMatrices.jl.svg?branch=master)](https://travis-ci.org/gragusa/CovarianceMatrices.jl)
 [![Coverage Status](https://coveralls.io/repos/gragusa/CovarianceMatrices.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/gragusa/CovarianceMatrices.jl?branch=master)
 [![codecov.io](http://codecov.io/github/gragusa/CovarianceMatrices.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/CovarianceMatrices.jl?branch=master)
 
@@ -264,7 +265,7 @@ vcov(HC5(),wOLS)
 
 ## CRHC (Cluster robust heteroskedasticity consistent)
 
-The API of this class of estimators is subject to change, so please use with care. The difficulty is that `CRHC` type needs to have access to the variable along which dimension the clustering must take place. For the moment, the following approach works 
+The API of this class of estimators is subject to change, so please use it with care. The difficulty is that `CRHC` type needs access to the clustering variables. For the moment, the following approach works 
 
 ```julia
 using RDatasets
@@ -281,7 +282,7 @@ vcov(CRHC1(df[:Firm]), lm)
 stderror(CRHC1(df[:Firm]),lm)
 ```
 
-As in the `HAC` case, `sandwich` and `lrvar` can be leveraged to constract cluster-robust variances without relying on `GLM.jl`.
+As in the `HAC` case, `sandwich` and `lrvar` can be leveraged to construct cluster-robust variances without relying on `GLM.jl`.
 
 ## Performances
 
@@ -290,16 +291,22 @@ As in the `HAC` case, `sandwich` and `lrvar` can be leveraged to constract clust
 using BenchmarkTools
 ## Calculating a HAC on a large matrix
 Z = randn(10000, 10)
-@btime lrvar(BartlettKernel{Andrews}(), Z, prewhite = true) 
-## 2.085 ms (180 allocations: 6.20 MiB)
+@btime aVar($(Bartlett{Andrews}()), $Z; prewhite = true) 
+```
+
+```
+681.166 μs (93 allocations: 3.91 MiB)
 ```
 
 ```r
 library(sandwich)
 library(microbenchmark)
 Z <- matrix(rnorm(10000*10), 10000, 10)
-microbenchmark( "Bartlett/Newey" = {lrvar(Z, type = "Andrews", kernel = "Bartlett")})
-#Unit: milliseconds
-#           expr      min       lq     mean   median       uq      max     neval
-# Bartlett/Andrews 135.1839 148.3426 186.1966 155.0156 246.3178 355.3174   100
+microbenchmark( "Bartlett/Newey" = {lrvar(Z, type = "Andrews", kernel = "Bartlett", adjust=FALSE)})
+```
+
+```
+Unit: milliseconds
+        expr    min      lq      mean     median      uq     max  neval
+ Bartlett/Newey 59.56402 60.7679 63.85169 61.47827 68.73355 82.26539 100
 ```
