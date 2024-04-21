@@ -290,7 +290,7 @@ function CM.vcov(k::CM.AVarEstimator, m::RegressionModel; dofadjust=true, kwargs
     return Vo
 end
 
-function StatsBase.stderror(k::CM.AVarEstimator, m::RegressionModel; kwargs...)
+function CM.stderror(k::CM.AVarEstimator, m::RegressionModel; kwargs...)
     sqrt.(diag(CM.vcov(k, m; kwargs...)))
 end
 
