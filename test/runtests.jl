@@ -107,6 +107,12 @@ end
   
 end
 
+@testset "OB (Cold)" begin
+    𝒦 = Bartlett{Andrews}()
+    @test optimalbw(𝒦, X; prewhite=false) ≈ 2.329739 rtol=1e-6
+    @test optimalbw(𝒦, X; prewhite=false) ≈ 2.329739 rtol=1e-6
+end
+
 @testset "Clustersum" begin
   f = repeat(1:20, inner=5);
   M = CovarianceMatrices.clusterize(X, GroupedArray(f))
