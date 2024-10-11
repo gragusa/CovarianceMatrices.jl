@@ -85,6 +85,7 @@ function workingoptimalbw(k::HAC{T},
                           m::AbstractMatrix;
                           prewhite::Bool=false,) where {T<:Union{Andrews,NeweyWest}}
     X, D = prewhiter(m, prewhite)
+    setkernelweights!(k, X)
     bw = _optimalbandwidth(k, X, prewhite)
     return X, D, bw
 end
