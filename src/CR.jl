@@ -10,18 +10,6 @@ function clusterize(X::Matrix, g::GroupedArray)
     return Symmetric(X2' * X2)
 end
 
-# function mean_by_cluster(X::Matrix, g::GroupedArray)
-#     X2 = zeros(eltype(X), g.ngroups, size(X, 2))
-#     idx = 0
-#     @inbounds for j in axes(X, 2)
-#         idx += 1
-#         @simd for i in axes(X, 1)
-#             X2[g.groups[i], idx] += X[i, j]
-#         end
-#     end
-#     return Symmetric(X2' * X2)
-# end
-
 function avar(k::T, X::Union{Matrix{F},Vector{F}};
               kwargs...) where {T<:Union{CR0,CR1,CR2,CR3},F<:AbstractFloat}
     f = k.g
@@ -45,7 +33,7 @@ end
 nclusters(k::CR) = (map(x -> x.ngroups, k.g))
 rescale!(k::T, S::Matrix) where {T<:CR0} = nothing
 
-function rescale!(k::T, S::Matrix) where {T<:CR1}
+function rescale!(k::T, S::AbstractMatrix) where {T<:CR1}
     # scale total vcov estimate by ((N-1)/(N-K)) * (G/(G-1))
     G = minimum(nclusters(k))
     N = length(k.g[1])
@@ -53,5 +41,5 @@ function rescale!(k::T, S::Matrix) where {T<:CR1}
     @. S *= ((N - 1) / (N - K)) * (G / (G - 1))
 end
 
-rescale!(k::T, S::Matrix) where {T<:CR2} = nothing
-rescale!(k::T, S::Matrix) where {T<:CR3} = nothing
+rescale!(k::T, S::AbstractMatrix) where {T<:CR2} = nothing
+rescale!(k::T, S::AbstractMatrix) where {T<:CR3} = nothing
