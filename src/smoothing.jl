@@ -1,4 +1,4 @@
-abstract type AbstractSmoother end
+abstract type AbstractSmoother <: AVarEstimator end
 
 """
 Identity()
@@ -36,7 +36,6 @@ end
 
 inducedkernel(x::Type{TruncatedSmoother}) = Bartlett
 
-
 """
 Truncate(ξ::Int)
 
@@ -60,6 +59,8 @@ struct BartlettSmoother <: AbstractSmoother
         end
     end
 end
+
+inducedkernel(x::Type{BartlettSmoother}) = Parzen
 
 bw(s::AbstractSmoother) = s.S
 κ₁(s::AbstractSmoother) = s.κ₁
@@ -133,49 +134,10 @@ Base.@propagate_inbounds function (s::BartlettSmoother)(N::Int)
     return nG
 end
 
-struct Smoothed{K<:HAC}
-    k::K
+function avar(k::T, X; kwargs...) where {T<:Union{BartlettSmoother,TruncatedSmoother}}
+    n, p = size(X)
+    sm = k(X)
+    V = (sm'sm) ./ k(n)[2]
+    #V = (sm'sm) ./ (k.κ[2]*bw(k))
+    return V
 end
-
-Smoothed{K}() where {K} = Smoothed{K}(K())
-
-function lrvar(
-    k::Smoothed,
-    m::AbstractMatrix;
-    prewhite::Bool=false,
-    demean::Bool=true,
-    scale::Real=1,
-)
-    mm = demean ? m .- mean(m, dims=1) : m
-    scale *= inv(size(m, 1))
-    return _lrvar(k, mm, prewhite, scale)
-end
-
-function getsmoother(k::Smoothed{T}, m, prewhite) where {T<:BartlettKernel}
-    S = getsmoothedbandwidth(k.k, m, prewhite)
-    sm = TruncatedSmoother(S)
-    ## Caclulate κ̂
-    sm.κ .= sm(size(m, 1))
-    sm
-end
-
-function getsmoother(k::Smoothed{T}, m, prewhite) where {T<:ParzenKernel}
-    S = getsmoothedbandwidth(k.k, m, prewhite)
-    sm = BartlettSmoother(S)
-    sm.κ .= sm(size(m, 1))
-    sm
-end
-
-function getsmoothedbandwidth(k::T, m, prewhite) where {T}
-    return optimalbandwidth(k, m; prewhite=prewhite)
-end
-
-# function _lrvar(k::Smoothed{T}, mm, prewhite::Bool, scale) where {T<:Union{BartlettKernel,ParzenKernel}}
-#     n, p = size(mm)
-#     m, D = prewhiter(mm, Val{prewhite})
-#     smoother = getsmoother(k, m, prewhite)
-#     sm = smoother(m)
-#     V = (sm'sm) / smoother.κ[2]
-#     dewhiter!(V, m, D, Val{prewhite})
-#     return Symmetric(V .* convert(eltype(V), scale))
-# end
