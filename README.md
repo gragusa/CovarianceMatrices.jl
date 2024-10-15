@@ -151,7 +151,10 @@ $$
 
 where 
 
-$$g(d_i, \theta) := \begin{pmatrix} d_i-\theta \\ (d_i-\theta)^2-1 \end{pmatrix}.$$
+$$g(d_i, \theta) := \begin{pmatrix} 
+  d_i-\theta \\ 
+  (d_i-\theta)^2-1 
+  \end{pmatrix}.$$
 
 The `momentmatrix` function returns the moment conditions based on the model's coefficients and data, while the `bread` function computes the GMM "bread" matrix, which involves the Jacobian of the moment conditions and the inverse of the weighting matrix. 
 

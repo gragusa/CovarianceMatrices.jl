@@ -1,7 +1,7 @@
 name = "CovarianceMatrices"
 uuid = "60f91f6f-d783-54cb-84f9-544141854719"
 author = "Giuseppe Ragusa <giuseppe.ragusa@gmail.com>"
-version = "0.21"
+version = "0.22"
 
 [deps]
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
