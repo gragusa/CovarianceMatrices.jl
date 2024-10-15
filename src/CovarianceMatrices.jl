@@ -12,7 +12,6 @@ module CovarianceMatrices
 using Combinatorics
 using GroupedArrays
 using LinearAlgebra
-using SparseArrays
 using Statistics
 using StatsBase
 using Base.Threads

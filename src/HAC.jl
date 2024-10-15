@@ -208,15 +208,6 @@ Base.@propagate_inbounds function fit_var(A::AbstractMatrix{T}) where {T}
     return E, B
 end
 
-Base.@propagate_inbounds function fit_var(A::AbstractSparseMatrix{T}) where {T}
-    P = parent(A)
-    li = lastindex(P, 1)
-    Y = P[2:li, :]
-    X = P[1:(li - 1), :]
-    B = qr!(X'X) \ Matrix(X'Y)
-    E = Y - X * B
-    return E, B
-end
 
 Base.@propagate_inbounds function fit_ar(Z::AbstractMatrix{T}) where {T}
     ## Estimate
