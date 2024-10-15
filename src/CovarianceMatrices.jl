@@ -26,6 +26,8 @@ include("DriscollKraay.jl")
 include("demeaner.jl")
 include("EWC.jl")
 include("api.jl")
+include("smoothing.jl")
+#include("VARHAC.jl")
 export Andrews,
        NeweyWest,
        Bartlett,
@@ -61,5 +63,9 @@ export Andrews,
        optimalbw,
        bread,
        momentmatrix,
-       residualadjustment
-end
+       residualadjustment,
+       vcov,
+       stderror,
+       BartlettSmoother,
+       TruncatedSmoother
+    end
