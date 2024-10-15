@@ -1,4 +1,4 @@
-module SparseExt
+module SparseArraysExt
 
 using CovarianceMatrices, LinearAlgebra, GroupedArrays, SparseArrays
 
