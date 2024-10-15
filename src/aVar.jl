@@ -3,8 +3,6 @@ Asymptotic Variance Estimators
 
 aVar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhite::Bool=false, scale=true)
 
-Caclulate the asymptotic variance of \\bar{X}_{,j}=\\frac{1}{b_n}\\sum{i=1}^n X_{i,j}, where \\bar{X}_{,j} is the j-th column of `X`.
-
 ## Arguments
 
     - k::AVarEstimator 
@@ -24,9 +22,9 @@ end
 
 const a𝕍ar = aVar
 
-function lrvar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1,
-               means::Union{Nothing,AbstractArray}=nothing,
-               prewhite::Bool=false) where {T<:AbstractFloat}
-    Shat = aVar(k, m; demean=demean, dims=dims, means=means, prewhite=prewhite, scale=true)
-    return Shat ./ size(m, dims)
-end
+# function lrvar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1,
+#                means::Union{Nothing,AbstractArray}=nothing,
+#                prewhite::Bool=false) where {T<:AbstractFloat}
+#     Shat = aVar(k, m; demean=demean, dims=dims, means=means, prewhite=prewhite, scale=true)
+#     return Shat ./ size(m, dims)
+# end
