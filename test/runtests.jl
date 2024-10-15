@@ -440,10 +440,6 @@ df.w = rand(StableRNG(123), size(df,1))
   V2 = vcov(HC1(), lmm)
   idxr = isempty.(map(i->findall(all(isnan.(i))), eachrow(V1)))
   idxc = isempty.(map(i->findall(all(isnan.(i))), eachcol(V1)))
-  @show V1
-  @show V2 
-  @show idxr
-  @show idxc
 end
 
 @testset "LM CR" begin
@@ -681,3 +677,30 @@ end
 end
 
 ## TODO: Add more tests for the GLM interface for CR & DK
+
+@testset "Smoothed HAC" begin
+    X = randn(StableRNG(12322), 3700000, 3)
+    k = BartlettSmoother(3)
+    Σₛ = a𝕍ar(k, X; demean = true)
+    Σₕ = a𝕍ar(Parzen(3), X; demean = true)
+    @test Σₛ ≈ Σₕ rtol = 1e-3
+    k = TruncatedSmoother(3)
+    Σₛ = a𝕍ar(k, X; demean = true)
+    Σₕ = a𝕍ar(Bartlett(3), X; demean = true)
+    @test Σₛ ≈ Σₕ rtol = 1e-3
+end
+
+@testset "Promotion" begin
+    X = randn(StableRNG(123), 100, 3)
+    Z = mapreduce(x->x.<=0, hcat, eachcol(X))
+    aVar(HC0(), Z)
+    aVar(Bartlett(2), Z)
+    aVar(Bartlett{NeweyWest}(), Z)
+end
+
+@testset "Stability" begin
+    X = randn(StableRNG(123), Float32, 100, 3)
+    @test eltype(aVar(HC0(), X)) == Float32
+    @test eltype(aVar(Parzen(2), X)) == Float32
+    @test eltype(aVar(Parzen{NeweyWest}(), X)) == Float32
+end

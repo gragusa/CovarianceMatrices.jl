@@ -7,7 +7,12 @@ Abstraction
 abstract type AVarEstimator end
 
 abstract type HAC{G} <: AVarEstimator end
-abstract type VARHAC{G} <: AVarEstimator end
+
+struct VARHAC{T<:Int} <: AVarEstimator 
+    maxlag::T
+    ilag::T
+    lagstrategy::T
+end
 
 abstract type CrossSectionEstimator <: AVarEstimator end
 abstract type HR <: AVarEstimator end
@@ -134,11 +139,7 @@ end
 
 const QuadraticSpectral = QuadraticSpectralKernel
 
-# mutable struct VARHAC <: TimeSeries
-#     maxlag::Int
-#     lagstrategy::Int
-#     selectionstrategy::Symbol
-# end
+
 
 ## ------------------------------------------------------------------------------------------
 # Define HAC constructor
