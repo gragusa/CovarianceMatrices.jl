@@ -8,11 +8,11 @@ abstract type AVarEstimator end
 
 abstract type HAC{G} <: AVarEstimator end
 
-struct VARHAC{T<:Int} <: AVarEstimator 
-    maxlag::T
-    ilag::T
-    lagstrategy::T
-end
+# struct VARHAC{T<:Int} <: AVarEstimator
+#     maxlag::T
+#     ilag::T
+#     lagstrategy::T
+# end
 
 abstract type CrossSectionEstimator <: AVarEstimator end
 abstract type HR <: AVarEstimator end
@@ -184,14 +184,14 @@ bandwidth(x::HAC) = x.bw
 # kernelweights(x::HAC) = x.weights
 
 #=========
-EWC 
+EWC
 =========#
 struct EWC <: AVarEstimator
     B::Int64
 end
 
 #=========
-HC 
+HC
 =========#
 struct HR0 <: HR end
 struct HR1 <: HR end
@@ -202,7 +202,7 @@ struct HR4m <: HR end
 struct HR5 <: HR end
 
 #=========
-CR 
+CR
 =========#
 struct CR0{G} <: CR
     g::G
@@ -232,7 +232,70 @@ for k ∈ [:CR0, :CR1, :CR2, :CR3]
     @eval $(k)(args...) = $(k)(args)
 end
 
-#======== 
+#=========
+VARHAC
+=========#
+abstract type LagSelector end
+struct AICSelector <: LagSelector end
+struct BICSelector <: LagSelector end
+struct FixedSelector <: LagSelector end
+abstract type LagStrategy end
+
+struct FixedLags <: LagStrategy
+    maxlag::Int
+end
+
+FixedLags(x::Real) = FixedLags(round(Int, x))
+FixedLags() = FixedLags(5)
+
+struct SameLags <: LagStrategy
+    maxlag::Int
+end
+
+SameLags(x::Real) = SameLags(round(Int, x))
+SameLags() = SameLags(5)
+
+struct DifferentOwnLags <: LagStrategy
+    maxlags::Vector{Int}
+end
+
+DifferentOwnLags(x::Tuple{Int, Int}) = DifferentOwnLags([x[1], x[2]])
+DifferentOwnLags(x::Tuple{A, A}) where A <: Real= DifferentOwnLags([round(Int, x[1]), round(Int, x[2])])
+DifferentOwnLags() = DifferentOwnLags([5, 5])
+
+mutable struct VARHAC{S<:LagSelector, L<:LagStrategy} <: AVarEstimator
+    AICs
+    BICs
+    order_aic
+    order_bic
+    selector::S
+    strategy::L
+end
+
+function VARHAC(selector = AICSelector(), strategy = SameLags(8))
+    isa(strategy, FixedLags) && (selector = FixedSelector())
+    return VARHAC([], [], [], [], selector, strategy)
+end
+
+VARHAC(f::FixedLags) = VARHAC(FixedSelector(), f)
+
+maxlags(k::VARHAC{S, L}) where {S<:LagSelector, L<:SameLags} = k.strategy.maxlag
+maxlags(k::VARHAC{S, L}) where {S<:LagSelector, L<:DifferentOwnLags} = k.strategy.maxlags
+maxlags(k::VARHAC{S, L}) where {S<:LagSelector, L<:FixedLags} = k.strategy.maxlag
+
+AICs(k::VARHAC) = k.AICs
+BICs(k::VARHAC) = k.BICs
+order_aic(k::VARHAC) = k.order_aic
+order_bic(k::VARHAC) = k.order_bic
+order(k::VARHAC{AICSelector, S}) where S = order_aic(k)
+order(k::VARHAC{BICSelector, S}) where S = order_bic(k)
+
+## Show method for VARHAC
+function Base.show(io::IO, k::VARHAC)
+    println(io, "VARHAC{", k.selector, ", ", k.strategy, "}")
+end
+
+#========
 ##DriscollKraay
 =========#
 """

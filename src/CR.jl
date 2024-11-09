@@ -10,6 +10,18 @@ function clusterize(X::Matrix, g::GroupedArray)
     return Symmetric(X2' * X2)
 end
 
+function clusterize_mean(X::Matrix, g::GroupedArray)
+    X2 = zeros(eltype(X), g.ngroups, size(X, 2))
+    idx = 0
+    for j ∈ axes(X, 2)
+        idx += 1
+        @inbounds @simd for i ∈ axes(X, 1)
+            X2[g.groups[i], idx] += X[i, j]
+        end
+    end
+    return X2
+end
+
 function avar(k::T, X::Union{Matrix{F},Vector{F}};
               kwargs...) where {T<:Union{CR0,CR1,CR2,CR3},F<:AbstractFloat}
     f = k.g

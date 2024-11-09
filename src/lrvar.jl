@@ -23,7 +23,7 @@
 #         LinearAlgebra.axpy!(κⱼ, Γ(m, j), V)
 #     end
 #     LinearAlgebra.copytri!(V, 'U')
-#     dewhiter!(V, m, D, Val{prewhite})    
+#     dewhiter!(V, m, D, Val{prewhite})
 #     if eltype(V) <: AbstractFloat
 #         Symmetric(V.*convert(eltype(V), scale))
 #     else
@@ -117,7 +117,7 @@
 #     factorization=Cholesky;
 #     demean::Bool=true,
 #     scale::Real=one(T)
-# ) where T<:Real    
+# ) where T<:Real
 #     mm = demean ? m .- mean(m, dims=1) : m
 #     scale *= inv(size(mm, 1))
 #     return _lrvarmatrix(k, mm, scale, factorization)

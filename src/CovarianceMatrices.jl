@@ -14,10 +14,10 @@ using GroupedArrays
 using LinearAlgebra
 using Statistics
 using StatsBase
+using NaNStatistics
 using Base.Threads
 
 include("types.jl")
-include("aVar.jl")
 include("HAC.jl")
 include("CR.jl")
 include("HR.jl")
@@ -26,6 +26,8 @@ include("demeaner.jl")
 include("EWC.jl")
 include("api.jl")
 include("smoothing.jl")
+include("VARHAC.jl")
+include("aVar.jl")
 #include("VARHAC.jl")
 export Andrews,
        NeweyWest,

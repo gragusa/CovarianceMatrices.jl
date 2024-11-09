@@ -1,356 +1,342 @@
-function VARHAC(; maxlag=12, lagstrategy=2, selectionstrategy=:aic) 
-    @assert maxlag > 0 "maxlag must be greater than 0"
-    @assert lagstrategy in 1:3 "lagstrategy must be 1, 2, or 3"
-    @assert selectionstrategy in (:aic, :bic, :fixed) "selectionstrategy must be :aic, :bic, or :fixed"
-    imodel = selectionstrategy == :fixed ? 3 : selectionstrategy == :aic ? 1 : 2
-    VARHAC(maxlag, lagstrategy, imodel)
-end 
 
-function avar(k::VARHAC, X::AbstractMatrix{T}; kwargs...) where T<:AbstractFloat
-    varhac(X, k.maxlag, k.ilag, k.lagstrategy)
+function avar(k::VARHAC{S, L}, X::AbstractMatrix{R}; kwargs...) where {S<:LagSelector, L<:SameLags, R<:Real}
+    lagstrategy = isa(k.selector, AICSelector) ? :aic : :bic
+    Ω, AICs, BICs, order_aic, order_bic = _var_selection_samelag(X, maxlags(k)...; lagstrategy=lagstrategy, demean=false)
+    k.AICs = AICs
+    k.BICs = BICs
+    k.order_aic = order_aic
+    k.order_bic = order_bic
+    return Ω
 end
 
-function avar(k::VARHAC, X::AbstractMatrix{T}; kwargs...) where T
-    varhac(float.(X), k.maxlag, k.ilag, k.lagstrategy)
+function avar(k::VARHAC{S, L}, X::AbstractMatrix{R}; kwargs...) where {S<:LagSelector, L<:DifferentOwnLags, R<:Real}
+    lagstrategy = isa(k.selector, AICSelector) ? :aic : :bic
+    Ω, AICs, BICs, order_aic, order_bic = _var_selection_ownlag(X, maxlags(k)...; lagstrategy=lagstrategy, demean=false)
+    k.AICs = AICs
+    k.BICs = BICs
+    k.order_aic = order_aic
+    k.order_bic = order_bic
+    return Ω
 end
 
-function varhac(dat, imax, ilag, imodel)
+function avar(k::VARHAC{S, L}, X::AbstractMatrix{R}; kwargs...) where {S<:LagSelector, L<:FixedLags, R<:Real}
+    lagstrategy = isa(k.selector, AICSelector) ? :aic : :bic
+    Ω, AICs, BICs, order_aic, order_bic = _var_fixed(X, maxlags(k)...; demean=false)
+    k.AICs = AICs
+    k.BICs = BICs
+    k.order_aic = order_aic
+    k.order_bic = order_bic
+    return Ω
+end
 
-    ## VARHAC ESTIMATOR FOR THE COVARIANCE MATRIX (SPECTRAL DENSITY AT FREQUENCY ZERO)
+function _var_selection_samelag(X::AbstractMatrix{R}, K; lagstrategy::Symbol=:aic, demean::Bool=false) where {R<:Real}
+    T, m = size(X)
+    ## ---------------------------------------------------------
+    ## Demean the data if requested
+    ## ---------------------------------------------------------
+    if demean == true
+        Y = X .- mean(X; dims=1)
+    else
+        Y = copy(X)
+    end
+    ## ---------------------------------------------------------
+    ## Matrix of lags
+    ## ---------------------------------------------------------
+    Z = delag(Y, K)
+    ## ---------------------------------------------------------
+    ## Containers
+    ## ---------------------------------------------------------
+    order_aic = zeros(Int, m)
+    order_bic = zeros(Int, m)
+    𝕏β = Vector{R}(undef, T - K)
+    ε = Vector{R}(undef, T - K)
 
-    ## INPUT:
+    ## ---------------------------------------------------------
+    ## Calculate the AIC & BIC for each variable at lag 0
+    ## ---------------------------------------------------------
+    𝕐 = view(Y, K+1:T, :)
+    RSS = sum(abs2, 𝕐; dims=1)
+    AIC = vec(log.(RSS / T))
+    BIC = vec(log.(RSS / T))
+    AICs = Array{R}(undef, m, K)
+    BICs = similar(AICs)
+    ## ---------------------------------------------------------
+    ## Calculate AIC & BIC for each variable at lags 1,2,...,K
+    ## ---------------------------------------------------------
+    @inbounds for k in 1:K
+        𝕏 = view(Z, :, 1:k*m)
+        𝕏𝕏 = Matrix{R}(undef, k * m, k * m)
+        𝕏𝕐 = Vector{R}(undef, k * m)
+        for j in axes(Y, 2)
+            𝕐 = view(Y, K+1:T, j)
+            mul!(𝕏𝕏, 𝕏', 𝕏)
+            mul!(𝕏𝕐, 𝕏', 𝕐)
+            ## -----------------------
+            ## Perform OLS coefficient
+            ## -----------------------
+            β = cholesky!(Symmetric(𝕏𝕏)) \ 𝕏𝕐
+            ## -----------------------
+            ## Calculate the residuals
+            ## -----------------------
+            mul!(𝕏β, 𝕏, β)
+            ε .= 𝕐 .- 𝕏β
+            ## -----------------------
+            ## Calculate the AIC&BIC
+            ## -----------------------
+            RSS = sum(abs2, ε)
+            AIC_ = 2 * k * m / T + log(RSS / T)
+            BIC_ = log(T) * k * m / T + log(RSS / T)
+            ## -----------------------
+            ## Update the AIC and BIC
+            ## -----------------------
+            AICs[j, k] = AIC_
+            BICs[j, k] = BIC_
+            AIC_ < AIC[j] && (AIC[j] = AIC_; order_aic[j] = k)
+            BIC_ < BIC[j] && (BIC[j] = BIC_; order_bic[j] = k)
+        end
+    end
+    ## Estimate VAR with the order selected by AIC and BIC
+    if lagstrategy == :aic
+        order = order_aic
+    elseif lagstrategy == :bic
+        order = order_bic
+    end
 
-    ## dat:        input matrix where each row corresponds to a different observation
-    ## imax:       maximum lag order considered
-    ##             0 = no correction for serial correlation will be made
-    ## ilag:       1 = all elements enter with the same lag
-    ##             2 = own element can enter with a different lag
-    ##             3 = only the own lag enters
-    ## imodel:     1 = AIC is used
-    ##             2 = BIC is used
-    ##             3 = a fixed lag order equal to imax is used
-
-    ## OUTPUT:
-
-    ## ccc:        VARHAC estimator
-
-    nt = size(dat, 1)
-    kdim = size(dat, 2)
-
-    ex = dat[imax:nt-1, :]
-    dat2 = dat[imax:nt-1, :]
-    ex1 = dat[imax:nt-1, :]
-    ex2 = dat[imax:nt-1, :]
-    dep = dat[imax+1:nt, 1]
-
-    ddd = dat[imax+1:nt, :]
-    minres = ddd
-    aic = log.(sum(minres .^ 2, dims=1))
-    minorder = zeros(kdim, 2)
-
-    if imax > 0
-        minpar = zeros(kdim, kdim * imax)
-        ## ALL ELEMENTS ENTER WITH THE SAME LAG (ILAG = 1)
-        if ilag == 1
-            for k = 1:kdim
-                dep = ddd[:, k]
-                ex = dat[imax:nt-1, :]
-
-                for iorder = 1:imax
-                    if iorder == 1
-                        ex = dat[imax:nt-1, :]
-                    else
-                        ex = [ex dat[imax+1-iorder:nt-iorder, :]]
-                    end
-
-                    if imodel != 3
-                        ## Run the VAR
-                        b = (dep \ ex)'
-                        resid = dep - ex[:, :] * b
-                        ## Compute the model selection criterion
-                        npar = kdim * iorder
-                        if imodel == 1
-                            aicnew = log.(sum(resid .^ 2, dims=1)) .+ 2 * npar / (nt - imax)
-                        else
-                            aicnew = log.(sum(resid .^ 2, dims=1)) .+ log(nt - imax) * npar / (nt - imax)
-                        end
-                        if aicnew[1] < aic[k]
-                            aic[k] = aicnew[1]
-                            minpar[k, 1:kdim*iorder] = b'
-                            minres[:, k] = resid
-                            minorder[k] = iorder
-                        end
-                    end
-
-                    if imodel == 3
-                        b = (dep \ ex)'
-                        resid = dep - ex * b
-                        minpar = zeros(kdim, 2 * iorder)
-                        minpar[k, :] = b'
-                        minres[:, k] = resid
-                        minorder[k] = imax
-                    end
-                end
-            end
-            ## ONLY THE OWN LAG ENTERS (ILAG = 3
-        elseif ilag == 3
-
-            for k = 1:kdim
-                dep = ddd[:, k]
-
-                for iorder = 1:imax
-                    if iorder == 1
-                        ex = dat[imax:nt-1, k]
-                    else
-                        ex = [ex dat[imax+1-iorder:nt-iorder, k]]
-                    end
-
-                    if imodel != 3
-                        ## Run the VAR
-                        b = ex \ dep
-                        resid = dep - ex[:, :] * b
-                        ## Compute the model selection criterion
-                        npar = iorder
-                        if imodel == 1
-                            aicnew = log.(sum(resid .^ 2, dims=1)) .+ 2 * npar / (nt - imax)
-                        else
-                            aicnew = log.(sum(resid .^ 2, dims=1)) .+ log(nt - imax) * npar / (nt - imax)
-                        end
-
-                        if aicnew[1] < aic[k]
-                            aic[k] = aicnew[1]
-                            for i = 1:iorder
-                                minpar[k, k+(i-1)*kdim] = b[i]
-                            end
-                            minres[:, k] = resid
-                            minorder[k] = iorder
-                        end
-                    end
-                end
-
-                if imodel == 3
-                    b = (dep \ ex)'
-                    resid = dep - ex[:, :] * b
-                    for i = 1:imax
-                        minpar[k, k+(i-1)*kdim] = b[i]
-                    end
-                    minres[:, k] = resid
-                    minorder[k] = imax
-                end
-            end
-            ## OWN ELEMENT CAN ENTER WITH A DIFFERENT LAG (ILAG = 2)
+    A = zeros(R, m, m, K)
+    ε = Array{R}(undef, T, m)
+    @inbounds for h in 1:m
+        ε[1:order[h], h] .= NaN
+    end
+    @inbounds for j in axes(Y, 2)
+        if order[j] > 0
+            𝕐 = view(Y, order[j]+1:T, j)
+            𝕏 = delag(X, order[j])
+            β = cholesky!(Symmetric(𝕏'𝕏)) \ 𝕏'𝕐
+            𝕏β = 𝕏 * β
+            ε[order[j]+1:end, j] .= 𝕐 .- 𝕏β
+            A[j, :, 1:order[j]] = β
         else
-            begin
-                for k = 1:kdim
-                    dep = ddd[:, k]
-                    if k == 1
-                        dat2 = dat[:, 2:kdim]
-                    elseif k == kdim
-                        dat2 = dat[:, 1:kdim-1]
-                    else
-                        dat2 = [dat[:, 1:k-1] dat[:, k+1:kdim]]
-                    end
+            copy!(view(ε, :, j), Y[:, j])
+        end
+    end
+    Γ = pinv(I - dropdims(sum(A; dims=3); dims=3))
+    B = nancov(ε; corrected=false)
+    return Γ * B * Γ, AICs, BICs, order_aic, order_bic
+end
 
-                    for iorder = 0:imax
-                        if iorder == 1
-                            ex1 = dat[imax:nt-1, k]
-                        elseif iorder > 1
-                            ex1 = [ex1 dat[imax+1-iorder:nt-iorder, k]]
-                        end
+function _var_selection_ownlag(X::AbstractMatrix{R}, K, Kₓ; lagstrategy::Symbol=:aic, demean::Bool=false) where {R<:Real}
+    ## K is the maximum own lag
+    ## Kₓ is the maximum cross lag
+    T, m = size(X)
+    ## ---------------------------------------------------------
+    ## Demean the data if requested
+    ## ---------------------------------------------------------
+    if demean == true
+        Y = X .- mean(X; dims=1)
+    else
+        Y = copy(X)
+    end
+    ## ---------------------------------------------------------
+    ## Matrix of lags
+    ## ---------------------------------------------------------
+    maxK = max(K, Kₓ)
+    Z = delag(Y, maxK)
+    ## ---------------------------------------------------------
+    ## Containers
+    ## ---------------------------------------------------------
+    order_aic = zeros(Int, m, 2)
+    order_bic = zeros(Int, m, 2)
+    AICs = Array{R}(undef, m, K+1, Kₓ+1)
+    BICs = similar(AICs)
+    𝕏β = Vector{R}(undef, T - maxK)
+    ε = Vector{R}(undef, T - maxK)
 
-                        for iorder2 = 0:imax
-                            if iorder2 == 1
-                                ex2 = dat2[imax:nt-1, :]
-                            elseif iorder2 > 1
-                                ex2 = [ex2 dat2[imax+1-iorder2:nt-iorder2, :]]
-                            end
-
-                            if iorder + iorder2 == 0
-                                break
-                            elseif iorder == 0
-                                ex = ex2
-                            elseif iorder2 == 0
-                                ex = ex1
-                            else
-                                ex = [ex1 ex2]
-                            end
-                            ## Run the VAR
-                            b = ex \ dep
-                            #println(size(b))
-                            #println(size(ex))
-                            resid = dep .- ex[:, :] * b
-                            ## Compute the model selection criterion
-
-                            npar = iorder + iorder2 * (kdim - 1)
-
-                            if imodel == 1
-                                aicnew = log.(sum(resid .^ 2, dims=1)) .+ 2 * npar / (nt - imax)
-                            else
-                                aicnew = log.(sum(resid .^ 2, dims=1)) .+ log(nt - imax) * npar / (nt - imax)
-                            end
-                            #println(aic[k])
-                            if aicnew[1] < aic[k]
-                                aic[k] = aicnew[1]
-                                minpar[k, :] = zeros(1, kdim * imax)
-                                for i = 1:iorder
-                                    minpar[k, k+(i-1)*kdim] = b[i]
-                                end
-
-                                for i = 1:iorder2
-                                    if k == 1
-                                        minpar[k, 2+(i-1)*kdim:kdim+(i-1)*kdim] =
-                                            b[iorder+1+(i-1)*(kdim-1):iorder+i*(kdim-1)]'
-                                    elseif k == kdim
-                                        minpar[k, 1+(i-1)*kdim:kdim-1+(i-1)*kdim] =
-                                            b[iorder+1+(i-1)*(kdim-1):iorder+i*(kdim-1)]'
-                                    else
-                                        minpar[k, 1+(i-1)*kdim:k-1+(i-1)*kdim] =
-                                            b[iorder+1+(i-1)*(kdim-1):iorder+k-1+(i-1)*(kdim-1)]'
-                                        minpar[k, k+1+(i-1)*kdim:kdim+(i-1)*kdim] =
-                                            b[iorder+k+(i-1)*(kdim-1):iorder+i*(kdim-1)]'
-                                    end
-                                end
-                                minres[:, k] = resid
-                                minorder[k, :] = [iorder iorder2]
-                            end
-                        end
-                    end
-                end
+    ## ---------------------------------------------------------
+    ## Calculate the AIC & BIC for each variable at lag 0
+    ## ---------------------------------------------------------
+    𝕐 = view(Y, K+1:T, :)
+    RSS = sum(abs2, 𝕐; dims=1)
+    AIC = vec(log.(RSS / T))
+    BIC = copy(AIC)
+    AICs[:, 1, 1] .= AIC
+    BICs[:, 1, 1] .= BIC
+    @show "LAGS..: 0"
+    @show "AIC...: ", AIC
+    ## ---------------------------------------------------------
+    ## Calculate AIC & BIC for each variable at lags 1,2,...,K
+    ## ---------------------------------------------------------
+    @inbounds for kₓ in 0:Kₓ
+        for k in 0:K
+            #- `m::Int`: The number of columns in the original matrix X.
+            #- `K::Int`: The maximum number of lags used to create matrix Z.
+            #- `position_own::Int`: The index of the column (1 ≤ position_own ≤ m) for which a different number of lags will be selected.
+            #- `lags_others::Int`: The number of lags to select for all columns except the 'position_own' column (1 ≤ lags_others ≤ K).
+            #- `lags_own::Int`: The number of lags to select for the 'position_own' column (1 ≤ lags_own ≤ K).
+            𝕏𝕏 = Matrix{R}(undef, kₓ * (m - 1) + k, kₓ * (m - 1) + k)
+            𝕏𝕐 = Vector{R}(undef, kₓ * (m - 1) + k)
+            for j in axes(Y, 2)
+                𝕐 = view(Y, maxK+1:T, j)
+                𝕏 = select_lags(Z, m, maxK, j, k, kₓ)
+                mul!(𝕏𝕏, 𝕏', 𝕏)
+                mul!(𝕏𝕐, 𝕏', 𝕐)
+                ## -----------------------
+                ## Perform OLS coefficient
+                ## -----------------------
+                β = cholesky!(Symmetric(𝕏𝕏)) \ 𝕏𝕐
+                ## -----------------------
+                ## Calculate the residuals
+                ## -----------------------
+                mul!(𝕏β, 𝕏, β)
+                ε .= 𝕐 .- 𝕏β
+                ## -----------------------
+                ## Calculate the AIC&BIC
+                ## -----------------------
+                RSS = sum(abs2, ε)
+                AIC_ = 2 * (kₓ * (m - 1) + k) / T + log(RSS / T)
+                BIC_ = log(T) * (kₓ * (m - 1) + k) / T + log(RSS / T)
+                @show "LAGS..: ", k, kₓ
+                @show "AIC...: ", AIC_
+                ## -----------------------
+                ## Update the AIC and BIC
+                ## -----------------------
+                AICs[j, k+1, kₓ+1] = AIC_
+                BICs[j, k+1, kₓ+1] = BIC_
+                AIC_ < AIC[j] && (AIC[j] = AIC_; order_aic[j, :] .= [k, kₓ])
+                BIC_ < BIC[j] && (BIC[j] = BIC_; order_bic[j, :] .= [k, kₓ])
             end
         end
     end
+    ## Estimate VAR with the order selected by AIC and BIC
+    if lagstrategy == :aic
+        order = order_aic
+    elseif lagstrategy == :bic
+        order = order_bic
+    end
+    ε = Array{R}(undef, T, m)
+    @inbounds for h in 1:m
+        ε[1:sum(order[h,:]), h] .= NaN
+    end
+    maxK = maximum(sum(order, dims=2))
+    A = zeros(R, m, m*maxK)
 
-    ## COMPUTE THE VARHAC ESTIMATOR
-    covar = minres'minres #/ (nt - imax)
-
-    bbb = diagm(0 => 1:kdim)
-
-    if imax > 0
-        for iorder = 1:imax
-            bbb = bbb - minpar[:, (iorder-1)*kdim+1:iorder*kdim]
+    @inbounds for j in axes(Y, 2)
+        kk = sum(order[j, :])
+        ℤ = delag(X, kk)
+        if kk > 0
+            𝕐 = view(Y, kk+1:T, j)
+            𝕏 = select_lags(ℤ, m, kk, j, order[j, :]...)
+            β = cholesky!(Symmetric(𝕏'𝕏)) \ 𝕏'𝕐
+            𝕏β = 𝕏 * β
+            ε[kk+1:end, j] .= 𝕐 .- 𝕏β
+            A[j, 𝕏.indices[2]] = β
+        else
+            copy!(view(ε, :, j), Y[:, j])
         end
     end
+    𝔸 = reshape(A, (m,m,maxK))
+    Γ = pinv(I - dropdims(sum(𝔸; dims=3); dims=3))
+    B = nancov(ε; corrected=false)
+    return Γ * B * Γ, AICs, BICs, order_aic, order_bic
+end
 
-    inv(bbb) * covar * inv(bbb')
-
+function _var_fixed(X::AbstractMatrix{R}, K; demean::Bool=false) where {R<:Real}
+    ## K is the maximum own lag
+    ## Kₓ is the maximum cross lag
+    T, m = size(X)
+    ## ---------------------------------------------------------
+    ## Demean the data if requested
+    ## ---------------------------------------------------------
+    if demean == true
+        Y = X .- mean(X; dims=1)
+    else
+        Y = copy(X)
+    end
+    ## ---------------------------------------------------------
+    ## Matrix of lags
+    ## ---------------------------------------------------------
+    Z = delag(Y, K)
+    ## ---------------------------------------------------------
+    ## Containers
+    ## ---------------------------------------------------------
+    𝕐 = view(Y, K+1:T, :)
+    A = Z\𝕐
+    ε = 𝕐 .- Z * A
+    𝔸 = reshape(A', (m,m,K))
+    Γ = pinv(I - dropdims(sum(𝔸; dims=3); dims=3))
+    B = nancov(ε; corrected=false)
+    return Γ * B * Γ, [], [], [K], [K]
 end
 
 
-# function avar(k::VARHAC, X::Union{Matrix{F},Vector{F}}; kwargs...) where {F<:AbstractFloat}
-#     if k.lagstrategy == 3
-#         D = fitvar(X, maxlag)
-#     end
-# end
+function delag(X::Matrix{R}, K::Int) where R<:Real
+    T, n = size(X)
+    Z = Matrix{Float64}(undef, T-K, n*K)
+    @inbounds for j in 1:n
+        for t in K+1:T
+            for k in 1:K
+                Z[t-K, (k-1)*n + j] = X[t-k, j]
+            end
+        end
+    end
+    return Z
+end
 
-# function fitvar(X, p)
-#     XX = delag(X, p)
-#     YY = copy(X)
-#     demean_from_p!(XX, p)
-#     demean_from_p!(YY, p)
-#     Xv = @view XX[(p+1):end, :]
-#     Yy = @view YY[(p+1):end, :]
-#     A .= Xv \ Yv
-#     r = Yv .- Xv * A
-#     return A, r
-# end
+"""
+    select_lags(Z::Matrix{T}, m::Int, K::Int, position_own::Int, lags_own::Int, lags_others::Int) where T<:Real
 
-# function bic(residuals, npar, T, maxlag)
-#     log.(sum(abs2, residuals, dims=1)) .+ log(T - maxlag) * npar / (T - maxlag)
-# end
+Create an efficient view of matrix Z, selecting specific lags of certain columns based on the input parameters.
 
-# function aic(residuals, npar, T, maxlag)
-#     log.(sum(abs2, residuals, dims=1)) .+ 2 * npar / (T - maxlag)
-# end
+# Arguments
+- `Z::Matrix{T}`: The input matrix of size (T-K) × (mK), where T is the number of rows in the original matrix X,
+                  K is the maximum number of lags, and m is the number of columns in X.
+- `m::Int`: The number of columns in the original matrix X.
+- `K::Int`: The maximum number of lags used to create matrix Z.
+- `position_own::Int`: The index of the column (1 ≤ position_own ≤ m) for which a different number of lags will be selected.
+- `lags_others::Int`: The number of lags to select for all columns except the 'position_own' column (1 ≤ lags_others ≤ K).
+- `lags_own::Int`: The number of lags to select for the 'position_own' column (1 ≤ lags_own ≤ K).
 
-# function delag(X, nlags)
-#     delagged = map(j -> map(x -> ShiftedArrays.lag(x, j; default=NaN), eachcol(X)), 1:nlags)
-#     return reduce(hcat, collect(Base.Iterators.flatten(delagged)))
-# end
+# Returns
+- `view`: A view of Z containing the selected lags of the specified columns.
 
-# function delag_maxlag(X, maxlag)
-#     T, m = size(X)
-#     delagged = map(j -> map(x -> ShiftedArrays.lag(x, j; default=NaN), eachcol(view(X, maxlag:T,:))), 0:maxlag-1)
-#     return reduce(hcat, collect(Base.Iterators.flatten(delagged)))
-# end
+# Details
+This function creates a view of Z that includes:
+1. `lags_others` lags of columns 1,2,...,position_own-1,position_own+1,...,m from the original matrix X.
+2. `lags_own` lags of column `position_own` from the original matrix X.
 
-# Base.@propagate_inbounds function delag!(dest, X, p::Int64)
-#     n, m = size(X, 1), size(X, 2)
-#     @inbounds for j ∈ Base.axes(X, 2)
-#         for ℓ ∈ 1:p
-#             for t ∈ (1+ℓ):n
-#                 dest[t, m*(ℓ-1)+j] = X[t-ℓ, j]
-#             end
-#         end
-#     end
-# end
+# Notes
+- The resulting view will have (T-K) rows and (lags_others*(m-1) + lags_own) columns.
 
-# Base.@propagate_inbounds function demean!(dest::VecOrMat, Y::VecOrMat)
-#     μ = mean(Y; dims=1)
-#     for j ∈ Base.axes(Y, 2)
-#         for t ∈ Base.axes(Y, 1)
-#             dest[t, j] = Y[t, j] - μ[j]
-#         end
-#     end
-# end
+# Example
+```julia
+Z = rand(100, 30)
+# Assuming Z is created from a 5-column matrix X with 6 lags
+m, K = 5, 6
+position_own, lags_others, lags_own = 3, 4, 5
+result = select_lags(Z, m, K, position_own, lags_others, lags_own)
+```
+"""
+function select_lags(Z::Matrix{T}, m::Int, K::Int,
+    position_own::Int,
+    lags_own::Int, lags_others::Int) where T<:Real
+    # Check if the dimensions are correct
+    s = position_own
+    r = lags_others
+    v = lags_own
+    (T_K, mK) = size(Z)
+    @assert mK == m * K "The number of columns in Z should be m * K"
+    @assert r <= K && v <= K "r and v should not exceed K"
+    @assert s <= m "s should not exceed m"
+    # Calculate the indices for the r lags of columns 1,2,...,s,s+2,...,m
+    r_indices = vcat(
+        [((k-1)*m .+ (1:s-1)) for k in 1:r]...,
+        [((k-1)*m .+ (s+1:m)) for k in 1:r]...
+    )
+    # Calculate the indices for the v lags of column s
+    v_indices = [(k-1)*m .+ s for k in 1:v]
 
-# Base.@propagate_inbounds function demean_from_p!(Y::Matrix, p)
-#     Yv = @view Y[(p+1):end, :]
-#     μ = mean(Yv; dims=1)
-#     for j ∈ Base.axes(Y, 2)
-#         for t ∈ Base.axes(Yv, 1)
-#             Yv[t, j] -= μ[j]
-#         end
-#     end
-# end
+    # Combine all indices
+    all_indices = sort!(union(r_indices, v_indices))
 
-# function varhac(X, lagmax)
-#     ## ilag = 1
-#     ## imodel = 3
-#     T, m = size(X)
-#     aic  = map(x->log.(sum(abs2, x .- mean(x), dims=1)), eachcol(X))
-#     minres = [Vector{Float64}(undef, T-maxlag-1) for j ∈ 1:m]
-#     minorder = zeros(Int64, m)
-#     minpar = zeros(m, m * maxlag)
-    
-#     XX = delag_maxlag(X, maxlag)
-#     for iorder ∈ 1:maxlag
-#         Y = X[maxlag+iorder:T, :]
-#         demean!(Y, Y)
-#         x = XX[1+iorder:end, (iorder-1)*m+1:iorder*m]
-#         demean!(x, x)
-#         betas = [x\z for z in eachcol(Y)]
-#         resid = [y - xv * b for b ∈ betas]
-#         npar = m * iorder
-#         #if imodel == 1
-#             aicnew = map(x->log.(sum(abs2, x, dims=1)) .+ 2.0 * npar / (T - maxlag), resid)
-#         #else
-#         #    aicnew = map(x->log.(sum(abs2, x, dims=1)) .+ log(T - maxlag) * npar / (T - maxlag), resid)
-#         #end
-#         ind = aicnew .< aic
-#         if any(ind)
-#             aic[ind] .= aicnew[ind]
-#             minres[ind] .= resid[ind]
-#             minpar[ind, 1:m*iorder] .= betas[ind]
-#             minorder[ind] .= iorder
-#         end
-#     end
-# end
-    
-
-
-
-#     ## COMPUTE THE VARHAC ESTIMATOR
-#     covar = minres'minres / (nt - imax)
-
-#     bbb = diagm(0 => 1:kdim)
-
-#     if imax > 0
-#         for iorder = 1:imax
-#             bbb = bbb - minpar[:, (iorder-1)*kdim+1:iorder*kdim]
-#         end
-#     end
-
-#     inv(bbb) * covar * inv(bbb')
-
-# end
-
+    # Return the view
+    return view(Z, :, all_indices)
+end
