@@ -39,7 +39,7 @@ function avar(k::T, X::Union{Matrix{F},Vector{F}};
         S += (-1)^(length(c) - 1) * clusterize(parent(X), g)
     end
     rescale!(k, S)
-    return Symmetric(S)
+    return S
 end
 
 nclusters(k::CR) = (map(x -> x.ngroups, k.g))
