@@ -1,42 +1,44 @@
-function avar(k::T, X::AbstractMatrix{F}; prewhite=false) where {T<:HAC,F<:AbstractFloat}
-    if prewhite
-        Z, D = fit_var(X)
-    else
-        Z = X
-    end
+function avar(k::K, X::AbstractMatrix{F}; prewhite=false) where {K<:HAC,F<:Real}
+    Z, D = finalize_prewhite(X, Val(prewhite))
+    T, p = size(Z)
     wlock = k.wlock[1]
     setkernelweights!(k, X)
     k.bw .= _optimalbandwidth(k, Z, prewhite)
     k.wlock .= wlock
-    idx = CovarianceMatrices.covindices(k, size(Z, 1))
-    κ = [CovarianceMatrices.kernel(k, j ./ k.bw[1]) for j ∈ idx]
-    V = zeros(F, size(Z, 2), size(Z, 2))
+    V = zeros(F, p, p)
     Q = similar(V)
-    kernelestimator!(V, Q, Z, κ)
-    if prewhite
-        v = inv(I - D')
-        return v * V * v'
-    else
-        return V
-    end
+    kernelestimator!(k, V, Q, Z)
+    v = inv(one(F)*I - D')
+    return v * V * v'
 end
 
-function kernelestimator!(V, Q, Z, κ)
+finalize_prewhite(X, ::Val{true}) = fit_var(X)
+finalize_prewhite(X, ::Val{false}) = X, ZeroMat()
+
+struct ZeroMat end
+Base.:-(J::UniformScaling, Z::ZeroMat) = J
+Base.:+(J::UniformScaling, Z::ZeroMat) = J
+LinearAlgebra.adjoint(Z::ZeroMat) = Z
+
+function kernelestimator!(k::K, V::AbstractMatrix{F}, Q, Z) where {K<:HAC, F<:Real}
     ## V is the final variance
     ## Q is the temporary matrix
     ## Z is the data matrix
     ## κ is the kernel vector
-    T, k = size(Z)
+    T, _ = size(Z)
+    idx = covindices(k, T)
+    bw = convert(F, k.bw[1])
     ## Calculate the variance at lag 0
     mul!(Q, Z', Z)
     copy!(V, Q)
     ## Calculate Γ₁, Γ₂, ..., Γⱼ
-    @inbounds for j ∈ 1:length(κ)
+    @inbounds for j ∈ eachindex(idx)
         Zₜ = view(Z, 1:(T - j), :)
         Zₜ₊₁ = view(Z, (1 + j):T, :)
         mul!(Q, Zₜ', Zₜ₊₁)
-        @. V += κ[j] * Q
-        @. V += κ[j] * Q'
+        κ = kernel(k, j/bw)
+        @. V += κ * Q
+        @. V += κ * Q'
     end
     return V ./ T
 end
@@ -46,7 +48,7 @@ avarscaler(K::HAC, X; prewhite=false) = size(X, 1)
 covindices(k::T, n) where {T<:QuadraticSpectral} = 1:n
 covindices(k::T, n) where {T<:Bartlett} = 1:(floor(Int, k.bw[1]))
 covindices(k::HAC, n) = 1:floor(Int, k.bw[1])
-
+covindices(k::T, n) where {T<:HR} = 1:0
 # -----------------------------------------------------------------------------
 # Kernels
 # -----------------------------------------------------------------------------
@@ -198,7 +200,7 @@ end
 # -----------------------------------------------------------------------------
 # Fit function
 # -----------------------------------------------------------------------------
-Base.@propagate_inbounds function fit_var(A::AbstractMatrix{T}) where {T}
+Base.@propagate_inbounds function fit_var(A::AbstractMatrix{T}) where T
     fi = firstindex(A, 1)
     li = lastindex(A, 1)
     Y = view(A, (fi + 1):li, :)
@@ -209,7 +211,7 @@ Base.@propagate_inbounds function fit_var(A::AbstractMatrix{T}) where {T}
 end
 
 
-Base.@propagate_inbounds function fit_ar(Z::AbstractMatrix{T}) where {T}
+Base.@propagate_inbounds function fit_ar(Z::AbstractMatrix{T}) where T
     ## Estimate
     ##
     ## y_{t,j} = ρ y_{t-1,j} + ϵ
@@ -238,7 +240,7 @@ end
 # -----------------------------------------------------------------------------
 # Prewhiter
 # -----------------------------------------------------------------------------
-function prewhiter(M::AbstractMatrix{T}, prewhite::Bool) where {T<:AbstractFloat}
+function prewhiter(M::AbstractMatrix{T}, prewhite::Bool) where {T<:Real}
     if prewhite
         return fit_var(M)
     else
