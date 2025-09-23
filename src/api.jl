@@ -1,4 +1,4 @@
-invpseudohessian(x) = (t = typeof(x); error("Not defined for type $t", ))
+invpseudohessian(x) = (t = typeof(x); error("Not defined for type $t"))
 
 """
 ### Description
@@ -33,14 +33,15 @@ Note: This function is not defined for all types and must be extended for specif
 """
 bread(x) = (t = typeof(x); error("Not defined for type $t"))
 leverage(x) = (t = typeof(x); error("Not defined for type $t"))
-residualadjustment(k::AVarEstimator, x::Any) = (t = typeof(x); error("Not defined for type $t"))
+residualadjustment(k::AVarEstimator, x::Any) =
+    (t = typeof(x); error("Not defined for type $t"))
 
 function StatsBase.vcov(𝒦::AVarEstimator, e)
-    gᵢ= momentmatrix(e)
+    gᵢ = momentmatrix(e)
     ## Bread mut return a k×m
     B = bread(e)
     Ω = aVar(𝒦, gᵢ)
-    B*Ω*B'/size(gᵢ,1)
+    B*Ω*B'/size(gᵢ, 1)
 end
 
 StatsBase.stderror(𝒦::AVarEstimator, e) = sqrt.(diag(vcov(𝒦, e)))

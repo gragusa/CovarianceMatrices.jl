@@ -147,16 +147,12 @@ const QuadraticSpectral = QuadraticSpectralKernel
 # - HAC(::Andrews) or HAC(::NeweyWest) Optimal bandwidth selection a la Andrews or a la NeweyWest
 # - HAC(bw) Fixed bandwidth
 # - HAC() -> Optimal bandwidth selection a la Andrews
-const kernels = [:Bartlett,
-                 :Parzen,
-                 :QuadraticSpectral,
-                 :Truncated,
-                 :TukeyHanning]
+const kernels = [:Bartlett, :Parzen, :QuadraticSpectral, :Truncated, :TukeyHanning]
 
 for kerneltype ∈ kernels
     @eval ($kerneltype(x::Number)) = ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[], [false])
-    @eval ($kerneltype{Fixed}(x::Number)) = ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[],
-                                                                 [false])
+    @eval ($kerneltype{Fixed}(x::Number)) =
+        ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[], [false])
 end
 
 for kerneltype ∈ kernels
@@ -259,15 +255,16 @@ struct DifferentOwnLags <: LagStrategy
     maxlags::Vector{Int}
 end
 
-DifferentOwnLags(x::Tuple{Int, Int}) = DifferentOwnLags([x[1], x[2]])
-DifferentOwnLags(x::Tuple{A, A}) where A <: Real= DifferentOwnLags([round(Int, x[1]), round(Int, x[2])])
+DifferentOwnLags(x::Tuple{Int,Int}) = DifferentOwnLags([x[1], x[2]])
+DifferentOwnLags(x::Tuple{A,A}) where {A<:Real} =
+    DifferentOwnLags([round(Int, x[1]), round(Int, x[2])])
 DifferentOwnLags() = DifferentOwnLags([5, 5])
 
-mutable struct VARHAC{S<:LagSelector, L<:LagStrategy} <: AVarEstimator
-    AICs
-    BICs
-    order_aic
-    order_bic
+mutable struct VARHAC{S<:LagSelector,L<:LagStrategy} <: AVarEstimator
+    AICs::Any
+    BICs::Any
+    order_aic::Any
+    order_bic::Any
     selector::S
     strategy::L
 end
@@ -279,16 +276,16 @@ end
 
 VARHAC(f::FixedLags) = VARHAC(FixedSelector(), f)
 
-maxlags(k::VARHAC{S, L}) where {S<:LagSelector, L<:SameLags} = k.strategy.maxlag
-maxlags(k::VARHAC{S, L}) where {S<:LagSelector, L<:DifferentOwnLags} = k.strategy.maxlags
-maxlags(k::VARHAC{S, L}) where {S<:LagSelector, L<:FixedLags} = k.strategy.maxlag
+maxlags(k::VARHAC{S,L}) where {S<:LagSelector,L<:SameLags} = k.strategy.maxlag
+maxlags(k::VARHAC{S,L}) where {S<:LagSelector,L<:DifferentOwnLags} = k.strategy.maxlags
+maxlags(k::VARHAC{S,L}) where {S<:LagSelector,L<:FixedLags} = k.strategy.maxlag
 
 AICs(k::VARHAC) = k.AICs
 BICs(k::VARHAC) = k.BICs
 order_aic(k::VARHAC) = k.order_aic
 order_bic(k::VARHAC) = k.order_bic
-order(k::VARHAC{AICSelector, S}) where S = order_aic(k)
-order(k::VARHAC{BICSelector, S}) where S = order_bic(k)
+order(k::VARHAC{AICSelector,S}) where {S} = order_aic(k)
+order(k::VARHAC{BICSelector,S}) where {S} = order_bic(k)
 
 ## Show method for VARHAC
 function Base.show(io::IO, k::VARHAC)
@@ -312,11 +309,14 @@ mutable struct DriscollKraay{K,D} <: AVarEstimator
     iis::D
 end
 
-function DriscollKraay(K::HAC; tis=nothing, iis=nothing)
+function DriscollKraay(K::HAC; tis = nothing, iis = nothing)
     return DriscollKraay(K, GroupedArray(tis), GroupedArray(iis))
 end
-function DriscollKraay(K::HAC, tis::AbstractArray{T},
-                       iis::AbstractArray{T}) where {T<:AbstractFloat}
+function DriscollKraay(
+    K::HAC,
+    tis::AbstractArray{T},
+    iis::AbstractArray{T},
+) where {T<:AbstractFloat}
     return DriscollKraay(K, GroupedArray(tis), GroupedArray(iis))
 end
 const HC0 = HR0
