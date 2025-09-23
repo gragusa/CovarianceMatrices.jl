@@ -28,6 +28,7 @@ function kernelestimator!(k::K, V::AbstractMatrix{F}, Q, Z) where {K<:HAC, F<:Re
     T, _ = size(Z)
     idx = covindices(k, T)
     bw = convert(F, k.bw[1])
+    κ = [kernel(k, j/bw) for j in eachindex(idx)]
     ## Calculate the variance at lag 0
     mul!(Q, Z', Z)
     copy!(V, Q)
@@ -36,11 +37,11 @@ function kernelestimator!(k::K, V::AbstractMatrix{F}, Q, Z) where {K<:HAC, F<:Re
         Zₜ = view(Z, 1:(T - j), :)
         Zₜ₊₁ = view(Z, (1 + j):T, :)
         mul!(Q, Zₜ', Zₜ₊₁)
-        κ = kernel(k, j/bw)
-        @. V += κ * Q
-        @. V += κ * Q'
+        @. V += κ[j] * Q
+        @. V += κ[j] * Q'
     end
-    return V ./ T
+    #rdiv!(V, T)
+    return V
 end
 
 avarscaler(K::HAC, X; prewhite=false) = size(X, 1)

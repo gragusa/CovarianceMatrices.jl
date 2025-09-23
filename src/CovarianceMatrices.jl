@@ -28,7 +28,12 @@ include("api.jl")
 include("smoothing.jl")
 include("VARHAC.jl")
 include("aVar.jl")
-#include("VARHAC.jl")
+
+# New unified API
+include("variance_forms.jl")
+include("model_interface.jl")
+include("stable_computation.jl")
+include("new_api.jl")
 export Andrews,
        NeweyWest,
        Bartlett,
@@ -68,5 +73,16 @@ export Andrews,
        vcov,
        stderror,
        BartlettSmoother,
-       TruncatedSmoother
+       TruncatedSmoother,
+       # New API exports
+       Information,
+       Robust,
+       CorrectlySpecified,
+       Misspecified,
+       VarianceForm,
+       jacobian,
+       objective_hessian,
+       weight_matrix,
+       vcov_new,
+       stderror_new
     end
