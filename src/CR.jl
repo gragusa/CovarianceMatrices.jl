@@ -22,8 +22,11 @@ function clusterize_mean(X::Matrix, g::GroupedArray)
     return X2
 end
 
-function avar(k::T, X::Union{Matrix{F},Vector{F}};
-              kwargs...) where {T<:Union{CR0,CR1,CR2,CR3},F<:AbstractFloat}
+function avar(
+    k::T,
+    X::Union{Matrix{F},Vector{F}};
+    kwargs...,
+) where {T<:Union{CR0,CR1,CR2,CR3},F<:AbstractFloat}
     f = k.g
     S = zeros(eltype(X), (size(X, 2), size(X, 2)))
     gmin, gmax = minimum(length.(f)), maximum(length.(f))
@@ -34,7 +37,7 @@ function avar(k::T, X::Union{Matrix{F},Vector{F}};
         if length(c) == 1
             g = GroupedArray(f[c[1]])
         else
-            g = GroupedArray((f[i] for i ∈ c)...; sort=nothing)
+            g = GroupedArray((f[i] for i ∈ c)...; sort = nothing)
         end
         S += (-1)^(length(c) - 1) * clusterize(parent(X), g)
     end

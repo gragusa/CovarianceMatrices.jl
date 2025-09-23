@@ -1,3 +1,4 @@
+
 """
 New unified API for covariance matrix estimation.
 
@@ -71,6 +72,7 @@ Manual variance computation from moment matrix.
 - `W::Union{Nothing,AbstractMatrix}=nothing`: Weight matrix (m × m)
 - `rcond_tol::Real=1e-12`: Tolerance for rank condition
 """
+
 function StatsBase.vcov(ve::AVarEstimator, form::VarianceForm, Z::AbstractMatrix;
     score::Union{Nothing,AbstractMatrix}=nothing,
     objective_hessian::Union{Nothing,AbstractMatrix}=nothing,
