@@ -156,7 +156,7 @@ end
 
 
 function leverage(r::GLM.GeneralizedLinearModel)
-    X = modelmatrix(r).*sqrt.(r.rr.wrkwt)
+    X = modelmatrix(r) .* sqrt.(r.rr.wrkwt)
     @inbounds copy!(r.pp.scratchm1, X)
     # @inbounds if !isempty(r.rr.wts)
     #     @. r.pp.scratchm1 *= sqrt(r.rr.wts)
@@ -182,8 +182,10 @@ dofresiduals(r::RegressionModel) = numobs(r) - rank(modelmatrix(r))
 
 
 @noinline residualadjustment(k::CM.HR0, r::GLM.RegressionModel) = 1.0
-@noinline residualadjustment(k::CM.HR1, r::GLM.RegressionModel) = √numobs(r) / √dofresiduals(r)
-@noinline residualadjustment(k::CM.HR2, r::GLM.RegressionModel) = 1.0 ./ (1 .- leverage(r)).^ 0.5
+@noinline residualadjustment(k::CM.HR1, r::GLM.RegressionModel) =
+    √numobs(r) / √dofresiduals(r)
+@noinline residualadjustment(k::CM.HR2, r::GLM.RegressionModel) =
+    1.0 ./ (1 .- leverage(r)) .^ 0.5
 @noinline residualadjustment(k::CM.HR3, r::GLM.RegressionModel) = 1.0 ./ (1 .- leverage(r))
 
 @noinline function residualadjustment(k::CM.HR4, r::RegressionModel)
@@ -224,7 +226,7 @@ end
 ## ## RegressionModel - CR
 ## ##=================================================
 
-function residualadjustment(k::Union{CM.CR0, CM.CR1}, r::StatsModels.TableRegressionModel) 
+function residualadjustment(k::Union{CM.CR0,CM.CR1}, r::StatsModels.TableRegressionModel)
     wts = r.model.rr.wts
     if isempty(wts)
         GLM.residuals(r)
@@ -322,7 +324,10 @@ function dofcorrect!(V, k::HAC, m)
 end
 
 
-function CM.setkernelweights!(k::CM.HAC{T}, X::RegressionModel) where T<:Union{CM.NeweyWest, CM.Andrews}
+function CM.setkernelweights!(
+    k::CM.HAC{T},
+    X::RegressionModel,
+) where {T<:Union{CM.NeweyWest,CM.Andrews}}
     CM.setkernelweights!(k, modelmatrix(X))
     k.wlock .= true
 end

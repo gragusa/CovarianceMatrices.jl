@@ -43,7 +43,7 @@ try
     println("✓ Robust form works: size = $(size(V_robust))")
 
     # Test auto form selection
-    V_auto = vcov_new(HC1(), model; form=:auto)
+    V_auto = vcov_new(HC1(), model; form = :auto)
     println("✓ Auto form selection works: size = $(size(V_auto))")
 
     # Test standard errors
