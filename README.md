@@ -138,196 +138,96 @@ function CovarianceMatrices.objective_hessian(m::SimpleProbit)
 end
 
 # Now you can use both variance forms:
-vcov_info = vcov(HC1(), Information(), model)    # Fisher Information
+vcov_info = vcov(HC1(), Information(), model)          # Fisher Information
 vcov_robust = vcov(Bartlett(3), Misspecified(), model) # Robust sandwich
 ```
 
-<!--### Legacy API Example: Probit model
+## GMM-like models
 
-This code implements a Probit regression model and it applies to the  `Hdma` dataset. The Probit model is defined in a custom Julia `struct`, which stores the design matrix `X` and binary outcome `y`, along with the coefficients.
-
-The code defines a log-likelihood function, and extends `momentmatrix` and `bread` methods to handle this model.
-
-The model is fitted using the BFGS optimization algorithm from the `Optim` package, and after fitting, standard errors and robust standard errors are calculated using various variance-covariance matrix estimators.
+This code demonstrates the use of the `CovarianceMatrices.jl` package to perform Generalized Method of Moments (GMM) estimation using a custom-defined `LinearGMM` type.
 
 ```julia
 using CovarianceMatrices
-using Distributions
-using ForwardDiff
 using LinearAlgebra
-using Optim
-using RDatasets
-
-# ----------------------------------------------------------
-hmda  = dataset("Ecdat", "Hdma")
-X = [ones(size(hmda, 1)) hmda.DIR hmda.LVR hmda.CCS]
-y = ifelse.(hmda.Deny.=="yes", 1, 0)
-hmda.deny = y
-# In `GLM.jl` notation, we estimate the following model
-# glm(@formula(y~DIR+LVR+CCS), hmda, Binomal(), ProbitLink())
-# ----------------------------------------------------------
-
-# Define the Probit model
-struct Probit{T<:AbstractMatrix, V<:AbstractVector}
-    X::T
-    y::V
-    coef
-    function Probit(X::T, y::V) where {T, V}
-        new{T, V}(X, y, Array{Float64}(undef, size(X, 2)))
-    end
-end
-
-StatsBase.coef(model::Probit) = model.coef
-
-# Define the log-likelihood function
-function (model::Probit)(β::AbstractVector)
-    X, y = model.X, model.y
-    n = length(y)
-    @assert length(β) == size(X, 2) "Invalid dimensions"
-    η = X * β
-    ll = 0.0
-    for i in 1:n
-        p = cdf(Normal(), η[i])
-        ll += y[i] * log(p) + (1 - y[i]) * log(1 - p)
-    end
-    return ll
-end
-
-# Extend `CovarianceMatrices.jl` `bread` method
-function CovarianceMatrices.bread(model::Probit)
-    ## Note: The loglikelihood does not divide by n
-    ## so we do it
-    -inv(ForwardDiff.hessian(model, coef(model))) * length(model.y)
-end
-
-# Extend `CovarianceMatrices.jl` `momentmatrix` method
-function CovarianceMatrices.momentmatrix(model::Probit, t)
-    X, y = model.X, model.y
-    η = X * t
-    ϕ = pdf.(Normal(), η)
-    Φ = cdf.(Normal(), η)
-    ((1.0 ./ Φ) .* y .- (1.0 ./ (1 .- Φ)) .* (1 .- y)) .* ϕ .* X
-end
-
-function CovarianceMatrices.momentmatrix(model::Probit)
-    CovarianceMatrices.momentmatrix(model::Probit, coef(model))
-end
-
-# ----------------------------------------------------------
-# Fit the model
-# ----------------------------------------------------------
-probit = Probit(X, y)
-res = optimize(x->-probit(x), X\y, BFGS(); autodiff = :forward)
-probit.coef .= Optim.minimizer(res)
-
-# ----------------------------------------------------------
-# Calculate standard errors and robust standard errors
-# ----------------------------------------------------------
-vcov(HC0(), probit)
-stderror(HC0(), probit)
-# Robust to correlation
-stderror(Bartlett(4), probit)
-```-->
-
-<!--### GMM
-
-This code demonstrates the use of the `CovarianceMatrices.jl` package to perform Generalized Method of Moments (GMM) estimation using a custom-defined `GMMProblem` struct.
-
-The moment condition is
-
-$$
-E[g(d_i, \theta)]=0,
-$$
-
-where
-
-$$g(d_i, \theta) := \begin{pmatrix}
-  d_i-\theta \\
-  (d_i-\theta)^2-1
-  \end{pmatrix}.$$
-
-The `momentmatrix` function returns the moment conditions based on the model's coefficients and data, while the `bread` function computes the GMM "bread" matrix, which involves the Jacobian of the moment conditions and the inverse of the weighting matrix.
-
-The GMM estimation proceeds in two steps:
-
-1. **First Step**: Uses the identity matrix as the initial weighting matrix and optimizes the GMM objective using the LBFGS algorithm.
-
-3. **Second Step**: Computes an efficient weighting matrix from the first step's residuals using a heteroskedasticity-consistent estimator (HC1), then performs a second-step optimization for more efficient parameter estimates.
-
-Finally, the code computes robust variance-covariance matrices for the estimates from both the first-step and second-step GMM models. This process ensures robust inference for the GMM estimates.
-
-
-```julia
-using CovarianceMatrices
-using ForwardDiff
-using LinearAlgebra
-using Optim
+using Statistics
 using StatsBase
+using Random
+using Test
 
-struct GMMProblem{D, O}
-    coef::Vector{Float64}
-    d::D
-    Ω::O
-    Ω⁻::O
-    function GMMProblem(d::D, Ω::O) where {D, O<:Union{Matrix, typeof(I)}}
-        coef = Array{Float64}(undef, 1)
-        new{D, O}(coef, d, Ω, pinv(Ω))
-    end
+# Simple IV model structure
+struct LinearGMM{T, V, K} <: CovarianceMatrices.GMMLikeModel
+    data::T
+    beta_fs::V
+    beta::V      # Estimated coefficients
+    v::K
 end
 
-StatsBase.coef(gmm::GMMProblem) = gmm.coef
+# Implement CovarianceMatrices.jl interface
+StatsBase.coef(m::LinearGMM) = m.beta
+StatsBase.nobs(m::LinearGMM) = length(m.data.y)
 
-function CovarianceMatrices.momentmatrix(gmm::GMMProblem)
-    θ = coef(gmm)
-    d = gmm.d
-    [d[:,1].-θ[1]  (d[:,1].-θ[1]).^2.0.-1]
+function CovarianceMatrices.momentmatrix(p::LinearGMM, beta)
+    y, X, Z = p.data
+    Z.*(y .- X*beta)
 end
 
-function CovarianceMatrices.bread(gmm::GMMProblem)
-    gᵢ = CovarianceMatrices.momentmatrix(gmm)
-    n, m = size(gᵢ)
-    ∇g = ForwardDiff.jacobian(x->mean(CovarianceMatrices.momentmatrix(gmm,x); dims=1), coef(gmm))
-    Ω⁻= gmm.Ω⁻
-    (∇g'*Ω⁻*∇g)/Ω⁻'∇g
+function CovarianceMatrices.momentmatrix(p::LinearGMM)
+    y, X, Z = p.data
+    Z.*(y .- X*coef(p))
 end
 
-function CovarianceMatrices.momentmatrix(gmm::GMMProblem, θ)
-    d = gmm.d
-    [d[:,1].-θ[1]  (d[:,1].-θ[1]).^2.0.-1]
+function CovarianceMatrices.score(p::LinearGMM)
+    y, X, Z = p.data
+    return -(Z' * X)./nobs(p)
 end
 
-function (gmm::GMMProblem)(θ)
-    gᵢ = CovarianceMatrices.momentmatrix(gmm, θ)
-    gₙ = sum(gᵢ; dims=1)
-    Ω⁻= gmm.Ω⁻
-    0.5*first(gₙ*Ω⁻*gₙ')/size(gᵢ,1)
-end-->
+## Constructor - We estimate the parameters
+## using the TSLS initial matrix.
+function LinearGMM(data; v::CovarianceMatrices.AVarEstimator = HR0())
+    y, X, Z = data
+    ## First Step GMM
+    W = pinv(Z'Z)
+    #Main.@infiltrate
+    beta_fs = (X'*Z)*W*(Z'X)\(X'*Z)*W*(Z'y)
+    gmm = LinearGMM(data, beta_fs, similar(beta_fs), v)
+    ## Second Step
+    M = CovarianceMatrices.momentmatrix(gmm, beta_fs)
+    Omega = aVar(v, M)
+    beta_fs = (X'*Z)*Omega*(Z'X)\(X'*Z)*Omega*(Z'y)
+    copy!(gmm.beta, beta_fs)
+    return gmm
+end
 
-# ----------------------------------------------------------
-# Fake data
-# ----------------------------------------------------------
-d = randn(100,1)
-# ----------------------------------------------------------
-# First Step
-# Use identity matrix as weighting matrix
-# ----------------------------------------------------------
-firststep_gmm = GMMProblem(d, I)
-first_step = Optim.optimize(firststep_gmm, [0.], LBFGS())
-firststep_gmm.coef .= Optim.minimizer(first_step)
-# ----------------------------------------------------------
-# Second Step
-# ----------------------------------------------------------
-Ω = CovarianceMatrices.aVar(HC1(), momentmatrix(firststep_gmm))
-efficient_gmm = GMMProblem(d, Ω)
-second_step = Optim.optimize(efficient_gmm, coef(firststep_gmm), LBFGS())
-efficient_gmm.coef .= Optim.minimizer(second_step)
+function CovarianceMatrices.objective_hessian(p::LinearGMM)
+    y, X, Z = data
+    M = CovarianceMatrices.momentmatrix(p, coef(p))
+    Omega = aVar(p.v, M)
+    n = nobs(p)
+    H = -(X'Z/n)*pinv(Omega)*(Z'X/n)
+    return H
+end
 
-vcov(HC0(), firststep_gmm)
-vcov(HC0(), efficient_gmm)
+## Usage
+## Assume data is a named tuple with y, X, and the instruments Z.
 
-## This covariance is asymptotically valid even if the estimator is
-## is not efficient.
-vcov(Bartlett(4), efficient_gmm)
+
+model = LinearGMM(data)
+
+coef(model)
+
+## Usual variance estimator
+V1 = vcov(HR0(), Information(), model)
+
+## This use the hessian
+V2 = vcov(HR0(), Misspecified(), model
+
+## Etimate the model with a kernel second step optimal weighting
+model = LinearGMM(data; v = Bartlett(5))
+# Usual variance
+V3 = vcov(Bartlett(3), Information(), model)
+
+## Sandwich variance (robust to misspecification of the moment
+V4 = vcov(Bartlett(3), Misspecified(), model)
 
 ```
 
@@ -346,7 +246,7 @@ Z = randn(10000, 10)
 
 ```
 ```
-681.166 μs (93 allocations: 3.91 MiB)
+467.125 μs (128 allocations: 4.33 MiB)
 ```
 
 ### R (`sandwich`)
