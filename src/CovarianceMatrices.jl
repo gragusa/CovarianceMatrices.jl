@@ -30,10 +30,10 @@ include("VARHAC.jl")
 include("aVar.jl")
 
 # New unified API
-include("variance_forms.jl")
 include("model_interface.jl")
+include("variance_forms.jl")
 include("stable_computation.jl")
-include("new_api.jl")
+include("api.jl")
 export Andrews,
        NeweyWest,
        Bartlett,
@@ -76,13 +76,11 @@ export Andrews,
        TruncatedSmoother,
        # New API exports
        Information,
-       Robust,
-       CorrectlySpecified,
        Misspecified,
        VarianceForm,
-       jacobian,
+       MLikeModel,
+       GMMLikeModel,
+       score,
        objective_hessian,
-       weight_matrix,
-       vcov_new,
-       stderror_new
+       weight_matrix
     end

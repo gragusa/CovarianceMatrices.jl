@@ -6,10 +6,19 @@ objects should implement to work with the CovarianceMatrices.jl API.
 """
 
 """
-Type hierarchy
+Type hierarchy for statistical models
 """
 abstract type MLikeModel <: StatsBase.StatisticalModel end
 abstract type GMMLikeModel <: StatsBase.StatisticalModel end
+
+# Forward declarations for variance forms (defined in variance_forms.jl)
+abstract type VarianceForm end
+struct Information <: VarianceForm end
+struct Misspecified <: VarianceForm end
+
+# Convenience type unions for dispatch
+const MLikeForm = Union{Information,Misspecified}
+const GMMLikeForm = Union{Information,Misspecified}
 
 
 """
@@ -34,7 +43,7 @@ function momentmatrix end
 # Note: momentmatrix is already defined in api.jl, we just extend the documentation here
 
 """
-    jacobian(model) -> AbstractMatrix
+    score(model) -> AbstractMatrix
 
 Return the Jacobian matrix of the moment conditions.
 
@@ -49,10 +58,10 @@ parameters, where ḡ is the sample mean of the moment conditions.
 For exactly identified models (m = k), this equals the negative inverse
 of the Hessian of the objective function in many cases.
 """
-function jacobian(x)
+function score(x)
     t = typeof(x)
-    error("jacobian not implemented for type $t. " *
-          "Please implement: CovarianceMatrices.jacobian(::$(t)) -> AbstractMatrix")
+    error("score not implemented for type $t. " *
+          "Please implement: CovarianceMatrices.score(::$(t)) -> AbstractMatrix")
 end
 
 """
@@ -112,6 +121,17 @@ function _check_coef(model)
     end
 end
 
+# StatsBase.nobs should be implemented by all statistical models
+function _check_nobs(model)
+    try
+        StatsBase.nobs(model)
+    catch MethodError
+        t = typeof(model)
+        error("nobs not implemented for type $t. " *
+              "Please implement: StatsBase.nobs(::$(t)) -> Integer")
+    end
+end
+
 """
     _check_model_interface(model)
 
@@ -127,8 +147,9 @@ function _check_model_interface(model)
     end
 
     _check_coef(model)
+    _check_nobs(model)
 
-    # Check that jacobian is available when needed
+    # Check that score is available when needed
     # (This will be checked in the specific variance form methods)
 end
 
@@ -136,69 +157,46 @@ end
     _check_dimensions(form::VarianceForm, model)
 
 Check that model dimensions are compatible with the requested variance form.
+Uses model type hierarchy when available, falls back to dimension checking.
 """
-function _check_dimensions(form::Information, model)
+
+# Type-based checks for models using the hierarchy
+# Both forms work with both model types now, so just allow them
+_check_dimensions(form::VarianceForm, model::MLikeModel) = nothing
+_check_dimensions(form::VarianceForm, model::GMMLikeModel) = nothing
+
+# Fallback dimension-based checks for models not using the type hierarchy
+function _check_dimensions(form::VarianceForm, model)
+    # For models that don't inherit from MLikeModel or GMMLikeModel,
+    # we fall back to dimension checking
     Z = momentmatrix(model)
     θ = StatsBase.coef(model)
     m, k = size(Z, 2), length(θ)
 
-    if m != k
-        throw(ArgumentError("Information form requires exactly identified model (m = k), got m=$m, k=$k"))
-    end
-end
-
-function _check_dimensions(form::Robust, model)
-    Z = momentmatrix(model)
-    θ = StatsBase.coef(model)
-    m, k = size(Z, 2), length(θ)
-
-    if m != k
-        throw(ArgumentError("Robust form requires exactly identified model (m = k), got m=$m, k=$k"))
-    end
-
-    # Check that jacobian is available
-    if jacobian(model) === nothing
-        throw(ArgumentError("Robust form requires jacobian(model) to be implemented"))
-    end
-end
-
-function _check_dimensions(form::CorrectlySpecified, model)
-    Z = momentmatrix(model)
-    θ = StatsBase.coef(model)
-    m, k = size(Z, 2), length(θ)
-
-    if m <= k
-        throw(ArgumentError("CorrectlySpecified form requires overidentified model (m > k), got m=$m, k=$k"))
-    end
-
-    # Check that jacobian is available
-    if jacobian(model) === nothing
-        throw(ArgumentError("CorrectlySpecified form requires jacobian(model) to be implemented"))
-    end
-end
-
-function _check_dimensions(form::Misspecified, model)
-    Z = momentmatrix(model)
-    θ = StatsBase.coef(model)
-    m, k = size(Z, 2), length(θ)
-
-    if m <= k
-        throw(ArgumentError("Misspecified form requires overidentified model (m > k), got m=$m, k=$k"))
-    end
-
-    # Check that jacobian is available
-    if jacobian(model) === nothing
-        throw(ArgumentError("Misspecified form requires jacobian(model) to be implemented"))
+    # For exactly identified models (m = k), assume MLE-like
+    if m == k
+        # Check that required methods are available for Misspecified form
+        if form isa Misspecified && score(model) === nothing
+            throw(ArgumentError("Misspecified form requires score(model) to be implemented"))
+        end
+    # For overidentified models (m > k), assume GMM-like
+    elseif m > k
+        # Both forms require score for GMM
+        if score(model) === nothing
+            throw(ArgumentError("$(typeof(form)) form requires score(model) to be implemented for overidentified models"))
+        end
+    else
+        throw(ArgumentError("Invalid model: fewer moments (m=$m) than parameters (k=$k)"))
     end
 end
 
 """
-    _check_matrix_compatibility(form::VarianceForm, Z, jacobian, objective_hessian, W)
+    _check_matrix_compatibility(form::VarianceForm, Z, score, objective_hessian, W)
 
 Check compatibility of provided matrices for manual API.
 """
 function _check_matrix_compatibility(form::Information, Z::AbstractMatrix,
-    jacobian, objective_hessian, W)
+    score, objective_hessian, W)
     n, m = size(Z)
 
     if objective_hessian !== nothing
@@ -208,35 +206,29 @@ function _check_matrix_compatibility(form::Information, Z::AbstractMatrix,
         end
     end
 
-    if jacobian !== nothing
-        m_j, k_j = size(jacobian)
+    if score !== nothing
+        m_j, k_j = size(score)
         if m_j != m
-            throw(ArgumentError("jacobian first dimension ($m_j) must match moment matrix second dimension ($m)"))
+            throw(ArgumentError("score first dimension ($m_j) must match moment matrix second dimension ($m)"))
         end
     end
 
-    if objective_hessian === nothing && jacobian === nothing
-        throw(ArgumentError("Information form requires either objective_hessian or jacobian"))
+    if objective_hessian === nothing && score === nothing
+        throw(ArgumentError("Information form requires either objective_hessian or score"))
     end
 end
 
-function _check_matrix_compatibility(form::Union{Robust,CorrectlySpecified,Misspecified},
-    Z::AbstractMatrix, jacobian, objective_hessian, W)
+function _check_matrix_compatibility(form::Misspecified,
+    Z::AbstractMatrix, score, objective_hessian, W)
     n, m = size(Z)
 
-    if jacobian === nothing
-        throw(ArgumentError("$(typeof(form)) form requires jacobian matrix"))
+    if score === nothing
+        throw(ArgumentError("Misspecified form requires score matrix"))
     end
 
-    m_j, k_j = size(jacobian)
+    m_j, k_j = size(score)
     if m_j != m
-        throw(ArgumentError("jacobian first dimension ($m_j) must match moment matrix second dimension ($m)"))
-    end
-
-    if form isa Union{CorrectlySpecified,Misspecified} && m <= k_j
-        throw(ArgumentError("$(typeof(form)) form requires overidentified model (m > k), got m=$m, k=$k_j"))
-    elseif form isa Robust && m != k_j
-        throw(ArgumentError("Robust form requires exactly identified model (m = k), got m=$m, k=$k_j"))
+        throw(ArgumentError("score first dimension ($m_j) must match moment matrix second dimension ($m)"))
     end
 
     if W !== nothing

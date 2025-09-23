@@ -11,6 +11,7 @@ using Pkg
 Pkg.add("CovarianceMatrices")
 ```
 
+
 ## Features
 
 The package offers several classes of estimators:
@@ -24,9 +25,8 @@ The package offers several classes of estimators:
 3. **CR** (Cluster Robust)
 4. **Driscoll-Kraay**
 
-`CovarianceMatrices.jl` extends methods from `StatsBase.jl` and `GLM.jl`, providing a seamless replacement for standard error calculations in linear models.
-
 ## Quick Examples
+`CovarianceMatrices.jl` extends methods from `StatsBase.jl` and `GLM.jl` extending calculation of standard error for generalized linear models.
 
 Here are some basic examples of how to use `CovarianceMatrices.jl` for obtaining standard errors with `GLM.jl` models:
 
@@ -34,7 +34,7 @@ Here are some basic examples of how to use `CovarianceMatrices.jl` for obtaining
 using RDatasets
 df = dataset("plm", "Grunfeld")
 model = glm(@formula(Inv~Value+Capital), df, Normal(), IdentityLink())
-# Calculate HAC standard errors using Bartlet Kernel with the optimal 
+# Calculate HAC standard errors using Bartlet Kernel with the optimal
 # Bandwidth a' la Andrews
 vcov_hac = vcov(Bartlett{Andrews}(), model)
 # Calculate heteroskedasticity-robust (HC) standard errors
@@ -45,20 +45,110 @@ vcov_cr = vcov(CR1(df.Firm), model)
 vcov_dk = vcov(DriscollKraay(Bartlett(5), tis=df.year, iis=df.firm), model)
 ```
 
+## Unified API
+
+`CovarianceMatrices.jl` now features a unified API that provides a consistent interface for both Maximum Likelihood and GMM estimators. The new API supports:
+
+### Variance Forms
+
+The unified API uses just two variance forms that adapt based on model type:
+
+- **Information Form**:
+  * MLE: Fisher Information Matrix V = H⁻¹
+  * GMM: Efficient GMM V = (G'Ω⁻¹G)⁻¹
+- **Misspecified Form**:
+  * MLE: Robust sandwich V = G⁻¹ΩG⁻ᵀ
+  * GMM: Robust GMM V = (G'WG)⁻¹(G'WΩWG)(G'WG)⁻¹
+
+### Type Hierarchy
+
+The package uses a type hierarchy for proper method dispatch:
+
+- `MLikeModel`: For Maximum Likelihood estimators
+- `GMMLikeModel`: For GMM estimators
+
+Both model types support both variance forms, which automatically adapt their behavior.
+
+### Usage Example
+
+```julia
+using CovarianceMatrices
+
+# For MLE models
+vcov_info = vcov(HC1(), Information(), model)     # Fisher Information
+vcov_robust = vcov(HC1(), Misspecified(), model)  # Robust sandwich
+
+# For GMM models
+vcov_efficient = vcov(HR0(), Information(), model)  # Efficient GMM
+vcov_robust_gmm = vcov(HR0(), Misspecified(), model)  # Robust GMM
+```
+
+### Model Interface
+
+Third-party estimators should implement:
+
+- `CovarianceMatrices.momentmatrix(model)`: Return moment matrix/score functions
+- `CovarianceMatrices.score(model)`: Return Jacobian matrix (required for Robust and GMM forms)
+- `CovarianceMatrices.objective_hessian(model)`: Return objective Hessian (optional, for Misspecified form)
+- `StatsBase.coef(model)`: Return parameter estimates
+- `StatsBase.nobs(model)`: Return number of observations
+
 ## Advanced Usage
 
-`CovarianceMatrices.jl` is designed to be flexible and extensible. It can be used to estimate the asymptotic variance of custom estimators by defining the `bread` and `momentmatrix` methods. 
+`CovarianceMatrices.jl` is designed to be flexible and extensible. The examples below show both the legacy interface and the new unified API.
 
+Here's how to implement a Probit model using the new unified API:
 
-Below is a simple example illustrating how to extend `CovarianceMatrices.jl` for calculating robust estimates of the asymptotic variance-covariance matrix of the parameters of a _probit_ model and of a `GMM` estimator.
+```julia
+using CovarianceMatrices
+using FiniteDifferences
+using LinearAlgebra
+using Statistics
+using StatsBase
 
-### Probit model
+# Define Probit model with type hierarchy
+struct SimpleProbit <: CovarianceMatrices.MLikeModel
+    y::Vector{Int}
+    X::Matrix{Float64}
+    β::Vector{Float64}
+    fitted_probs::Vector{Float64}
+    fitted_densities::Vector{Float64}
+end
 
-This code implements a Probit regression model and it applies to the  `Hdma` dataset. The Probit model is defined in a custom Julia `struct`, which stores the design matrix `X` and binary outcome `y`, along with the coefficients. 
+# Implement required interface
+StatsBase.coef(m::SimpleProbit) = m.β
+StatsBase.nobs(m::SimpleProbit) = length(m.y)
 
-The code defines a log-likelihood function, and extends `momentmatrix` and `bread` methods to handle this model. 
+# Score functions (for MLE, this is the gradient of log-likelihood)
+function CovarianceMatrices.momentmatrix(m::SimpleProbit)
+    residuals = m.y .- m.fitted_probs
+    weights = m.fitted_densities ./ (m.fitted_probs .* (1 .- m.fitted_probs) .+ 1e-15)
+    return m.X .* (residuals .* weights)
+end
 
-The model is fitted using the BFGS optimization algorithm from the `Optim` package, and after fitting, standard errors and robust standard errors are calculated using various variance-covariance matrix estimators. 
+# Jacobian matrix (negative Fisher Information for MLE)
+function CovarianceMatrices.score(m::SimpleProbit)
+    weights = m.fitted_densities.^2 ./ (m.fitted_probs .* (1 .- m.fitted_probs) .+ 1e-15)
+    return -(m.X' * Diagonal(weights) * m.X) / length(m.y)
+end
+
+# Objective Hessian (Fisher Information Matrix)
+function CovarianceMatrices.objective_hessian(m::SimpleProbit)
+    return -score(m)
+end
+
+# Now you can use both variance forms:
+vcov_info = vcov(HC1(), Information(), model)    # Fisher Information
+vcov_robust = vcov(Bartlett(3), Misspecified(), model) # Robust sandwich
+```
+
+<!--### Legacy API Example: Probit model
+
+This code implements a Probit regression model and it applies to the  `Hdma` dataset. The Probit model is defined in a custom Julia `struct`, which stores the design matrix `X` and binary outcome `y`, along with the coefficients.
+
+The code defines a log-likelihood function, and extends `momentmatrix` and `bread` methods to handle this model.
+
+The model is fitted using the BFGS optimization algorithm from the `Optim` package, and after fitting, standard errors and robust standard errors are calculated using various variance-covariance matrix estimators.
 
 ```julia
 using CovarianceMatrices
@@ -106,7 +196,7 @@ end
 # Extend `CovarianceMatrices.jl` `bread` method
 function CovarianceMatrices.bread(model::Probit)
     ## Note: The loglikelihood does not divide by n
-    ## so we do it 
+    ## so we do it
     -inv(ForwardDiff.hessian(model, coef(model))) * length(model.y)
 end
 
@@ -119,7 +209,7 @@ function CovarianceMatrices.momentmatrix(model::Probit, t)
     ((1.0 ./ Φ) .* y .- (1.0 ./ (1 .- Φ)) .* (1 .- y)) .* ϕ .* X
 end
 
-function CovarianceMatrices.momentmatrix(model::Probit) 
+function CovarianceMatrices.momentmatrix(model::Probit)
     CovarianceMatrices.momentmatrix(model::Probit, coef(model))
 end
 
@@ -137,34 +227,34 @@ vcov(HC0(), probit)
 stderror(HC0(), probit)
 # Robust to correlation
 stderror(Bartlett(4), probit)
-```
+```-->
 
-### GMM
+<!--### GMM
 
-This code demonstrates the use of the `CovarianceMatrices.jl` package to perform Generalized Method of Moments (GMM) estimation using a custom-defined `GMMProblem` struct. 
+This code demonstrates the use of the `CovarianceMatrices.jl` package to perform Generalized Method of Moments (GMM) estimation using a custom-defined `GMMProblem` struct.
 
-The moment condition is 
+The moment condition is
 
 $$
 E[g(d_i, \theta)]=0,
 $$
 
-where 
+where
 
-$$g(d_i, \theta) := \begin{pmatrix} 
-  d_i-\theta \\ 
-  (d_i-\theta)^2-1 
+$$g(d_i, \theta) := \begin{pmatrix}
+  d_i-\theta \\
+  (d_i-\theta)^2-1
   \end{pmatrix}.$$
 
-The `momentmatrix` function returns the moment conditions based on the model's coefficients and data, while the `bread` function computes the GMM "bread" matrix, which involves the Jacobian of the moment conditions and the inverse of the weighting matrix. 
+The `momentmatrix` function returns the moment conditions based on the model's coefficients and data, while the `bread` function computes the GMM "bread" matrix, which involves the Jacobian of the moment conditions and the inverse of the weighting matrix.
 
-The GMM estimation proceeds in two steps: 
+The GMM estimation proceeds in two steps:
 
 1. **First Step**: Uses the identity matrix as the initial weighting matrix and optimizes the GMM objective using the LBFGS algorithm.
 
 3. **Second Step**: Computes an efficient weighting matrix from the first step's residuals using a heteroskedasticity-consistent estimator (HC1), then performs a second-step optimization for more efficient parameter estimates.
 
-Finally, the code computes robust variance-covariance matrices for the estimates from both the first-step and second-step GMM models. This process ensures robust inference for the GMM estimates. 
+Finally, the code computes robust variance-covariance matrices for the estimates from both the first-step and second-step GMM models. This process ensures robust inference for the GMM estimates.
 
 
 ```julia
@@ -211,7 +301,7 @@ function (gmm::GMMProblem)(θ)
     gₙ = sum(gᵢ; dims=1)
     Ω⁻= gmm.Ω⁻
     0.5*first(gₙ*Ω⁻*gₙ')/size(gᵢ,1)
-end
+end-->
 
 # ----------------------------------------------------------
 # Fake data
@@ -235,15 +325,15 @@ efficient_gmm.coef .= Optim.minimizer(second_step)
 vcov(HC0(), firststep_gmm)
 vcov(HC0(), efficient_gmm)
 
-## This covariance is asymptotically valid even if the estimator is 
-## is not efficient.  
+## This covariance is asymptotically valid even if the estimator is
+## is not efficient.
 vcov(Bartlett(4), efficient_gmm)
 
 ```
 
 ## Performance
 
-CovarianceMatrices.jl is designed for high performance, which might be useful in cases where the asymptotic variance of estimators needs to be computed repeatedly, e.g., for bootstrap inference. 
+CovarianceMatrices.jl is designed for high performance, which might be useful in cases where the asymptotic variance of estimators needs to be computed repeatedly, e.g., for bootstrap inference.
 
 Benchmark comparison with the `sandwich` package in R:
 
@@ -281,5 +371,3 @@ Contributions to CovarianceMatrices.jl are welcome! Please feel free to submit i
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-

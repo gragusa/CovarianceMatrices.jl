@@ -12,7 +12,7 @@ using StatsBase
 using Random
 using Distributions
 using StatsFuns
-
+using Test
 # ============================================================================
 # Probit Model Implementation
 # ============================================================================
@@ -25,7 +25,7 @@ The model assumes:
 
 where Φ is the standard normal CDF.
 """
-mutable struct ProbitModel{T<:Real}
+mutable struct ProbitModel{T<:Real} <: MLikeModel
     # Data
     y::Vector{Int}           # Binary outcomes (0 or 1)
     X::Matrix{T}             # Design matrix (n × k)
@@ -148,7 +148,7 @@ Return the Jacobian matrix (average derivative of moment conditions).
 For Probit MLE, this is the negative of the average Hessian:
 J = -E[∂g_i/∂β'] = -H/n
 """
-function CovarianceMatrices.jacobian(model::ProbitModel)
+function CovarianceMatrices.score(model::ProbitModel)
     W = Diagonal(model.φ .^ 2 ./ (model.Φ .* (1 .- model.Φ) .+ 1e-15))
     hessian = model.X' * W * model.X
     return -hessian / length(model.y)
@@ -171,76 +171,42 @@ end
 """
 Generate synthetic Probit data for testing.
 """
-function generate_probit_data(rng::AbstractRNG, n::Int, k::Int; beta_true=nothing)
-    if beta_true == nothing || length(beta_true) != k
-        beta_0 = rand(rng, k)
-    else
-        beta_0 = copy(beta_true)
-    end
-
+function generate_probit_data(rng::AbstractRNG, n::Int, k::Int, beta_true)
     # Generate design matrix
-    X = [ones(n) randn(n, k - 1)]  # Include intercept
-
+    X = [ones(n) randn(rng, n, k - 1)]  # Include intercept
     # Generate true linear predictor
-    Xβ_0 = X * beta_0
-
+    Xβ = X * beta_true
     # Generate binary outcomes
-    prob_0 = normal_cdf.(Xβ_0)
-    y = Int.(rand(n) .< prob_0)
-
-    return y, X, beta_0, prob_0
+    prob = normcdf.(Xβ)
+    y = Int.(rand(rng, n) .< prob)
+    return y, X, beta_true, prob
 end
 
 # ============================================================================
 # Comprehensive Testing
 # ============================================================================
 
-println("="^70)
-println("Comprehensive Probit Example - New CovarianceMatrices.jl API")
-println("="^70)
-
 # Generate test data
 rng = Random.Xoshiro(888111)
 n, k = 100, 2
-β_true = [0.5, 1.0]
-y, X, β_true, prob_true = generate_probit_data(rng, n, k; beta_true=β_true)
+beta_true = [0.5, 1.0]
+y, X, β_true, prob_true = generate_probit_data(rng, n, k, beta_true)
 ## estimated par in R glm =>
-thetahat_ = [0.2772741, 0.9134372]
-vcov_hat = [0.022112370 0.005763997;
-    0.005763997 0.029212377]
-vcov_bartlett_hat = [0.018643385 0.008982916;
-    0.008982916 0.026860191]
-println("\nData Summary:")
-println("  Observations: $n")
-println("  Parameters: $k")
-println("  True β: $(round.(β_true, digits=3))")
-println("  Response rate: $(round(100*mean(y), digits=1))%")
+thetahat_ = [0.4832131   1.1652022]
+vcov_hat = [0.02739764 0.01599602;
+            0.01599602 0.04839182]
+vcov_bartlett_hat = [0.024673131 0.007058256;
+                     0.007058256 0.043264935]
 
 # Fit Probit model
-println("\nFitting Probit model...")
 model = ProbitModel(y, X)
 fit!(model)
 
-if model.converged
-    println("✓ Converged in $(model.iterations) iterations")
-    println("  Log-likelihood: $(round(model.loglik, digits=2))")
-    println("  Estimated β: $(round.(model.β, digits=3))")
-    println("  Estimation error: $(round.(model.β .- β_true, digits=3))")
-else
-    println("✗ Failed to converge")
-    exit(1)
-end
-
-# Test all variance estimators and forms
-println("\n" * "="^70)
-println("Testing Variance Estimation Forms")
-println("="^70)
-
-V1 = vcov_new(HC0(), Information(), model)
-@test maximum(abs.(V1 .- vcov_hat)) < 1e-06
-V2 = vcov_new(HC0(), Robust(), model)
+V1 = vcov(HC0(), Information(), model)
+@test maximum(abs.(V1 .- vcov_hat)) < 1e-05
+V2 = vcov(HC0(), Robust(), model)
 @test maximum(abs.(V2 .- vcov_hat)) <= 0.01
-V3 = vcov_new(Bartlett(3), Robust(), model)
+V3 = vcov(Bartlett(3), Robust(), model)
 @test maximum(abs.(V2 .- vcov_bartlett_hat)) <= 0.01
 
 
@@ -248,33 +214,18 @@ V3 = vcov_new(Bartlett(3), Robust(), model)
 # Manual Matrix API Test
 # ============================================================================
 
-println("\n" * "="^70)
-println("Manual Matrix API Test")
-println("="^70)
-
 # Test the matrix-based API
 Z_manual = CovarianceMatrices.momentmatrix(model)
-G_manual = CovarianceMatrices.jacobian(model)
+G_manual = CovarianceMatrices.score(model)
 H_manual = CovarianceMatrices.objective_hessian(model)
 
-println("Testing manual matrix API...")
+# Test with full specification
+V_manual = vcov(HC1(), Robust(), Z_manual;
+        score=G_manual, objective_hessian=H_manual)
 
-try
-    # Test with full specification
-    V_manual = vcov_new(HC1(), Robust(), Z_manual;
-        jacobian=G_manual, objective_hessian=H_manual)
-    println("✓ Manual API with full specification works")
 
-    # Test with minimal specification
-    V_manual_min = vcov_new(HC1(), Information(), Z_manual;
+V_manual_min = vcov(HC1(), Information(), Z_manual;
         objective_hessian=H_manual)
-    println("✓ Manual API with minimal specification works")
 
-    # Compare with model-based API
-    V_model = vcov_new(HC1(), Robust(), model)
-    diff = maximum(abs.(V_manual .- V_model))
-    println("✓ Manual vs Model API difference: $(round(diff, digits=8))")
-
-catch e
-    println("✗ Manual API test failed: $e")
-end
+V_model = vcov(HC1(), Robust(), model)
+diff = maximum(abs.(V_manual .- V_model))

@@ -1,46 +1,106 @@
-invpseudohessian(x) = (t = typeof(x); error("Not defined for type $t", ))
+"""
+New unified API for covariance matrix estimation.
+
+This module implements the improved API design that provides a single interface
+for third-party estimators to obtain asymptotic covariance matrices under
+either correct specification or misspecification.
+"""
+
+using LinearAlgebra
+using StatsBase
 
 """
-### Description
-The `momentmatrix` function returns the matrix of moment conditions for the estimation problem defined by `x`. Moment conditions are crucial for various estimation procedures, such as Generalized Method of Moments (GMM) and Maximum Likelihood Estimation (MLE). 
+    vcov(ve::AVarEstimator, form::VarianceForm, model; kwargs...)
 
-For MLE, the moment matrix corresponds to the inverse of the Hessian of the (pseudo-)log-likelihood function, evaluated at the data. For GMM, it represents the matrix of moment conditions evaluated at the observed data.
+Compute variance-covariance matrix for a model using specified estimator and form.
 
-This function can be extended to support user-defined types, allowing flexibility for different estimation methods.
+# Arguments
+- `ve::AVarEstimator`: Variance estimator (HAC, HC, CR, etc.)
+- `form::VarianceForm`: Variance form (Information, Robust, CorrectlySpecified, Misspecified)
+- `model`: Statistical model implementing required interface methods
 
-### Usage
+# Keyword Arguments
+- `W::Union{Nothing,AbstractMatrix}=nothing`: Optional weight matrix for GMM misspecified
+- `scale::Symbol=:n`: Scaling for Ω (:n for 1/n scaling)
+- `rcond_tol::Real=1e-12`: Tolerance for rank condition in pseudo-inverse
+- `check::Bool=true`: Perform dimension and compatibility checks
+- `warn::Bool=true`: Issue warnings for potential issues
 
-```julia
-momentmatrix(x) -> Matrix
-momentmatrix(x, t) -> Matrix
-momentmatrix!(x, y) -> Matrix
-```
-
-- `momentmatrix(x)`: Returns the moment matrix for the estimation problem `x`.
-- `momentmatrix(x, t)`: Returns the moment matrix for the estimation problem `x` when the parameter is equal to t.
-- `momentmatrix!(x, y)`: In-place version, updating the matrix `y` with the moment conditions evaluated for `x`.
-
-The matrix returned is typically of size `(obs x m)`, where `obs` refers to the number of observations, and `m` refers to the number of moments. Users can define their own moment matrices for custom types by overloading this function.
+# Returns
+- `Matrix{Float64}`: Variance-covariance matrix
 """
-momentmatrix(x) = (t = typeof(x); error("Not defined for type $t"))
-momentmatrix!(x, y) = (t = typeof(x); error("Not defined"))
-resid(x) = (t = typeof(x); error("Not defined for type $t"))
-"""
-    bread(x)
-Return the bread matrix for the estimation problem `x`.
+function StatsBase.vcov(ve::AVarEstimator, form::VarianceForm, model;
+    W::Union{Nothing,AbstractMatrix}=nothing,
+    scale::Symbol=:n,
+    rcond_tol::Real=1e-12,
+    check::Bool=true,
+    warn::Bool=true)
 
-Note: This function is not defined for all types and must be extended for specific types.
-"""
-bread(x) = (t = typeof(x); error("Not defined for type $t"))
-leverage(x) = (t = typeof(x); error("Not defined for type $t"))
-residualadjustment(k::AVarEstimator, x::Any) = (t = typeof(x); error("Not defined for type $t"))
+    if check
+        _check_model_interface(model)
+        _check_dimensions(form, model)
+    end
 
-function StatsBase.vcov(𝒦::AVarEstimator, e)
-    gᵢ= momentmatrix(e)
-    ## Bread mut return a k×m
-    B = bread(e)
-    Ω = aVar(𝒦, gᵢ)
-    B*Ω*B'/size(gᵢ,1)
+    # Get required matrices
+    Z = CovarianceMatrices.momentmatrix(model)
+    n = nobs(model)
+
+    # Compute long-run covariance
+    Ω = aVar(ve, Z)
+    G = score(model)
+    H = objective_hessian(model)
+    # Dispatch to appropriate computation
+    V = _compute_vcov(form, H, G, Ω, W; rcond_tol=rcond_tol, warn=warn)
+
+    return Symmetric(rdiv!(V, n))
 end
 
-StatsBase.stderror(𝒦::AVarEstimator, e) = sqrt.(diag(vcov(𝒦, e)))
+"""
+    vcov(ve::AVarEstimator, form::VarianceForm, Z::AbstractMatrix; kwargs...)
+
+Manual variance computation from moment matrix.
+
+# Arguments
+- `ve::AVarEstimator`: Variance estimator
+- `form::VarianceForm`: Variance form
+- `Z::AbstractMatrix`: Moment matrix (n × m)
+
+# Keyword Arguments
+- `score::Union{Nothing,AbstractMatrix}=nothing`: Jacobian matrix G (m × k)
+- `objective_hessian::Union{Nothing,AbstractMatrix}=nothing`: Hessian matrix H (k × k)
+- `W::Union{Nothing,AbstractMatrix}=nothing`: Weight matrix (m × m)
+- `rcond_tol::Real=1e-12`: Tolerance for rank condition
+"""
+function StatsBase.vcov(ve::AVarEstimator, form::VarianceForm, Z::AbstractMatrix;
+    score::Union{Nothing,AbstractMatrix}=nothing,
+    objective_hessian::Union{Nothing,AbstractMatrix}=nothing,
+    W::Union{Nothing,AbstractMatrix}=nothing,
+    rcond_tol::Real=1e-12)
+
+
+    n, m = size(Z)
+
+    # Check what's available and what's required
+    _check_matrix_compatibility(form, Z, score, objective_hessian, W)
+
+    # Compute long-run covariance
+    Ω = aVar(ve, Z; scale=false)
+
+    # Compute variance
+    H = objective_hessian
+    G = score
+    V = _compute_vcov(form, H, G, Ω, W; rcond_tol=rcond_tol, warn=false)
+
+    return Symmetric(rdiv!(V, n))
+end
+
+
+"""
+    stderror(ve::AVarEstimator, args...; kwargs...)
+
+Compute standard errors from variance-covariance matrix.
+"""
+function StatsBase.stderror(ve::AVarEstimator, args...; kwargs...)
+    V = StatsBase.vcov(ve, args...; kwargs...)
+    return sqrt.(diag(V))
+end

@@ -13,36 +13,49 @@ using LinearAlgebra
 Dispatch to appropriate variance computation based on form.
 """
 function _compute_vcov(form::Information, H, G, Ω, W; rcond_tol::Real=1e-12, warn::Bool=true)
-    ## Ideally warn if correction to SVD was performed
-    Hinv, flag = ipinv(H)
-    if warn && any(flag)
-        @warn "The inverse hessian is not invertible. Correction to the smallest eigenvalues applied"
+    # Check if we have a Hessian (MLE case) or need to use score (GMM case)
+    if H !== nothing
+        # MLE case: V = H⁻¹ (Fisher Information)
+        Hinv, flag = ipinv(H)
+        if warn && any(flag)
+            @warn "The inverse hessian is not invertible. Correction to the smallest eigenvalues applied"
+        end
+        return Hinv
+    else
+        # GMM case: V = (G'Ω⁻¹G)⁻¹ (efficient GMM)
+        Ωinv, flag = ipinv(Ω)
+        if warn && any(flag)
+            @warn "The inverse of Ω is not invertible. Correction to the smallest eigenvalues applied"
+        end
+        V, flag = ipinv(G' * Ωinv * G)
+        if warn && any(flag)
+            @warn "The variance matrix is not invertible. Correction to the smallest eigenvalue(s) applied"
+        end
+        return V
     end
-    return Hinv
 end
 
-function _compute_vcov(form::Robust, H, G, Ω, W; rcond_tol::Real=1e-12, warn::Bool=true)
-    ## Ideally warn if correction to SVD was performed
-    Ginv, flag = ipinv(G)
-    if warn && any(flag)
-        @warn "The inverse of the jacobian is not invertible. Correction to the smallest eigenvalues applied"
-    end
-    return Ginv' * Ω * Ginv
-end
-
-function _compute_vcov(form::CorrectlySpecified, H, G, Ω, W; rcond_tol::Real=1e-12, warn::Bool=true)
-    ## Ideally warn if correction to SVD was performed
-    Ωinv, flag = ipinv(Ω)
-    if warn && any(flag)
-        @warn "The inverse of Ω is not invertible. Correction to the smallest eigenvalues applied"
-    end
-    V, flag = ipinv(G' * Ωinv * G)
-    if warn && any(flag)
-        @warn "The variance of the final variance is not invertible. Correction to the smallest eigenvalue(s) applied"
-    end
-end
+# Misspecified form - dispatches based on model type context
+# For MLE-like models (m=k): robust sandwich V = G⁻¹ΩG⁻ᵀ
+# For GMM-like models (m>k): robust GMM V = (G'WG)⁻¹(G'WΩWG)(G'WG)⁻¹
 
 function _compute_vcov(form::Misspecified, H, G, Ω, W; rcond_tol::Real=1e-12, warn::Bool=true)
+    m, k = size(G)
+
+    if m == k
+        # MLE-like: robust sandwich form V = G⁻¹ΩG⁻ᵀ
+        Ginv, flag = ipinv(G)
+        if warn && any(flag)
+            @warn "The inverse of the score is not invertible. Correction to the smallest eigenvalues applied"
+        end
+        return Ginv' * Ω * Ginv
+    else
+        # GMM-like: robust GMM form V = (G'WG)⁻¹(G'WΩWG)(G'WG)⁻¹
+        _compute_vcov_gmm_misspecified(H, G, Ω, W; rcond_tol=rcond_tol, warn=warn)
+    end
+end
+
+function _compute_vcov_gmm_misspecified(H, G, Ω, W; rcond_tol::Real=1e-12, warn::Bool=true)
     ## Ideally warn if correction to SVD was performed
     Ωinv, flag = ipinv(Ω)
     if warn && any(flag)
