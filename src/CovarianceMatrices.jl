@@ -24,7 +24,7 @@ include("HR.jl")
 include("DriscollKraay.jl")
 include("demeaner.jl")
 include("EWC.jl")
-include("api.jl")
+#include("api.jl")
 include("smoothing.jl")
 include("VARHAC.jl")
 include("aVar.jl")
@@ -67,9 +67,9 @@ export Andrews,
        aVar,
        a𝕍ar,
        optimalbw,
-       bread,
-       momentmatrix,
-       residualadjustment,
+ #      bread,
+ #      momentmatrix,
+ #      residualadjustment,
        vcov,
        stderror,
        BartlettSmoother,
