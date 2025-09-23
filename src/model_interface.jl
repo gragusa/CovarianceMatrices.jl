@@ -6,6 +6,13 @@ objects should implement to work with the CovarianceMatrices.jl API.
 """
 
 """
+Type hierarchy
+"""
+abstract type MLikeModel <: StatsBase.StatisticalModel end
+abstract type GMMLikeModel <: StatsBase.StatisticalModel end
+
+
+"""
     momentmatrix(model) -> AbstractMatrix
     momentmatrix(model, θ::AbstractVector) -> AbstractMatrix
 
@@ -84,11 +91,14 @@ the misspecified GMM variance form.
 # Note
 For efficient GMM, this is typically Ω⁻¹ where Ω is the covariance of moments.
 For first-step or suboptimal GMM, this might be the identity or some other matrix.
+The resulting matrix is then different.
 """
 function weight_matrix(x)
     # Default: not available (will use optimal weight)
     return nothing
 end
+
+## TODO: Model checking should be done on whether the model is MLikeModel GMMLikeModel.
 
 # StatsBase.coef should already be implemented by most statistical models
 # But we can provide a helpful error message if it's missing
@@ -188,7 +198,7 @@ end
 Check compatibility of provided matrices for manual API.
 """
 function _check_matrix_compatibility(form::Information, Z::AbstractMatrix,
-                                   jacobian, objective_hessian, W)
+    jacobian, objective_hessian, W)
     n, m = size(Z)
 
     if objective_hessian !== nothing
@@ -210,8 +220,8 @@ function _check_matrix_compatibility(form::Information, Z::AbstractMatrix,
     end
 end
 
-function _check_matrix_compatibility(form::Union{Robust, CorrectlySpecified, Misspecified},
-                                   Z::AbstractMatrix, jacobian, objective_hessian, W)
+function _check_matrix_compatibility(form::Union{Robust,CorrectlySpecified,Misspecified},
+    Z::AbstractMatrix, jacobian, objective_hessian, W)
     n, m = size(Z)
 
     if jacobian === nothing
@@ -223,7 +233,7 @@ function _check_matrix_compatibility(form::Union{Robust, CorrectlySpecified, Mis
         throw(ArgumentError("jacobian first dimension ($m_j) must match moment matrix second dimension ($m)"))
     end
 
-    if form isa Union{CorrectlySpecified, Misspecified} && m <= k_j
+    if form isa Union{CorrectlySpecified,Misspecified} && m <= k_j
         throw(ArgumentError("$(typeof(form)) form requires overidentified model (m > k), got m=$m, k=$k_j"))
     elseif form isa Robust && m != k_j
         throw(ArgumentError("Robust form requires exactly identified model (m = k), got m=$m, k=$k_j"))

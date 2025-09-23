@@ -49,8 +49,8 @@ If W is not provided, defaults to Ω⁻¹ (equivalent to CorrectlySpecified).
 struct Misspecified <: VarianceForm end
 
 # Convenience type unions for dispatch
-const MLikeForm = Union{Information, Robust}
-const GMMLikeForm = Union{CorrectlySpecified, Misspecified}
+const MLikeForm = Union{Information,Robust}
+const GMMLikeForm = Union{CorrectlySpecified,Misspecified}
 
 """
     auto_form(model) -> VarianceForm
@@ -69,22 +69,5 @@ function auto_form(model)
         return CorrectlySpecified()  # Preferred default for GMM
     else
         throw(ArgumentError("Invalid model: fewer moments (m=$m) than parameters (k=$k)"))
-    end
-end
-
-# Allow symbol-based form specification for backward compatibility
-function symbol_to_form(sym::Symbol)
-    if sym == :information
-        return Information()
-    elseif sym == :robust
-        return Robust()
-    elseif sym == :correctly_specified
-        return CorrectlySpecified()
-    elseif sym == :misspecified
-        return Misspecified()
-    elseif sym == :auto
-        return nothing  # Will be resolved by auto_form
-    else
-        throw(ArgumentError("Unknown variance form symbol: $sym"))
     end
 end

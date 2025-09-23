@@ -36,11 +36,11 @@ When `form=:auto`:
 - If m > k (GMM-like): defaults to `:correctly_specified` (efficient)
 """
 function vcov_new(ve::AVarEstimator, form::VarianceForm, model;
-                       W::Union{Nothing,AbstractMatrix}=nothing,
-                       scale::Symbol=:n,
-                       rcond_tol::Real=1e-12,
-                       check::Bool=true,
-                       warn::Bool=true)
+    W::Union{Nothing,AbstractMatrix}=nothing,
+    scale::Symbol=:n,
+    rcond_tol::Real=1e-12,
+    check::Bool=true,
+    warn::Bool=true)
 
     if check
         _check_model_interface(model)
@@ -48,38 +48,17 @@ function vcov_new(ve::AVarEstimator, form::VarianceForm, model;
     end
 
     # Get required matrices
-    Z = momentmatrix(model)
-    n = size(Z, 1)
+    Z = CovarianceMatrices.momentmatrix(model)
+    n = nobs(model)
 
     # Compute long-run covariance
-    Ω = aVar(ve, Z; scale=false)  # Don't scale here - we'll handle it
-
+    Ω = aVar(ve, Z)
+    G = jacobian(model)
+    H = objective_hessian(model)
     # Dispatch to appropriate computation
-    V = _compute_vcov(form, model, Ω, W; rcond_tol=rcond_tol, warn=warn)
+    V = _compute_vcov(form, H, G, Ω, W; rcond_tol=rcond_tol, warn=warn)
 
-    # Apply scaling
-    _scale_vcov!(V, scale, n)
-
-    return Symmetric(V)
-end
-
-# Symbol-based interface for backward compatibility
-function vcov_new(ve::AVarEstimator, model;
-                       form::Symbol=:auto,
-                       W::Union{Nothing,AbstractMatrix}=nothing,
-                       scale::Symbol=:n,
-                       rcond_tol::Real=1e-12,
-                       check::Bool=true,
-                       warn::Bool=true)
-
-    if form == :auto
-        variance_form = auto_form(model)
-    else
-        variance_form = symbol_to_form(form)
-    end
-
-    return vcov_new(ve, variance_form, model; W=W, scale=scale, rcond_tol=rcond_tol,
-                    check=check, warn=warn)
+    return Symmetric(rdiv!(V, n))
 end
 
 """
@@ -99,10 +78,11 @@ Manual variance computation from moment matrix.
 - `rcond_tol::Real=1e-12`: Tolerance for rank condition
 """
 function vcov_new(ve::AVarEstimator, form::VarianceForm, Z::AbstractMatrix;
-                       jacobian::Union{Nothing,AbstractMatrix}=nothing,
-                       objective_hessian::Union{Nothing,AbstractMatrix}=nothing,
-                       W::Union{Nothing,AbstractMatrix}=nothing,
-                       rcond_tol::Real=1e-12)
+    jacobian::Union{Nothing,AbstractMatrix}=nothing,
+    objective_hessian::Union{Nothing,AbstractMatrix}=nothing,
+    W::Union{Nothing,AbstractMatrix}=nothing,
+    rcond_tol::Real=1e-12)
+
 
     n, m = size(Z)
 
@@ -112,13 +92,10 @@ function vcov_new(ve::AVarEstimator, form::VarianceForm, Z::AbstractMatrix;
     # Compute long-run covariance
     Ω = aVar(ve, Z; scale=false)
 
-    # Create a mock model object for dispatch
-    mock_model = MatrixModel(Z, jacobian, objective_hessian, W)
-
     # Compute variance
-    V = _compute_vcov(form, mock_model, Ω, W; rcond_tol=rcond_tol, warn=false)
+    V = _compute_vcov(form, H, G, Ω, W; rcond_tol=rcond_tol, warn=warn)
 
-    return Symmetric(V ./ n)
+    return Symmetric(rdiv!(V, n))
 end
 
 """
@@ -129,30 +106,4 @@ Compute standard errors from variance-covariance matrix.
 function stderror_new(ve::AVarEstimator, args...; kwargs...)
     V = vcov_new(ve, args...; kwargs...)
     return sqrt.(diag(V))
-end
-
-# Internal helper struct for matrix-based API
-struct MatrixModel{T<:Real}
-    Z::AbstractMatrix{T}
-    jacobian::Union{Nothing,AbstractMatrix{T}}
-    objective_hessian::Union{Nothing,AbstractMatrix{T}}
-    W::Union{Nothing,AbstractMatrix{T}}
-end
-
-# Implement required interface for MatrixModel
-momentmatrix(m::MatrixModel) = m.Z
-jacobian(m::MatrixModel) = m.jacobian
-objective_hessian(m::MatrixModel) = m.objective_hessian
-weight_matrix(m::MatrixModel) = m.W
-StatsBase.coef(m::MatrixModel) = zeros(eltype(m.Z), _infer_k(m))
-
-function _infer_k(m::MatrixModel)
-    if m.jacobian !== nothing
-        return size(m.jacobian, 2)
-    elseif m.objective_hessian !== nothing
-        return size(m.objective_hessian, 1)
-    else
-        # For exactly identified case, k = m
-        return size(m.Z, 2)
-    end
 end

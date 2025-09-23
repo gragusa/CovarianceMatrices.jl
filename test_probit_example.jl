@@ -10,23 +10,8 @@ using LinearAlgebra
 using Statistics
 using StatsBase
 using Random
-
-# Simple implementations to avoid Distributions dependency
-function normal_cdf(x::Real)
-    # Abramowitz and Stegun approximation (accurate to ~7.5e-8)
-    if x >= 0
-        t = 1 / (1 + 0.2316419 * x)
-        return 1 - normal_pdf(x) * (0.319381530 * t - 0.356563782 * t^2 +
-                                   1.781477937 * t^3 - 1.821255978 * t^4 +
-                                   1.330274429 * t^5)
-    else
-        return 1 - normal_cdf(-x)
-    end
-end
-
-function normal_pdf(x::Real)
-    return exp(-x^2/2) / sqrt(2π)
-end
+using Distributions
+using StatsFuns
 
 # ============================================================================
 # Probit Model Implementation
@@ -44,27 +29,24 @@ mutable struct ProbitModel{T<:Real}
     # Data
     y::Vector{Int}           # Binary outcomes (0 or 1)
     X::Matrix{T}             # Design matrix (n × k)
-
     # Estimated parameters
     β::Vector{T}             # Coefficient estimates
-
     # Cached computations
     Xβ::Vector{T}            # Linear predictor X*β
     Φ::Vector{T}             # Φ(X*β) - fitted probabilities
     φ::Vector{T}             # φ(X*β) - density values
-
     # Convergence info
     converged::Bool
     iterations::Int
     loglik::T
 end
 
-function ProbitModel(y::Vector{Int}, X::Matrix{T}) where T<:Real
+function ProbitModel(y::Vector{Int}, X::Matrix{T}) where {T<:Real}
     n, k = size(X)
     @assert length(y) == n "Dimension mismatch: y has $(length(y)) elements, X has $n rows"
     @assert all(y .∈ Ref([0, 1])) "y must contain only 0s and 1s"
 
-    # Initialize with OLS estimates (crude starting values)
+    # Initialize with OLS estimates (very crude starting values!)
     β_init = (X'X) \ (X'y)
 
     return ProbitModel(
@@ -83,19 +65,19 @@ function update_predictions!(model::ProbitModel, β::AbstractVector)
 
     # Compute Φ(Xβ) and φ(Xβ)
     for i in eachindex(model.Xβ)
-        model.Φ[i] = normal_cdf(model.Xβ[i])
-        model.φ[i] = normal_pdf(model.Xβ[i])
+        model.Φ[i] = normcdf(model.Xβ[i])
+        model.φ[i] = normpdf(model.Xβ[i])
     end
 
     # Compute log-likelihood
     model.loglik = sum(model.y .* log.(max.(model.Φ, 1e-15)) .+
-                      (1 .- model.y) .* log.(max.(1 .- model.Φ, 1e-15)))
+                       (1 .- model.y) .* log.(max.(1 .- model.Φ, 1e-15)))
 end
 
 """
 Fit Probit model using Newton-Raphson algorithm.
 """
-function fit!(model::ProbitModel{T}; maxiter::Int=100, tol::T=T(1e-8)) where T
+function fit!(model::ProbitModel{T}; maxiter::Int=100, tol::T=T(1e-8)) where {T}
 
     for iter in 1:maxiter
         # Update predictions
@@ -107,7 +89,7 @@ function fit!(model::ProbitModel{T}; maxiter::Int=100, tol::T=T(1e-8)) where T
         score = model.X' * (residuals .* weights)
 
         # Compute Hessian (information matrix)
-        W = Diagonal(model.φ.^2 ./ (model.Φ .* (1 .- model.Φ) .+ 1e-15))
+        W = Diagonal(model.φ .^ 2 ./ (model.Φ .* (1 .- model.Φ) .+ 1e-15))
         hessian = model.X' * W * model.X
 
         # Newton-Raphson update
@@ -139,6 +121,8 @@ end
 # CovarianceMatrices.jl Interface Implementation
 # ============================================================================
 
+StatsBase.nobs(model::ProbitModel) = size(model.X, 1)
+
 """
 Return coefficient estimates.
 """
@@ -165,7 +149,7 @@ For Probit MLE, this is the negative of the average Hessian:
 J = -E[∂g_i/∂β'] = -H/n
 """
 function CovarianceMatrices.jacobian(model::ProbitModel)
-    W = Diagonal(model.φ.^2 ./ (model.Φ .* (1 .- model.Φ) .+ 1e-15))
+    W = Diagonal(model.φ .^ 2 ./ (model.Φ .* (1 .- model.Φ) .+ 1e-15))
     hessian = model.X' * W * model.X
     return -hessian / length(model.y)
 end
@@ -176,7 +160,7 @@ Return the objective Hessian (negative Hessian of log-likelihood).
 For MLE, this equals the Fisher Information matrix.
 """
 function CovarianceMatrices.objective_hessian(model::ProbitModel)
-    W = Diagonal(model.φ.^2 ./ (model.Φ .* (1 .- model.Φ) .+ 1e-15))
+    W = Diagonal(model.φ .^ 2 ./ (model.Φ .* (1 .- model.Φ) .+ 1e-15))
     return model.X' * W * model.X / length(model.y)
 end
 
@@ -187,35 +171,45 @@ end
 """
 Generate synthetic Probit data for testing.
 """
-function generate_probit_data(n::Int, k::Int; β_true::Vector{Float64}=randn(k), seed::Int=123)
-    Random.seed!(seed)
+function generate_probit_data(rng::AbstractRNG, n::Int, k::Int; beta_true=nothing)
+    if beta_true == nothing || length(beta_true) != k
+        beta_0 = rand(rng, k)
+    else
+        beta_0 = copy(beta_true)
+    end
 
     # Generate design matrix
-    X = [ones(n) randn(n, k-1)]  # Include intercept
+    X = [ones(n) randn(n, k - 1)]  # Include intercept
 
     # Generate true linear predictor
-    Xβ_true = X * β_true
+    Xβ_0 = X * beta_0
 
     # Generate binary outcomes
-    prob_true = normal_cdf.(Xβ_true)
-    y = Int.(rand(n) .< prob_true)
+    prob_0 = normal_cdf.(Xβ_0)
+    y = Int.(rand(n) .< prob_0)
 
-    return y, X, β_true, prob_true
+    return y, X, beta_0, prob_0
 end
 
 # ============================================================================
 # Comprehensive Testing
 # ============================================================================
 
-println("=" ^70)
+println("="^70)
 println("Comprehensive Probit Example - New CovarianceMatrices.jl API")
-println("=" ^70)
+println("="^70)
 
 # Generate test data
-n, k = 1000, 4
-β_true = [0.5, 1.0, -0.8, 0.3]
-y, X, β_true, prob_true = generate_probit_data(n, k; β_true=β_true)
-
+rng = Random.Xoshiro(888111)
+n, k = 100, 2
+β_true = [0.5, 1.0]
+y, X, β_true, prob_true = generate_probit_data(rng, n, k; beta_true=β_true)
+## estimated par in R glm =>
+thetahat_ = [0.2772741, 0.9134372]
+vcov_hat = [0.022112370 0.005763997;
+    0.005763997 0.029212377]
+vcov_bartlett_hat = [0.018643385 0.008982916;
+    0.008982916 0.026860191]
 println("\nData Summary:")
 println("  Observations: $n")
 println("  Parameters: $k")
@@ -242,84 +236,13 @@ println("\n" * "="^70)
 println("Testing Variance Estimation Forms")
 println("="^70)
 
-# Test different variance estimators
-estimators = [
-    ("IID (HC0)", HC0()),
-    ("HC1", HC1()),
-    ("HC2", HC2()),
-    ("HC3", HC3()),
-    ("Bartlett(5)", Bartlett(5)),
-    ("NeweyWest", NeweyWest())
-]
+V1 = vcov_new(HC0(), Information(), model)
+@test maximum(abs.(V1 .- vcov_hat)) < 1e-06
+V2 = vcov_new(HC0(), Robust(), model)
+@test maximum(abs.(V2 .- vcov_hat)) <= 0.01
+V3 = vcov_new(Bartlett(3), Robust(), model)
+@test maximum(abs.(V2 .- vcov_bartlett_hat)) <= 0.01
 
-# Test variance forms for M-like models
-forms = [
-    ("Information", Information()),
-    ("Robust", Robust()),
-    ("Auto", :auto)
-]
-
-results = Dict()
-
-for (est_name, estimator) in estimators
-    println("\n--- $est_name ---")
-
-    for (form_name, form) in forms
-        try
-            if form == :auto
-                V = vcov_new(estimator, model; form=form)
-                se = stderror_new(estimator, model; form=form)
-            else
-                V = vcov_new(estimator, form, model)
-                se = stderror_new(estimator, form, model)
-            end
-
-            # Store results
-            key = (est_name, form_name)
-            results[key] = (V=V, se=se)
-
-            println("  $form_name form: ✓")
-            println("    SE: $(round.(se, digits=4))")
-
-            # Check matrix properties
-            if !isposdef(V)
-                println("    ⚠ Warning: Non-positive definite variance matrix")
-            end
-
-        catch e
-            println("  $form_name form: ✗ Error - $e")
-        end
-    end
-end
-
-# ============================================================================
-# Numerical Verification
-# ============================================================================
-
-println("\n" * "="^70)
-println("Numerical Verification")
-println("="^70)
-
-# Test that Information and Robust forms give similar results for IID case
-V_info = results[("IID (HC0)", "Information")].V
-V_robust = results[("IID (HC0)", "Robust")].V
-
-println("\nComparing Information vs Robust forms (should be similar for IID):")
-println("  Max absolute difference: $(round(maximum(abs.(V_info .- V_robust)), digits=6))")
-println("  Relative difference: $(round(maximum(abs.(V_info .- V_robust) ./ abs.(V_info)), digits=6))")
-
-# Test Auto form selection
-V_auto = results[("IID (HC0)", "Auto")].V
-println("\nAuto form selection (should match Robust for exactly identified):")
-println("  Matches Robust: $(V_auto ≈ V_robust)")
-
-# Test scaling properties
-println("\nTesting scaling properties:")
-G = CovarianceMatrices.jacobian(model)
-Z = CovarianceMatrices.momentmatrix(model)
-println("  Jacobian shape: $(size(G))")
-println("  Moment matrix shape: $(size(Z))")
-println("  Model type: $(size(Z,2) == length(model.β) ? "Exactly identified (M-like)" : "Overidentified (GMM-like)")")
 
 # ============================================================================
 # Manual Matrix API Test
@@ -339,12 +262,12 @@ println("Testing manual matrix API...")
 try
     # Test with full specification
     V_manual = vcov_new(HC1(), Robust(), Z_manual;
-                       jacobian=G_manual, objective_hessian=H_manual)
+        jacobian=G_manual, objective_hessian=H_manual)
     println("✓ Manual API with full specification works")
 
     # Test with minimal specification
     V_manual_min = vcov_new(HC1(), Information(), Z_manual;
-                           objective_hessian=H_manual)
+        objective_hessian=H_manual)
     println("✓ Manual API with minimal specification works")
 
     # Compare with model-based API
@@ -355,23 +278,3 @@ try
 catch e
     println("✗ Manual API test failed: $e")
 end
-
-# ============================================================================
-# Summary and Recommendations
-# ============================================================================
-
-println("\n" * "="^70)
-println("Test Summary")
-println("="^70)
-
-n_success = count(haskey(results, k) for k in keys(results))
-println("Successful variance computations: $n_success/$(length(estimators) * length(forms))")
-
-println("\nRecommendations for typical use:")
-println("  • For standard Probit/Logit: Use Information() form with IID estimator")
-println("  • For heteroskedasticity: Use Robust() form with HC1/HC2/HC3")
-println("  • For time series: Use Robust() form with HAC estimators")
-println("  • For uncertainty: Use form=:auto for automatic selection")
-
-println("\n✓ All tests completed successfully!")
-println("  The new API is working correctly and ready for production use.")
