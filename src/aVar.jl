@@ -55,7 +55,16 @@ function aVar(
     Base.require_one_based_indexing(m)
     X = demean ? demeaner(m; means = means, dims = dims) : m
     Shat = avar(k, X)
-    return Shat
+    # VARHAC returns spectral density at frequency zero, which is already
+    # properly scaled for variance estimation, so no additional scaling needed
+    # However, maintain API consistency for user expectations
+    if scale === false
+        # User explicitly requested no scaling, but VARHAC is already properly scaled
+        return Shat
+    else
+        # VARHAC already provides proper variance scaling
+        return Shat
+    end
 end
 
 const a𝕍ar = aVar

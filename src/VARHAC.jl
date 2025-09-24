@@ -1,4 +1,30 @@
 
+"""
+    nancov(X; corrected::Bool = true)
+
+Simple covariance function that handles NaN values by computing covariance
+on the subset of complete observations.
+
+This is a minimal implementation to replace the missing NaNStatistics.nancov
+functionality needed for VARHAC estimation.
+"""
+function nancov(X::AbstractMatrix{T}; corrected::Bool = true) where {T <: Real}
+    # Remove rows with any NaN values
+    complete_rows = .!any(isnan.(X), dims=2)
+    if !any(complete_rows)
+        # All rows have NaN, return NaN matrix
+        return fill(T(NaN), size(X, 2), size(X, 2))
+    end
+
+    X_clean = X[vec(complete_rows), :]
+    if size(X_clean, 1) <= 1
+        # Not enough observations for covariance
+        return fill(T(NaN), size(X, 2), size(X, 2))
+    end
+
+    return cov(X_clean; corrected = corrected)
+end
+
 function avar(
         k::VARHAC{S, L},
         X::AbstractMatrix{R};
@@ -47,6 +73,22 @@ function avar(
     return Ω
 end
 
+function avar(
+        k::VARHAC{S, L},
+        X::AbstractMatrix{R};
+        kwargs...
+) where {S <: LagSelector, L <: AutoLags, R <: Real}
+    T, N = size(X)
+    K_auto = maxlags(k, T, N)
+    lagstrategy = isa(k.selector, AICSelector) ? :aic : :bic
+    Ω, AICs, BICs, order_aic, order_bic = _var_selection_samelag(X, K_auto; lagstrategy = lagstrategy, demean = false)
+    k.AICs = AICs
+    k.BICs = BICs
+    k.order_aic = order_aic
+    k.order_bic = order_bic
+    return Ω
+end
+
 function _var_selection_samelag(
         X::AbstractMatrix{R},
         K;
@@ -54,6 +96,18 @@ function _var_selection_samelag(
         demean::Bool = false
 ) where {R <: Real}
     T, m = size(X)
+
+    # Validate inputs
+    if T <= 2
+        throw(ArgumentError("Sample size T=$T is too small. Need at least T=3."))
+    end
+
+    # Adjust K if it's too large for the sample size
+    K_max_safe = max(1, min(K, T - 2))
+    if K_max_safe < K
+        @warn "Reducing maximum lags from $K to $K_max_safe due to small sample size T=$T"
+        K = K_max_safe
+    end
     ## ---------------------------------------------------------
     ## Demean the data if requested
     ## ---------------------------------------------------------
@@ -84,24 +138,40 @@ function _var_selection_samelag(
     AICs = Array{R}(undef, m, K)
     BICs = similar(AICs)
     ## ---------------------------------------------------------
+    ## Preallocate matrices for better performance
+    ## ---------------------------------------------------------
+    max_size = K * m
+    𝕏𝕏 = Matrix{R}(undef, max_size, max_size)
+    𝕏𝕐 = Vector{R}(undef, max_size)
+    β = Vector{R}(undef, max_size)
+
+    ## ---------------------------------------------------------
     ## Calculate AIC & BIC for each variable at lags 1,2,...,K
     ## ---------------------------------------------------------
     @inbounds for k in 1:K
         𝕏 = view(Z, :, 1:(k * m))
-        𝕏𝕏 = Matrix{R}(undef, k * m, k * m)
-        𝕏𝕐 = Vector{R}(undef, k * m)
+        # Resize views of preallocated matrices
+        𝕏𝕏_k = view(𝕏𝕏, 1:(k * m), 1:(k * m))
+        𝕏𝕐_k = view(𝕏𝕐, 1:(k * m))
+        β_k = view(β, 1:(k * m))
+
         for j in axes(Y, 2)
             𝕐 = view(Y, (K + 1):T, j)
-            mul!(𝕏𝕏, 𝕏', 𝕏)
-            mul!(𝕏𝕐, 𝕏', 𝕐)
+            mul!(𝕏𝕏_k, 𝕏', 𝕏)
+            mul!(𝕏𝕐_k, 𝕏', 𝕐)
             ## -----------------------
             ## Perform OLS coefficient
             ## -----------------------
-            β = cholesky!(Symmetric(𝕏𝕏)) \ 𝕏𝕐
+            try
+                ldiv!(β_k, cholesky!(Symmetric(𝕏𝕏_k)), 𝕏𝕐_k)
+            catch e
+                # Handle near-singular matrices using pseudo-inverse
+                β_k .= pinv(𝕏𝕏_k) * 𝕏𝕐_k
+            end
             ## -----------------------
             ## Calculate the residuals
             ## -----------------------
-            mul!(𝕏β, 𝕏, β)
+            mul!(𝕏β, 𝕏, β_k)
             ε .= 𝕐 .- 𝕏β
             ## -----------------------
             ## Calculate the AIC&BIC
@@ -142,9 +212,14 @@ function _var_selection_samelag(
             copy!(view(ε, :, j), Y[:, j])
         end
     end
-    Γ = pinv(I - dropdims(sum(A; dims = 3); dims = 3))
+    # Use robust pseudo-inverse for numerical stability
+    A_sum = dropdims(sum(A; dims = 3); dims = 3)
+    I_minus_A = I - A_sum
+    Γ, _, _ = CovarianceMatrices.ipinv(I_minus_A)
     B = nancov(ε; corrected = false)
-    return Γ * B * Γ, AICs, BICs, order_aic, order_bic
+    # Ensure symmetry: S(0) = Γ * B * Γ'
+    S0 = Γ * B * Γ'
+    return Symmetric(S0), AICs, BICs, order_aic, order_bic
 end
 
 function _var_selection_ownlag(
@@ -189,8 +264,6 @@ function _var_selection_ownlag(
     BIC = copy(AIC)
     AICs[:, 1, 1] .= AIC
     BICs[:, 1, 1] .= BIC
-    @show "LAGS..: 0"
-    @show "AIC...: ", AIC
     ## ---------------------------------------------------------
     ## Calculate AIC & BIC for each variable at lags 1,2,...,K
     ## ---------------------------------------------------------
@@ -223,8 +296,6 @@ function _var_selection_ownlag(
                 RSS = sum(abs2, ε)
                 AIC_ = 2 * (kₓ * (m - 1) + k) / T + log(RSS / T)
                 BIC_ = log(T) * (kₓ * (m - 1) + k) / T + log(RSS / T)
-                @show "LAGS..: ", k, kₓ
-                @show "AIC...: ", AIC_
                 ## -----------------------
                 ## Update the AIC and BIC
                 ## -----------------------
@@ -263,15 +334,30 @@ function _var_selection_ownlag(
         end
     end
     𝔸 = reshape(A, (m, m, maxK))
-    Γ = pinv(I - dropdims(sum(𝔸; dims = 3); dims = 3))
+    # Use robust pseudo-inverse for numerical stability
+    A_sum = dropdims(sum(𝔸; dims = 3); dims = 3)
+    I_minus_A = I - A_sum
+    Γ, _, _ = CovarianceMatrices.ipinv(I_minus_A)
     B = nancov(ε; corrected = false)
-    return Γ * B * Γ, AICs, BICs, order_aic, order_bic
+    # Ensure symmetry: S(0) = Γ * B * Γ'
+    S0 = Γ * B * Γ'
+    return Symmetric(S0), AICs, BICs, order_aic, order_bic
 end
 
 function _var_fixed(X::AbstractMatrix{R}, K; demean::Bool = false) where {R <: Real}
-    ## K is the maximum own lag
-    ## Kₓ is the maximum cross lag
     T, m = size(X)
+
+    # Validate inputs
+    if T <= 2
+        throw(ArgumentError("Sample size T=$T is too small. Need at least T=3."))
+    end
+
+    # Adjust K if it's too large for the sample size
+    K_max_safe = max(1, min(K, T - 2))
+    if K_max_safe < K
+        @warn "Reducing maximum lags from $K to $K_max_safe due to small sample size T=$T"
+        K = K_max_safe
+    end
     ## ---------------------------------------------------------
     ## Demean the data if requested
     ## ---------------------------------------------------------
@@ -291,14 +377,26 @@ function _var_fixed(X::AbstractMatrix{R}, K; demean::Bool = false) where {R <: R
     A = Z\𝕐
     ε = 𝕐 .- Z * A
     𝔸 = reshape(A', (m, m, K))
-    Γ = pinv(I - dropdims(sum(𝔸; dims = 3); dims = 3))
+    # Use robust pseudo-inverse for numerical stability
+    A_sum = dropdims(sum(𝔸; dims = 3); dims = 3)
+    I_minus_A = I - A_sum
+    Γ, _, _ = CovarianceMatrices.ipinv(I_minus_A)
     B = nancov(ε; corrected = false)
-    return Γ * B * Γ, [], [], [K], [K]
+    # Ensure symmetry: S(0) = Γ * B * Γ'
+    S0 = Γ * B * Γ'
+    return Symmetric(S0), [], [], [K], [K]
 end
 
 function delag(X::Matrix{R}, K::Int) where {R <: Real}
     T, n = size(X)
-    Z = Matrix{Float64}(undef, T-K, n*K)
+    if K >= T
+        throw(ArgumentError("Number of lags K=$K must be less than sample size T=$T"))
+    end
+    if K <= 0
+        throw(ArgumentError("Number of lags K=$K must be positive"))
+    end
+
+    Z = Matrix{R}(undef, T-K, n*K)  # Use same type as input for type stability
     @inbounds for j in 1:n
         for t in (K + 1):T
             for k in 1:K
