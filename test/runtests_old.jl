@@ -16,7 +16,7 @@ const andrews_kernels = [
     :ParzenKernel,
     :TukeyHanningKernel,
     :QuadraticSpectralKernel,
-    :BartlettKernel,
+    :BartlettKernel
 ]
 const neweywest_kernels = [:ParzenKernel, :QuadraticSpectralKernel, :BartlettKernel]
 
@@ -59,79 +59,55 @@ end
     X = CSV.File("testdata/X20x2.csv") |> DataFrame |> Matrix
 
     V = lrvar(TruncatedKernel(2), X) ./ 20
-    Vr = [
-        0.023797696862680198 -0.006551463062455593;
-        -0.006551463062455593 0.05722230754875061
-    ]
+    Vr = [0.023797696862680198 -0.006551463062455593;
+          -0.006551463062455593 0.05722230754875061]
     @test V ≈ Vr
     V = lrvar(TruncatedKernel(2), X, prewhite = true) ./ 20
-    Vr = [
-        0.02306195412692154 -0.002321811843500563;
-        -0.0023218118435005637 0.0752916863840604
-    ]
+    Vr = [0.02306195412692154 -0.002321811843500563;
+          -0.0023218118435005637 0.0752916863840604]
     @test V ≈ Vr
     V = lrvar(BartlettKernel(2), X, prewhite = false) ./ 20
-    Vr = [
-        0.035714374800934555 0.000210291773413605;
-        0.000210291773413605 0.05629043339567539
-    ]
+    Vr = [0.035714374800934555 0.000210291773413605;
+          0.000210291773413605 0.05629043339567539]
     @test V ≈ Vr
     V = lrvar(BartlettKernel(2), X, prewhite = true) ./ 20
-    Vr = [
-        0.026762130596397222 0.0023844392352094616;
-        0.0023844392352094625 0.07539513026131048
-    ]
+    Vr = [0.026762130596397222 0.0023844392352094616;
+          0.0023844392352094625 0.07539513026131048]
     @test V ≈ Vr
     V = lrvar(ParzenKernel(2), X, prewhite = false) ./ 20
-    Vr = [
-        0.04082918144700371 0.00029567273165852334;
-        0.00029567273165852334 0.05178620682214104
-    ]
+    Vr = [0.04082918144700371 0.00029567273165852334;
+          0.00029567273165852334 0.05178620682214104]
     @test V ≈ Vr
     V = lrvar(ParzenKernel(2), X, prewhite = true) ./ 20
-    Vr = [
-        0.027407120851688418 0.0018031540982724296;
-        0.0018031540982724307 0.0702092071421895
-    ]
+    Vr = [0.027407120851688418 0.0018031540982724296;
+          0.0018031540982724307 0.0702092071421895]
     @test V ≈ Vr
 end
 @testset "HAC - Asymptotic Covariance (Andrews)............" begin
     X = CSV.File("testdata/X20x2.csv") |> DataFrame |> Matrix
     V = lrvar(TruncatedKernel{Andrews}(), X) ./ 20
-    Vr = [
-        0.025484761508796222 3.9529856923768415e-5;
-        3.9529856923768415e-5 0.0652988865427441
-    ]
+    Vr = [0.025484761508796222 3.9529856923768415e-5;
+          3.9529856923768415e-5 0.0652988865427441]
     @test V ≈ Vr
     V = lrvar(TruncatedKernel{Andrews}(), X, prewhite = true) ./ 20
-    Vr = [
-        0.028052111106979607 0.001221868961335397;
-        0.001221868961335396 0.06502328402306855
-    ]
+    Vr = [0.028052111106979607 0.001221868961335397;
+          0.001221868961335396 0.06502328402306855]
     @test V ≈ Vr
     V = lrvar(BartlettKernel{Andrews}(), X, prewhite = false) ./ 20
-    Vr = [
-        0.036560369091632905 0.00022441387190291295;
-        0.00022441387190291295 0.0555454296782523
-    ]
+    Vr = [0.036560369091632905 0.00022441387190291295;
+          0.00022441387190291295 0.0555454296782523]
     @test V ≈ Vr
     V = lrvar(BartlettKernel{Andrews}(), X, prewhite = true) ./ 20
-    Vr = [
-        0.027270747095805972 0.001926058338627125;
-        0.0019260583386271257 0.07130569473664604
-    ]
+    Vr = [0.027270747095805972 0.001926058338627125;
+          0.0019260583386271257 0.07130569473664604]
     @test V ≈ Vr
     V = lrvar(ParzenKernel{Andrews}(), X, prewhite = false) ./ 20
-    Vr = [
-        0.03100269416916425 -0.0017562565506448816;
-        -0.0017562565506448816 0.05796097557032457
-    ]
+    Vr = [0.03100269416916425 -0.0017562565506448816;
+          -0.0017562565506448816 0.05796097557032457]
     @test V ≈ Vr
     V = lrvar(ParzenKernel{Andrews}(), X, prewhite = true) ./ 20
-    Vr = [
-        0.025984224823188636 0.0017705442482664063;
-        0.001770544248266405 0.07693448665125002
-    ]
+    Vr = [0.025984224823188636 0.0017705442482664063;
+          0.001770544248266405 0.07693448665125002]
     @test V ≈ Vr
 end
 @testset "HAC - Asymptotic Covariance (Newey).............." begin end
@@ -153,10 +129,8 @@ end
     X = CSV.File("testdata/X100x2.csv") |> DataFrame |> Matrix
     f = repeat(1:20, inner = 5)
     V = lrvar(CRHC0(f), X)/100
-    Vr = [
-        0.010003084285822686 0.002579249460680671;
-        0.002579249460680671 0.014440606823274103
-    ]
+    Vr = [0.010003084285822686 0.002579249460680671;
+          0.002579249460680671 0.014440606823274103]
     @test V ≈ Vr*(19/20)
     V = lrvar(CRHC1(f), X)/100
     @test V ≈ Vr*(19/20)
@@ -170,8 +144,8 @@ end
     reg = JSON.parse(read("testdata/regression.json", String))
     df = CSV.File("testdata/ols_df.csv") |> DataFrame
     function fopt!(u)
-        global da = Dict{String,Any}()
-        global dn = Dict{String,Any}()
+        global da = Dict{String, Any}()
+        global dn = Dict{String, Any}()
         for pre in (:false, :true)
             da["bwtype"] = "auto"
             da["prewhite"] = pre == :true ? true : false
@@ -180,36 +154,35 @@ end
             for k in andrews_kernels
                 eval(
                     quote
-                        ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
+                    ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
+                    tmp = vcovmatrix(
+                        ($k){Andrews}(),
+                        ols;
+                        prewhite = $pre,
+                        dof_adjustment = false
+                    )
+                    da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
+                    if Symbol($k) in neweywest_kernels
                         tmp = vcovmatrix(
                             ($k){Andrews}(),
                             ols;
                             prewhite = $pre,
-                            dof_adjustment = false,
+                            dof_adjustment = false
                         )
-                        da[String($k)] = Dict{String,Any}("bw" => tmp.K.bw, "V" => tmp.V)
-                        if Symbol($k) in neweywest_kernels
-                            tmp = vcovmatrix(
-                                ($k){Andrews}(),
-                                ols;
-                                prewhite = $pre,
-                                dof_adjustment = false,
-                            )
-                            dn[String($k)] =
-                                Dict{String,Any}("bw" => tmp.K.bw, "V" => tmp.V)
-                        end
-                    end,
+                        dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
+                    end
+                end,
                 )
             end
             push!(u, Dict("andrews" => da, "neweywest" => dn))
-            da = Dict{String,Any}()
-            dn = Dict{String,Any}()
+            da = Dict{String, Any}()
+            dn = Dict{String, Any}()
         end
     end
 
     function ffix!(u)
-        global da = Dict{String,Any}()
-        global dn = Dict{String,Any}()
+        global da = Dict{String, Any}()
+        global dn = Dict{String, Any}()
         for pre in (:false, :true)
             da["bwtype"] = "auto"
             da["prewhite"] = pre == :true ? true : false
@@ -218,44 +191,41 @@ end
             for k in andrews_kernels
                 eval(
                     quote
-                        ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
+                    ols = glm(@formula(y~x1+x2+x3), $df, Normal(), IdentityLink())
+                    tmp = vcovmatrix(
+                        ($k)(1.5),
+                        ols;
+                        prewhite = $pre,
+                        dof_adjustment = false
+                    )
+                    da[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
+                    if Symbol($k) in neweywest_kernels
                         tmp = vcovmatrix(
                             ($k)(1.5),
                             ols;
                             prewhite = $pre,
-                            dof_adjustment = false,
+                            dof_adjustment = false
                         )
-                        da[String($k)] = Dict{String,Any}("bw" => tmp.K.bw, "V" => tmp.V)
-                        if Symbol($k) in neweywest_kernels
-                            tmp = vcovmatrix(
-                                ($k)(1.5),
-                                ols;
-                                prewhite = $pre,
-                                dof_adjustment = false,
-                            )
-                            dn[String($k)] =
-                                Dict{String,Any}("bw" => tmp.K.bw, "V" => tmp.V)
-                        end
-                    end,
+                        dn[String($k)] = Dict{String, Any}("bw" => tmp.K.bw, "V" => tmp.V)
+                    end
+                end,
                 )
             end
             push!(u, Dict("andrews" => da, "neweywest" => dn))
-            da = Dict{String,Any}()
-            dn = Dict{String,Any}()
+            da = Dict{String, Any}()
+            dn = Dict{String, Any}()
         end
     end
 
     u = Any[]
     fopt!(u)
     ffix!(u)
-    for j = 1:4,
+    for j in 1:4,
         h in ("andrews",),
         k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
-
         @test hcat(reg[j][h][k]["V"]...) ≈ u[j][h][k]["V"]
         @test reg[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
     end
-
 end
 
 @testset "HAC - GLM........................................" begin
@@ -263,7 +233,7 @@ end
         u = log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
         lot1 = [118, 58, 42, 35, 27, 25, 21, 19, 18],
         lot2 = [69, 35, 26, 21, 18, 16, 13, 12, 12],
-        w = 9.0*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039],
+        w = 9.0*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
     )
 
     GAMMA = glm(
@@ -271,7 +241,7 @@ end
         clotting,
         Gamma(),
         InverseLink(),
-        wts = convert(Array, clotting[!, :w]),
+        wts = convert(Array, clotting[!, :w])
     )
     V = vcov(ParzenKernel{Andrews}(), GAMMA)
     Vp = [5.48898e-7 -2.60409e-7; -2.60409e-7 1.4226e-7]
@@ -289,7 +259,7 @@ end
         u = log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
         lot1 = [118, 58, 42, 35, 27, 25, 21, 19, 18],
         lot2 = [69, 35, 26, 21, 18, 16, 13, 12, 12],
-        w = 9.0*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039],
+        w = 9.0*[1/8, 1/9, 1/25, 1/6, 1/14, 1/25, 1/15, 1/13, 0.3022039]
     )
 
     ## Unweighted OLS though GLM interface
@@ -315,7 +285,6 @@ end
     St4 = [2538.74635384 -667.95972319; -667.95972319 177.26308957]
     St4m = [3221.09520169 -849.64802585; -849.64802585 226.17046981]
     St5 = [1334.670541439 -351.751377823; -351.751377823 93.949230276]
-
 
     @test S0 ≈ St0
     @test S1 ≈ St1
@@ -348,7 +317,7 @@ end
         clotting,
         Normal(),
         IdentityLink(),
-        wts = Vector{Float64}(clotting[!, :w]),
+        wts = Vector{Float64}(clotting[!, :w])
     )
 
     wts = Vector{Float64}(clotting[!, :w])
@@ -392,40 +361,26 @@ end
     S4m = vcov(HC4m(), GAMMA)
     S5 = vcov(HC5(), GAMMA)
 
-    St0 = [
-        4.504287921232951e-07 -1.700020601541489e-07;
-        -1.700020601541490e-07 8.203697048568913e-08
-    ]
+    St0 = [4.504287921232951e-07 -1.700020601541489e-07;
+           -1.700020601541490e-07 8.203697048568913e-08]
 
-    St1 = [
-        5.791227327299548e-07 -2.185740773410504e-07;
-        -2.185740773410510e-07 1.054761049101728e-07
-    ]
+    St1 = [5.791227327299548e-07 -2.185740773410504e-07;
+           -2.185740773410510e-07 1.054761049101728e-07]
 
-    St2 = [
-        3.192633083111232e-06 -9.942484630848573e-07;
-        -9.942484630848578e-07 3.329973305723091e-07
-    ]
+    St2 = [3.192633083111232e-06 -9.942484630848573e-07;
+           -9.942484630848578e-07 3.329973305723091e-07]
 
-    St3 = [
-        2.982697811926944e-05 -8.948137019946751e-06;
-        -8.948137019946738e-06 2.712024459305714e-06
-    ]
+    St3 = [2.982697811926944e-05 -8.948137019946751e-06;
+           -8.948137019946738e-06 2.712024459305714e-06]
 
-    St4 = [
-        0.002840158946368653 -0.0008474436578800430;
-        -0.000847443657880045 0.0002528819761961959
-    ]
+    St4 = [0.002840158946368653 -0.0008474436578800430;
+           -0.000847443657880045 0.0002528819761961959]
 
-    St4m = [
-        9.2891282926e-05 -2.7759505159e-05;
-        -2.7759505159e-05 8.3203461732e-06
-    ]
+    St4m = [9.2891282926e-05 -2.7759505159e-05;
+            -2.7759505159e-05 8.3203461732e-06]
 
-    St5 = [
-        2.9781374021e-05 -8.9232514073e-06
-        -8.9232514073e-06 2.6952175350e-06
-    ]
+    St5 = [2.9781374021e-05 -8.9232514073e-06
+           -8.9232514073e-06 2.6952175350e-06]
 
     @test S0 ≈ St0 atol = 1e-08
     @test S1 ≈ St1 atol = 1e-08
@@ -442,7 +397,7 @@ end
         clotting,
         Gamma(),
         InverseLink(),
-        wts = convert(Array, clotting[!, :w]),
+        wts = convert(Array, clotting[!, :w])
     )
 
     S0 = vcov(HC0(), GAMMA)
@@ -453,40 +408,26 @@ end
     S4m = vcov(HC4m(), GAMMA)
     S5 = vcov(HC5(), GAMMA)
 
-    St0 = [
-        4.015104e-07 -1.615094e-07;
-        -1.615094e-07 8.378363e-08
-    ]
+    St0 = [4.015104e-07 -1.615094e-07;
+           -1.615094e-07 8.378363e-08]
 
-    St1 = [
-        5.162277e-07 -2.076549e-07;
-        -2.076549e-07 1.077218e-07
-    ]
+    St1 = [5.162277e-07 -2.076549e-07;
+           -2.076549e-07 1.077218e-07]
 
-    St2 = [
-        2.720127e-06 -8.490977e-07;
-        -8.490977e-07 2.963563e-07
-    ]
+    St2 = [2.720127e-06 -8.490977e-07;
+           -8.490977e-07 2.963563e-07]
 
-    St3 = [
-        2.638128e-05 -7.639883e-06;
-        -7.639883e-06 2.259590e-06
-    ]
+    St3 = [2.638128e-05 -7.639883e-06;
+           -7.639883e-06 2.259590e-06]
 
-    St4 = [
-        0.0029025754 -0.0008275858;
-        -0.0008275858 0.0002360053
-    ]
+    St4 = [0.0029025754 -0.0008275858;
+           -0.0008275858 0.0002360053]
 
-    St4m = [
-        8.493064e-05 -2.436180e-05;
-        -2.436180e-05 7.042101e-06
-    ]
+    St4m = [8.493064e-05 -2.436180e-05;
+            -2.436180e-05 7.042101e-06]
 
-    St5 = [
-        2.6206554518e-05 -7.5421496876e-06
-        -7.5421496876e-06 2.2017813312e-06
-    ]
+    St5 = [2.6206554518e-05 -7.5421496876e-06
+           -7.5421496876e-06 2.2017813312e-06]
 
     @test S0 ≈ St0 atol = 1e-08
     @test S1 ≈ St1 atol = 1e-08
@@ -508,7 +449,7 @@ end
         @formula(Y~X1+X2+X3+X4+X5),
         df_unsorted,
         Normal(),
-        IdentityLink(),
+        IdentityLink()
     )
     cl = convert(Array, df_unsorted[!, :cl])
     k0 = CRHC0(cl)
@@ -521,14 +462,12 @@ end
     V2 = vcov(k2, OLS)
     V3 = vcov(k3, OLS)
 
-    @test V1 ≈ [
-        0.00140376 0.000215526 -5.99768e-5 0.000296271 0.000460622 -0.000139741;
-        0.000215526 0.00247671 -0.000270429 0.000218622 0.000610127 7.23345e-5;
-        -5.99768e-5 -0.000270429 0.00223385 -0.000145166 -0.00018859 -0.000903561;
-        0.000296271 0.000218622 -0.000145166 0.00191802 -0.000444364 -0.000420563;
-        0.000460622 0.000610127 -0.00018859 -0.000444364 0.00263798 0.000736363;
-        -0.000139741 7.23345e-5 -0.000903561 -0.000420563 0.000736363 0.00189546
-    ] atol = 1e-08
+    @test V1 ≈ [0.00140376 0.000215526 -5.99768e-5 0.000296271 0.000460622 -0.000139741;
+           0.000215526 0.00247671 -0.000270429 0.000218622 0.000610127 7.23345e-5;
+           -5.99768e-5 -0.000270429 0.00223385 -0.000145166 -0.00018859 -0.000903561;
+           0.000296271 0.000218622 -0.000145166 0.00191802 -0.000444364 -0.000420563;
+           0.000460622 0.000610127 -0.00018859 -0.000444364 0.00263798 0.000736363;
+           -0.000139741 7.23345e-5 -0.000903561 -0.000420563 0.000736363 0.00189546] atol = 1e-08
 
     ## Note sandwich in R has HC3 without G/(G-1) and CRHC2 is problematic
 
@@ -539,7 +478,7 @@ end
         @formula(Y~X1+X2+X3+X4+X5),
         df_sorted,
         Normal(),
-        IdentityLink(),
+        IdentityLink()
     )
     cl = convert(Array, df_sorted[!, :cl])
     k0 = CRHC0(cl)
@@ -562,7 +501,7 @@ end
         df_unsorted,
         Normal(),
         IdentityLink(),
-        wts = convert(Array{Float64}, df_unsorted[!, :w]),
+        wts = convert(Array{Float64}, df_unsorted[!, :w])
     )
 
     cl = convert(Array, df_unsorted[!, :cl])
@@ -576,14 +515,12 @@ end
     V2 = vcov(k2, wOLS)
     V3 = vcov(k3, wOLS)
 
-    @test V1 ≈ [
-        0.00183525 0.000137208 -0.00038971 0.000389943 0.000619903 0.00019496;
-        0.000137208 0.00242781 -0.000272316 0.000462353 2.99597e-5 0.000133303;
-        -0.00038971 -0.000272316 0.00273479 -0.000113765 -7.26396e-5 -0.000998524;
-        0.000389943 0.000462353 -0.000113765 0.00171538 -0.00067357 -0.000416268;
-        0.000619903 2.99597e-5 -7.26396e-5 -0.00067357 0.00225446 0.00106796;
-        0.00019496 0.000133303 -0.000998524 -0.000416268 0.00106796 0.00226444
-    ] atol = 1e-07
+    @test V1 ≈ [0.00183525 0.000137208 -0.00038971 0.000389943 0.000619903 0.00019496;
+           0.000137208 0.00242781 -0.000272316 0.000462353 2.99597e-5 0.000133303;
+           -0.00038971 -0.000272316 0.00273479 -0.000113765 -7.26396e-5 -0.000998524;
+           0.000389943 0.000462353 -0.000113765 0.00171538 -0.00067357 -0.000416268;
+           0.000619903 2.99597e-5 -7.26396e-5 -0.00067357 0.00225446 0.00106796;
+           0.00019496 0.000133303 -0.000998524 -0.000416268 0.00106796 0.00226444] atol = 1e-07
 
     wOLS = fit(
         GeneralizedLinearModel,
@@ -591,7 +528,7 @@ end
         df_sorted,
         Normal(),
         IdentityLink(),
-        wts = convert(Array{Float64}, df_sorted[!, :w]),
+        wts = convert(Array{Float64}, df_sorted[!, :w])
     )
 
     cl = convert(Array, df_sorted[!, :cl])
@@ -610,7 +547,6 @@ end
     @test V2s ≈ V2 atol=1e-04
     @test V3s ≈ V3 atol=1e-05
 
-
     innovation = CSV.File("testdata/InstInnovation.csv") |> DataFrame
 
     innovation[!, :capemp] = log.(innovation[!, :capital] ./ innovation[!, :employment])
@@ -622,7 +558,7 @@ end
         @formula(cites ~ institutions + capemp + lsales + industry + year),
         innovation,
         Poisson(),
-        LogLink(),
+        LogLink()
     )
     Vt = [0.904094640946072, 0.00240638781048165, 0.135953255431155, 0.0415234048672968]
 
@@ -630,7 +566,6 @@ end
     V = vcov(CRHC0(:company, innovation), pois)
     @test sqrt.(diag(V))[1:4] ≈ Vt atol = 1e-05
 end
-
 
 @testset "CovarianceMatrices Methods......................." begin
     df = CSV.File("testdata/wols_test.csv") |> DataFrame
@@ -642,7 +577,7 @@ end
         df,
         Normal(),
         IdentityLink(),
-        wts = convert(Array{Float64}, df[!, :w]),
+        wts = convert(Array{Float64}, df[!, :w])
     )
 
     V0 = vcov(HC0(), wOLS)
@@ -657,7 +592,6 @@ end
     V1c = vcovmatrix(ParzenKernel{Andrews}(), wOLS, Cholesky)
     V2c = vcovmatrix(CRHC0(cl), wOLS, Cholesky)
 
-
     @test V0 == V0s
     @test V1 == V1s
     @test V2 == V2s
@@ -666,11 +600,9 @@ end
     @test V1 == V1c
     @test V2 == V2c
 
-
     @test V0c.F == cholesky(V0)
     @test V1c.F == cholesky(V1)
     @test V2c.F == cholesky(V2)
-
 
     @test V0s.F == svd(V0)
     @test V1s.F == svd(V1)
@@ -698,12 +630,10 @@ end
     @test inv(V1) ≈ CovarianceMatrices.invfact(V1s)'*CovarianceMatrices.invfact(V1s)
     @test inv(V2) ≈ CovarianceMatrices.invfact(V2s)'*CovarianceMatrices.invfact(V2s)
 
-
     mm = rand(6)
     @test CovarianceMatrices.quadinv(mm, V0s) ≈ mm'*inv(V0s)*mm
     @test CovarianceMatrices.quadinv(mm, V1s) ≈ mm'*inv(V1s)*mm
     @test CovarianceMatrices.quadinv(mm, V2s) ≈ mm'*inv(V2s)*mm
-
 end
 
 @testset "Various.........................................." begin
@@ -732,9 +662,6 @@ end
     @test eltype(lrvar(QuadraticSpectralKernel{Andrews}(), Z, demean = true)) <: Float32
     ## Need testing for CRHC
 end
-
-
-
 
 # @testset "NeweyWest Optimal BW............................." begin
 #     Random.seed!(9)
@@ -776,7 +703,6 @@ end
 
 #     @test  vcov(ParzenKernel(), lm(X, y)) ≈ V
 
-
 # end
 
 @testset "Covariance Matrix Methods........................" begin
@@ -796,7 +722,6 @@ end
     @test CM2 ≈ CMc2
     @test CM3 ≈ CMc3
 
-
     @test CM1[1, 1] == CMc1[1, 1]
     @test CM1[1, 1] == CMc2[1, 1]
 
@@ -806,7 +731,6 @@ end
     @test CM.invfact(CM3; lower = false) ≈ inv(cholesky(Hermitian(Matrix(CM3))).U)
 
     @test CM.invfact(CM3)'*CM.invfact(CM3) ≈ inv(CM3)
-
 
     @test CM.invfact(CM2)'*CM.invfact(CM2) ≈ inv(CM3)
 
@@ -831,7 +755,6 @@ end
     @test CM.quadinv(g, CM1) ≈ first(gt'*inv(Matrix(CM1))*gt)
 
     @test Symmetric(CM1) == Symmetric(Matrix(CM1))
-
 end
 
 @testset "VARHAC..........................................." begin
@@ -860,5 +783,4 @@ end
     G2 = lrvar(k, g)
     k = CM.VARHAC(maxlag = 3, lagstrategy = 3, selectionstrategy = :eq)
     G2 = lrvar(k, g)
-
 end

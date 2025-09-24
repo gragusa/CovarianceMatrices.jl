@@ -6,8 +6,8 @@ using DataFrames
 Random.seed!(1)
 
 u = zeros(6000*50)
-for j = 1:2999
-    u[j+1] = 0.97*u[j] + randn()
+for j in 1:2999
+    u[j + 1] = 0.97*u[j] + randn()
 end
 
 df = DataFrame(y = randn(300*50) .+ u[15001:30000])
@@ -29,7 +29,7 @@ lm2 = glm(frm, df2, Normal(), IdentityLink())
 
 using Profile
 Profile.clear()
-@profile for j = 1:200
+@profile for j in 1:200
     ;
     vcov(CRHC0(df[!, :cluster]), lm1);
 end
@@ -45,7 +45,7 @@ using BenchmarkTools
     cache,
     Matrix,
     Cholesky,
-    CovarianceMatrices.dofadjustment(k0, cache),
+    CovarianceMatrices.dofadjustment(k0, cache)
 )
 
 k2 = CRHC2(df[!, :cluster])
@@ -56,5 +56,5 @@ cache = CovarianceMatrices.install_cache(k2, lm1)
     cache,
     Matrix,
     Cholesky,
-    CovarianceMatrices.dofadjustment(k2, cache),
+    CovarianceMatrices.dofadjustment(k2, cache)
 )

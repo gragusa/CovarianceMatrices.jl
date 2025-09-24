@@ -1,4 +1,4 @@
-function avar(k::K, X::AbstractMatrix{F}; prewhite = false) where {K<:HAC,F<:Real}
+function avar(k::K, X::AbstractMatrix{F}; prewhite = false) where {K <: HAC, F <: Real}
     Z, D = finalize_prewhite(X, Val(prewhite))
     T, p = size(Z)
     wlock = k.wlock[1]
@@ -20,7 +20,7 @@ Base.:-(J::UniformScaling, Z::ZeroMat) = J
 Base.:+(J::UniformScaling, Z::ZeroMat) = J
 LinearAlgebra.adjoint(Z::ZeroMat) = Z
 
-function kernelestimator!(k::K, V::AbstractMatrix{F}, Q, Z) where {K<:HAC,F<:Real}
+function kernelestimator!(k::K, V::AbstractMatrix{F}, Q, Z) where {K <: HAC, F <: Real}
     ## V is the final variance
     ## Q is the temporary matrix
     ## Z is the data matrix
@@ -28,27 +28,28 @@ function kernelestimator!(k::K, V::AbstractMatrix{F}, Q, Z) where {K<:HAC,F<:Rea
     T, _ = size(Z)
     idx = covindices(k, T)
     bw = convert(F, k.bw[1])
+    κ = [kernel(k, j/bw) for j in eachindex(idx)]
     ## Calculate the variance at lag 0
     mul!(Q, Z', Z)
     copy!(V, Q)
     ## Calculate Γ₁, Γ₂, ..., Γⱼ
-    @inbounds for j ∈ eachindex(idx)
-        Zₜ = view(Z, 1:(T-j), :)
-        Zₜ₊₁ = view(Z, (1+j):T, :)
+    @inbounds for j in eachindex(idx)
+        Zₜ = view(Z, 1:(T - j), :)
+        Zₜ₊₁ = view(Z, (1 + j):T, :)
         mul!(Q, Zₜ', Zₜ₊₁)
-        κ = kernel(k, j/bw)
-        @. V += κ * Q
-        @. V += κ * Q'
+        @. V += κ[j] * Q
+        @. V += κ[j] * Q'
     end
-    return V ./ T
+    #rdiv!(V, T)
+    return V
 end
 
 avarscaler(K::HAC, X; prewhite = false) = size(X, 1)
 
-covindices(k::T, n) where {T<:QuadraticSpectral} = 1:n
-covindices(k::T, n) where {T<:Bartlett} = 1:(floor(Int, k.bw[1]))
+covindices(k::T, n) where {T <: QuadraticSpectral} = 1:n
+covindices(k::T, n) where {T <: Bartlett} = 1:(floor(Int, k.bw[1]))
 covindices(k::HAC, n) = 1:floor(Int, k.bw[1])
-covindices(k::T, n) where {T<:HR} = 1:0
+covindices(k::T, n) where {T <: HR} = 1:0
 # -----------------------------------------------------------------------------
 # Kernels
 # -----------------------------------------------------------------------------
@@ -68,7 +69,7 @@ function kernel(k::QuadraticSpectral, x::Real)
     return 3 * (sin(z) / z - cos(z)) * (1 / z)^2
 end
 
-function setkernelweights!(k::HAC{T}, X) where {T<:Union{Andrews,NeweyWest}}
+function setkernelweights!(k::HAC{T}, X) where {T <: Union{Andrews, NeweyWest}}
     if k.wlock[1]
         @assert length(k.kw) == size(X, 2) "The number of columns in X must match the number of kernel weights instead $(k.kw)"
     else
@@ -78,23 +79,23 @@ function setkernelweights!(k::HAC{T}, X) where {T<:Union{Andrews,NeweyWest}}
     return k.kw
 end
 
-setkernelweights!(k::HAC{T}, X) where {T<:Fixed} = nothing
+setkernelweights!(k::HAC{T}, X) where {T <: Fixed} = nothing
 setkernelweights!(k::AVarEstimator, X) = nothing
 # -----------------------------------------------------------------------------
 # Optimal bandwidth
 # -----------------------------------------------------------------------------
 function workingoptimalbw(
-    k::HAC{T},
-    m::AbstractMatrix;
-    prewhite::Bool = false,
-) where {T<:Union{Andrews,NeweyWest}}
+        k::HAC{T},
+        m::AbstractMatrix;
+        prewhite::Bool = false
+) where {T <: Union{Andrews, NeweyWest}}
     X, D = prewhiter(m, prewhite)
     setkernelweights!(k, X)
     bw = _optimalbandwidth(k, X, prewhite)
     return X, D, bw
 end
 
-function workingoptimalbw(k::HAC{T}, m::AbstractMatrix; kwargs...) where {T<:Fixed}
+function workingoptimalbw(k::HAC{T}, m::AbstractMatrix; kwargs...) where {T <: Fixed}
     return (m, Matrix{eltype{m}}(undef, 0, 0), first(k.bw))
 end
 
@@ -105,24 +106,24 @@ optimalbandwidth(k::HAC{T}, mm; prewhite::Bool=false) where {T<:NeweyWest}
 Calculate the optimal bandwidth according to either Andrews or Newey-West.
 """
 function optimalbw(
-    k::HAC{T},
-    m::AbstractMatrix;
-    demean::Bool = false,
-    dims::Int = 1,
-    means::Union{Nothing,AbstractArray} = nothing,
-    prewhite::Bool = false,
-) where {T<:Union{Andrews,NeweyWest}}
+        k::HAC{T},
+        m::AbstractMatrix;
+        demean::Bool = false,
+        dims::Int = 1,
+        means::Union{Nothing, AbstractArray} = nothing,
+        prewhite::Bool = false
+) where {T <: Union{Andrews, NeweyWest}}
     X = demean ? demeaner(m; means = means, dims = dims) : m
     _, _, bw = workingoptimalbw(k, X; prewhite = prewhite)
     return bw
 end
 
-function _optimalbandwidth(k::HAC{T}, mm, prewhite) where {T<:NeweyWest}
+function _optimalbandwidth(k::HAC{T}, mm, prewhite) where {T <: NeweyWest}
     return bwNeweyWest(k, mm, prewhite)
 end
 
-_optimalbandwidth(k::HAC{T}, mm, prewhite) where {T<:Andrews} = bwAndrews(k, mm, prewhite)
-_optimalbandwidth(k::HAC{T}, mm, prewhite) where {T<:Fixed} = first(k.bw)
+_optimalbandwidth(k::HAC{T}, mm, prewhite) where {T <: Andrews} = bwAndrews(k, mm, prewhite)
+_optimalbandwidth(k::HAC{T}, mm, prewhite) where {T <: Fixed} = first(k.bw)
 
 function bwAndrews(k::HAC, mm, prewhite::Bool)
     n, p = size(mm)
@@ -138,14 +139,13 @@ function bwNeweyWest(k::HAC, mm, prewhite::Bool)
     l = getrates(k, mm, prewhite)
     xm = mm * w
     a = Vector{eltype(xm)}(undef, l + 1)
-    @inbounds for j ∈ 0:l
-        a[j+1] =
-            dot(
-                view(xm, firstindex(xm):(lastindex(xm)-j)),
-                view(xm, (j+firstindex(xm)):lastindex(xm)),
-            ) / n
+    @inbounds for j in 0:l
+        a[j + 1] = dot(
+            view(xm, firstindex(xm):(lastindex(xm) - j)),
+            view(xm, (j + firstindex(xm)):lastindex(xm))
+        ) / n
     end
-    aa = view(a, 2:(l+1))
+    aa = view(a, 2:(l + 1))
     a0 = a[1] + 2 * sum(aa)
     a1 = 2 * sum((1:l) .* aa)
     a2 = 2 * sum((1:l) .^ 2 .* aa)
@@ -159,10 +159,10 @@ d_bw_andrews = Dict(
     :Bartlett => :(1.1447 * (a1 * n)^(1 / 3)),
     :Parzen => :(2.6614 * (a2 * n)^(0.2)),
     :TukeyHanning => :(1.7462 * (a2 * n)^(0.2)),
-    :QuadraticSpectral => :(1.3221 * (a2 * n)^(0.2)),
+    :QuadraticSpectral => :(1.3221 * (a2 * n)^(0.2))
 )
 
-for kerneltype ∈ kernels
+for kerneltype in kernels
     @eval $:(bw_andrews)(k::($kerneltype), a1, a2, n) = $(d_bw_andrews[kerneltype])
 end
 
@@ -200,7 +200,7 @@ function allequal(x)
     lx = length(x)
     lx < 2 && return true
     e1 = x[1]
-    @inbounds for i ∈ 2:lx
+    @inbounds for i in 2:lx
         x[i] == e1 || return false
     end
     return true
@@ -212,13 +212,12 @@ end
 Base.@propagate_inbounds function fit_var(A::AbstractMatrix{T}) where {T}
     fi = firstindex(A, 1)
     li = lastindex(A, 1)
-    Y = view(A, (fi+1):li, :)
-    X = view(A, fi:(li-1), :)
+    Y = view(A, (fi + 1):li, :)
+    X = view(A, fi:(li - 1), :)
     B = cholesky(X'X) \ X'Y
     E = Y - X * B
     return E, B
 end
-
 
 Base.@propagate_inbounds function fit_ar(Z::AbstractMatrix{T}) where {T}
     ## Estimate
@@ -229,9 +228,9 @@ Base.@propagate_inbounds function fit_ar(Z::AbstractMatrix{T}) where {T}
     rho = Vector{T}(undef, p)
     σ⁴ = similar(rho)
     xy = Vector{T}(undef, n - 1)
-    for j ∈ axes(A, 2)
+    for j in axes(A, 2)
         y = A[2:lastindex(A, 1), j]
-        x = A[1:(lastindex(A, 1)-1), j]
+        x = A[1:(lastindex(A, 1) - 1), j]
         allequal(x) && (rho[j] = 0; σ⁴[j] = 0; continue)
         x .= x .- mean(x)
         y .= y .- mean(y)
@@ -247,7 +246,7 @@ end
 # -----------------------------------------------------------------------------
 # Prewhiter
 # -----------------------------------------------------------------------------
-function prewhiter(M::AbstractMatrix{T}, prewhite::Bool) where {T<:Real}
+function prewhiter(M::AbstractMatrix{T}, prewhite::Bool) where {T <: Real}
     if prewhite
         return fit_var(M)
     else

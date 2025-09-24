@@ -42,7 +42,7 @@ Truncated{NeweyWest}()
   - `Andrews`: bandwidth selection a la Andrews
   - `NeweyWest`: bandwidth selection a la Andrews
 """
-struct TruncatedKernel{G<:BandwidthType} <: HAC{G}
+struct TruncatedKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
     kw::Vector{WFLOAT}
     "When `wlock` is false, the kernelweights are allowed to updated by
@@ -66,7 +66,7 @@ Bartlett(::Type{NeweyWest})
   - `Andrews`: bandwidth selection a la Andrews
   - `NeweyWest`: bandwidth selection a la Andrews
 """
-struct BartlettKernel{G<:BandwidthType} <: HAC{G}
+struct BartlettKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
     kw::Vector{WFLOAT}
     wlock::Vector{Bool}
@@ -88,7 +88,7 @@ Parzen(::Type{NeweyWest})
   - `Andrews`: bandwidth selection a la Andrews
   - `NeweyWest`: bandwidth selection a la Andrews
 """
-struct ParzenKernel{G<:BandwidthType} <: HAC{G}
+struct ParzenKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
     kw::Vector{WFLOAT}
     wlock::Vector{Bool}
@@ -109,7 +109,7 @@ TukeyHanning(::Type{NeweyWest})
   - `Andrews`: bandwidth selection a la Andrews
   - `NeweyWest`: bandwidth selection a la Andrews
 """
-struct TukeyHanningKernel{G<:BandwidthType} <: HAC{G}
+struct TukeyHanningKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
     kw::Vector{WFLOAT}
     wlock::Vector{Bool}
@@ -131,15 +131,13 @@ QuadraticSpectral(::Type{NeweyWest})
   - `Andrews`: bandwidth selection a la Andrews
   - `NeweyWest`: bandwidth selection a la Andrews
 """
-struct QuadraticSpectralKernel{G<:BandwidthType} <: HAC{G}
+struct QuadraticSpectralKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
     kw::Vector{WFLOAT}
     wlock::Vector{Bool}
 end
 
 const QuadraticSpectral = QuadraticSpectralKernel
-
-
 
 ## ------------------------------------------------------------------------------------------
 # Define HAC constructor
@@ -149,14 +147,13 @@ const QuadraticSpectral = QuadraticSpectralKernel
 # - HAC() -> Optimal bandwidth selection a la Andrews
 const kernels = [:Bartlett, :Parzen, :QuadraticSpectral, :Truncated, :TukeyHanning]
 
-for kerneltype ∈ kernels
+for kerneltype in kernels
     @eval ($kerneltype(x::Number)) = ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[], [false])
-    @eval ($kerneltype{Fixed}(x::Number)) =
-        ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[], [false])
+    @eval ($kerneltype{Fixed}(x::Number)) = ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[], [false])
 end
 
-for kerneltype ∈ kernels
-    for opt ∈ [:Andrews, :NeweyWest]
+for kerneltype in kernels
+    for opt in [:Andrews, :NeweyWest]
         if !(opt == :NeweyWest && kerneltype in [:TukeyHanning, :Truncated])
             @eval ($kerneltype){$opt}() = ($kerneltype){$opt}(WFLOAT[0], WFLOAT[], [false])
         else
@@ -166,10 +163,10 @@ for kerneltype ∈ kernels
     end
 end
 
-function Base.show(io::IO, x::HAC{T}) where {T<:Union{Andrews,NeweyWest}}
+function Base.show(io::IO, x::HAC{T}) where {T <: Union{Andrews, NeweyWest}}
     return print(typeof(x).name, "{", T, "}")
 end
-function Base.show(io::IO, x::HAC{T}) where {T<:Fixed}
+function Base.show(io::IO, x::HAC{T}) where {T <: Fixed}
     return print(typeof(x).name, "{", T, "}(", first(x.bw), ")")
 end
 ## Makes the default bandwidth selection
@@ -202,29 +199,29 @@ CR
 =========#
 struct CR0{G} <: CR
     g::G
-    CR0(g::G) where {G<:AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
-    CR0(g::G) where {G<:Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
+    CR0(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
+    CR0(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
 end
 
 struct CR1{G} <: CR
     g::G
-    CR1(g::G) where {G<:AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
-    CR1(g::G) where {G<:Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
+    CR1(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
+    CR1(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
 end
 
 struct CR2{G} <: CR
     g::G
-    CR2(g::G) where {G<:AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
-    CR2(g::G) where {G<:Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
+    CR2(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
+    CR2(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
 end
 
 struct CR3{G} <: CR
     g::G
-    CR3(g::G) where {G<:AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
-    CR3(g::G) where {G<:Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
+    CR3(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
+    CR3(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
 end
 
-for k ∈ [:CR0, :CR1, :CR2, :CR3]
+for k in [:CR0, :CR1, :CR2, :CR3]
     @eval $(k)(args...) = $(k)(args)
 end
 
@@ -255,12 +252,13 @@ struct DifferentOwnLags <: LagStrategy
     maxlags::Vector{Int}
 end
 
-DifferentOwnLags(x::Tuple{Int,Int}) = DifferentOwnLags([x[1], x[2]])
-DifferentOwnLags(x::Tuple{A,A}) where {A<:Real} =
+DifferentOwnLags(x::Tuple{Int, Int}) = DifferentOwnLags([x[1], x[2]])
+function DifferentOwnLags(x::Tuple{A, A}) where {A <: Real}
     DifferentOwnLags([round(Int, x[1]), round(Int, x[2])])
+end
 DifferentOwnLags() = DifferentOwnLags([5, 5])
 
-mutable struct VARHAC{S<:LagSelector,L<:LagStrategy} <: AVarEstimator
+mutable struct VARHAC{S <: LagSelector, L <: LagStrategy} <: AVarEstimator
     AICs::Any
     BICs::Any
     order_aic::Any
@@ -276,16 +274,18 @@ end
 
 VARHAC(f::FixedLags) = VARHAC(FixedSelector(), f)
 
-maxlags(k::VARHAC{S,L}) where {S<:LagSelector,L<:SameLags} = k.strategy.maxlag
-maxlags(k::VARHAC{S,L}) where {S<:LagSelector,L<:DifferentOwnLags} = k.strategy.maxlags
-maxlags(k::VARHAC{S,L}) where {S<:LagSelector,L<:FixedLags} = k.strategy.maxlag
+maxlags(k::VARHAC{S, L}) where {S <: LagSelector, L <: SameLags} = k.strategy.maxlag
+function maxlags(k::VARHAC{S, L}) where {S <: LagSelector, L <: DifferentOwnLags}
+    k.strategy.maxlags
+end
+maxlags(k::VARHAC{S, L}) where {S <: LagSelector, L <: FixedLags} = k.strategy.maxlag
 
 AICs(k::VARHAC) = k.AICs
 BICs(k::VARHAC) = k.BICs
 order_aic(k::VARHAC) = k.order_aic
 order_bic(k::VARHAC) = k.order_bic
-order(k::VARHAC{AICSelector,S}) where {S} = order_aic(k)
-order(k::VARHAC{BICSelector,S}) where {S} = order_bic(k)
+order(k::VARHAC{AICSelector, S}) where {S} = order_aic(k)
+order(k::VARHAC{BICSelector, S}) where {S} = order_bic(k)
 
 ## Show method for VARHAC
 function Base.show(io::IO, k::VARHAC)
@@ -303,7 +303,7 @@ i the cross-section dimension indeces
 K the kernel type
 df the degrees of freedom
 """
-mutable struct DriscollKraay{K,D} <: AVarEstimator
+mutable struct DriscollKraay{K, D} <: AVarEstimator
     K::K
     tis::D
     iis::D
@@ -313,10 +313,10 @@ function DriscollKraay(K::HAC; tis = nothing, iis = nothing)
     return DriscollKraay(K, GroupedArray(tis), GroupedArray(iis))
 end
 function DriscollKraay(
-    K::HAC,
-    tis::AbstractArray{T},
-    iis::AbstractArray{T},
-) where {T<:AbstractFloat}
+        K::HAC,
+        tis::AbstractArray{T},
+        iis::AbstractArray{T}
+) where {T <: AbstractFloat}
     return DriscollKraay(K, GroupedArray(tis), GroupedArray(iis))
 end
 const HC0 = HR0
@@ -327,22 +327,22 @@ const HC4 = HR4
 const HC4m = HR4m
 const HC5 = HR5
 
-Base.String(::Type{T}) where {T<:Truncated} = "Truncated"
-Base.String(::Type{T}) where {T<:Parzen} = "Parzen"
-Base.String(::Type{T}) where {T<:TukeyHanning} = "Tukey-Hanning"
-Base.String(::Type{T}) where {T<:Bartlett} = "Bartlett"
-Base.String(::Type{T}) where {T<:QuadraticSpectral} = "Quadratic Spectral"
-Base.String(::Type{T}) where {T<:HR0} = "HR0"
-Base.String(::Type{T}) where {T<:HR1} = "HR1"
-Base.String(::Type{T}) where {T<:HR2} = "HR2"
-Base.String(::Type{T}) where {T<:HR3} = "HR3"
-Base.String(::Type{T}) where {T<:HR4} = "HR4"
-Base.String(::Type{T}) where {T<:HR4m} = "HR4m"
-Base.String(::Type{T}) where {T<:HR5} = "HR5"
-Base.String(::Type{T}) where {T<:CR0} = "CR0"
-Base.String(::Type{T}) where {T<:CR1} = "CR1"
-Base.String(::Type{T}) where {T<:CR2} = "CR2"
-Base.String(::Type{T}) where {T<:CR3} = "CR3"
-Base.String(::Type{T}) where {T<:EWC} = "EWC"
-Base.String(::Type{T}) where {T<:DriscollKraay} = "Driscoll-Kraay"
-Base.String(::Type{T}) where {T<:VARHAC} = "VARHAC"
+Base.String(::Type{T}) where {T <: Truncated} = "Truncated"
+Base.String(::Type{T}) where {T <: Parzen} = "Parzen"
+Base.String(::Type{T}) where {T <: TukeyHanning} = "Tukey-Hanning"
+Base.String(::Type{T}) where {T <: Bartlett} = "Bartlett"
+Base.String(::Type{T}) where {T <: QuadraticSpectral} = "Quadratic Spectral"
+Base.String(::Type{T}) where {T <: HR0} = "HR0"
+Base.String(::Type{T}) where {T <: HR1} = "HR1"
+Base.String(::Type{T}) where {T <: HR2} = "HR2"
+Base.String(::Type{T}) where {T <: HR3} = "HR3"
+Base.String(::Type{T}) where {T <: HR4} = "HR4"
+Base.String(::Type{T}) where {T <: HR4m} = "HR4m"
+Base.String(::Type{T}) where {T <: HR5} = "HR5"
+Base.String(::Type{T}) where {T <: CR0} = "CR0"
+Base.String(::Type{T}) where {T <: CR1} = "CR1"
+Base.String(::Type{T}) where {T <: CR2} = "CR2"
+Base.String(::Type{T}) where {T <: CR3} = "CR3"
+Base.String(::Type{T}) where {T <: EWC} = "EWC"
+Base.String(::Type{T}) where {T <: DriscollKraay} = "Driscoll-Kraay"
+Base.String(::Type{T}) where {T <: VARHAC} = "VARHAC"
