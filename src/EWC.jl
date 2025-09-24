@@ -31,6 +31,6 @@ Base.@propagate_inbounds function avar(
         L = Λ(j, Z)
         @. Ω += L * L'
     end
-    rmul!(Ω, 1//B)
+    rmul!(Ω, 1 // B)
     return Symmetric(Ω)
 end
