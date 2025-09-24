@@ -75,8 +75,8 @@ Base.@propagate_inbounds function (s::TruncatedSmoother)(G::Matrix)
     nG = zeros(WFLOAT, N, M)
     b = bw(s)
     xi = ξ(s)
-    for m = axes(G, 2)
-        for t = axes(G, 1)
+    for m in axes(G, 2)
+        for t in axes(G, 1)
             low = max((t - N), -xi)::Int
             high = min(t - 1, xi)::Int
             for s = low:high
@@ -92,8 +92,8 @@ Base.@propagate_inbounds function (s::BartlettSmoother)(G::Matrix)
     b = bw(s)
     xi = ξ(s)
     nG = zeros(WFLOAT, N, M)
-    for m = axes(G, 2)
-        for t = axes(G, 1)
+    for m in axes(G, 2)
+        for t in axes(G, 1)
             low = max((t - N), -xi)::Int
             high = min(t - 1, xi)::Int
             for s = low:high
@@ -111,7 +111,7 @@ Base.@propagate_inbounds function (s::TruncatedSmoother)(N::Int)
     nG = zeros(WFLOAT, 3)
     low = max((1 - N), -xi)::Int
     high = min(N - 1, xi)::Int
-    for j in 1:3
+    for j = 1:3
         for s = low:high
             nG[j] += one(WFLOAT)
         end
@@ -125,7 +125,7 @@ Base.@propagate_inbounds function (s::BartlettSmoother)(N::Int)
     nG = zeros(WFLOAT, 3)
     low = max((1 - N), -xi)::Int
     high = min(N - 1, xi)::Int
-    for j in 1:3
+    for j = 1:3
         for s = low:high
             κ = 1 - abs(s / b)
             nG[j] += (κ^j)

@@ -41,7 +41,7 @@ function CovarianceMatrices.momentmatrix(m::SimpleProbit)
 end
 
 function CovarianceMatrices.objective_hessian(m::SimpleProbit)
-    weights = m.fitted_densities.^2 ./ (m.fitted_probs .* (1 .- m.fitted_probs) .+ 1e-15)
+    weights = m.fitted_densities .^ 2 ./ (m.fitted_probs .* (1 .- m.fitted_probs) .+ 1e-15)
     return (m.X' * Diagonal(weights) * m.X) / length(m.y)
 end
 
@@ -55,7 +55,14 @@ struct SimpleGMM <: CovarianceMatrices.GMMLikeModel
     β::Vector{Float64}
 end
 
-function _simulate_iv(rng=Random.default_rng(); n=100, K=2, R2=0.1, ρ=0.1, β0=0.0)
+function _simulate_iv(
+    rng = Random.default_rng();
+    n = 100,
+    K = 2,
+    R2 = 0.1,
+    ρ = 0.1,
+    β0 = 0.0,
+)
     γ = fill(sqrt(R2 / (K * (1 - R2))), K)
     Z = randn(rng, n, K)
 
@@ -69,7 +76,7 @@ function _simulate_iv(rng=Random.default_rng(); n=100, K=2, R2=0.1, ρ=0.1, β0=
     y = x .* β0 .+ ε
     x_exo = randn(rng, n, 3)
 
-    return (y=y, x=[x x_exo], z=[Z x_exo])
+    return (y = y, x = [x x_exo], z = [Z x_exo])
 end
 
 function _create_linear_gmm(data)
@@ -99,613 +106,660 @@ const CM = TestHelpers
 
 @testset "Interface and API Tests" begin
 
-@testset "Model Interface Validation ✅" begin
+    @testset "Model Interface Validation ✅" begin
 
-    # Create test model that doesn't implement required interface
-    struct BadModel
-        data::Matrix{Float64}
-    end
-
-    bad_model = BadModel(randn(100, 3))
-
-    @testset "Missing momentmatrix method" begin
-        @test_throws MethodError CovarianceMatrices.momentmatrix(bad_model)
-        @test_throws ErrorException CovarianceMatrices._check_model_interface(bad_model)
-    end
-
-    @testset "Missing coef method" begin
-        struct BadModelNoCoef end
-        # Define momentmatrix but not coef
-        CovarianceMatrices.momentmatrix(::BadModelNoCoef) = randn(10, 2)
-
-        @test_throws MethodError StatsBase.coef(BadModelNoCoef())
-        @test_throws ErrorException CovarianceMatrices._check_coef(BadModelNoCoef())
-    end
-
-    @testset "Missing nobs method" begin
-        struct BadModelNoNobs end
-        CovarianceMatrices.momentmatrix(::BadModelNoNobs) = randn(10, 2)
-        StatsBase.coef(::BadModelNoNobs) = [1.0, 2.0]
-
-        @test_throws MethodError StatsBase.nobs(BadModelNoNobs())
-        @test_throws ErrorException CovarianceMatrices._check_nobs(BadModelNoNobs())
-    end
-end
-
-@testset "Variance Form Validation ✅" begin
-
-    @testset "Information Form Requirements" begin
-        # Test with matrix API requiring either H or G
-        Z = randn(100, 3)
-
-        @test_throws ArgumentError vcov(HC0(), Information(), Z)  # No H or G provided
-        @test_throws ArgumentError vcov(HC0(), Information(), Z; objective_hessian=nothing, score=nothing)
-    end
-
-    @testset "Misspecified Form Requirements" begin
-        # Test with matrix API requiring score
-        Z = randn(100, 3)
-
-        @test_throws ArgumentError vcov(HC0(), Misspecified(), Z)  # No score provided
-        @test_throws ArgumentError vcov(HC0(), Misspecified(), Z; score=nothing)
-    end
-
-    @testset "Matrix Dimension Validation" begin
-        Z = randn(100, 3)
-
-        # Invalid objective_hessian dimensions
-        @test_throws ArgumentError vcov(HC0(), Information(), Z; objective_hessian=randn(3, 2))
-
-        # Invalid score dimensions
-        @test_throws ArgumentError vcov(HC0(), Information(), Z; score=randn(2, 3))
-        @test_throws ArgumentError vcov(HC0(), Misspecified(), Z; score=randn(2, 3))
-
-        # Invalid weight matrix dimensions for GMM
-        @test_throws ArgumentError vcov(HC0(), Misspecified(), randn(100, 5);
-                                       score=randn(5, 3), weight_matrix=randn(3, 3))
-    end
-
-    @testset "Underidentified Models" begin
-        # m < k case
-        Z = randn(100, 2)  # 2 moments
-        G = randn(2, 3)    # 3 parameters
-
-        struct UnderidentifiedModel <: CovarianceMatrices.MLikeModel
-            Z::Matrix{Float64}
-            β::Vector{Float64}
+        # Create test model that doesn't implement required interface
+        struct BadModel
+            data::Matrix{Float64}
         end
 
-        StatsBase.coef(m::UnderidentifiedModel) = m.β
-        StatsBase.nobs(m::UnderidentifiedModel) = size(m.Z, 1)
-        CovarianceMatrices.momentmatrix(m::UnderidentifiedModel) = m.Z
-        CovarianceMatrices.score(m::UnderidentifiedModel) = G
+        bad_model = BadModel(randn(100, 3))
 
-        model = UnderidentifiedModel(Z, [1.0, 2.0, 3.0])
-
-        @test_throws ArgumentError CovarianceMatrices._check_dimensions(Information(), model)
-    end
-end
-
-@testset "Type System Validation ✅" begin
-
-    @testset "Variance Form Types" begin
-        @test Information() isa CovarianceMatrices.VarianceForm
-        @test Misspecified() isa CovarianceMatrices.VarianceForm
-
-        # Test type unions
-        @test Information() isa CovarianceMatrices.VarianceForm
-        @test Misspecified() isa CovarianceMatrices.VarianceForm
-    end
-
-    @testset "Model Type Hierarchy" begin
-        # Test MLikeModel
-        struct TestMLEModel <: CovarianceMatrices.MLikeModel
-            β::Vector{Float64}
+        @testset "Missing momentmatrix method" begin
+            @test_throws MethodError CovarianceMatrices.momentmatrix(bad_model)
+            @test_throws ErrorException CovarianceMatrices._check_model_interface(bad_model)
         end
 
-        # Test GMMLikeModel
-        struct TestGMMModel <: CovarianceMatrices.GMMLikeModel
-            β::Vector{Float64}
+        @testset "Missing coef method" begin
+            struct BadModelNoCoef end
+            # Define momentmatrix but not coef
+            CovarianceMatrices.momentmatrix(::BadModelNoCoef) = randn(10, 2)
+
+            @test_throws MethodError StatsBase.coef(BadModelNoCoef())
+            @test_throws ErrorException CovarianceMatrices._check_coef(BadModelNoCoef())
         end
 
-        mle_model = TestMLEModel([1.0, 2.0])
-        gmm_model = TestGMMModel([1.0, 2.0])
+        @testset "Missing nobs method" begin
+            struct BadModelNoNobs end
+            CovarianceMatrices.momentmatrix(::BadModelNoNobs) = randn(10, 2)
+            StatsBase.coef(::BadModelNoNobs) = [1.0, 2.0]
 
-        @test mle_model isa CovarianceMatrices.MLikeModel
-        @test gmm_model isa CovarianceMatrices.GMMLikeModel
-        @test mle_model isa StatsBase.StatisticalModel
-        @test gmm_model isa StatsBase.StatisticalModel
+            @test_throws MethodError StatsBase.nobs(BadModelNoNobs())
+            @test_throws ErrorException CovarianceMatrices._check_nobs(BadModelNoNobs())
+        end
     end
-end
 
-@testset "EWC Estimator Coverage ✅" begin
+    @testset "Variance Form Validation ✅" begin
 
-    @testset "EWC Construction and Usage" begin
-        # Test EWC construction with bandwidth parameter
-        ewc = EWC(5)
-        @test ewc isa EWC
-        @test ewc.B == 5
+        @testset "Information Form Requirements" begin
+            # Test with matrix API requiring either H or G
+            Z = randn(100, 3)
 
-        # Test EWC construction with different bandwidth values
-        for B in [1, 3, 5, 10, 20]
-            ewc = EWC(B)
+            @test_throws ArgumentError vcov(HC0(), Information(), Z)  # No H or G provided
+            @test_throws ArgumentError vcov(
+                HC0(),
+                Information(),
+                Z;
+                objective_hessian = nothing,
+                score = nothing,
+            )
+        end
+
+        @testset "Misspecified Form Requirements" begin
+            # Test with matrix API requiring score
+            Z = randn(100, 3)
+
+            @test_throws ArgumentError vcov(HC0(), Misspecified(), Z)  # No score provided
+            @test_throws ArgumentError vcov(HC0(), Misspecified(), Z; score = nothing)
+        end
+
+        @testset "Matrix Dimension Validation" begin
+            Z = randn(100, 3)
+
+            # Invalid objective_hessian dimensions
+            @test_throws ArgumentError vcov(
+                HC0(),
+                Information(),
+                Z;
+                objective_hessian = randn(3, 2),
+            )
+
+            # Invalid score dimensions
+            @test_throws ArgumentError vcov(HC0(), Information(), Z; score = randn(2, 3))
+            @test_throws ArgumentError vcov(HC0(), Misspecified(), Z; score = randn(2, 3))
+
+            # Invalid weight matrix dimensions for GMM
+            @test_throws ArgumentError vcov(
+                HC0(),
+                Misspecified(),
+                randn(100, 5);
+                score = randn(5, 3),
+                weight_matrix = randn(3, 3),
+            )
+        end
+
+        @testset "Underidentified Models" begin
+            # m < k case
+            Z = randn(100, 2)  # 2 moments
+            G = randn(2, 3)    # 3 parameters
+
+            struct UnderidentifiedModel <: CovarianceMatrices.MLikeModel
+                Z::Matrix{Float64}
+                β::Vector{Float64}
+            end
+
+            StatsBase.coef(m::UnderidentifiedModel) = m.β
+            StatsBase.nobs(m::UnderidentifiedModel) = size(m.Z, 1)
+            CovarianceMatrices.momentmatrix(m::UnderidentifiedModel) = m.Z
+            CovarianceMatrices.score(m::UnderidentifiedModel) = G
+
+            model = UnderidentifiedModel(Z, [1.0, 2.0, 3.0])
+
+            @test_throws ArgumentError CovarianceMatrices._check_dimensions(
+                Information(),
+                model,
+            )
+        end
+    end
+
+    @testset "Type System Validation ✅" begin
+
+        @testset "Variance Form Types" begin
+            @test Information() isa CovarianceMatrices.VarianceForm
+            @test Misspecified() isa CovarianceMatrices.VarianceForm
+
+            # Test type unions
+            @test Information() isa CovarianceMatrices.VarianceForm
+            @test Misspecified() isa CovarianceMatrices.VarianceForm
+        end
+
+        @testset "Model Type Hierarchy" begin
+            # Test MLikeModel
+            struct TestMLEModel <: CovarianceMatrices.MLikeModel
+                β::Vector{Float64}
+            end
+
+            # Test GMMLikeModel
+            struct TestGMMModel <: CovarianceMatrices.GMMLikeModel
+                β::Vector{Float64}
+            end
+
+            mle_model = TestMLEModel([1.0, 2.0])
+            gmm_model = TestGMMModel([1.0, 2.0])
+
+            @test mle_model isa CovarianceMatrices.MLikeModel
+            @test gmm_model isa CovarianceMatrices.GMMLikeModel
+            @test mle_model isa StatsBase.StatisticalModel
+            @test gmm_model isa StatsBase.StatisticalModel
+        end
+    end
+
+    @testset "EWC Estimator Coverage ✅" begin
+
+        @testset "EWC Construction and Usage" begin
+            # Test EWC construction with bandwidth parameter
+            ewc = EWC(5)
             @test ewc isa EWC
-            @test ewc.B == B
+            @test ewc.B == 5
+
+            # Test EWC construction with different bandwidth values
+            for B in [1, 3, 5, 10, 20]
+                ewc = EWC(B)
+                @test ewc isa EWC
+                @test ewc.B == B
+            end
+
+            # Test invalid bandwidth values
+            @test_throws BoundsError EWC(-1)  # negative bandwidth
+            @test_throws BoundsError EWC(0)   # zero bandwidth
         end
 
-        # Test invalid bandwidth values
-        @test_throws BoundsError EWC(-1)  # negative bandwidth
-        @test_throws BoundsError EWC(0)   # zero bandwidth
-    end
+        @testset "EWC Computation" begin
+            X = randn(Random.Xoshiro(123), 100, 2)
 
-    @testset "EWC Computation" begin
-        X = randn(Random.Xoshiro(123), 100, 2)
+            # Test EWC computation - note there appears to be an implementation issue
+            # with symmetric matrix handling in aVar, so we test construction for now
+            ewc = EWC(3)
+            @test ewc isa EWC
 
-        # Test EWC computation - note there appears to be an implementation issue
-        # with symmetric matrix handling in aVar, so we test construction for now
-        ewc = EWC(3)
-        @test ewc isa EWC
-
-        # Skip actual variance computation due to implementation issue
-        @test_skip "EWC variance computation has symmetric matrix handling issues"
-    end
-end
-
-@testset "Unified API Comprehensive Tests ✅" begin
-
-    # Generate test data
-    Random.seed!(456)
-    n, k = 200, 3
-    X = [ones(n) randn(n, k-1)]
-    β_true = [0.5, 1.0, -0.8]
-
-    @testset "MLE Model Testing" begin
-        # Create Probit model using test utilities
-        y = Int.(rand(n) .< CM._normal_cdf.(X * β_true))
-        probit_model = CM._fit_simple_probit(y, X)
-
-        # Test all variance estimators with both forms
-        estimators = [HC0(), HC1(), HC2(), HC3(), Bartlett(3), Parzen(2)]
-        forms = [Information(), Misspecified()]
-
-        for est in estimators, form in forms
-            V = vcov(est, form, probit_model)
-            @test size(V) == (k, k)
-            @test isposdef(V)
-
-            # Test standard errors
-            se = stderror(est, form, probit_model)
-            @test length(se) == k
-            @test all(se .> 0)
-            @test se ≈ sqrt.(diag(V))
-        end
-
-        # Test matrix API equivalence
-        Z = CovarianceMatrices.momentmatrix(probit_model)
-        H = CovarianceMatrices.objective_hessian(probit_model)
-        G = CovarianceMatrices.score(probit_model)
-
-        for est in [HC0(), HC1()]
-            V_model_info = vcov(est, Information(), probit_model)
-            V_matrix_info = vcov(est, Information(), Z; objective_hessian=H)
-            @test V_model_info ≈ V_matrix_info
-
-            V_model_mis = vcov(est, Misspecified(), probit_model)
-            V_matrix_mis = vcov(est, Misspecified(), Z; score=G)
-            @test V_model_mis ≈ V_matrix_mis
+            # Skip actual variance computation due to implementation issue
+            @test_skip "EWC variance computation has symmetric matrix handling issues"
         end
     end
 
-    @testset "GMM Model Testing" begin
-        # Create IV model using test utilities
-        data = CM._simulate_iv(Random.Xoshiro(789); n=200, K=4, R2=0.4, ρ=0.2)
-        gmm_model = CM._create_linear_gmm(data)
+    @testset "Unified API Comprehensive Tests ✅" begin
 
-        # Test GMM with both forms
-        estimators = [HR0(), HR1(), Bartlett(2)]
-        forms = [Information(), Misspecified()]
+        # Generate test data
+        Random.seed!(456)
+        n, k = 200, 3
+        X = [ones(n) randn(n, k-1)]
+        β_true = [0.5, 1.0, -0.8]
 
-        for est in estimators, form in forms
-            V = vcov(est, form, gmm_model)
-            @test size(V, 1) == size(V, 2)
-            @test isposdef(V)
+        @testset "MLE Model Testing" begin
+            # Create Probit model using test utilities
+            y = Int.(rand(n) .< CM._normal_cdf.(X * β_true))
+            probit_model = CM._fit_simple_probit(y, X)
 
-            se = stderror(est, form, gmm_model)
-            @test length(se) == length(StatsBase.coef(gmm_model))
-            @test all(se .> 0)
-        end
+            # Test all variance estimators with both forms
+            estimators = [HC0(), HC1(), HC2(), HC3(), Bartlett(3), Parzen(2)]
+            forms = [Information(), Misspecified()]
 
-        # For efficient GMM, Information and Misspecified should be similar
-        V_info = vcov(HR0(), Information(), gmm_model)
-        V_mis = vcov(HR0(), Misspecified(), gmm_model)
-        @test maximum(abs.(V_info .- V_mis)) < 0.01  # Should be close for efficient GMM
-    end
+            for est in estimators, form in forms
+                V = vcov(est, form, probit_model)
+                @test size(V) == (k, k)
+                @test isposdef(V)
 
-    @testset "Form Adaptive Behavior" begin
-        # Test that forms adapt based on model context
+                # Test standard errors
+                se = stderror(est, form, probit_model)
+                @test length(se) == k
+                @test all(se .> 0)
+                @test se ≈ sqrt.(diag(V))
+            end
 
-        # MLE case: m = k (exactly identified)
-        Random.seed!(999)
-        n = 100
-        X = [ones(n) randn(n, 2)]
-        β_true = [0.0, 1.0, -0.5]
-        y = Int.(rand(n) .< CM._normal_cdf.(X * β_true))
-        mle_model = CM._fit_simple_probit(y, X)
+            # Test matrix API equivalence
+            Z = CovarianceMatrices.momentmatrix(probit_model)
+            H = CovarianceMatrices.objective_hessian(probit_model)
+            G = CovarianceMatrices.score(probit_model)
 
-        # Information form should use Fisher Information
-        V_info_mle = vcov(HC0(), Information(), mle_model)
-        @test isposdef(V_info_mle)
+            for est in [HC0(), HC1()]
+                V_model_info = vcov(est, Information(), probit_model)
+                V_matrix_info = vcov(est, Information(), Z; objective_hessian = H)
+                @test V_model_info ≈ V_matrix_info
 
-        # Misspecified form should use sandwich
-        V_mis_mle = vcov(HC0(), Misspecified(), mle_model)
-        @test isposdef(V_mis_mle)
-
-        # They should be different
-        @test !(V_info_mle ≈ V_mis_mle)
-
-        # GMM case: m > k (overidentified)
-        data = CM._simulate_iv(Random.Xoshiro(111); n=150, K=3, R2=0.3, ρ=0.15)
-        gmm_model = CM._create_linear_gmm(data)
-
-        V_info_gmm = vcov(HR0(), Information(), gmm_model)
-        V_mis_gmm = vcov(HR0(), Misspecified(), gmm_model)
-
-        # For efficient GMM, these should be close
-        @test maximum(abs.(V_info_gmm .- V_mis_gmm)) < 0.01
-    end
-end
-
-@testset "Error Handling Edge Cases ✅" begin
-
-    @testset "Numerical Issues" begin
-        # Test with near-singular matrices
-        Random.seed!(777)
-        X = [ones(50) randn(50, 2)]
-        # Make design matrix nearly singular
-        X[:, 3] = X[:, 2] + 1e-10 * randn(50)
-
-        # This should handle numerical issues gracefully
-        V = aVar(HC0(), X)
-        @test size(V) == (3, 3)
-        # May not be positive definite due to singularity, but should not crash
-    end
-
-    @testset "Empty and Small Matrices" begin
-        # Test with very small sample sizes
-        X_small = randn(2, 2)
-        V_small = aVar(HC0(), X_small)
-        @test size(V_small) == (2, 2)
-
-        # Test with single observation (should work but may not be meaningful)
-        X_single = randn(1, 3)
-        V_single = aVar(HC0(), X_single)
-        @test size(V_single) == (3, 3)
-    end
-
-    @testset "Type Consistency" begin
-        # Test with different floating point types
-        X_f32 = randn(Float32, 100, 3)
-        X_f64 = randn(Float64, 100, 3)
-
-        V_f32 = aVar(HC0(), X_f32)
-        V_f64 = aVar(HC0(), X_f64)
-
-        @test eltype(V_f32) == Float32
-        @test eltype(V_f64) == Float64
-    end
-end
-
-@testset "Interface Method Coverage ✅" begin
-
-    @testset "Optional Methods" begin
-        # Test models with and without optional methods
-        struct MinimalModel <: CovarianceMatrices.MLikeModel
-            β::Vector{Float64}
-        end
-
-        StatsBase.coef(m::MinimalModel) = m.β
-        StatsBase.nobs(m::MinimalModel) = 100
-        CovarianceMatrices.momentmatrix(m::MinimalModel) = randn(100, length(m.β))
-
-        minimal = MinimalModel([1.0, 2.0])
-
-        # Should work with Information form if objective_hessian is provided
-        H = Matrix{Float64}(I, 2, 2)
-        V = vcov(HC0(), Information(), CovarianceMatrices.momentmatrix(minimal); objective_hessian=H)
-        @test size(V) == (2, 2)
-
-        # Test optional weight_matrix method
-        @test CovarianceMatrices.weight_matrix(minimal) === nothing
-
-        # Test optional objective_hessian method
-        @test CovarianceMatrices.objective_hessian(minimal) === nothing
-    end
-
-    @testset "Method Dispatch" begin
-        # Test that methods dispatch correctly to appropriate implementations
-
-        # MLikeModel dispatch
-        struct TestMLE <: CovarianceMatrices.MLikeModel
-            β::Vector{Float64}
-        end
-
-        StatsBase.coef(m::TestMLE) = m.β
-        StatsBase.nobs(m::TestMLE) = 50
-        CovarianceMatrices.momentmatrix(m::TestMLE) = randn(50, length(m.β))
-        CovarianceMatrices.score(m::TestMLE) = randn(length(m.β), length(m.β))
-
-        mle = TestMLE([1.0, 2.0])
-
-        # Should work with both forms
-        V_info = vcov(HC0(), Information(), mle)
-        V_mis = vcov(HC0(), Misspecified(), mle)
-
-        @test size(V_info) == (2, 2)
-        @test size(V_mis) == (2, 2)
-
-        # GMMLikeModel dispatch
-        struct TestGMM <: CovarianceMatrices.GMMLikeModel
-            β::Vector{Float64}
-        end
-
-        StatsBase.coef(m::TestGMM) = m.β
-        StatsBase.nobs(m::TestGMM) = 50
-        CovarianceMatrices.momentmatrix(m::TestGMM) = randn(50, 4)  # overidentified
-        CovarianceMatrices.score(m::TestGMM) = randn(4, length(m.β))
-
-        gmm = TestGMM([1.0, 2.0])
-
-        V_info_gmm = vcov(HR0(), Information(), gmm)
-        V_mis_gmm = vcov(HR0(), Misspecified(), gmm)
-
-        @test size(V_info_gmm) == (2, 2)
-        @test size(V_mis_gmm) == (2, 2)
-    end
-end
-
-@testset "Additional Type Coverage ✅" begin
-
-    @testset "All Kernel Types" begin
-        X = randn(Random.Xoshiro(333), 200, 3)
-
-        # Test all kernel types with different bandwidth selection methods
-        kernels_andrews = [
-            Bartlett{Andrews}(), Parzen{Andrews}(), QuadraticSpectral{Andrews}(),
-            TukeyHanning{Andrews}(), Truncated{Andrews}()
-        ]
-
-        kernels_neweywest = [
-            Bartlett{NeweyWest}(), Parzen{NeweyWest}(), QuadraticSpectral{NeweyWest}()
-        ]
-
-        kernels_fixed = [
-            Bartlett(3), Parzen(5), QuadraticSpectral(2),
-            TukeyHanning(4), Truncated(3)
-        ]
-
-        all_kernels = [kernels_andrews; kernels_neweywest; kernels_fixed]
-
-        for kernel in all_kernels
-            V = aVar(kernel, X)
-            @test size(V) == (3, 3)
-            @test isposdef(V)
-
-            # Test with prewhitening if supported
-            if !(kernel isa Union{TukeyHanning, Truncated})
-                V_pre = aVar(kernel, X; prewhite=true)
-                @test size(V_pre) == (3, 3)
-                @test isposdef(V_pre)
+                V_model_mis = vcov(est, Misspecified(), probit_model)
+                V_matrix_mis = vcov(est, Misspecified(), Z; score = G)
+                @test V_model_mis ≈ V_matrix_mis
             end
         end
-    end
 
-    @testset "All HC Estimator Types" begin
-        X = randn(Random.Xoshiro(444), 150, 4)
+        @testset "GMM Model Testing" begin
+            # Create IV model using test utilities
+            data = CM._simulate_iv(Random.Xoshiro(789); n = 200, K = 4, R2 = 0.4, ρ = 0.2)
+            gmm_model = CM._create_linear_gmm(data)
 
-        hc_estimators = [HC0(), HC1(), HC2(), HC3(), HC4(), HC4m(), HC5()]
-        hr_estimators = [HR0(), HR1(), HR2(), HR3(), HR4(), HR4m(), HR5()]
+            # Test GMM with both forms
+            estimators = [HR0(), HR1(), Bartlett(2)]
+            forms = [Information(), Misspecified()]
 
-        for est in [hc_estimators; hr_estimators]
-            V = aVar(est, X)
-            @test size(V) == (4, 4)
-            @test isposdef(V)
+            for est in estimators, form in forms
+                V = vcov(est, form, gmm_model)
+                @test size(V, 1) == size(V, 2)
+                @test isposdef(V)
 
-            # Test different variance forms if supported
-            if !(est isa CovarianceMatrices.HCType)  # HR types support forms
-                Z = randn(150, 4)
-                H = Matrix{Float64}(I, 4, 4)
-                G = randn(4, 4)
-
-                # Test Information form
-                V_info = vcov(est, Information(), Z; objective_hessian=H)
-                @test size(V_info) == (4, 4)
-
-                # Test Misspecified form
-                V_mis = vcov(est, Misspecified(), Z; score=G)
-                @test size(V_mis) == (4, 4)
+                se = stderror(est, form, gmm_model)
+                @test length(se) == length(StatsBase.coef(gmm_model))
+                @test all(se .> 0)
             end
+
+            # For efficient GMM, Information and Misspecified should be similar
+            V_info = vcov(HR0(), Information(), gmm_model)
+            V_mis = vcov(HR0(), Misspecified(), gmm_model)
+            @test maximum(abs.(V_info .- V_mis)) < 0.01  # Should be close for efficient GMM
+        end
+
+        @testset "Form Adaptive Behavior" begin
+            # Test that forms adapt based on model context
+
+            # MLE case: m = k (exactly identified)
+            Random.seed!(999)
+            n = 100
+            X = [ones(n) randn(n, 2)]
+            β_true = [0.0, 1.0, -0.5]
+            y = Int.(rand(n) .< CM._normal_cdf.(X * β_true))
+            mle_model = CM._fit_simple_probit(y, X)
+
+            # Information form should use Fisher Information
+            V_info_mle = vcov(HC0(), Information(), mle_model)
+            @test isposdef(V_info_mle)
+
+            # Misspecified form should use sandwich
+            V_mis_mle = vcov(HC0(), Misspecified(), mle_model)
+            @test isposdef(V_mis_mle)
+
+            # They should be different
+            @test !(V_info_mle ≈ V_mis_mle)
+
+            # GMM case: m > k (overidentified)
+            data = CM._simulate_iv(Random.Xoshiro(111); n = 150, K = 3, R2 = 0.3, ρ = 0.15)
+            gmm_model = CM._create_linear_gmm(data)
+
+            V_info_gmm = vcov(HR0(), Information(), gmm_model)
+            V_mis_gmm = vcov(HR0(), Misspecified(), gmm_model)
+
+            # For efficient GMM, these should be close
+            @test maximum(abs.(V_info_gmm .- V_mis_gmm)) < 0.01
         end
     end
 
-    @testset "Cluster Robust Estimators" begin
-        n = 200
-        X = randn(Random.Xoshiro(555), n, 3)
+    @testset "Error Handling Edge Cases ✅" begin
 
-        # Test different clustering scenarios
-        clusters = [
-            repeat(1:10, inner=20),        # Balanced clusters
-            repeat(1:5, inner=40),         # Fewer, larger clusters
-            [repeat(1:8, inner=20); repeat(9:10, inner=20)]  # Unbalanced
-        ]
+        @testset "Numerical Issues" begin
+            # Test with near-singular matrices
+            Random.seed!(777)
+            X = [ones(50) randn(50, 2)]
+            # Make design matrix nearly singular
+            X[:, 3] = X[:, 2] + 1e-10 * randn(50)
 
-        cr_types = [CR0, CR1, CR2, CR3]
-
-        for cluster in clusters, CRType in cr_types
-            est = CRType(cluster)
-            V = aVar(est, X)
+            # This should handle numerical issues gracefully
+            V = aVar(HC0(), X)
             @test size(V) == (3, 3)
-            @test isposdef(V)
+            # May not be positive definite due to singularity, but should not crash
+        end
+
+        @testset "Empty and Small Matrices" begin
+            # Test with very small sample sizes
+            X_small = randn(2, 2)
+            V_small = aVar(HC0(), X_small)
+            @test size(V_small) == (2, 2)
+
+            # Test with single observation (should work but may not be meaningful)
+            X_single = randn(1, 3)
+            V_single = aVar(HC0(), X_single)
+            @test size(V_single) == (3, 3)
+        end
+
+        @testset "Type Consistency" begin
+            # Test with different floating point types
+            X_f32 = randn(Float32, 100, 3)
+            X_f64 = randn(Float64, 100, 3)
+
+            V_f32 = aVar(HC0(), X_f32)
+            V_f64 = aVar(HC0(), X_f64)
+
+            @test eltype(V_f32) == Float32
+            @test eltype(V_f64) == Float64
         end
     end
 
-    @testset "EWC Comprehensive Coverage" begin
-        # Test various bandwidth values for construction
-        bandwidths = [1, 2, 3, 5, 7, 10, 15, 20, 30]
+    @testset "Interface Method Coverage ✅" begin
 
-        for B in bandwidths
-            ewc = EWC(B)
-            @test ewc isa EWC
-            @test ewc.B == B
+        @testset "Optional Methods" begin
+            # Test models with and without optional methods
+            struct MinimalModel <: CovarianceMatrices.MLikeModel
+                β::Vector{Float64}
+            end
+
+            StatsBase.coef(m::MinimalModel) = m.β
+            StatsBase.nobs(m::MinimalModel) = 100
+            CovarianceMatrices.momentmatrix(m::MinimalModel) = randn(100, length(m.β))
+
+            minimal = MinimalModel([1.0, 2.0])
+
+            # Should work with Information form if objective_hessian is provided
+            H = Matrix{Float64}(I, 2, 2)
+            V = vcov(
+                HC0(),
+                Information(),
+                CovarianceMatrices.momentmatrix(minimal);
+                objective_hessian = H,
+            )
+            @test size(V) == (2, 2)
+
+            # Test optional weight_matrix method
+            @test CovarianceMatrices.weight_matrix(minimal) === nothing
+
+            # Test optional objective_hessian method
+            @test CovarianceMatrices.objective_hessian(minimal) === nothing
         end
 
-        # Test error conditions
-        @test_throws BoundsError EWC(-1)
-        @test_throws BoundsError EWC(0)
+        @testset "Method Dispatch" begin
+            # Test that methods dispatch correctly to appropriate implementations
 
-        # Skip variance computation tests due to implementation issues
-        @test_skip "EWC aVar computation has symmetric matrix issues"
+            # MLikeModel dispatch
+            struct TestMLE <: CovarianceMatrices.MLikeModel
+                β::Vector{Float64}
+            end
+
+            StatsBase.coef(m::TestMLE) = m.β
+            StatsBase.nobs(m::TestMLE) = 50
+            CovarianceMatrices.momentmatrix(m::TestMLE) = randn(50, length(m.β))
+            CovarianceMatrices.score(m::TestMLE) = randn(length(m.β), length(m.β))
+
+            mle = TestMLE([1.0, 2.0])
+
+            # Should work with both forms
+            V_info = vcov(HC0(), Information(), mle)
+            V_mis = vcov(HC0(), Misspecified(), mle)
+
+            @test size(V_info) == (2, 2)
+            @test size(V_mis) == (2, 2)
+
+            # GMMLikeModel dispatch
+            struct TestGMM <: CovarianceMatrices.GMMLikeModel
+                β::Vector{Float64}
+            end
+
+            StatsBase.coef(m::TestGMM) = m.β
+            StatsBase.nobs(m::TestGMM) = 50
+            CovarianceMatrices.momentmatrix(m::TestGMM) = randn(50, 4)  # overidentified
+            CovarianceMatrices.score(m::TestGMM) = randn(4, length(m.β))
+
+            gmm = TestGMM([1.0, 2.0])
+
+            V_info_gmm = vcov(HR0(), Information(), gmm)
+            V_mis_gmm = vcov(HR0(), Misspecified(), gmm)
+
+            @test size(V_info_gmm) == (2, 2)
+            @test size(V_mis_gmm) == (2, 2)
+        end
     end
 
-    @testset "VARHAC Coverage" begin
-        # VARHAC tests if implemented
-        X = randn(Random.Xoshiro(777), 250, 3)
+    @testset "Additional Type Coverage ✅" begin
 
-        # Test if VARHAC is available
-        if isdefined(CovarianceMatrices, :VARHAC)
-            try
-                varhac = CovarianceMatrices.VARHAC()
-                V = aVar(varhac, X)
+        @testset "All Kernel Types" begin
+            X = randn(Random.Xoshiro(333), 200, 3)
+
+            # Test all kernel types with different bandwidth selection methods
+            kernels_andrews = [
+                Bartlett{Andrews}(),
+                Parzen{Andrews}(),
+                QuadraticSpectral{Andrews}(),
+                TukeyHanning{Andrews}(),
+                Truncated{Andrews}(),
+            ]
+
+            kernels_neweywest =
+                [Bartlett{NeweyWest}(), Parzen{NeweyWest}(), QuadraticSpectral{NeweyWest}()]
+
+            kernels_fixed = [
+                Bartlett(3),
+                Parzen(5),
+                QuadraticSpectral(2),
+                TukeyHanning(4),
+                Truncated(3),
+            ]
+
+            all_kernels = [kernels_andrews; kernels_neweywest; kernels_fixed]
+
+            for kernel in all_kernels
+                V = aVar(kernel, X)
                 @test size(V) == (3, 3)
                 @test isposdef(V)
-            catch MethodError
-                # VARHAC not fully implemented, skip
-                @test_skip "VARHAC not implemented"
+
+                # Test with prewhitening if supported
+                if !(kernel isa Union{TukeyHanning,Truncated})
+                    V_pre = aVar(kernel, X; prewhite = true)
+                    @test size(V_pre) == (3, 3)
+                    @test isposdef(V_pre)
+                end
             end
-        else
-            @test_skip "VARHAC not available"
+        end
+
+        @testset "All HC Estimator Types" begin
+            X = randn(Random.Xoshiro(444), 150, 4)
+
+            hc_estimators = [HC0(), HC1(), HC2(), HC3(), HC4(), HC4m(), HC5()]
+            hr_estimators = [HR0(), HR1(), HR2(), HR3(), HR4(), HR4m(), HR5()]
+
+            for est in [hc_estimators; hr_estimators]
+                V = aVar(est, X)
+                @test size(V) == (4, 4)
+                @test isposdef(V)
+
+                # Test different variance forms if supported
+                if !(est isa CovarianceMatrices.HCType)  # HR types support forms
+                    Z = randn(150, 4)
+                    H = Matrix{Float64}(I, 4, 4)
+                    G = randn(4, 4)
+
+                    # Test Information form
+                    V_info = vcov(est, Information(), Z; objective_hessian = H)
+                    @test size(V_info) == (4, 4)
+
+                    # Test Misspecified form
+                    V_mis = vcov(est, Misspecified(), Z; score = G)
+                    @test size(V_mis) == (4, 4)
+                end
+            end
+        end
+
+        @testset "Cluster Robust Estimators" begin
+            n = 200
+            X = randn(Random.Xoshiro(555), n, 3)
+
+            # Test different clustering scenarios
+            clusters = [
+                repeat(1:10, inner = 20),        # Balanced clusters
+                repeat(1:5, inner = 40),         # Fewer, larger clusters
+                [repeat(1:8, inner = 20); repeat(9:10, inner = 20)],  # Unbalanced
+            ]
+
+            cr_types = [CR0, CR1, CR2, CR3]
+
+            for cluster in clusters, CRType in cr_types
+                est = CRType(cluster)
+                V = aVar(est, X)
+                @test size(V) == (3, 3)
+                @test isposdef(V)
+            end
+        end
+
+        @testset "EWC Comprehensive Coverage" begin
+            # Test various bandwidth values for construction
+            bandwidths = [1, 2, 3, 5, 7, 10, 15, 20, 30]
+
+            for B in bandwidths
+                ewc = EWC(B)
+                @test ewc isa EWC
+                @test ewc.B == B
+            end
+
+            # Test error conditions
+            @test_throws BoundsError EWC(-1)
+            @test_throws BoundsError EWC(0)
+
+            # Skip variance computation tests due to implementation issues
+            @test_skip "EWC aVar computation has symmetric matrix issues"
+        end
+
+        @testset "VARHAC Coverage" begin
+            # VARHAC tests if implemented
+            X = randn(Random.Xoshiro(777), 250, 3)
+
+            # Test if VARHAC is available
+            if isdefined(CovarianceMatrices, :VARHAC)
+                try
+                    varhac = CovarianceMatrices.VARHAC()
+                    V = aVar(varhac, X)
+                    @test size(V) == (3, 3)
+                    @test isposdef(V)
+                catch MethodError
+                    # VARHAC not fully implemented, skip
+                    @test_skip "VARHAC not implemented"
+                end
+            else
+                @test_skip "VARHAC not available"
+            end
+        end
+
+        @testset "Smoothed Estimators" begin
+            X = randn(Random.Xoshiro(888), 1000, 2)  # Larger sample for smoothing
+
+            # Test smoothed estimators
+            smoothers = [BartlettSmoother(3), TruncatedSmoother(3)]
+
+            for smoother in smoothers
+                V = aVar(smoother, X; demean = true)
+                @test size(V) == (2, 2)
+                @test isposdef(V)
+            end
         end
     end
 
-    @testset "Smoothed Estimators" begin
-        X = randn(Random.Xoshiro(888), 1000, 2)  # Larger sample for smoothing
+    @testset "Advanced Error Conditions ✅" begin
 
-        # Test smoothed estimators
-        smoothers = [BartlettSmoother(3), TruncatedSmoother(3)]
+        @testset "Matrix Compatibility Checks" begin
+            Z = randn(100, 3)
 
-        for smoother in smoothers
-            V = aVar(smoother, X; demean=true)
-            @test size(V) == (2, 2)
-            @test isposdef(V)
+            # Test incompatible matrix dimensions
+            wrong_H = randn(2, 3)  # Not square
+            @test_throws ArgumentError CovarianceMatrices._check_matrix_compatibility(
+                Information(),
+                Z,
+                nothing,
+                wrong_H,
+                nothing,
+            )
+
+            wrong_G = randn(2, 3)  # Wrong first dimension
+            @test_throws ArgumentError CovarianceMatrices._check_matrix_compatibility(
+                Information(),
+                Z,
+                wrong_G,
+                nothing,
+                nothing,
+            )
+
+            wrong_W = randn(2, 2)  # Wrong dimensions for weight matrix
+            @test_throws ArgumentError CovarianceMatrices._check_matrix_compatibility(
+                Misspecified(),
+                Z,
+                randn(3, 3),
+                nothing,
+                wrong_W,
+            )
+        end
+
+        @testset "Model Dimension Checks" begin
+            # Create model with inconsistent dimensions
+
+            struct BadDimensionModel <: CovarianceMatrices.MLikeModel end
+
+            StatsBase.coef(::BadDimensionModel) = [1.0, 2.0, 3.0]  # 3 parameters
+            StatsBase.nobs(::BadDimensionModel) = 100
+            CovarianceMatrices.momentmatrix(::BadDimensionModel) = randn(100, 2)  # 2 moments (underidentified)
+
+            bad_model = BadDimensionModel()
+
+            @test_throws ArgumentError CovarianceMatrices._check_dimensions(
+                Information(),
+                bad_model,
+            )
+        end
+
+        @testset "Missing Required Methods" begin
+            # Test models missing score when required
+
+            struct NoScoreModel <: CovarianceMatrices.MLikeModel end
+
+            StatsBase.coef(::NoScoreModel) = [1.0, 2.0]
+            StatsBase.nobs(::NoScoreModel) = 100
+            CovarianceMatrices.momentmatrix(::NoScoreModel) = randn(100, 2)
+            # No score method defined - should use default that returns error
+
+            no_score = NoScoreModel()
+
+            # This should fail for Misspecified form
+            @test_throws ErrorException CovarianceMatrices.score(no_score)
+        end
+
+        @testset "Bandwidth Validation" begin
+            X = randn(50, 2)
+
+            # Test invalid bandwidth values
+            @test_throws BoundsError Bartlett(-1)
+            @test_throws BoundsError Parzen(0)
+            @test_throws BoundsError QuadraticSpectral(-0.5)
         end
     end
-end
 
-@testset "Advanced Error Conditions ✅" begin
+    @testset "Performance and Numerical Stability ✅" begin
 
-    @testset "Matrix Compatibility Checks" begin
-        Z = randn(100, 3)
+        @testset "Large Matrix Handling" begin
+            # Test with larger matrices to ensure no memory issues
+            X_large = randn(Random.Xoshiro(999), 1000, 10)
 
-        # Test incompatible matrix dimensions
-        wrong_H = randn(2, 3)  # Not square
-        @test_throws ArgumentError CovarianceMatrices._check_matrix_compatibility(
-            Information(), Z, nothing, wrong_H, nothing)
+            V_large = aVar(HC0(), X_large)
+            @test size(V_large) == (10, 10)
+            @test isposdef(V_large)
 
-        wrong_G = randn(2, 3)  # Wrong first dimension
-        @test_throws ArgumentError CovarianceMatrices._check_matrix_compatibility(
-            Information(), Z, wrong_G, nothing, nothing)
+            # Test with HAC estimator on large matrix
+            V_hac_large = aVar(Bartlett(5), X_large)
+            @test size(V_hac_large) == (10, 10)
+            @test isposdef(V_hac_large)
+        end
 
-        wrong_W = randn(2, 2)  # Wrong dimensions for weight matrix
-        @test_throws ArgumentError CovarianceMatrices._check_matrix_compatibility(
-            Misspecified(), Z, randn(3, 3), nothing, wrong_W)
-    end
+        @testset "Condition Number Monitoring" begin
+            # Test with matrices of varying condition numbers
+            Random.seed!(1111)
 
-    @testset "Model Dimension Checks" begin
-        # Create model with inconsistent dimensions
+            # Well-conditioned matrix
+            X_good = randn(100, 3)
+            V_good = aVar(HC0(), X_good)
+            @test isposdef(V_good)
+            @test cond(V_good) < 1e12
 
-        struct BadDimensionModel <: CovarianceMatrices.MLikeModel end
+            # Create ill-conditioned design matrix
+            X_bad = [ones(100) randn(100, 1) randn(100, 1) .+ 1e-10 .* randn(100, 1)]
+            V_bad = aVar(HC0(), X_bad)  # Should handle gracefully
+            @test size(V_bad) == (3, 3)
+        end
 
-        StatsBase.coef(::BadDimensionModel) = [1.0, 2.0, 3.0]  # 3 parameters
-        StatsBase.nobs(::BadDimensionModel) = 100
-        CovarianceMatrices.momentmatrix(::BadDimensionModel) = randn(100, 2)  # 2 moments (underidentified)
+        @testset "Floating Point Precision" begin
+            # Test different floating point types
+            for T in [Float32, Float64]
+                X_T = rand(T, 50, 3)
 
-        bad_model = BadDimensionModel()
+                V_T = aVar(HC0(), X_T)
+                @test eltype(V_T) == T
+                @test size(V_T) == (3, 3)
 
-        @test_throws ArgumentError CovarianceMatrices._check_dimensions(Information(), bad_model)
-    end
-
-    @testset "Missing Required Methods" begin
-        # Test models missing score when required
-
-        struct NoScoreModel <: CovarianceMatrices.MLikeModel end
-
-        StatsBase.coef(::NoScoreModel) = [1.0, 2.0]
-        StatsBase.nobs(::NoScoreModel) = 100
-        CovarianceMatrices.momentmatrix(::NoScoreModel) = randn(100, 2)
-        # No score method defined - should use default that returns error
-
-        no_score = NoScoreModel()
-
-        # This should fail for Misspecified form
-        @test_throws ErrorException CovarianceMatrices.score(no_score)
-    end
-
-    @testset "Bandwidth Validation" begin
-        X = randn(50, 2)
-
-        # Test invalid bandwidth values
-        @test_throws BoundsError Bartlett(-1)
-        @test_throws BoundsError Parzen(0)
-        @test_throws BoundsError QuadraticSpectral(-0.5)
-    end
-end
-
-@testset "Performance and Numerical Stability ✅" begin
-
-    @testset "Large Matrix Handling" begin
-        # Test with larger matrices to ensure no memory issues
-        X_large = randn(Random.Xoshiro(999), 1000, 10)
-
-        V_large = aVar(HC0(), X_large)
-        @test size(V_large) == (10, 10)
-        @test isposdef(V_large)
-
-        # Test with HAC estimator on large matrix
-        V_hac_large = aVar(Bartlett(5), X_large)
-        @test size(V_hac_large) == (10, 10)
-        @test isposdef(V_hac_large)
-    end
-
-    @testset "Condition Number Monitoring" begin
-        # Test with matrices of varying condition numbers
-        Random.seed!(1111)
-
-        # Well-conditioned matrix
-        X_good = randn(100, 3)
-        V_good = aVar(HC0(), X_good)
-        @test isposdef(V_good)
-        @test cond(V_good) < 1e12
-
-        # Create ill-conditioned design matrix
-        X_bad = [ones(100) randn(100, 1) randn(100, 1) .+ 1e-10.*randn(100, 1)]
-        V_bad = aVar(HC0(), X_bad)  # Should handle gracefully
-        @test size(V_bad) == (3, 3)
-    end
-
-    @testset "Floating Point Precision" begin
-        # Test different floating point types
-        for T in [Float32, Float64]
-            X_T = rand(T, 50, 3)
-
-            V_T = aVar(HC0(), X_T)
-            @test eltype(V_T) == T
-            @test size(V_T) == (3, 3)
-
-            # Test with HAC
-            V_hac_T = aVar(Bartlett(2), X_T)
-            @test eltype(V_hac_T) == T
-            @test size(V_hac_T) == (3, 3)
+                # Test with HAC
+                V_hac_T = aVar(Bartlett(2), X_T)
+                @test eltype(V_hac_T) == T
+                @test size(V_hac_T) == (3, 3)
+            end
         end
     end
-end
 
 end # Interface and API Tests

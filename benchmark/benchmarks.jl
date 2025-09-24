@@ -8,7 +8,7 @@ Random.seed!(1234)
 
 
 u = zeros(6000*50)
-for j in 1:2999
+for j = 1:2999
     u[j+1] = 0.97*u[j] + randn()
 end
 
@@ -17,9 +17,9 @@ df = DataFrame(randn(length(y), 5), :auto)
 df[!, :y] .= y
 df[!, :cluster] = repeat(1:150, inner = [100])
 
-y = sqrt(2).*randn(250)
+y = sqrt(2) .* randn(250)
 df2 = DataFrame(randn(length(y), 5), :auto)
-for j in Symbol.("x".*string.(collect(1:5)))
+for j in Symbol.("x" .* string.(collect(1:5)))
     df2[!, j] = randn(250)
 end
 df2[!, :cluster] = repeat(1:50, inner = [5])
@@ -53,13 +53,13 @@ SUITE["HAC Fixed(30)"]["Parzen"] = @benchmarkable vcov($Parzen(30), lm1)
 SUITE["HAC Fixed(30)"]["Truncated"] = @benchmarkable vcov($Truncated(30), lm1)
 SUITE["HAC Fixed(30)"]["Bartlett"] = @benchmarkable vcov($Bartlett(30), lm1)
 
-k0 = CR0(df[!,:cluster])
-k2 = CR2(df[!,:cluster])
-k3 = CR3(df[!,:cluster])
+k0 = CR0(df[!, :cluster])
+k2 = CR2(df[!, :cluster])
+k3 = CR3(df[!, :cluster])
 
-k20 = CR0(df2[!,:cluster])
-k22 = CR2(df2[!,:cluster])
-k23 = CR3(df2[!,:cluster])
+k20 = CR0(df2[!, :cluster])
+k22 = CR2(df2[!, :cluster])
+k23 = CR3(df2[!, :cluster])
 
 SUITE["CRHC (large)"]["CRHC0"] = @benchmarkable vcov($k0, lm1)
 SUITE["CRHC (large)"]["CRHC2"] = @benchmarkable vcov($k2, lm1)

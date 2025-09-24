@@ -60,8 +60,10 @@ of the Hessian of the objective function in many cases.
 """
 function score(x)
     t = typeof(x)
-    error("score not implemented for type $t. " *
-          "Please implement: CovarianceMatrices.score(::$(t)) -> AbstractMatrix")
+    error(
+        "score not implemented for type $t. " *
+        "Please implement: CovarianceMatrices.score(::$(t)) -> AbstractMatrix",
+    )
 end
 
 """
@@ -116,8 +118,10 @@ function _check_coef(model)
         StatsBase.coef(model)
     catch MethodError
         t = typeof(model)
-        error("coef not implemented for type $t. " *
-              "Please implement: StatsBase.coef(::$(t)) -> AbstractVector")
+        error(
+            "coef not implemented for type $t. " *
+            "Please implement: StatsBase.coef(::$(t)) -> AbstractVector",
+        )
     end
 end
 
@@ -127,8 +131,10 @@ function _check_nobs(model)
         StatsBase.nobs(model)
     catch MethodError
         t = typeof(model)
-        error("nobs not implemented for type $t. " *
-              "Please implement: StatsBase.nobs(::$(t)) -> Integer")
+        error(
+            "nobs not implemented for type $t. " *
+            "Please implement: StatsBase.nobs(::$(t)) -> Integer",
+        )
     end
 end
 
@@ -177,13 +183,19 @@ function _check_dimensions(form::VarianceForm, model)
     if m == k
         # Check that required methods are available for Misspecified form
         if form isa Misspecified && score(model) === nothing
-            throw(ArgumentError("Misspecified form requires score(model) to be implemented"))
+            throw(
+                ArgumentError("Misspecified form requires score(model) to be implemented"),
+            )
         end
-    # For overidentified models (m > k), assume GMM-like
+        # For overidentified models (m > k), assume GMM-like
     elseif m > k
         # Both forms require score for GMM
         if score(model) === nothing
-            throw(ArgumentError("$(typeof(form)) form requires score(model) to be implemented for overidentified models"))
+            throw(
+                ArgumentError(
+                    "$(typeof(form)) form requires score(model) to be implemented for overidentified models",
+                ),
+            )
         end
     else
         throw(ArgumentError("Invalid model: fewer moments (m=$m) than parameters (k=$k)"))
@@ -195,21 +207,34 @@ end
 
 Check compatibility of provided matrices for manual API.
 """
-function _check_matrix_compatibility(form::Information, Z::AbstractMatrix,
-    score, objective_hessian, W)
+function _check_matrix_compatibility(
+    form::Information,
+    Z::AbstractMatrix,
+    score,
+    objective_hessian,
+    W,
+)
     n, m = size(Z)
 
     if objective_hessian !== nothing
         k_h, k_h2 = size(objective_hessian)
         if k_h != k_h2
-            throw(ArgumentError("objective_hessian must be square, got size $(size(objective_hessian))"))
+            throw(
+                ArgumentError(
+                    "objective_hessian must be square, got size $(size(objective_hessian))",
+                ),
+            )
         end
     end
 
     if score !== nothing
         m_j, k_j = size(score)
         if m_j != m
-            throw(ArgumentError("score first dimension ($m_j) must match moment matrix second dimension ($m)"))
+            throw(
+                ArgumentError(
+                    "score first dimension ($m_j) must match moment matrix second dimension ($m)",
+                ),
+            )
         end
     end
 
@@ -218,8 +243,13 @@ function _check_matrix_compatibility(form::Information, Z::AbstractMatrix,
     end
 end
 
-function _check_matrix_compatibility(form::Misspecified,
-    Z::AbstractMatrix, score, objective_hessian, W)
+function _check_matrix_compatibility(
+    form::Misspecified,
+    Z::AbstractMatrix,
+    score,
+    objective_hessian,
+    W,
+)
     n, m = size(Z)
 
     if score === nothing
@@ -228,13 +258,21 @@ function _check_matrix_compatibility(form::Misspecified,
 
     m_j, k_j = size(score)
     if m_j != m
-        throw(ArgumentError("score first dimension ($m_j) must match moment matrix second dimension ($m)"))
+        throw(
+            ArgumentError(
+                "score first dimension ($m_j) must match moment matrix second dimension ($m)",
+            ),
+        )
     end
 
     if W !== nothing
         w_m, w_m2 = size(W)
         if w_m != w_m2 || w_m != m
-            throw(ArgumentError("Weight matrix W must be m×m where m=$m, got size $(size(W))"))
+            throw(
+                ArgumentError(
+                    "Weight matrix W must be m×m where m=$m, got size $(size(W))",
+                ),
+            )
         end
     end
 end

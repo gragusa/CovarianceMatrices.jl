@@ -1,5 +1,7 @@
-Base.@propagate_inbounds function Λ(j::Integer,
-                                    m::AbstractMatrix{F}) where {F<:AbstractFloat}
+Base.@propagate_inbounds function Λ(
+    j::Integer,
+    m::AbstractMatrix{F},
+) where {F<:AbstractFloat}
     T, p = size(m)
     L = similar(m, (p, 1))
     fill!(L, zero(F))
@@ -11,8 +13,11 @@ Base.@propagate_inbounds function Λ(j::Integer,
     return L *= sqrt(2 / T)
 end
 
-Base.@propagate_inbounds function avar(k::EWC, X::Matrix{F};
-                                       prewhite=false) where {F<:AbstractFloat}
+Base.@propagate_inbounds function avar(
+    k::EWC,
+    X::Matrix{F};
+    prewhite = false,
+) where {F<:AbstractFloat}
     if prewhite
         Z, D = fit_var(X)
     else

@@ -1,3 +1,4 @@
+
 """
 New unified API for covariance matrix estimation.
 
@@ -29,12 +30,16 @@ Compute variance-covariance matrix for a model using specified estimator and for
 # Returns
 - `Matrix{Float64}`: Variance-covariance matrix
 """
-function StatsBase.vcov(ve::AVarEstimator, form::VarianceForm, model;
-    W::Union{Nothing,AbstractMatrix}=nothing,
-    scale::Symbol=:n,
-    rcond_tol::Real=1e-12,
-    check::Bool=true,
-    warn::Bool=true)
+function StatsBase.vcov(
+    ve::AVarEstimator,
+    form::VarianceForm,
+    model;
+    W::Union{Nothing,AbstractMatrix} = nothing,
+    scale::Symbol = :n,
+    rcond_tol::Real = 1e-12,
+    check::Bool = true,
+    warn::Bool = true,
+)
 
     if check
         _check_model_interface(model)
@@ -50,7 +55,7 @@ function StatsBase.vcov(ve::AVarEstimator, form::VarianceForm, model;
     G = score(model)
     H = objective_hessian(model)
     # Dispatch to appropriate computation
-    V = _compute_vcov(form, H, G, Ω, W; rcond_tol=rcond_tol, warn=warn)
+    V = _compute_vcov(form, H, G, Ω, W; rcond_tol = rcond_tol, warn = warn)
 
     return Symmetric(rdiv!(V, n))
 end
@@ -71,11 +76,16 @@ Manual variance computation from moment matrix.
 - `W::Union{Nothing,AbstractMatrix}=nothing`: Weight matrix (m × m)
 - `rcond_tol::Real=1e-12`: Tolerance for rank condition
 """
-function StatsBase.vcov(ve::AVarEstimator, form::VarianceForm, Z::AbstractMatrix;
-    score::Union{Nothing,AbstractMatrix}=nothing,
-    objective_hessian::Union{Nothing,AbstractMatrix}=nothing,
-    W::Union{Nothing,AbstractMatrix}=nothing,
-    rcond_tol::Real=1e-12)
+
+function StatsBase.vcov(
+    ve::AVarEstimator,
+    form::VarianceForm,
+    Z::AbstractMatrix;
+    score::Union{Nothing,AbstractMatrix} = nothing,
+    objective_hessian::Union{Nothing,AbstractMatrix} = nothing,
+    W::Union{Nothing,AbstractMatrix} = nothing,
+    rcond_tol::Real = 1e-12,
+)
 
 
     n, m = size(Z)
@@ -84,12 +94,12 @@ function StatsBase.vcov(ve::AVarEstimator, form::VarianceForm, Z::AbstractMatrix
     _check_matrix_compatibility(form, Z, score, objective_hessian, W)
 
     # Compute long-run covariance
-    Ω = aVar(ve, Z; scale=false)
+    Ω = aVar(ve, Z; scale = false)
 
     # Compute variance
     H = objective_hessian
     G = score
-    V = _compute_vcov(form, H, G, Ω, W; rcond_tol=rcond_tol, warn=false)
+    V = _compute_vcov(form, H, G, Ω, W; rcond_tol = rcond_tol, warn = false)
 
     return Symmetric(rdiv!(V, n))
 end

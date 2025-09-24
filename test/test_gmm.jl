@@ -13,7 +13,7 @@ using Random
 using Test
 
 # Simple IV model structure
-struct LinearGMM{T, V, K} <: CovarianceMatrices.GMMLikeModel
+struct LinearGMM{T,V,K} <: CovarianceMatrices.GMMLikeModel
     data::T
     beta_fs::V
     beta::V      # Estimated coefficients
@@ -26,17 +26,17 @@ StatsBase.nobs(m::LinearGMM) = length(m.data.y)
 
 function CovarianceMatrices.momentmatrix(p::LinearGMM, beta)
     y, X, Z = p.data
-    Z.*(y .- X*beta)
+    Z .* (y .- X*beta)
 end
 
 function CovarianceMatrices.momentmatrix(p::LinearGMM)
     y, X, Z = p.data
-    Z.*(y .- X*coef(p))
+    Z .* (y .- X*coef(p))
 end
 
 function CovarianceMatrices.score(p::LinearGMM)
     y, X, Z = p.data
-    return -(Z' * X)./nobs(p)
+    return -(Z' * X) ./ nobs(p)
 end
 
 ## Constructor - We estimate the parameters
@@ -79,12 +79,12 @@ y = x*β0 + ε ;  x = Z*γ + u
 Returns (y::Vector, x::Vector, Z::Matrix).
 """
 function simulate_iv(
-        rng = Random.default_rng();
-        n::Int,
-        K::Int = 1,
-        R2::Float64 = 0.1,
-        ρ::Float64 = 0.1,
-        β0::Float64 = 0.0
+    rng = Random.default_rng();
+    n::Int,
+    K::Int = 1,
+    R2::Float64 = 0.1,
+    ρ::Float64 = 0.1,
+    β0::Float64 = 0.0,
 )
     @assert -0.999 ≤ ρ ≤ 0.999 "ρ must be in [-0.999, 0.999] for a valid covariance."
     γ = _gamma_vector(K, R2)
@@ -98,7 +98,7 @@ function simulate_iv(
     u = view(E, :, 2)
     x = Z * γ .+ u
     y = x .* β0 .+ ε
-    x_exo = randn(rng,n, 5)
+    x_exo = randn(rng, n, 5)
     return (y = y, x = [x x_exo], z = [Z x_exo])
 end
 

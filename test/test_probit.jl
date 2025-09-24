@@ -50,9 +50,15 @@ function ProbitModel(y::Vector{Int}, X::Matrix{T}) where {T<:Real}
     β_init = (X'X) \ (X'y)
 
     return ProbitModel(
-        y, X, β_init,
-        zeros(T, n), zeros(T, n), zeros(T, n),
-        false, 0, T(-Inf)
+        y,
+        X,
+        β_init,
+        zeros(T, n),
+        zeros(T, n),
+        zeros(T, n),
+        false,
+        0,
+        T(-Inf),
     )
 end
 
@@ -70,16 +76,18 @@ function update_predictions!(model::ProbitModel, β::AbstractVector)
     end
 
     # Compute log-likelihood
-    model.loglik = sum(model.y .* log.(max.(model.Φ, 1e-15)) .+
-                       (1 .- model.y) .* log.(max.(1 .- model.Φ, 1e-15)))
+    model.loglik = sum(
+        model.y .* log.(max.(model.Φ, 1e-15)) .+
+        (1 .- model.y) .* log.(max.(1 .- model.Φ, 1e-15)),
+    )
 end
 
 """
 Fit Probit model using Newton-Raphson algorithm.
 """
-function fit!(model::ProbitModel{T}; maxiter::Int=100, tol::T=T(1e-8)) where {T}
+function fit!(model::ProbitModel{T}; maxiter::Int = 100, tol::T = T(1e-8)) where {T}
 
-    for iter in 1:maxiter
+    for iter = 1:maxiter
         # Update predictions
         update_predictions!(model, model.β)
 
@@ -187,11 +195,15 @@ n, k = 100, 2
 beta_true = [0.5, 1.0]
 y, X, β_true, prob_true = generate_probit_data(rng, n, k, beta_true)
 ## estimated par in R glm =>
-thetahat_ = [0.4832131   1.1652022]
-vcov_hat = [0.02739764 0.01599602;
-            0.01599602 0.04839182]
-vcov_bartlett_hat = [0.024673131 0.007058256;
-                     0.007058256 0.043264935]
+thetahat_ = [0.4832131 1.1652022]
+vcov_hat = [
+    0.02739764 0.01599602;
+    0.01599602 0.04839182
+]
+vcov_bartlett_hat = [
+    0.024673131 0.007058256;
+    0.007058256 0.043264935
+]
 
 # Fit Probit model
 model = ProbitModel(y, X)
@@ -219,12 +231,10 @@ G_manual = CovarianceMatrices.score(model)
 H_manual = CovarianceMatrices.objective_hessian(model)
 
 # Test with full specification
-V_manual = vcov(HC1(), Robust(), Z_manual;
-        score=G_manual, objective_hessian=H_manual)
+V_manual = vcov(HC1(), Robust(), Z_manual; score = G_manual, objective_hessian = H_manual)
 
 
-V_manual_min = vcov(HC1(), Information(), Z_manual;
-        objective_hessian=H_manual)
+V_manual_min = vcov(HC1(), Information(), Z_manual; objective_hessian = H_manual)
 
 V_model = vcov(HC1(), Robust(), model)
 diff = maximum(abs.(V_manual .- V_model))

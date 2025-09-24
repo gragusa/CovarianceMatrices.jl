@@ -12,7 +12,15 @@ using LinearAlgebra
 
 Dispatch to appropriate variance computation based on form.
 """
-function _compute_vcov(form::Information, H, G, Ω, W; rcond_tol::Real=1e-12, warn::Bool=true)
+function _compute_vcov(
+    form::Information,
+    H,
+    G,
+    Ω,
+    W;
+    rcond_tol::Real = 1e-12,
+    warn::Bool = true,
+)
     # Check if we have a Hessian (MLE case) or need to use score (GMM case)
     if H !== nothing
         # MLE case: V = H⁻¹ (Fisher Information)
@@ -39,7 +47,15 @@ end
 # For MLE-like models (m=k): robust sandwich V = G⁻¹ΩG⁻ᵀ
 # For GMM-like models (m>k): robust GMM V = (G'WG)⁻¹(G'WΩWG)(G'WG)⁻¹
 
-function _compute_vcov(form::Misspecified, H, G, Ω, W; rcond_tol::Real=1e-12, warn::Bool=true)
+function _compute_vcov(
+    form::Misspecified,
+    H,
+    G,
+    Ω,
+    W;
+    rcond_tol::Real = 1e-12,
+    warn::Bool = true,
+)
     m, k = size(G)
 
     if m == k
@@ -51,11 +67,18 @@ function _compute_vcov(form::Misspecified, H, G, Ω, W; rcond_tol::Real=1e-12, w
         return Ginv' * Ω * Ginv
     else
         # GMM-like: robust GMM form V = (G'WG)⁻¹(G'WΩWG)(G'WG)⁻¹
-        _compute_vcov_gmm_misspecified(H, G, Ω, W; rcond_tol=rcond_tol, warn=warn)
+        _compute_vcov_gmm_misspecified(H, G, Ω, W; rcond_tol = rcond_tol, warn = warn)
     end
 end
 
-function _compute_vcov_gmm_misspecified(H, G, Ω, W; rcond_tol::Real=1e-12, warn::Bool=true)
+function _compute_vcov_gmm_misspecified(
+    H,
+    G,
+    Ω,
+    W;
+    rcond_tol::Real = 1e-12,
+    warn::Bool = true,
+)
     ## Ideally warn if correction to SVD was performed
     Ωinv, flag = ipinv(Ω)
     if warn && any(flag)
@@ -73,7 +96,11 @@ function _compute_vcov_gmm_misspecified(H, G, Ω, W; rcond_tol::Real=1e-12, warn
 end
 
 
-function ipinv(A::AbstractMatrix{T}; atol::Real=0.0, rtol::Real=(eps(real(float(oneunit(T)))) * min(size(A)...)) * iszero(atol)) where {T}
+function ipinv(
+    A::AbstractMatrix{T};
+    atol::Real = 0.0,
+    rtol::Real = (eps(real(float(oneunit(T)))) * min(size(A)...)) * iszero(atol),
+) where {T}
     m, n = size(A)
     Tout = typeof(zero(T) / sqrt(oneunit(T) + oneunit(T)))
     if m == 0 || n == 0

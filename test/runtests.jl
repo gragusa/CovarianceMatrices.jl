@@ -7,6 +7,7 @@ using Test
 
 @testset verbose=true "CovarianceMatrices.jl Test Suite" begin
 
+
     @testset "Core Functionality Tests" begin
         include("test_core.jl")
     end
@@ -18,7 +19,6 @@ using Test
     @testset "Probit Model Example Tests" begin
         include("test_probit.jl")
     end
-
     @testset "GMM Model Example Tests" begin
         include("test_gmm.jl")
     end
