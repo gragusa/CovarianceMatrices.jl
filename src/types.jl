@@ -149,7 +149,8 @@ const kernels = [:Bartlett, :Parzen, :QuadraticSpectral, :Truncated, :TukeyHanni
 
 for kerneltype in kernels
     @eval ($kerneltype(x::Number)) = ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[], [false])
-    @eval ($kerneltype{Fixed}(x::Number)) = ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[], [false])
+    @eval ($kerneltype{Fixed}(x::Number)) = ($kerneltype){Fixed}(
+        WFLOAT[x], WFLOAT[], [false])
 end
 
 for kerneltype in kernels
@@ -180,7 +181,16 @@ bandwidth(x::HAC) = x.bw
 EWC
 =========#
 struct EWC <: AVarEstimator
-    B::Int64
+    B::Int
+    function EWC(B::Integer)
+        B > 0 || throw(ArgumentError("B must be positive"))
+        return new(B)
+    end
+end
+
+function EWC(B::Real)
+    B == round(B) ? EWC(round(Int, B)) :
+    throw(ArgumentError("B must be an integer or parsable as integer"))
 end
 
 #=========
@@ -246,7 +256,19 @@ struct SameLags <: LagStrategy
 end
 
 SameLags(x::Real) = SameLags(round(Int, x))
-SameLags() = SameLags(5)
+SameLags() = SameLags(8)  # Better default based on practical experience
+
+# Auto-selection strategy for K_max based on sample size
+struct AutoLags <: LagStrategy end
+
+# Function to compute automatic lag selection based on T^(1/3) rule
+function compute_auto_maxlag(T::Int, N::Int)
+    # Rule from literature: K_max should grow no faster than T^(1/3)
+    # Also ensure it doesn't exceed (T-1)/N to avoid overfitting
+    max_theoretical = max(1, floor(Int, T^(1 / 3)))
+    max_practical = max(1, floor(Int, (T - 1) / N))
+    return min(max_theoretical, max_practical, 20)  # Cap at reasonable maximum
+end
 
 struct DifferentOwnLags <: LagStrategy
     maxlags::Vector{Int}
@@ -258,27 +280,76 @@ function DifferentOwnLags(x::Tuple{A, A}) where {A <: Real}
 end
 DifferentOwnLags() = DifferentOwnLags([5, 5])
 
-mutable struct VARHAC{S <: LagSelector, L <: LagStrategy} <: AVarEstimator
-    AICs::Any
-    BICs::Any
-    order_aic::Any
-    order_bic::Any
+mutable struct VARHAC{S <: LagSelector, L <: LagStrategy, T <: Real} <: AVarEstimator
+    AICs::Union{Array{T}, Nothing}
+    BICs::Union{Array{T}, Nothing}
+    order_aic::Union{Vector{Int}, Nothing}
+    order_bic::Union{Vector{Int}, Nothing}
     selector::S
     strategy::L
 end
 
-function VARHAC(selector = AICSelector(), strategy = SameLags(8))
+function VARHAC(selector = AICSelector(), strategy = SameLags(8); T::Type{<:Real} = Float64)
     isa(strategy, FixedLags) && (selector = FixedSelector())
-    return VARHAC([], [], [], [], selector, strategy)
+    return VARHAC{typeof(selector), typeof(strategy), T}(
+        nothing, nothing, nothing, nothing, selector, strategy)
 end
 
-VARHAC(f::FixedLags) = VARHAC(FixedSelector(), f)
+# Convenient constructors for common usage patterns
+VARHAC(f::FixedLags; T::Type{<:Real} = Float64) = VARHAC(FixedSelector(), f; T = T)
 
-maxlags(k::VARHAC{S, L}) where {S <: LagSelector, L <: SameLags} = k.strategy.maxlag
-function maxlags(k::VARHAC{S, L}) where {S <: LagSelector, L <: DifferentOwnLags}
+# Quick selector construction: VARHAC(:aic) or VARHAC(:bic)
+function VARHAC(selector_symbol::Symbol; T::Type{<:Real} = Float64)
+    VARHAC(_symbol_to_selector(selector_symbol), SameLags(8); T = T)
+end
+
+# Quick max lags construction: VARHAC(12)
+function VARHAC(max_lags::Integer; T::Type{<:Real} = Float64)
+    VARHAC(AICSelector(), SameLags(max_lags); T = T)
+end
+
+# Auto-selection constructor: VARHAC(:auto)
+VARHAC(::Val{:auto}; T::Type{<:Real} = Float64) = VARHAC(AICSelector(), AutoLags(); T = T)
+
+function _symbol_to_strategy(s::Symbol)
+    if s === :auto
+        return AutoLags()
+    else
+        throw(
+            ArgumentError(
+            "Invalid strategy symbol: $s. Use :auto for automatic lag selection",
+        ),
+        )
+    end
+end
+
+# Helper function to convert symbols to selectors
+function _symbol_to_selector(s::Symbol)
+    if s === :aic
+        return AICSelector()
+    elseif s === :bic
+        return BICSelector()
+    elseif s === :fixed
+        return FixedSelector()
+    else
+        throw(ArgumentError("Invalid selector symbol: $s. Use :aic, :bic, or :fixed"))
+    end
+end
+
+maxlags(k::VARHAC{S, L, T}) where {S <: LagSelector, L <: SameLags, T} = k.strategy.maxlag
+function maxlags(k::VARHAC{S, L, T}) where {S <: LagSelector, L <: DifferentOwnLags, T}
     k.strategy.maxlags
 end
-maxlags(k::VARHAC{S, L}) where {S <: LagSelector, L <: FixedLags} = k.strategy.maxlag
+maxlags(k::VARHAC{S, L, T}) where {S <: LagSelector, L <: FixedLags, T} = k.strategy.maxlag
+
+# For AutoLags, we need the data dimensions to compute optimal lag length
+function maxlags(k::VARHAC{S, AutoLags, T}, T_data::Int, N::Int) where {S <: LagSelector, T}
+    return compute_auto_maxlag(T_data, N)
+end
+# Fallback that throws informative error if AutoLags used without dimensions
+function maxlags(k::VARHAC{S, AutoLags, T}) where {S <: LagSelector, T}
+    error("AutoLags requires data dimensions. Use maxlags(estimator, T, N) where T is sample size and N is number of variables.")
+end
 
 AICs(k::VARHAC) = k.AICs
 BICs(k::VARHAC) = k.BICs

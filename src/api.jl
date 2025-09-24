@@ -118,3 +118,46 @@ function StatsBase.stderror(ve::AVarEstimator, args...; kwargs...)
     V = StatsBase.vcov(ve, args...; kwargs...)
     return sqrt.(diag(V))
 end
+
+# ============================================================================
+# VARHAC-specific implementations
+# ============================================================================
+
+"""
+    vcov(ve::VARHAC, form::VarianceForm, model; kwargs...)
+
+VARHAC-specific vcov implementation. VARHAC estimates directly provide the
+spectral density at frequency zero, which is the desired variance-covariance
+matrix for parameter estimates.
+
+For VARHAC:
+- Information form: Return S(0) directly since VARHAC estimates the spectral density
+- Misspecified form: Return S(0) directly (same as Information for VARHAC)
+
+VARHAC is inherently robust to serial correlation and provides consistent
+estimates under both correct specification and misspecification.
+"""
+function StatsBase.vcov(
+        ve::VARHAC,
+        form::VarianceForm,
+        model;
+        scale::Bool = true,
+        kwargs...
+)
+    # Extract moment matrix from model
+    Z = momentmatrix(model)
+    return vcov(ve, form, Z; kwargs...)
+end
+
+function StatsBase.vcov(
+        ve::VARHAC,
+        form::VarianceForm,
+        Z::AbstractMatrix;
+        scale::Bool = true,
+        kwargs...
+)
+    # For VARHAC, both Information and Misspecified forms give the same result
+    # since VARHAC directly estimates the spectral density at frequency zero
+    S_hat = aVar(ve, Z; scale = scale, kwargs...)
+    return Symmetric(S_hat)
+end
