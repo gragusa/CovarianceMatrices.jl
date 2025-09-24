@@ -226,8 +226,10 @@ M_manual = CovarianceMatrices.momentmatrix(model)
 G_manual = CovarianceMatrices.score(model)
 H_manual = CovarianceMatrices.objective_hessian(model)
 # Test with full specification
-V_manual = vcov(HC1(), Information(), M_manual; score = G_manual, objective_hessian = H_manual)
+V_manual = vcov(
+    HC1(), Information(), M_manual; score = G_manual, objective_hessian = H_manual)
 
-V2_manual = vcov(HC1(), Misspecified(), M_manual; objective_hessian = H_manual, score = G_manual)
+V2_manual = vcov(
+    HC1(), Misspecified(), M_manual; objective_hessian = H_manual, score = G_manual)
 
 @test V2 == V2_manual

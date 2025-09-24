@@ -14,7 +14,6 @@ using Test
 using Random
 
 @testset "Debug Inversions and Tolerance Control ✅" begin
-
     @testset "Matrix with Small Singular Values" begin
         # Create a matrix with one very small singular value
         Random.seed!(42)
@@ -27,7 +26,7 @@ using Random
         @test cond(A) > 1e8  # Verify it's ill-conditioned
 
         # Test ipinv directly to get diagnostic info
-        inv_A, flag, returned_svals = CovarianceMatrices.ipinv(A; rtol=1e-8)
+        inv_A, flag, returned_svals = CovarianceMatrices.ipinv(A; rtol = 1e-8)
 
         @test length(flag) == 3
         @test length(returned_svals) == 3
@@ -168,7 +167,7 @@ using Random
 
         # Test with diagonal matrix having small eigenvalue
         A_diag = Diagonal([2.0, 1.0, 1e-12])
-        inv_diag, flag_diag, svals_diag = CovarianceMatrices.ipinv(A_diag; rtol=1e-10)
+        inv_diag, flag_diag, svals_diag = CovarianceMatrices.ipinv(A_diag; rtol = 1e-10)
 
         @test size(inv_diag) == (3, 3)
         @test length(flag_diag) == 3

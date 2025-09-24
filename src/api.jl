@@ -58,7 +58,8 @@ function StatsBase.vcov(
     G = score(model)
     H = objective_hessian(model)
     # Dispatch to appropriate computation
-    V = _compute_vcov(form, H, G, Ω, W; cond_atol = cond_atol, cond_rtol = cond_rtol, debug = debug, warn = warn)
+    V = _compute_vcov(form, H, G, Ω, W; cond_atol = cond_atol,
+        cond_rtol = cond_rtol, debug = debug, warn = warn)
 
     return Symmetric(rdiv!(V, n))
 end
@@ -102,7 +103,8 @@ function StatsBase.vcov(
     # Compute variance
     H = objective_hessian
     G = score
-    V = _compute_vcov(form, H, G, Ω, weight_matrix; cond_atol = cond_atol, cond_rtol = cond_rtol, debug = debug, warn = false)
+    V = _compute_vcov(form, H, G, Ω, weight_matrix; cond_atol = cond_atol,
+        cond_rtol = cond_rtol, debug = debug, warn = false)
 
     return Symmetric(rdiv!(V, n))
 end

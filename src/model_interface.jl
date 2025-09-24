@@ -231,13 +231,16 @@ function _check_dimensions(form::VarianceForm, model::GMMLikeModel)
         missing_methods = String[]
         if !score_available
             if score_error !== nothing
-                push!(missing_methods, "score(model) must be implemented and return an m×k matrix where m=$m moment conditions, k=$k parameters")
+                push!(missing_methods,
+                    "score(model) must be implemented and return an m×k matrix where m=$m moment conditions, k=$k parameters")
             else
-                push!(missing_methods, "score(model) must return a matrix (expected m×k where m=$m, k=$k) but got nothing")
+                push!(missing_methods,
+                    "score(model) must return a matrix (expected m×k where m=$m, k=$k) but got nothing")
             end
         end
         if !hessian_available
-            push!(missing_methods, "objective_hessian(model) must return a k×k matrix where k=$k parameters")
+            push!(missing_methods,
+                "objective_hessian(model) must return a k×k matrix where k=$k parameters")
         end
 
         if !isempty(missing_methods)
