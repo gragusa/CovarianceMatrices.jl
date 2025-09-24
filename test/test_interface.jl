@@ -469,6 +469,7 @@ end
             StatsBase.nobs(m::TestGMM) = 50
             CovarianceMatrices.momentmatrix(m::TestGMM) = randn(50, 4)  # overidentified
             CovarianceMatrices.score(m::TestGMM) = randn(4, length(m.β))
+            CovarianceMatrices.objective_hessian(m::TestGMM) = randn(length(m.β), length(m.β))
 
             gmm = TestGMM([1.0, 2.0])
 
