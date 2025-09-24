@@ -279,6 +279,7 @@ end
         forms = [Information(), Misspecified()]
 
         for est in estimators, form in forms
+
             V = vcov(est, form, probit_model)
             @test size(V) == (k, k)
             @test isposdef(V)
@@ -557,6 +558,7 @@ end
         cr_types = [CR0, CR1, CR2, CR3]
 
         for cluster in clusters, CRType in cr_types
+
             est = CRType(cluster)
             V = aVar(est, X)
             @test size(V) == (3, 3)
