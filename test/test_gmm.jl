@@ -10,7 +10,6 @@ using LinearAlgebra
 using Statistics
 using StatsBase
 using Random
-using ForwardDiff
 using Test
 
 # Simple IV model structure
@@ -57,24 +56,6 @@ function LinearGMM(data; v::CovarianceMatrices.AVarEstimator = HR0())
     return gmm
 end
 
-## This is needed to get the Hessian
-function objective_gmm(beta, p::LinearGMM)
-    M = CovarianceMatrices.momentmatrix(p, beta)
-    Omega = aVar(p.v, M)
-    m = mean(M; dims = 1)
-    only(m*inv(Omega)*m')/2
-end
-
-
-# Use FiniteDifferences to approximate the Hessian
-# This is rough but sufficient for demonstration
-# function CovarianceMatrices.objective_hessian(p::LinearGMM)
-#     beta = coef(p)
-#     f = b -> objective_gmm(b, p)
-#     H = ForwardDiff.hessian(f, beta)
-#     return H
-# end
-
 function CovarianceMatrices.objective_hessian(p::LinearGMM)
     y, X, Z = data
     M = CovarianceMatrices.momentmatrix(p, coef(p))
@@ -83,7 +64,6 @@ function CovarianceMatrices.objective_hessian(p::LinearGMM)
     H = -(X'Z/n)*pinv(Omega)*(Z'X/n)
     return H
 end
-
 
 # ============================================================================
 # Example Usage
@@ -108,17 +88,14 @@ function simulate_iv(
 )
     @assert -0.999 ≤ ρ ≤ 0.999 "ρ must be in [-0.999, 0.999] for a valid covariance."
     γ = _gamma_vector(K, R2)
-
     # Draw instruments
     Z = randn(rng, n, K)
-
     # Draw (ε, u) with correlation ρ
     Σ = [1.0 ρ; ρ 1.0]
     U = cholesky(Symmetric(Σ)).U
     E = randn(rng, n, 2) * U
     ε = view(E, :, 1)
     u = view(E, :, 2)
-
     x = Z * γ .+ u
     y = x .* β0 .+ ε
     x_exo = randn(rng,n, 5)

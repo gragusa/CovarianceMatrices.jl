@@ -122,10 +122,6 @@ end
 # ============================================================================
 
 StatsBase.nobs(model::ProbitModel) = size(model.X, 1)
-
-"""
-Return coefficient estimates.
-"""
 StatsBase.coef(model::ProbitModel) = model.β
 
 """
@@ -137,7 +133,6 @@ g_i(β) = x_i * (y_i - Φ(x_i'β)) * φ(x_i'β) / [Φ(x_i'β) * (1 - Φ(x_i'β))
 function CovarianceMatrices.momentmatrix(model::ProbitModel)
     residuals = model.y .- model.Φ
     weights = model.φ ./ (model.Φ .* (1 .- model.Φ) .+ 1e-15)
-
     # Each row is g_i(β)'
     return model.X .* (residuals .* weights)
 end
@@ -204,10 +199,14 @@ fit!(model)
 
 V1 = vcov(HC0(), Information(), model)
 @test maximum(abs.(V1 .- vcov_hat)) < 1e-05
-V2 = vcov(HC0(), Robust(), model)
+
+## This is expected to be true in theory. But with only n=100
+## we expect differences.
+V2 = vcov(HC0(), Misspecified(), model)
 @test maximum(abs.(V2 .- vcov_hat)) <= 0.01
-V3 = vcov(Bartlett(3), Robust(), model)
-@test maximum(abs.(V2 .- vcov_bartlett_hat)) <= 0.01
+
+V3 = vcov(Bartlett(3), Misspecified(), model)
+@test maximum(abs.(V3 .- vcov_bartlett_hat)) <= 1e-05
 
 
 # ============================================================================
