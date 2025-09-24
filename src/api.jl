@@ -31,16 +31,15 @@ Compute variance-covariance matrix for a model using specified estimator and for
 - `Matrix{Float64}`: Variance-covariance matrix
 """
 function StatsBase.vcov(
-    ve::AVarEstimator,
-    form::VarianceForm,
-    model;
-    W::Union{Nothing,AbstractMatrix} = nothing,
-    scale::Symbol = :n,
-    rcond_tol::Real = 1e-12,
-    check::Bool = true,
-    warn::Bool = true,
+        ve::AVarEstimator,
+        form::VarianceForm,
+        model;
+        W::Union{Nothing, AbstractMatrix} = nothing,
+        scale::Symbol = :n,
+        rcond_tol::Real = 1e-12,
+        check::Bool = true,
+        warn::Bool = true
 )
-
     if check
         _check_model_interface(model)
         _check_dimensions(form, model)
@@ -78,16 +77,14 @@ Manual variance computation from moment matrix.
 """
 
 function StatsBase.vcov(
-    ve::AVarEstimator,
-    form::VarianceForm,
-    Z::AbstractMatrix;
-    score::Union{Nothing,AbstractMatrix} = nothing,
-    objective_hessian::Union{Nothing,AbstractMatrix} = nothing,
-    W::Union{Nothing,AbstractMatrix} = nothing,
-    rcond_tol::Real = 1e-12,
+        ve::AVarEstimator,
+        form::VarianceForm,
+        Z::AbstractMatrix;
+        score::Union{Nothing, AbstractMatrix} = nothing,
+        objective_hessian::Union{Nothing, AbstractMatrix} = nothing,
+        W::Union{Nothing, AbstractMatrix} = nothing,
+        rcond_tol::Real = 1e-12
 )
-
-
     n, m = size(Z)
 
     # Check what's available and what's required
@@ -103,7 +100,6 @@ function StatsBase.vcov(
 
     return Symmetric(rdiv!(V, n))
 end
-
 
 """
     stderror(ve::AVarEstimator, args...; kwargs...)

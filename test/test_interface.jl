@@ -56,12 +56,12 @@ struct SimpleGMM <: CovarianceMatrices.GMMLikeModel
 end
 
 function _simulate_iv(
-    rng = Random.default_rng();
-    n = 100,
-    K = 2,
-    R2 = 0.1,
-    ρ = 0.1,
-    β0 = 0.0,
+        rng = Random.default_rng();
+        n = 100,
+        K = 2,
+        R2 = 0.1,
+        ρ = 0.1,
+        β0 = 0.0
 )
     γ = fill(sqrt(R2 / (K * (1 - R2))), K)
     Z = randn(rng, n, K)
@@ -105,7 +105,6 @@ using .TestHelpers
 const CM = TestHelpers
 
 @testset "Interface and API Tests" begin
-
     @testset "Model Interface Validation ✅" begin
 
         # Create test model that doesn't implement required interface
@@ -140,7 +139,6 @@ const CM = TestHelpers
     end
 
     @testset "Variance Form Validation ✅" begin
-
         @testset "Information Form Requirements" begin
             # Test with matrix API requiring either H or G
             Z = randn(100, 3)
@@ -151,7 +149,7 @@ const CM = TestHelpers
                 Information(),
                 Z;
                 objective_hessian = nothing,
-                score = nothing,
+                score = nothing
             )
         end
 
@@ -171,7 +169,7 @@ const CM = TestHelpers
                 HC0(),
                 Information(),
                 Z;
-                objective_hessian = randn(3, 2),
+                objective_hessian = randn(3, 2)
             )
 
             # Invalid score dimensions
@@ -184,7 +182,7 @@ const CM = TestHelpers
                 Misspecified(),
                 randn(100, 5);
                 score = randn(5, 3),
-                weight_matrix = randn(3, 3),
+                weight_matrix = randn(3, 3)
             )
         end
 
@@ -207,13 +205,12 @@ const CM = TestHelpers
 
             @test_throws ArgumentError CovarianceMatrices._check_dimensions(
                 Information(),
-                model,
+                model
             )
         end
     end
 
     @testset "Type System Validation ✅" begin
-
         @testset "Variance Form Types" begin
             @test Information() isa CovarianceMatrices.VarianceForm
             @test Misspecified() isa CovarianceMatrices.VarianceForm
@@ -245,7 +242,6 @@ const CM = TestHelpers
     end
 
     @testset "EWC Estimator Coverage ✅" begin
-
         @testset "EWC Construction and Usage" begin
             # Test EWC construction with bandwidth parameter
             ewc = EWC(5)
@@ -295,6 +291,7 @@ const CM = TestHelpers
             forms = [Information(), Misspecified()]
 
             for est in estimators, form in forms
+
                 V = vcov(est, form, probit_model)
                 @test size(V) == (k, k)
                 @test isposdef(V)
@@ -332,6 +329,7 @@ const CM = TestHelpers
             forms = [Information(), Misspecified()]
 
             for est in estimators, form in forms
+
                 V = vcov(est, form, gmm_model)
                 @test size(V, 1) == size(V, 2)
                 @test isposdef(V)
@@ -382,7 +380,6 @@ const CM = TestHelpers
     end
 
     @testset "Error Handling Edge Cases ✅" begin
-
         @testset "Numerical Issues" begin
             # Test with near-singular matrices
             Random.seed!(777)
@@ -422,7 +419,6 @@ const CM = TestHelpers
     end
 
     @testset "Interface Method Coverage ✅" begin
-
         @testset "Optional Methods" begin
             # Test models with and without optional methods
             struct MinimalModel <: CovarianceMatrices.MLikeModel
@@ -441,7 +437,7 @@ const CM = TestHelpers
                 HC0(),
                 Information(),
                 CovarianceMatrices.momentmatrix(minimal);
-                objective_hessian = H,
+                objective_hessian = H
             )
             @test size(V) == (2, 2)
 
@@ -495,7 +491,6 @@ const CM = TestHelpers
     end
 
     @testset "Additional Type Coverage ✅" begin
-
         @testset "All Kernel Types" begin
             X = randn(Random.Xoshiro(333), 200, 3)
 
@@ -505,18 +500,18 @@ const CM = TestHelpers
                 Parzen{Andrews}(),
                 QuadraticSpectral{Andrews}(),
                 TukeyHanning{Andrews}(),
-                Truncated{Andrews}(),
+                Truncated{Andrews}()
             ]
 
-            kernels_neweywest =
-                [Bartlett{NeweyWest}(), Parzen{NeweyWest}(), QuadraticSpectral{NeweyWest}()]
+            kernels_neweywest = [
+                Bartlett{NeweyWest}(), Parzen{NeweyWest}(), QuadraticSpectral{NeweyWest}()]
 
             kernels_fixed = [
                 Bartlett(3),
                 Parzen(5),
                 QuadraticSpectral(2),
                 TukeyHanning(4),
-                Truncated(3),
+                Truncated(3)
             ]
 
             all_kernels = [kernels_andrews; kernels_neweywest; kernels_fixed]
@@ -527,7 +522,7 @@ const CM = TestHelpers
                 @test isposdef(V)
 
                 # Test with prewhitening if supported
-                if !(kernel isa Union{TukeyHanning,Truncated})
+                if !(kernel isa Union{TukeyHanning, Truncated})
                     V_pre = aVar(kernel, X; prewhite = true)
                     @test size(V_pre) == (3, 3)
                     @test isposdef(V_pre)
@@ -571,12 +566,13 @@ const CM = TestHelpers
             clusters = [
                 repeat(1:10, inner = 20),        # Balanced clusters
                 repeat(1:5, inner = 40),         # Fewer, larger clusters
-                [repeat(1:8, inner = 20); repeat(9:10, inner = 20)],  # Unbalanced
+                [repeat(1:8, inner = 20); repeat(9:10, inner = 20)]  # Unbalanced
             ]
 
             cr_types = [CR0, CR1, CR2, CR3]
 
             for cluster in clusters, CRType in cr_types
+
                 est = CRType(cluster)
                 V = aVar(est, X)
                 @test size(V) == (3, 3)
@@ -637,7 +633,6 @@ const CM = TestHelpers
     end
 
     @testset "Advanced Error Conditions ✅" begin
-
         @testset "Matrix Compatibility Checks" begin
             Z = randn(100, 3)
 
@@ -648,7 +643,7 @@ const CM = TestHelpers
                 Z,
                 nothing,
                 wrong_H,
-                nothing,
+                nothing
             )
 
             wrong_G = randn(2, 3)  # Wrong first dimension
@@ -657,7 +652,7 @@ const CM = TestHelpers
                 Z,
                 wrong_G,
                 nothing,
-                nothing,
+                nothing
             )
 
             wrong_W = randn(2, 2)  # Wrong dimensions for weight matrix
@@ -666,7 +661,7 @@ const CM = TestHelpers
                 Z,
                 randn(3, 3),
                 nothing,
-                wrong_W,
+                wrong_W
             )
         end
 
@@ -683,7 +678,7 @@ const CM = TestHelpers
 
             @test_throws ArgumentError CovarianceMatrices._check_dimensions(
                 Information(),
-                bad_model,
+                bad_model
             )
         end
 
@@ -714,7 +709,6 @@ const CM = TestHelpers
     end
 
     @testset "Performance and Numerical Stability ✅" begin
-
         @testset "Large Matrix Handling" begin
             # Test with larger matrices to ensure no memory issues
             X_large = randn(Random.Xoshiro(999), 1000, 10)
@@ -761,5 +755,4 @@ const CM = TestHelpers
             end
         end
     end
-
 end # Interface and API Tests

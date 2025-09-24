@@ -13,13 +13,13 @@ using LinearAlgebra
 Dispatch to appropriate variance computation based on form.
 """
 function _compute_vcov(
-    form::Information,
-    H,
-    G,
-    Ω,
-    W;
-    rcond_tol::Real = 1e-12,
-    warn::Bool = true,
+        form::Information,
+        H,
+        G,
+        Ω,
+        W;
+        rcond_tol::Real = 1e-12,
+        warn::Bool = true
 )
     # Check if we have a Hessian (MLE case) or need to use score (GMM case)
     if H !== nothing
@@ -48,13 +48,13 @@ end
 # For GMM-like models (m>k): robust GMM V = (G'WG)⁻¹(G'WΩWG)(G'WG)⁻¹
 
 function _compute_vcov(
-    form::Misspecified,
-    H,
-    G,
-    Ω,
-    W;
-    rcond_tol::Real = 1e-12,
-    warn::Bool = true,
+        form::Misspecified,
+        H,
+        G,
+        Ω,
+        W;
+        rcond_tol::Real = 1e-12,
+        warn::Bool = true
 )
     m, k = size(G)
 
@@ -72,12 +72,12 @@ function _compute_vcov(
 end
 
 function _compute_vcov_gmm_misspecified(
-    H,
-    G,
-    Ω,
-    W;
-    rcond_tol::Real = 1e-12,
-    warn::Bool = true,
+        H,
+        G,
+        Ω,
+        W;
+        rcond_tol::Real = 1e-12,
+        warn::Bool = true
 )
     ## Ideally warn if correction to SVD was performed
     Ωinv, flag = ipinv(Ω)
@@ -95,11 +95,10 @@ function _compute_vcov_gmm_misspecified(
     return Hinv' * B * Hinv
 end
 
-
 function ipinv(
-    A::AbstractMatrix{T};
-    atol::Real = 0.0,
-    rtol::Real = (eps(real(float(oneunit(T)))) * min(size(A)...)) * iszero(atol),
+        A::AbstractMatrix{T};
+        atol::Real = 0.0,
+        rtol::Real = (eps(real(float(oneunit(T)))) * min(size(A)...)) * iszero(atol)
 ) where {T}
     m, n = size(A)
     Tout = typeof(zero(T) / sqrt(oneunit(T) + oneunit(T)))

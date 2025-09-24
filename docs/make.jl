@@ -10,9 +10,9 @@ makedocs(
     # strict = true,
     pages = [
         "Introduction" => "introduction.md",
-        #"Long run covariances" => "lrcov.md",
-        #"GLM covariances" => "glmcov.md"])a
-    ],
+    #"Long run covariances" => "lrcov.md",
+    #"GLM covariances" => "glmcov.md"])a
+    ]
 )
 
 deploydocs(repo = "github.com/gragusa/CovarianceMatrices.jl.git")

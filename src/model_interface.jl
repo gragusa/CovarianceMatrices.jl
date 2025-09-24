@@ -17,9 +17,8 @@ struct Information <: VarianceForm end
 struct Misspecified <: VarianceForm end
 
 # Convenience type unions for dispatch
-const MLikeForm = Union{Information,Misspecified}
-const GMMLikeForm = Union{Information,Misspecified}
-
+const MLikeForm = Union{Information, Misspecified}
+const GMMLikeForm = Union{Information, Misspecified}
 
 """
     momentmatrix(model) -> AbstractMatrix
@@ -193,8 +192,8 @@ function _check_dimensions(form::VarianceForm, model)
         if score(model) === nothing
             throw(
                 ArgumentError(
-                    "$(typeof(form)) form requires score(model) to be implemented for overidentified models",
-                ),
+                "$(typeof(form)) form requires score(model) to be implemented for overidentified models",
+            ),
             )
         end
     else
@@ -208,11 +207,11 @@ end
 Check compatibility of provided matrices for manual API.
 """
 function _check_matrix_compatibility(
-    form::Information,
-    Z::AbstractMatrix,
-    score,
-    objective_hessian,
-    W,
+        form::Information,
+        Z::AbstractMatrix,
+        score,
+        objective_hessian,
+        W
 )
     n, m = size(Z)
 
@@ -221,8 +220,8 @@ function _check_matrix_compatibility(
         if k_h != k_h2
             throw(
                 ArgumentError(
-                    "objective_hessian must be square, got size $(size(objective_hessian))",
-                ),
+                "objective_hessian must be square, got size $(size(objective_hessian))",
+            ),
             )
         end
     end
@@ -232,8 +231,8 @@ function _check_matrix_compatibility(
         if m_j != m
             throw(
                 ArgumentError(
-                    "score first dimension ($m_j) must match moment matrix second dimension ($m)",
-                ),
+                "score first dimension ($m_j) must match moment matrix second dimension ($m)",
+            ),
             )
         end
     end
@@ -244,11 +243,11 @@ function _check_matrix_compatibility(
 end
 
 function _check_matrix_compatibility(
-    form::Misspecified,
-    Z::AbstractMatrix,
-    score,
-    objective_hessian,
-    W,
+        form::Misspecified,
+        Z::AbstractMatrix,
+        score,
+        objective_hessian,
+        W
 )
     n, m = size(Z)
 
@@ -260,8 +259,8 @@ function _check_matrix_compatibility(
     if m_j != m
         throw(
             ArgumentError(
-                "score first dimension ($m_j) must match moment matrix second dimension ($m)",
-            ),
+            "score first dimension ($m_j) must match moment matrix second dimension ($m)",
+        ),
         )
     end
 
@@ -270,8 +269,8 @@ function _check_matrix_compatibility(
         if w_m != w_m2 || w_m != m
             throw(
                 ArgumentError(
-                    "Weight matrix W must be m×m where m=$m, got size $(size(W))",
-                ),
+                "Weight matrix W must be m×m where m=$m, got size $(size(W))",
+            ),
             )
         end
     end

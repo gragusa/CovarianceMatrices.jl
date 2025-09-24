@@ -6,7 +6,7 @@ using Statistics
 ##=================================================
 ## Moment Matrix 
 ##=================================================
-const FAM = Union{GLM.Gamma,GLM.Bernoulli,GLM.InverseGaussian}
+const FAM = Union{GLM.Gamma, GLM.Bernoulli, GLM.InverseGaussian}
 const CM = CovarianceMatrices
 
 numobs(r::GLM.RegressionModel) = size(r.model.pp.X, 1)
@@ -16,9 +16,9 @@ _dispersion(r::GLM.RegressionModel) = _dispersion(r.model)
 _dispersion(m::GLM.LinearModel) = 1
 _dispersion(m::GLM.GeneralizedLinearModel) = _dispersion(m.rr)
 
-_dispersion(rr::GLM.GlmResp{T1,T2,T3}) where {T1,T2,T3} = 1
+_dispersion(rr::GLM.GlmResp{T1, T2, T3}) where {T1, T2, T3} = 1
 _dispersion(rr::GLM.LmResp) = 1
-function _dispersion(rr::GLM.GlmResp{T1,T2,T3}) where {T1,T2<:FAM,T3}
+function _dispersion(rr::GLM.GlmResp{T1, T2, T3}) where {T1, T2 <: FAM, T3}
     sum(abs2, rr.wrkwt .* rr.wrkresid) / sum(rr.wrkwt)
 end
 
@@ -32,7 +32,7 @@ mask(r::RegressionModel) = mask(r.model)
 mask(m::GLM.LinearModel) = mask(m.pp)
 mask(m::GLM.GeneralizedLinearModel) = mask(m.pp)
 
-function mask(pp::GLM.DensePredChol{F,C}) where {F,C<:LinearAlgebra.CholeskyPivoted}
+function mask(pp::GLM.DensePredChol{F, C}) where {F, C <: LinearAlgebra.CholeskyPivoted}
     k = size(pp.X, 2)
     rnk = pp.chol.rank
     p = pp.chol.p
@@ -43,7 +43,7 @@ function mask(pp::GLM.DensePredChol{F,C}) where {F,C<:LinearAlgebra.CholeskyPivo
     return mask
 end
 
-function mask(pp::GLM.DensePredChol{F,C}) where {F,C<:LinearAlgebra.Cholesky}
+function mask(pp::GLM.DensePredChol{F, C}) where {F, C <: LinearAlgebra.Cholesky}
     k = size(pp.X, 2)
     return ones(Bool, k)
 end
@@ -75,13 +75,13 @@ scratchm1(m::GLM.LinPredModel) = m.pp.scratchm1
 scratchm1(m::GLM.GeneralizedLinearModel) = m.pp.scratchm1
 
 function CM.aVar(
-    k::K,
-    m::RegressionModel;
-    demean = false,
-    prewhite = false,
-    scale = true,
-    kwargs...,
-) where {K<:CM.AVarEstimator}
+        k::K,
+        m::RegressionModel;
+        demean = false,
+        prewhite = false,
+        scale = true,
+        kwargs...
+) where {K <: CM.AVarEstimator}
     CM.setkernelweights!(k, m)
     mm = begin
         u = residualadjustment(k, m)
@@ -123,13 +123,13 @@ function crmomentmatrix!(M::AbstractMatrix, res, m::GLM.LinearModel)
 end
 
 function CM.aVar(
-    k::K,
-    m::RegressionModel;
-    demean = false,
-    prewhite = false,
-    scale = true,
-    kwargs...,
-) where {K<:CM.CR}
+        k::K,
+        m::RegressionModel;
+        demean = false,
+        prewhite = false,
+        scale = true,
+        kwargs...
+) where {K <: CM.CR}
     mm = begin
         u = residualadjustment(k, m)
         crmomentmatrix!(scratchm1(m), u, m)
@@ -154,7 +154,6 @@ function leverage(r::GLM.RegressionModel)
     _leverage(r.pp, r.pp.scratchm1)
 end
 
-
 function leverage(r::GLM.GeneralizedLinearModel)
     X = modelmatrix(r) .* sqrt.(r.rr.wrkwt)
     @inbounds copy!(r.pp.scratchm1, X)
@@ -164,7 +163,9 @@ function leverage(r::GLM.GeneralizedLinearModel)
     _leverage(r.pp, r.pp.scratchm1)
 end
 
-function _leverage(pp::GLM.DensePredChol{F,C}, X) where {F,C<:LinearAlgebra.CholeskyPivoted}
+function _leverage(
+        pp::GLM.DensePredChol{
+            F, C}, X) where {F, C <: LinearAlgebra.CholeskyPivoted}
     ch = pp.chol
     rnk = rank(ch)
     p = ch.p
@@ -172,7 +173,7 @@ function _leverage(pp::GLM.DensePredChol{F,C}, X) where {F,C<:LinearAlgebra.Chol
     sum(abs2, view(X, :, 1:rnk) / view(ch.U, 1:rnk, idx), dims = 2)
 end
 
-function _leverage(pp::GLM.DensePredChol{F,C}, X) where {F,C<:LinearAlgebra.Cholesky}
+function _leverage(pp::GLM.DensePredChol{F, C}, X) where {F, C <: LinearAlgebra.Cholesky}
     sum(abs2, X / pp.chol.U, dims = 2)
 end
 
@@ -180,12 +181,11 @@ dofresiduals(r::RegressionModel) = numobs(r) - rank(modelmatrix(r))
 
 @noinline residualadjustment(k::CM.HAC, r::Any) = 1.0
 
-
 @noinline residualadjustment(k::CM.HR0, r::GLM.RegressionModel) = 1.0
-@noinline residualadjustment(k::CM.HR1, r::GLM.RegressionModel) =
-    √numobs(r) / √dofresiduals(r)
-@noinline residualadjustment(k::CM.HR2, r::GLM.RegressionModel) =
-    1.0 ./ (1 .- leverage(r)) .^ 0.5
+@noinline residualadjustment(k::CM.HR1, r::GLM.RegressionModel) = √numobs(r) /
+                                                                  √dofresiduals(r)
+@noinline residualadjustment(k::CM.HR2, r::GLM.RegressionModel) = 1.0 ./
+                                                                  (1 .- leverage(r)) .^ 0.5
 @noinline residualadjustment(k::CM.HR3, r::GLM.RegressionModel) = 1.0 ./ (1 .- leverage(r))
 
 @noinline function residualadjustment(k::CM.HR4, r::RegressionModel)
@@ -226,7 +226,7 @@ end
 ## ## RegressionModel - CR
 ## ##=================================================
 
-function residualadjustment(k::Union{CM.CR0,CM.CR1}, r::StatsModels.TableRegressionModel)
+function residualadjustment(k::Union{CM.CR0, CM.CR1}, r::StatsModels.TableRegressionModel)
     wts = r.model.rr.wts
     if isempty(wts)
         GLM.residuals(r)
@@ -243,7 +243,7 @@ function residualadjustment(k::CM.CR2, r::StatsModels.TableRegressionModel)
     u = copy(GLM.residuals(r))
     !isempty(wts) && @. u *= sqrt(wts)
     XX = bread(r)
-    for groups = 1:g.ngroups
+    for groups in 1:g.ngroups
         ind = findall(x -> x .== groups, g)
         Xg = view(X, ind, :)
         ug = view(u, ind, :)
@@ -273,7 +273,7 @@ function residualadjustment(k::CM.CR3, r::StatsModels.TableRegressionModel)
     u = copy(GLM.residuals(r))
     !isempty(wts) && @. u *= sqrt(wts)
     XX = bread(r)
-    for groups = 1:g.ngroups
+    for groups in 1:g.ngroups
         ind = findall(g .== groups)
         Xg = view(X, ind, :)
         ug = view(u, ind, :)
@@ -323,11 +323,10 @@ function dofcorrect!(V, k::HAC, m)
     rmul!(V, n/dof)
 end
 
-
 function CM.setkernelweights!(
-    k::CM.HAC{T},
-    X::RegressionModel,
-) where {T<:Union{CM.NeweyWest,CM.Andrews}}
+        k::CM.HAC{T},
+        X::RegressionModel
+) where {T <: Union{CM.NeweyWest, CM.Andrews}}
     CM.setkernelweights!(k, modelmatrix(X))
     k.wlock .= true
 end

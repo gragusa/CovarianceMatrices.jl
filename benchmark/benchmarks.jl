@@ -6,10 +6,9 @@ using BenchmarkTools
 
 Random.seed!(1234)
 
-
 u = zeros(6000*50)
-for j = 1:2999
-    u[j+1] = 0.97*u[j] + randn()
+for j in 1:2999
+    u[j + 1] = 0.97*u[j] + randn()
 end
 
 y = randn(300*50) .+ u[15001:30000]

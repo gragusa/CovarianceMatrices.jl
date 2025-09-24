@@ -9,7 +9,7 @@ function CovarianceMatrices.clusterize(X::AbstractSparseMatrix, g::GroupedArray)
     rows = rowvals(X)
     vals = nonzeros(X)
 
-    @inbounds for j = 1:n
+    @inbounds for j in 1:n
         for i in nzrange(X, j)
             row = rows[i]
             val = vals[i]
@@ -21,16 +21,15 @@ function CovarianceMatrices.clusterize(X::AbstractSparseMatrix, g::GroupedArray)
 end
 
 Base.@propagate_inbounds function CovarianceMatrices.fit_var(
-    A::AbstractSparseMatrix{T},
+        A::AbstractSparseMatrix{T},
 ) where {T}
     P = parent(A)
     li = lastindex(P, 1)
     Y = P[2:li, :]
-    X = P[1:(li-1), :]
+    X = P[1:(li - 1), :]
     B = qr!(X'X) \ Matrix(X'Y)
     E = Y - X * B
     return E, B
 end
-
 
 end
