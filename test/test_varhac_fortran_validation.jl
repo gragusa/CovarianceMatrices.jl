@@ -43,9 +43,9 @@ function load_fortran_data(filename = "dat_ma1.txt")
 
     # Parse data matrix
     data = zeros(nt, kdim)
-    for i = 1:nt
-        row_values = split(lines[i+1])
-        for j = 1:kdim
+    for i in 1:nt
+        row_values = split(lines[i + 1])
+        for j in 1:kdim
             data[i, j] = parse(Float64, row_values[j])
         end
     end
@@ -69,9 +69,9 @@ function load_fortran_varhac_result(filename)
 
     # Parse ATEMP matrix (first 5 lines)
     atemp = zeros(5, 5)
-    for i = 1:5
+    for i in 1:5
         values = split(lines[i])
-        for j = 1:5
+        for j in 1:5
             atemp[i, j] = parse(Float64, values[j])
         end
     end
@@ -83,7 +83,7 @@ function load_fortran_varhac_result(filename)
     end
 
     # Parse parameters
-    params = Dict{String,Any}()
+    params = Dict{String, Any}()
     params["data_file"] = strip(split(lines[line_idx], ":")[2]);
     line_idx += 1
     params["NT"] = parse(Int, split(lines[line_idx], ":")[2]);
@@ -103,9 +103,9 @@ function load_fortran_varhac_result(filename)
     # Parse AAA matrix
     kdim = params["KDIM"]
     aaa = zeros(kdim, kdim)
-    for i = 1:kdim
+    for i in 1:kdim
         values = split(lines[line_idx])
-        for j = 1:kdim
+        for j in 1:kdim
             # Handle scientific notation (E+00 format)
             val_str = replace(values[j], "E" => "e")
             aaa[i, j] = parse(Float64, val_str)
@@ -164,8 +164,8 @@ end
 
     @testset "Case 1: IMODEL=1 (AIC), IMAX=4, IMEAN=1" begin
         # Load FORTRAN reference result
-        atemp_ref, params_ref, aaa_ref =
-            load_fortran_varhac_result("varhac_run_imodel1.txt")
+        atemp_ref, params_ref,
+        aaa_ref = load_fortran_varhac_result("varhac_run_imodel1.txt")
 
         @test params_ref["IMODEL"] == 1
         @test params_ref["IMAX"] == 4
@@ -173,10 +173,11 @@ end
         @test size(aaa_ref) == (5, 5)
 
         # Convert to Julia parameters and compute
-        vh_julia, demean = fortran_params_to_julia(
+        vh_julia,
+        demean = fortran_params_to_julia(
             params_ref["IMODEL"],
             params_ref["IMAX"],
-            params_ref["IMEAN"],
+            params_ref["IMEAN"]
         )
 
         # Compute Julia result
@@ -193,21 +194,22 @@ end
         println("\nMaximum absolute difference: ", maximum(abs.(julia_result - aaa_ref)))
 
         # Test with tolerance
-        @test julia_result ≈ aaa_ref rtol=COMPARISON_TOL atol=COMPARISON_TOL
+        @test julia_result≈aaa_ref rtol=COMPARISON_TOL atol=COMPARISON_TOL
     end
 
     @testset "Case 2: IMODEL=2 (BIC), IMAX=4, IMEAN=1" begin
-        atemp_ref, params_ref, aaa_ref =
-            load_fortran_varhac_result("varhac_run_imodel2.txt")
+        atemp_ref, params_ref,
+        aaa_ref = load_fortran_varhac_result("varhac_run_imodel2.txt")
 
         @test params_ref["IMODEL"] == 2
         @test params_ref["IMAX"] == 4
         @test params_ref["IMEAN"] == 1
 
-        vh_julia, demean = fortran_params_to_julia(
+        vh_julia,
+        demean = fortran_params_to_julia(
             params_ref["IMODEL"],
             params_ref["IMAX"],
-            params_ref["IMEAN"],
+            params_ref["IMEAN"]
         )
         julia_result = aVar(vh_julia, fortran_data; demean = demean, scale = false)
 
@@ -218,21 +220,22 @@ end
         display(julia_result)
         println("\nMaximum absolute difference: ", maximum(abs.(julia_result - aaa_ref)))
 
-        @test julia_result ≈ aaa_ref rtol=COMPARISON_TOL atol=COMPARISON_TOL
+        @test julia_result≈aaa_ref rtol=COMPARISON_TOL atol=COMPARISON_TOL
     end
 
     @testset "Case 3: IMODEL=3 (Fixed), IMAX=4, IMEAN=1" begin
-        atemp_ref, params_ref, aaa_ref =
-            load_fortran_varhac_result("varhac_run_imodel3.txt")
+        atemp_ref, params_ref,
+        aaa_ref = load_fortran_varhac_result("varhac_run_imodel3.txt")
 
         @test params_ref["IMODEL"] == 3
         @test params_ref["IMAX"] == 4
         @test params_ref["IMEAN"] == 1
 
-        vh_julia, demean = fortran_params_to_julia(
+        vh_julia,
+        demean = fortran_params_to_julia(
             params_ref["IMODEL"],
             params_ref["IMAX"],
-            params_ref["IMEAN"],
+            params_ref["IMEAN"]
         )
         julia_result = aVar(vh_julia, fortran_data; demean = demean, scale = false)
 
@@ -243,21 +246,22 @@ end
         display(julia_result)
         println("\nMaximum absolute difference: ", maximum(abs.(julia_result - aaa_ref)))
 
-        @test julia_result ≈ aaa_ref rtol=COMPARISON_TOL atol=COMPARISON_TOL
+        @test julia_result≈aaa_ref rtol=COMPARISON_TOL atol=COMPARISON_TOL
     end
 
     @testset "Case 4: IMODEL=1 (AIC), IMAX=4, IMEAN=0" begin
-        atemp_ref, params_ref, aaa_ref =
-            load_fortran_varhac_result("varhac_run_imodel1_imean0.txt")
+        atemp_ref, params_ref,
+        aaa_ref = load_fortran_varhac_result("varhac_run_imodel1_imean0.txt")
 
         @test params_ref["IMODEL"] == 1
         @test params_ref["IMAX"] == 4
         @test params_ref["IMEAN"] == 0
 
-        vh_julia, demean = fortran_params_to_julia(
+        vh_julia,
+        demean = fortran_params_to_julia(
             params_ref["IMODEL"],
             params_ref["IMAX"],
-            params_ref["IMEAN"],
+            params_ref["IMEAN"]
         )
         julia_result = aVar(vh_julia, fortran_data; demean = demean, scale = false)
 
@@ -274,7 +278,7 @@ end
         # implementations in the VAR coefficient estimation and matrix operations.
         # The differences are still acceptable (< 0.5% relative error).
         IMEAN0_TOL = 0.025  # More lenient tolerance for no-demean case
-        @test julia_result ≈ aaa_ref rtol=IMEAN0_TOL atol=IMEAN0_TOL
+        @test julia_result≈aaa_ref rtol=IMEAN0_TOL atol=IMEAN0_TOL
     end
 
     @testset "Complete aVar API Validation Against FORTRAN" begin
@@ -290,7 +294,8 @@ end
 
         for (filename, description) in test_cases
             atemp_ref, params_ref, aaa_ref = load_fortran_varhac_result(filename)
-            vh_julia, demean = fortran_params_to_julia(
+            vh_julia,
+            demean = fortran_params_to_julia(
                 params_ref["IMODEL"], params_ref["IMAX"], params_ref["IMEAN"])
 
             # Test aVar API directly
@@ -299,9 +304,11 @@ end
             # Tolerance handling for IMEAN=0 case
             tolerance = params_ref["IMEAN"] == 0 ? 0.025 : COMPARISON_TOL
 
-            @test julia_result ≈ aaa_ref rtol=tolerance atol=tolerance
+            @test julia_result≈aaa_ref rtol=tolerance atol=tolerance
 
-            println("✅ $description: Max diff = ", round(maximum(abs.(julia_result - aaa_ref)), digits=6))
+            println("✅ $description: Max diff = ", round(
+                maximum(abs.(julia_result -
+                             aaa_ref)), digits = 6))
         end
     end
 
@@ -392,7 +399,6 @@ end
 
         println("✅ Edge cases handled robustly")
     end
-
 end
 
 println("\n" * "="^70)

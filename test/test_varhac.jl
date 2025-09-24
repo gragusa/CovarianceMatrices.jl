@@ -18,7 +18,6 @@ using Test
 using Distributions
 
 @testset "VARHAC Comprehensive Tests ✅" begin
-
     @testset "Constructor and Default Behavior" begin
         # Test default constructor
         vh_default = VARHAC()
@@ -52,7 +51,7 @@ using Distributions
         # Generate test data with some serial correlation
         X = randn(n, k)
         for t in 2:n
-            X[t, :] .+= 0.3 * X[t-1, :] .+ 0.1 * randn(k)
+            X[t, :] .+= 0.3 * X[t - 1, :] .+ 0.1 * randn(k)
         end
 
         vh = VARHAC()
@@ -84,7 +83,7 @@ using Distributions
         # Create simple test model moment matrix
         X = randn(n, k)
         for t in 2:n
-            X[t, :] .+= 0.2 * X[t-1, :] .+ randn(k) * 0.1
+            X[t, :] .+= 0.2 * X[t - 1, :] .+ randn(k) * 0.1
         end
 
         vh = VARHAC()
@@ -173,7 +172,7 @@ using Distributions
             ε = rand(MvNormal(zeros(k), Σ), n)'
 
             for t in 3:n
-                X[t, :] = true_A1 * X[t-1, :] + true_A2 * X[t-2, :] + ε[t, :]
+                X[t, :] = true_A1 * X[t - 1, :] + true_A2 * X[t - 2, :] + ε[t, :]
             end
 
             vh = VARHAC()
@@ -198,7 +197,7 @@ using Distributions
 
             # Series 2: persistent AR(1)
             for t in 2:n
-                X[t, 2] = 0.8 * X[t-1, 2] + randn()
+                X[t, 2] = 0.8 * X[t - 1, 2] + randn()
             end
 
             vh = VARHAC()
@@ -220,13 +219,13 @@ using Distributions
 
         # Add some autocorrelation
         for t in 2:n
-            X[t, :] .+= 0.4 * X[t-1, :] .+ 0.1 * randn(k)
+            X[t, :] .+= 0.4 * X[t - 1, :] .+ 0.1 * randn(k)
         end
 
         strategies = [
             (VARHAC(AICSelector(), SameLags(6)), "AIC SameLags"),
             (VARHAC(BICSelector(), SameLags(6)), "BIC SameLags"),
-            (VARHAC(FixedSelector(), FixedLags(3)), "Fixed Lags"),
+            (VARHAC(FixedSelector(), FixedLags(3)), "Fixed Lags")
         ]
 
         for (vh, name) in strategies
