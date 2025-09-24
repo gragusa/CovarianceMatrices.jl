@@ -25,7 +25,8 @@ function _compute_vcov(
 )
     # Set default tolerances if not provided
     atol = cond_atol === nothing ? 0.0 : cond_atol
-    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) : cond_rtol
+    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
+               cond_rtol
 
     # Force warn=true when debug=true
     warn = debug || warn
@@ -33,17 +34,18 @@ function _compute_vcov(
     # Check if we have a Hessian (MLE case) or need to use score (GMM case)
     if H !== nothing
         # MLE case: V = H⁻¹ (Fisher Information)
-        Hinv, flag, svals = ipinv(H; atol=atol, rtol=rtol_val)
+        Hinv, flag, svals = ipinv(H; atol = atol, rtol = rtol_val)
         _debug_report_inversion("H (Hessian)", flag, svals, "$(size(H))", debug, warn)
         return Hinv
     else
         # GMM case: V = (G'Ω⁻¹G)⁻¹ (efficient GMM)
-        Ωinv, flag_omega, svals_omega = ipinv(Ω; atol=atol, rtol=rtol_val)
+        Ωinv, flag_omega, svals_omega = ipinv(Ω; atol = atol, rtol = rtol_val)
         _debug_report_inversion("Omega", flag_omega, svals_omega, "$(size(Ω))", debug, warn)
 
         G_omega_G = G' * Ωinv * G
-        V, flag_v, svals_v = ipinv(G_omega_G; atol=atol, rtol=rtol_val)
-        _debug_report_inversion("G'Omega^(-1)G (variance matrix)", flag_v, svals_v, "$(size(G_omega_G))", debug, warn)
+        V, flag_v, svals_v = ipinv(G_omega_G; atol = atol, rtol = rtol_val)
+        _debug_report_inversion("G'Omega^(-1)G (variance matrix)", flag_v,
+            svals_v, "$(size(G_omega_G))", debug, warn)
         return V
     end
 end
@@ -67,23 +69,26 @@ function _compute_vcov(
 
     # Set default tolerances if not provided
     atol = cond_atol === nothing ? 0.0 : cond_atol
-    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) : cond_rtol
+    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
+               cond_rtol
 
     # Force warn=true when debug=true
     warn = debug || warn
 
     if m == k
         # MLE-like: robust sandwich form V = G⁻¹ΩG⁻ᵀ
-        Ginv, flag, svals = ipinv(G; atol=atol, rtol=rtol_val)
+        Ginv, flag, svals = ipinv(G; atol = atol, rtol = rtol_val)
         _debug_report_inversion("G (score matrix)", flag, svals, "$(size(G))", debug, warn)
         return Ginv' * Ω * Ginv
     else
         # GMM-like: robust GMM form V = (G'WG)⁻¹(G'WΩWG)(G'WG)⁻¹
-        _compute_vcov_gmm_misspecified(H, G, Ω, W; cond_atol = cond_atol, cond_rtol = cond_rtol, debug = debug, warn = warn)
+        _compute_vcov_gmm_misspecified(H, G, Ω, W; cond_atol = cond_atol,
+            cond_rtol = cond_rtol, debug = debug, warn = warn)
     end
 end
 
-function _debug_report_inversion(matrix_name::String, flag::AbstractVector{Bool}, svals::Vector, size_info::String, debug::Bool, warn::Bool)
+function _debug_report_inversion(matrix_name::String, flag::AbstractVector{Bool},
+        svals::Vector, size_info::String, debug::Bool, warn::Bool)
     if any(flag) && !isempty(svals)
         n_problematic = sum(flag)
         min_sval = minimum(svals)
@@ -118,20 +123,22 @@ function _compute_vcov_gmm_misspecified(
 )
     # Set default tolerances if not provided
     atol = cond_atol === nothing ? 0.0 : cond_atol
-    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) : cond_rtol
+    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
+               cond_rtol
 
     # Force warn=true when debug=true
     warn = debug || warn
 
     ## Invert matrices with debug reporting
-    Ωinv, flag_omega, svals_omega = ipinv(Ω; atol=atol, rtol=rtol_val)
+    Ωinv, flag_omega, svals_omega = ipinv(Ω; atol = atol, rtol = rtol_val)
     _debug_report_inversion("Ω", flag_omega, svals_omega, "$(size(Ω))", debug, warn)
 
     G_omega_G = G' * Ωinv * G
-    B, flag_gomega, svals_gomega = ipinv(G_omega_G; atol=atol, rtol=rtol_val)
-    _debug_report_inversion("G'Omega^(-1)G", flag_gomega, svals_gomega, "$(size(G_omega_G))", debug, warn)
+    B, flag_gomega, svals_gomega = ipinv(G_omega_G; atol = atol, rtol = rtol_val)
+    _debug_report_inversion(
+        "G'Omega^(-1)G", flag_gomega, svals_gomega, "$(size(G_omega_G))", debug, warn)
 
-    Hinv, flag_h, svals_h = ipinv(H; atol=atol, rtol=rtol_val)
+    Hinv, flag_h, svals_h = ipinv(H; atol = atol, rtol = rtol_val)
     _debug_report_inversion("H", flag_h, svals_h, "$(size(H))", debug, warn)
 
     return Hinv' * B * Hinv
