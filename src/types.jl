@@ -281,17 +281,22 @@ end
 
 function VARHAC(selector = AICSelector(), strategy = SameLags(8); T::Type{<:Real} = Float64)
     isa(strategy, FixedLags) && (selector = FixedSelector())
-    return VARHAC{typeof(selector), typeof(strategy), T}(nothing, nothing, nothing, nothing, selector, strategy)
+    return VARHAC{typeof(selector), typeof(strategy), T}(
+        nothing, nothing, nothing, nothing, selector, strategy)
 end
 
 # Convenient constructors for common usage patterns
 VARHAC(f::FixedLags; T::Type{<:Real} = Float64) = VARHAC(FixedSelector(), f; T = T)
 
 # Quick selector construction: VARHAC(:aic) or VARHAC(:bic)
-VARHAC(selector_symbol::Symbol; T::Type{<:Real} = Float64) = VARHAC(_symbol_to_selector(selector_symbol), SameLags(8); T = T)
+function VARHAC(selector_symbol::Symbol; T::Type{<:Real} = Float64)
+    VARHAC(_symbol_to_selector(selector_symbol), SameLags(8); T = T)
+end
 
 # Quick max lags construction: VARHAC(12)
-VARHAC(max_lags::Integer; T::Type{<:Real} = Float64) = VARHAC(AICSelector(), SameLags(max_lags); T = T)
+function VARHAC(max_lags::Integer; T::Type{<:Real} = Float64)
+    VARHAC(AICSelector(), SameLags(max_lags); T = T)
+end
 
 # Auto-selection constructor: VARHAC(:auto)
 VARHAC(::Val{:auto}; T::Type{<:Real} = Float64) = VARHAC(AICSelector(), AutoLags(); T = T)
@@ -328,8 +333,9 @@ function maxlags(k::VARHAC{S, AutoLags, T}, T_data::Int, N::Int) where {S <: Lag
     return compute_auto_maxlag(T_data, N)
 end
 # Fallback that throws informative error if AutoLags used without dimensions
-maxlags(k::VARHAC{S, AutoLags, T}) where {S <: LagSelector, T} =
+function maxlags(k::VARHAC{S, AutoLags, T}) where {S <: LagSelector, T}
     error("AutoLags requires data dimensions. Use maxlags(estimator, T, N) where T is sample size and N is number of variables.")
+end
 
 AICs(k::VARHAC) = k.AICs
 BICs(k::VARHAC) = k.BICs

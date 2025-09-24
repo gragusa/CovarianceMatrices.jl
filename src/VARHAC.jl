@@ -10,7 +10,7 @@ functionality needed for VARHAC estimation.
 """
 function nancov(X::AbstractMatrix{T}; corrected::Bool = true) where {T <: Real}
     # Remove rows with any NaN values
-    complete_rows = .!any(isnan.(X), dims=2)
+    complete_rows = .!any(isnan.(X), dims = 2)
     if !any(complete_rows)
         # All rows have NaN, return NaN matrix
         return fill(T(NaN), size(X, 2), size(X, 2))
@@ -81,7 +81,10 @@ function avar(
     T, N = size(X)
     K_auto = maxlags(k, T, N)
     lagstrategy = isa(k.selector, AICSelector) ? :aic : :bic
-    Ω, AICs, BICs, order_aic, order_bic = _var_selection_samelag(X, K_auto; lagstrategy = lagstrategy, demean = false)
+    Ω, AICs,
+    BICs,
+    order_aic,
+    order_bic = _var_selection_samelag(X, K_auto; lagstrategy = lagstrategy, demean = false)
     k.AICs = AICs
     k.BICs = BICs
     k.order_aic = order_aic
