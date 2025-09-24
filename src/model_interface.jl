@@ -166,9 +166,86 @@ Uses model type hierarchy when available, falls back to dimension checking.
 """
 
 # Type-based checks for models using the hierarchy
-# Both forms work with both model types now, so just allow them
-_check_dimensions(form::VarianceForm, model::MLikeModel) = nothing
-_check_dimensions(form::VarianceForm, model::GMMLikeModel) = nothing
+function _check_dimensions(form::VarianceForm, model::MLikeModel)
+    Z = momentmatrix(model)
+    θ = StatsBase.coef(model)
+    m, k = size(Z, 2), length(θ)
+
+    # For MLE models, we require m = k (exactly identified)
+    if m != k
+        throw(ArgumentError("MLikeModel requires exactly identified system: m=$m parameters but k=$k moment conditions"))
+    end
+
+    # Check that required methods are available for Misspecified form
+    if form isa Misspecified
+        try
+            score_result = score(model)
+            if score_result === nothing
+                throw(ArgumentError("Misspecified form for MLE models requires score(model) to return a k×k matrix where k=$k parameters, but got nothing"))
+            end
+        catch ErrorException
+            throw(ArgumentError("Misspecified form for MLE models requires score(model) to be implemented and return a k×k matrix where k=$k parameters"))
+        end
+    end
+end
+
+function _check_dimensions(form::VarianceForm, model::GMMLikeModel)
+    Z = momentmatrix(model)
+    θ = StatsBase.coef(model)
+    m, k = size(Z, 2), length(θ)
+
+    # For GMM models, we allow m >= k (at least identified)
+    if m < k
+        throw(ArgumentError("GMMLikeModel requires at least identified system: m=$m moment conditions but k=$k parameters"))
+    end
+
+    # Check what methods are available and build comprehensive error message
+    score_available = false
+    score_error = nothing
+    try
+        score_result = score(model)
+        score_available = (score_result !== nothing)
+    catch e
+        score_error = e
+    end
+
+    hessian_available = false
+    if form isa Misspecified
+        hessian_result = objective_hessian(model)
+        hessian_available = (hessian_result !== nothing)
+    end
+
+    # Get dimensions for helpful error messages
+    # m = number of moment conditions, k = number of parameters
+
+    # Check requirements and provide comprehensive error messages with dimensions
+    if form isa Information
+        if !score_available
+            if score_error !== nothing
+                throw(ArgumentError("Information form requires score(model) to be implemented for GMM models. Expected: score(model) should return an m×k matrix where m=$m moment conditions, k=$k parameters"))
+            else
+                throw(ArgumentError("Information form requires score(model) to return a matrix for GMM models. Expected: m×k matrix where m=$m moment conditions, k=$k parameters, but got nothing"))
+            end
+        end
+    elseif form isa Misspecified
+        missing_methods = String[]
+        if !score_available
+            if score_error !== nothing
+                push!(missing_methods, "score(model) must be implemented and return an m×k matrix where m=$m moment conditions, k=$k parameters")
+            else
+                push!(missing_methods, "score(model) must return a matrix (expected m×k where m=$m, k=$k) but got nothing")
+            end
+        end
+        if !hessian_available
+            push!(missing_methods, "objective_hessian(model) must return a k×k matrix where k=$k parameters")
+        end
+
+        if !isempty(missing_methods)
+            methods_str = join(missing_methods, " and ")
+            throw(ArgumentError("Misspecified form for GMM models requires both score and objective_hessian methods: $methods_str"))
+        end
+    end
+end
 
 # Fallback dimension-based checks for models not using the type hierarchy
 function _check_dimensions(form::VarianceForm, model)
@@ -183,7 +260,7 @@ function _check_dimensions(form::VarianceForm, model)
         # Check that required methods are available for Misspecified form
         if form isa Misspecified && score(model) === nothing
             throw(
-                ArgumentError("Misspecified form requires score(model) to be implemented"),
+                ArgumentError("Misspecified form for exactly identified models (MLE-like) requires score(model) to return a k×k matrix where k=$k parameters, but got nothing"),
             )
         end
         # For overidentified models (m > k), assume GMM-like
@@ -192,7 +269,7 @@ function _check_dimensions(form::VarianceForm, model)
         if score(model) === nothing
             throw(
                 ArgumentError(
-                "$(typeof(form)) form requires score(model) to be implemented for overidentified models",
+                "$(typeof(form)) form for overidentified models (GMM-like) requires score(model) to return an m×k matrix where m=$m moment conditions, k=$k parameters, but got nothing",
             ),
             )
         end

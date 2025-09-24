@@ -23,9 +23,11 @@ Compute variance-covariance matrix for a model using specified estimator and for
 # Keyword Arguments
 - `W::Union{Nothing,AbstractMatrix}=nothing`: Optional weight matrix for GMM misspecified
 - `scale::Symbol=:n`: Scaling for Ω (:n for 1/n scaling)
-- `rcond_tol::Real=1e-12`: Tolerance for rank condition in pseudo-inverse
+- `cond_atol::Union{Nothing,Real}=nothing`: Absolute tolerance for pseudo-inverse (default: 0.0)
+- `cond_rtol::Union{Nothing,Real}=nothing`: Relative tolerance for pseudo-inverse (default: machine eps × min(size))
+- `debug::Bool=false`: Print detailed debug information about matrix inversions
 - `check::Bool=true`: Perform dimension and compatibility checks
-- `warn::Bool=true`: Issue warnings for potential issues
+- `warn::Bool=true`: Issue warnings for potential issues (automatically true when debug=true)
 
 # Returns
 - `Matrix{Float64}`: Variance-covariance matrix
@@ -36,7 +38,9 @@ function StatsBase.vcov(
         model;
         W::Union{Nothing, AbstractMatrix} = nothing,
         scale::Symbol = :n,
-        rcond_tol::Real = 1e-12,
+        cond_atol::Union{Nothing, Real} = nothing,
+        cond_rtol::Union{Nothing, Real} = nothing,
+        debug::Bool = false,
         check::Bool = true,
         warn::Bool = true
 )
@@ -54,7 +58,7 @@ function StatsBase.vcov(
     G = score(model)
     H = objective_hessian(model)
     # Dispatch to appropriate computation
-    V = _compute_vcov(form, H, G, Ω, W; rcond_tol = rcond_tol, warn = warn)
+    V = _compute_vcov(form, H, G, Ω, W; cond_atol = cond_atol, cond_rtol = cond_rtol, debug = debug, warn = warn)
 
     return Symmetric(rdiv!(V, n))
 end
@@ -82,21 +86,23 @@ function StatsBase.vcov(
         Z::AbstractMatrix;
         score::Union{Nothing, AbstractMatrix} = nothing,
         objective_hessian::Union{Nothing, AbstractMatrix} = nothing,
-        W::Union{Nothing, AbstractMatrix} = nothing,
-        rcond_tol::Real = 1e-12
+        weight_matrix::Union{Nothing, AbstractMatrix} = nothing,
+        cond_atol::Union{Nothing, Real} = nothing,
+        cond_rtol::Union{Nothing, Real} = nothing,
+        debug::Bool = false
 )
     n, m = size(Z)
 
     # Check what's available and what's required
-    _check_matrix_compatibility(form, Z, score, objective_hessian, W)
+    _check_matrix_compatibility(form, Z, score, objective_hessian, weight_matrix)
 
     # Compute long-run covariance
-    Ω = aVar(ve, Z; scale = false)
+    Ω = aVar(ve, Z)
 
     # Compute variance
     H = objective_hessian
     G = score
-    V = _compute_vcov(form, H, G, Ω, W; rcond_tol = rcond_tol, warn = false)
+    V = _compute_vcov(form, H, G, Ω, weight_matrix; cond_atol = cond_atol, cond_rtol = cond_rtol, debug = debug, warn = false)
 
     return Symmetric(rdiv!(V, n))
 end

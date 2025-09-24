@@ -10,7 +10,7 @@ Base.@propagate_inbounds function Λ(
         z = view(m, t, :)
         L .= L .+ w .* z
     end
-    return L *= sqrt(2 / T)
+    return rmul!(L, sqrt(2 / T))
 end
 
 Base.@propagate_inbounds function avar(
@@ -31,6 +31,6 @@ Base.@propagate_inbounds function avar(
         L = Λ(j, Z)
         @. Ω += L * L'
     end
-    @. Ω /= B
+    rmul!(Ω, 1//B)
     return Symmetric(Ω)
 end

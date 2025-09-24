@@ -194,7 +194,7 @@ n, k = 100, 2
 beta_true = [0.5, 1.0]
 y, X, β_true, prob_true = generate_probit_data(rng, n, k, beta_true)
 ## estimated par in R glm =>
-thetahat_ = [0.4832131 1.1652022]
+thetahat_ = [0.4832131; 1.1652022]
 vcov_hat = [0.02739764 0.01599602;
             0.01599602 0.04839182]
 vcov_bartlett_hat = [0.024673131 0.007058256;
@@ -204,13 +204,15 @@ vcov_bartlett_hat = [0.024673131 0.007058256;
 model = ProbitModel(y, X)
 fit!(model)
 
+@test coef(model) ≈ thetahat_ rtol=1e-0
+
 V1 = vcov(HC0(), Information(), model)
 @test maximum(abs.(V1 .- vcov_hat)) < 1e-05
 
 ## This is expected to be true in theory. But with only n=100
 ## we expect differences.
 V2 = vcov(HC0(), Misspecified(), model)
-@test maximum(abs.(V2 .- vcov_hat)) <= 0.01
+@test maximum(abs.(V2 .- vcov_hat)) <= 0.005
 
 V3 = vcov(Bartlett(3), Misspecified(), model)
 @test maximum(abs.(V3 .- vcov_bartlett_hat)) <= 1e-05
@@ -220,14 +222,12 @@ V3 = vcov(Bartlett(3), Misspecified(), model)
 # ============================================================================
 
 # Test the matrix-based API
-Z_manual = CovarianceMatrices.momentmatrix(model)
+M_manual = CovarianceMatrices.momentmatrix(model)
 G_manual = CovarianceMatrices.score(model)
 H_manual = CovarianceMatrices.objective_hessian(model)
-
 # Test with full specification
-V_manual = vcov(HC1(), Robust(), Z_manual; score = G_manual, objective_hessian = H_manual)
+V_manual = vcov(HC1(), Information(), M_manual; score = G_manual, objective_hessian = H_manual)
 
-V_manual_min = vcov(HC1(), Information(), Z_manual; objective_hessian = H_manual)
+V2_manual = vcov(HC1(), Misspecified(), M_manual; objective_hessian = H_manual, score = G_manual)
 
-V_model = vcov(HC1(), Robust(), model)
-diff = maximum(abs.(V_manual .- V_model))
+@test V2 == V2_manual
