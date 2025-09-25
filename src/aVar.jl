@@ -15,7 +15,9 @@ aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix{T}; demean::Bool=
                of freedom correction or in cases where the variance is needed without 
                scaling. 
 """
-aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix; kwargs...) = aVar(k, float.(m), kwargs...)
+function aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix; kwargs...)
+    aVar(k, float.(m), kwargs...)
+end
 
 function aVar(
         k::AbstractAsymptoticVarianceEstimator,
