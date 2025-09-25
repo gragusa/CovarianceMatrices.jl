@@ -72,7 +72,7 @@ kernel_k2(::UniformKernel) = 2.0  # ∫₋₁¹ 1² dx = 2
 kernel_k2(::TriangularKernel) = 2.0/3.0  # ∫₋₁¹ (1-|x|)² dx = 2/3
 
 """
-    SmoothedMoments{K<:SmoothingKernel} <: AVarEstimator
+    SmoothedMoments{K<:SmoothingKernel} <: Correlated
 
 Smith's smoothed moments variance estimator.
 
@@ -90,7 +90,7 @@ Smith's smoothed moments variance estimator.
 - Smith, R.J. (2005). Automatic positive semidefinite HAC covariance matrix and GMM estimation
 - Smith, R.J. (2011). GEL criteria for moment condition models
 """
-struct SmoothedMoments{K <: SmoothingKernel} <: AVarEstimator
+struct SmoothedMoments{K <: SmoothingKernel} <: Correlated
     kernel::K
     bandwidth::WFLOAT
     auto_bandwidth::Bool
@@ -795,7 +795,7 @@ function avar(estimator::SmoothedMoments, X::AbstractMatrix{F}; prewhite::Bool =
 end
 
 # For backward compatibility, keep old smoothers but mark as deprecated
-abstract type AbstractSmoother <: AVarEstimator end
+abstract type AbstractSmoother <: AbstractAsymptoticVarianceEstimator end
 
 struct IdentitySmoother <: AbstractSmoother end
 IdentitySmoother(args...) = IdentitySmoother()

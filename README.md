@@ -69,6 +69,31 @@ The package uses a type hierarchy for proper method dispatch:
 
 Both model types support both variance forms, which automatically adapt their behavior.
 
+### Estimator Hierarchy
+
+The package features a semantic estimator hierarchy for clarity:
+
+- `AbstractAsymptoticVarianceEstimator`: Root type for all covariance estimators
+  - `Uncorrelated`: For iid errors (use instead of HC0 for MLE/GMM models)
+  - `Correlated`: For various correlation patterns
+    - `HAC` estimators: Time series correlation (Bartlett, Parzen, etc.)
+    - `CR` estimators: Cluster correlation (CR0, CR1, CR2, CR3)
+    - `EWC`, `VARHAC`, `DriscollKraay`, `SmoothedMoments`: Specialized estimators
+  - `HR` estimators: Heteroskedasticity-robust (for linear models with conditional heteroskedasticity)
+
+**Usage Guidelines:**
+```julia
+# For MLE/GMM with iid errors - use Uncorrelated() for semantic clarity
+se_uncorr = stderror(Uncorrelated(), mle_model)
+
+# For linear models with conditional heteroskedasticity - use HR/HC as before
+se_robust = stderror(HC1(), linear_model)
+
+# For time series or clustered data - use Correlated subtypes
+se_hac = stderror(Bartlett{NeweyWest}(), time_series_model)
+se_cluster = stderror(CR1(cluster_ids), panel_model)
+```
+
 ### Usage Example
 
 ```julia
@@ -183,7 +208,7 @@ end
 
 ## Constructor - We estimate the parameters
 ## using the TSLS initial matrix.
-function LinearGMM(data; v::CovarianceMatrices.AVarEstimator = HR0())
+function LinearGMM(data; v::CovarianceMatrices.AbstractAsymptoticVarianceEstimator = HR0())
     y, X, Z = data
     ## First Step GMM
     W = pinv(Z'Z)

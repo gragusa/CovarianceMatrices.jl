@@ -80,7 +80,7 @@ function setkernelweights!(k::HAC{T}, X) where {T <: Union{Andrews, NeweyWest}}
 end
 
 setkernelweights!(k::HAC{T}, X) where {T <: Fixed} = nothing
-setkernelweights!(k::AVarEstimator, X) = nothing
+setkernelweights!(k::AbstractAsymptoticVarianceEstimator, X) = nothing
 # -----------------------------------------------------------------------------
 # Optimal bandwidth
 # -----------------------------------------------------------------------------

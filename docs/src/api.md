@@ -30,7 +30,9 @@ optimalbw
 ## Abstract Types
 
 ```@docs
-AVarEstimator
+AbstractAsymptoticVarianceEstimator
+Uncorrelated
+Correlated
 ```
 
 ## HAC Estimators

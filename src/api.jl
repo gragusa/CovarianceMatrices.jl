@@ -11,12 +11,12 @@ using LinearAlgebra
 using StatsBase
 
 """
-    vcov(ve::AVarEstimator, form::VarianceForm, model; kwargs...)
+    vcov(ve::AbstractAsymptoticVarianceEstimator, form::VarianceForm, model; kwargs...)
 
 Compute variance-covariance matrix for a model using specified estimator and form.
 
 # Arguments
-- `ve::AVarEstimator`: Variance estimator (HAC, HC, CR, etc.)
+- `ve::AbstractAsymptoticVarianceEstimator`: Variance estimator (HAC, HC, CR, etc.)
 - `form::VarianceForm`: Variance form (Information, Robust, CorrectlySpecified, Misspecified)
 - `model`: Statistical model implementing required interface methods
 
@@ -33,7 +33,7 @@ Compute variance-covariance matrix for a model using specified estimator and for
 - `Matrix{Float64}`: Variance-covariance matrix
 """
 function StatsBase.vcov(
-        ve::AVarEstimator,
+        ve::AbstractAsymptoticVarianceEstimator,
         form::VarianceForm,
         model;
         W::Union{Nothing, AbstractMatrix} = nothing,
@@ -65,12 +65,12 @@ function StatsBase.vcov(
 end
 
 """
-    vcov(ve::AVarEstimator, form::VarianceForm, Z::AbstractMatrix; kwargs...)
+    vcov(ve::AbstractAsymptoticVarianceEstimator, form::VarianceForm, Z::AbstractMatrix; kwargs...)
 
 Manual variance computation from moment matrix.
 
 # Arguments
-- `ve::AVarEstimator`: Variance estimator
+- `ve::AbstractAsymptoticVarianceEstimator`: Variance estimator
 - `form::VarianceForm`: Variance form
 - `Z::AbstractMatrix`: Moment matrix (n × m)
 
@@ -82,7 +82,7 @@ Manual variance computation from moment matrix.
 """
 
 function StatsBase.vcov(
-        ve::AVarEstimator,
+        ve::AbstractAsymptoticVarianceEstimator,
         form::VarianceForm,
         Z::AbstractMatrix;
         score::Union{Nothing, AbstractMatrix} = nothing,
@@ -110,11 +110,11 @@ function StatsBase.vcov(
 end
 
 """
-    stderror(ve::AVarEstimator, args...; kwargs...)
+    stderror(ve::AbstractAsymptoticVarianceEstimator, args...; kwargs...)
 
 Compute standard errors from variance-covariance matrix.
 """
-function StatsBase.stderror(ve::AVarEstimator, args...; kwargs...)
+function StatsBase.stderror(ve::AbstractAsymptoticVarianceEstimator, args...; kwargs...)
     V = StatsBase.vcov(ve, args...; kwargs...)
     return sqrt.(diag(V))
 end

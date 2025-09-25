@@ -34,7 +34,10 @@ include("model_interface.jl")
 include("variance_forms.jl")
 include("stable_computation.jl")
 include("api.jl")
-export Andrews,
+export AbstractAsymptoticVarianceEstimator,
+       Uncorrelated,
+       Correlated,
+       Andrews,
        NeweyWest,
        Bartlett,
        Parzen,

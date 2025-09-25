@@ -81,7 +81,7 @@ function CM.aVar(
         prewhite = false,
         scale = true,
         kwargs...
-) where {K <: CM.AVarEstimator}
+) where {K <: CM.AbstractAsymptoticVarianceEstimator}
     CM.setkernelweights!(k, m)
     mm = begin
         u = residualadjustment(k, m)
@@ -288,7 +288,7 @@ function residualadjustment(k::CM.CR3, r::StatsModels.TableRegressionModel)
     return u
 end
 
-function CM.vcov(k::CM.AVarEstimator, m::RegressionModel; dofadjust = true, kwargs...)
+function CM.vcov(k::CM.AbstractAsymptoticVarianceEstimator, m::RegressionModel; dofadjust = true, kwargs...)
     ## dofadjust = true only does something for HAC (EWC?) (VARHAC?) (Driskol?), for other estimators it depends on the type
     A = aVar(k, m; kwargs...)
     T = numobs(m)
@@ -309,12 +309,12 @@ function CM.vcov(k::CM.AVarEstimator, m::RegressionModel; dofadjust = true, kwar
     return Vo
 end
 
-function CM.stderror(k::CM.AVarEstimator, m::RegressionModel; kwargs...)
+function CM.stderror(k::CM.AbstractAsymptoticVarianceEstimator, m::RegressionModel; kwargs...)
     sqrt.(diag(CM.vcov(k, m; kwargs...)))
 end
 
 ## Make df correction - only useful for HAC - for other estimator HR CR it depends on the type
-dofcorrect!(V, k::CM.AVarEstimator, m) = nothing
+dofcorrect!(V, k::CM.AbstractAsymptoticVarianceEstimator, m) = nothing
 
 ## Add method for Other if needed
 function dofcorrect!(V, k::HAC, m)

@@ -41,7 +41,7 @@ end
 
 ## Constructor - We estimate the parameters
 ## using the TSLS initial matrix.
-function LinearGMM(data; v::CovarianceMatrices.AVarEstimator = HR0())
+function LinearGMM(data; v::CovarianceMatrices.AbstractAsymptoticVarianceEstimator = HR0())
     y, X, Z = data
     ## First Step GMM
     W = pinv(Z'Z)
