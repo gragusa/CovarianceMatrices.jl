@@ -406,6 +406,22 @@ end
 #Optimal() = Optimal{Andrews}()
 
 ## Accessor
+"""
+    bandwidth(x::HAC)
+
+Extract the bandwidth parameter(s) from a HAC estimator.
+
+Returns the bandwidth values used in the kernel weighting. For automatically-selected
+bandwidths, this returns the computed optimal bandwidth after model fitting.
+
+# Usage
+```julia
+using CovarianceMatrices
+hac = Bartlett{Andrews}()
+aVar(hac, X)  # Fit the model
+bw = bandwidth(hac)  # Get the selected bandwidth
+```
+"""
 bandwidth(x::HAC) = x.bw
 # kernelweights(x::HAC) = x.weights
 
@@ -805,11 +821,70 @@ end
 VARHAC
 =========#
 abstract type LagSelector end
+
+"""
+`AICSelector`
+
+AIC-based lag selector for VARHAC estimation.
+
+Selects the optimal number of lags by minimizing the Akaike Information Criterion (AIC).
+Used in conjunction with VARHAC for automatic bandwidth selection.
+
+# Usage
+```julia
+using CovarianceMatrices
+varhac_aic = VARHAC(AICSelector(), SameLags(10))
+```
+"""
 struct AICSelector <: LagSelector end
+
+"""
+`BICSelector`
+
+BIC-based lag selector for VARHAC estimation.
+
+Selects the optimal number of lags by minimizing the Bayesian Information Criterion (BIC).
+Generally produces more parsimonious models than AIC.
+
+# Usage
+```julia
+using CovarianceMatrices
+varhac_bic = VARHAC(BICSelector(), SameLags(10))
+```
+"""
 struct BICSelector <: LagSelector end
+
+"""
+`FixedSelector`
+
+Fixed lag selector for VARHAC estimation.
+
+Uses a pre-specified number of lags without data-driven selection.
+
+# Usage
+```julia
+using CovarianceMatrices
+varhac_fixed = VARHAC(FixedSelector(), FixedLags(5))
+```
+"""
 struct FixedSelector <: LagSelector end
 abstract type LagStrategy end
 
+"""
+`FixedLags`
+
+Fixed lag strategy that uses the same number of lags for all variables.
+
+# Fields
+- `maxlag::Int`: Maximum number of lags to use
+
+# Usage
+```julia
+using CovarianceMatrices
+fixed_lags = FixedLags(8)
+varhac = VARHAC(AICSelector(), fixed_lags)
+```
+"""
 struct FixedLags <: LagStrategy
     maxlag::Int
 end
@@ -817,6 +892,23 @@ end
 FixedLags(x::Real) = FixedLags(round(Int, x))
 FixedLags() = FixedLags(5)
 
+"""
+`SameLags`
+
+Lag strategy that uses the same maximum number of lags for all variables.
+
+Similar to `FixedLags` but with different default behavior in VARHAC.
+
+# Fields
+- `maxlag::Int`: Maximum number of lags to use
+
+# Usage
+```julia
+using CovarianceMatrices
+same_lags = SameLags(10)
+varhac = VARHAC(BICSelector(), same_lags)
+```
+"""
 struct SameLags <: LagStrategy
     maxlag::Int
 end
@@ -824,7 +916,21 @@ end
 SameLags(x::Real) = SameLags(round(Int, x))
 SameLags() = SameLags(8)  # Better default based on practical experience
 
-# Auto-selection strategy for K_max based on sample size
+"""
+`AutoLags`
+
+Automatic lag selection strategy based on sample size.
+
+Uses a data-driven rule to select the maximum number of lags based on the sample size,
+typically following a T^(1/3) growth rule with practical constraints.
+
+# Usage
+```julia
+using CovarianceMatrices
+auto_lags = AutoLags()
+varhac = VARHAC(AICSelector(), auto_lags)
+```
+"""
 struct AutoLags <: LagStrategy end
 
 # Function to compute automatic lag selection based on T^(1/3) rule
@@ -836,6 +942,25 @@ function compute_auto_maxlag(T::Int, N::Int)
     return min(max_theoretical, max_practical, 20)  # Cap at reasonable maximum
 end
 
+"""
+`DifferentOwnLags`
+
+Lag strategy that allows different maximum lags for different variables.
+
+# Fields
+- `maxlags::Vector{Int}`: Vector of maximum lags for each variable
+
+# Usage
+```julia
+using CovarianceMatrices
+diff_lags = DifferentOwnLags([3, 5])  # 3 lags for first variable, 5 for second
+varhac = VARHAC(AICSelector(), diff_lags)
+
+# Alternative constructors
+diff_lags = DifferentOwnLags((3, 5))  # From tuple
+diff_lags = DifferentOwnLags()        # Default: [5, 5]
+```
+"""
 struct DifferentOwnLags <: LagStrategy
     maxlags::Vector{Int}
 end
@@ -952,6 +1077,27 @@ function _symbol_to_selector(s::Symbol)
     end
 end
 
+"""
+    maxlags(k::VARHAC)
+
+Return the maximum number of lags used in VARHAC estimation.
+
+The return type depends on the lag strategy:
+- `FixedLags`/`SameLags`: Returns a single integer
+- `DifferentOwnLags`: Returns a vector of integers (one per variable)
+- `AutoLags`: Requires calling with data dimensions `maxlags(k, T, N)`
+
+# Usage
+```julia
+# Fixed/Same lags
+varhac = VARHAC(AICSelector(), SameLags(5))
+max_lag = maxlags(varhac)  # Returns 5
+
+# Different own lags
+varhac = VARHAC(BICSelector(), DifferentOwnLags([3, 5]))
+max_lags = maxlags(varhac)  # Returns [3, 5]
+```
+"""
 maxlags(k::VARHAC{S, L, T}) where {S <: LagSelector, L <: SameLags, T} = k.strategy.maxlag
 function maxlags(k::VARHAC{S, L, T}) where {S <: LagSelector, L <: DifferentOwnLags, T}
     k.strategy.maxlags
@@ -967,10 +1113,81 @@ function maxlags(k::VARHAC{S, AutoLags, T}) where {S <: LagSelector, T}
     error("AutoLags requires data dimensions. Use maxlags(estimator, T, N) where T is sample size and N is number of variables.")
 end
 
+"""
+    AICs(k::VARHAC)
+
+Return the AIC values computed during VARHAC estimation.
+
+Returns the matrix of AIC values for different lag combinations tried during model selection.
+
+# Usage
+```julia
+varhac = VARHAC(AICSelector(), SameLags(5))
+aVar(varhac, X)  # Fit the model
+aic_values = AICs(varhac)
+```
+"""
 AICs(k::VARHAC) = k.AICs
+
+"""
+    BICs(k::VARHAC)
+
+Return the BIC values computed during VARHAC estimation.
+
+Returns the matrix of BIC values for different lag combinations tried during model selection.
+
+# Usage
+```julia
+varhac = VARHAC(BICSelector(), SameLags(5))
+aVar(varhac, X)  # Fit the model
+bic_values = BICs(varhac)
+```
+"""
 BICs(k::VARHAC) = k.BICs
+
+"""
+    order_aic(k::VARHAC)
+
+Return the optimal lag orders selected by AIC criterion.
+
+# Usage
+```julia
+varhac = VARHAC(AICSelector(), SameLags(5))
+aVar(varhac, X)  # Fit the model
+aic_orders = order_aic(varhac)
+```
+"""
 order_aic(k::VARHAC) = k.order_aic
+
+"""
+    order_bic(k::VARHAC)
+
+Return the optimal lag orders selected by BIC criterion.
+
+# Usage
+```julia
+varhac = VARHAC(BICSelector(), SameLags(5))
+aVar(varhac, X)  # Fit the model
+bic_orders = order_bic(varhac)
+```
+"""
 order_bic(k::VARHAC) = k.order_bic
+
+"""
+    order(k::VARHAC)
+
+Return the optimal lag orders selected by the active criterion (AIC or BIC).
+
+For VARHAC with AICSelector, returns the AIC-selected orders.
+For VARHAC with BICSelector, returns the BIC-selected orders.
+
+# Usage
+```julia
+varhac = VARHAC(AICSelector(), SameLags(5))
+aVar(varhac, X)  # Fit the model
+selected_orders = order(varhac)
+```
+"""
 order(k::VARHAC{AICSelector, S}) where {S} = order_aic(k)
 order(k::VARHAC{BICSelector, S}) where {S} = order_bic(k)
 

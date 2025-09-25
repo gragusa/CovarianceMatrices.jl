@@ -6,14 +6,67 @@ objects should implement to work with the CovarianceMatrices.jl API.
 """
 
 """
-Type hierarchy for statistical models
+`MLikeModel`
+
+Abstract type for Maximum Likelihood-like models.
+
+Represents models that can be estimated using maximum likelihood methods
+and have associated score functions and Hessian matrices.
 """
 abstract type MLikeModel <: StatsBase.StatisticalModel end
+
+"""
+`GMMLikeModel`
+
+Abstract type for Generalized Method of Moments-like models.
+
+Represents models that can be estimated using GMM methods and have
+associated moment conditions.
+"""
 abstract type GMMLikeModel <: StatsBase.StatisticalModel end
 
 # Forward declarations for variance forms (defined in variance_forms.jl)
+"""
+`VarianceForm`
+
+Abstract type for different variance matrix forms in robust covariance estimation.
+
+Subtypes specify how the covariance matrix should be computed for different model assumptions:
+- `Information`: Uses Fisher Information matrix (assumes correct specification)
+- `Misspecified`: Uses sandwich/robust form (allows model misspecification)
+"""
 abstract type VarianceForm end
+
+"""
+`Information`
+
+Variance form that uses the Fisher Information matrix.
+
+Assumes the model is correctly specified. For MLE, this gives the Cramér-Rao lower bound.
+For correctly specified models, this is more efficient than the sandwich form.
+
+# Usage
+```julia
+using CovarianceMatrices
+vcov_info = vcov(HC3(), Information(), model)
+```
+"""
 struct Information <: VarianceForm end
+
+"""
+`Misspecified`
+
+Variance form that uses the sandwich/robust estimator.
+
+Allows for model misspecification. This is the standard "robust" covariance matrix
+that remains valid even if the model is misspecified.
+
+# Usage
+```julia
+using CovarianceMatrices
+vcov_robust = vcov(HC3(), Misspecified(), model)
+```
+"""
 struct Misspecified <: VarianceForm end
 
 # Convenience type unions for dispatch
