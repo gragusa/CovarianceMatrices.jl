@@ -385,7 +385,8 @@ using Random
         # Test different problem sizes and kernel types
         for T in [50, 100, 500]
             for m in [1, 3, 5]
-                for kernel in [CovarianceMatrices.UniformKernel(), CovarianceMatrices.TriangularKernel()]
+                for kernel in [
+                    CovarianceMatrices.UniformKernel(), CovarianceMatrices.TriangularKernel()]
                     X = randn(rng, T, m)
                     bw = 5.0
                     weights = CovarianceMatrices.compute_weights(kernel, bw, T, Float64)
@@ -424,7 +425,8 @@ using Random
         # Test that new kernel-based API produces identical results to weight-based API
         for T in [50, 200]
             for m in [1, 3, 5]
-                for kernel in [CovarianceMatrices.UniformKernel(), CovarianceMatrices.TriangularKernel()]
+                for kernel in [
+                    CovarianceMatrices.UniformKernel(), CovarianceMatrices.TriangularKernel()]
                     X = randn(rng, T, m)
                     bw = 5.0
 
@@ -436,7 +438,7 @@ using Random
                     X_kernel = copy(X)
                     CovarianceMatrices.smooth_moments!(X_weight, weights, T)  # OLD
                     CovarianceMatrices.smooth_moments!(X_kernel, kernel, bw, T)  # NEW
-                    @test X_weight ≈ X_kernel rtol=1e-14 atol=1e-14
+                    @test X_weight≈X_kernel rtol=1e-14 atol=1e-14
 
                     # Test two-argument
                     result_weight = similar(X)
@@ -444,18 +446,18 @@ using Random
                     X_orig = copy(X)
                     CovarianceMatrices.smooth_moments!(result_weight, X_orig, weights, T)  # OLD
                     CovarianceMatrices.smooth_moments!(result_kernel, X_orig, kernel, bw, T)  # NEW
-                    @test result_weight ≈ result_kernel rtol=1e-14 atol=1e-14
+                    @test result_weight≈result_kernel rtol=1e-14 atol=1e-14
 
                     # Test out-of-place
                     result_weight_oop = CovarianceMatrices.smooth_moments(X, weights, T)  # OLD
                     result_kernel_oop = CovarianceMatrices.smooth_moments(X, kernel, bw, T)  # NEW
-                    @test result_weight_oop ≈ result_kernel_oop rtol=1e-14 atol=1e-14
+                    @test result_weight_oop≈result_kernel_oop rtol=1e-14 atol=1e-14
 
                     # Test threaded versions (if available)
                     if T > 100  # Only test threading for larger problems
                         result_weight_th = CovarianceMatrices.smooth_moments_threaded(X, weights, T)  # OLD
                         result_kernel_th = CovarianceMatrices.smooth_moments_threaded(X, kernel, bw, T)  # NEW
-                        @test result_weight_th ≈ result_kernel_th rtol=1e-14 atol=1e-14
+                        @test result_weight_th≈result_kernel_th rtol=1e-14 atol=1e-14
                     end
                 end
             end

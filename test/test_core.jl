@@ -777,8 +777,8 @@ end # Core Functionality Tests
             @test kernel1.bw ≈ kernel2.bw rtol=1e-14
 
             # Test with prewhitening as well
-            Σ1_pre = a𝕍ar(kernel1, X; prewhite=true)
-            Σ2_pre = a𝕍ar(kernel2, X; prewhite=true)
+            Σ1_pre = a𝕍ar(kernel1, X; prewhite = true)
+            Σ2_pre = a𝕍ar(kernel2, X; prewhite = true)
             @test Σ1_pre ≈ Σ2_pre rtol=1e-14
         end
 
