@@ -1,18 +1,42 @@
 using Documenter, CovarianceMatrices
 
 makedocs(
-    modules = [CovarianceMatrices],
-    format = Documenter.HTML(; prettyurls = get(ENV, "CI", nothing) == "true"),
-    clean = true,
     sitename = "CovarianceMatrices.jl",
-    authors = "Giuseppe Ragusa",
+    authors = "Giuseppe Ragusa and contributors",
+    format = Documenter.HTML(
+        prettyurls = get(ENV, "CI", nothing) == "true",
+        canonical = "https://gragusa.github.io/CovarianceMatrices.jl/stable/",
+        assets = String[],
+        edit_link = "master",
+        sidebar_sitename = false
+    ),
+    modules = [CovarianceMatrices],
     checkdocs = :exports,
-    # strict = true,
+    clean = true,
     pages = [
-        "Introduction" => "introduction.md",
-    #"Long run covariances" => "lrcov.md",
-    #"GLM covariances" => "glmcov.md"])a
+        "Home" => "index.md",
+        "Mathematical Foundation" => "mathematical_foundation.md",
+        "Estimators" => [
+            "HAC Estimators" => "estimators/hac.md",
+            "Heteroskedasticity-Robust (HC/HR)" => "estimators/hc.md",
+            "Clustered Standard Errors (CR)" => "estimators/cr.md",
+            "VARHAC" => "estimators/varhac.md",
+            "Smoothed Moments" => "estimators/smoothed_moments.md",
+            "Driscoll-Kraay" => "estimators/driscoll_kraay.md",
+            "EWC" => "estimators/ewc.md"
+        ],
+        "Tutorials" => [
+            "Matrix Interface Tutorial" => "tutorials/matrix_tutorial.md",
+            "GLM Integration Tutorial" => "tutorials/glm_tutorial.md",
+        ],
+        "API Reference" => "api.md",
+        "Performance Notes" => "performance.md"
     ]
 )
 
-deploydocs(repo = "github.com/gragusa/CovarianceMatrices.jl.git")
+deploydocs(
+    repo = "github.com/gragusa/CovarianceMatrices.jl.git",
+    target = "build",
+    branch = "gh-pages",
+    versions = ["stable" => "v^", "v#.#"]
+)
