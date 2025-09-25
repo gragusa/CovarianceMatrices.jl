@@ -9,14 +9,14 @@
 
 * Put hot code **inside functions**; avoid work in global scope. If you must keep globals, make them `const` or give them a concrete type.
 * **Be type-stable**: the result type should be determined by the argument types. Don’t change a variable’s type inside a function.
-* Avoid **abstractly-typed containers** (e.g., `Vector{Number}`); use concrete element types or parametric structs.
+* Avoid **abstractly-typed containers** (e.g., `Vector{Number}`); use concrete element types or parametric structs - Use parameter in struct when necessary or convenient. 
 * **Measure correctly**: use `BenchmarkTools.@btime/@benchmark`, not just `@time`, and interpolate inputs.
 
 ## Idioms that unlock speed
 
 * **Broadcast with dots** (`f.(xs)`, `x .+ y`) instead of writing explicit loops *when you want elementwise semantics*. Dots fuse: `y .= 2 .* x .+ 1` creates no temporaries.
 * Prefer **preallocation** + mutating forms (`mul!`, `copyto!`, `y .= …`) in tight loops. (Generalization of avoiding temporaries; validated by manual’s allocation advice.)
-* Use **views** for slices (`@views A[:, i]`) and **bounds-check control** in hot loops (`@inbounds` only after testing).
+* Use **views** for slices (`views(A,: , i)`) and **bounds-check control** in hot loops (`@inbounds` only after testing).
 
 ## Do / Don’t cheat sheet
 

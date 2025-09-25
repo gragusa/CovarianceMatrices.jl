@@ -1,305 +1,161 @@
-This document describe a plan to improve the CovarianceMatrices.jl'API.
+This is a guide to implement the last feature of the package. After this feature is implemented we will go bug hunting and performance improving. 
 
-## Purpose
+The idea is to implemente variance estimation with smoothing moments. As far as CovarianceMatrices.jl is concerne the moment is the matrix being passed to aVar. This smoothed moments offer an alternative to the HAC estimate. 
 
-Provide a **singl interface** for third-party estimators to obtain asymptotic covariance matrices under either **correct specification** or **misspecification**.
+Notice that in CovarianceMatrices.jl there is an half broken implementation (let's say broken!) of it. But kernel and smoothing function can be reused. There is to glue everyting together and make it coherent with the API. The implemenation is in smoothing.jl. I repeat i do not like the implementation, so free to change it. The only thing is that I would need a robust smoother for matrix to be in place to be used by other packages. Bot smoothing in place and smoothing out-of-place (even if in
+this package we will only use the out-of-place version. Also, the smoothing should be very efficient and use loops (as done in the existing code). 
 
-The proposal is to work with the following two Abstract Type
+The plan is:
 
-* **MLikeModel (exactly identified, m = k)**
+1) review the existing code
+2) the description of the method below,
+3) draft a plan to make this work with the current API
+4) implement the plan
+5) Build test (unfortunately there is no implementation we can use to double check the results. What we can do is to simulate data for n very large and compare it with the HAC implementation. They should get very near asymptotically. In the test use the StableRNGs RNG so we now tests are stabel wrt to change to the random number generator. 
 
-  * `:information` — correctly specified & iid
-  * `:robust` — misspecified / heteroskedastic / dependent
 
-* **GMMLikeModel (overidentified, m > k)**
+Below a description of the method:
 
-  * `:correctly_specified` — moments correctly specified, optimal weight
-  * `:misspecified` — robust to misspecification & dependence
 
-These are subtype of StatsModel.StatisticalModel
 
-## Some mathematics 
 
-Let $g(x_i,\theta)\in\mathbb{R}^m$ and $\hat\theta$ solve $\frac{1}{n}\sum_i g(x_i,\hat\theta)=0$.
 
-* `Z = momentmatrix(model)` → $n \times m$ with rows $g_i(\hat\theta)'$.
-* `G = jacobian(model)` → $m \times k$, $\partial \bar g / \partial \theta'$ at $\hat\theta$.
-* `H = objective_hessian(model)` → $k \times k$ (Hessian of the estimator’s objective at $\hat\theta$).
 
-* For **MLikeModel (m=k)**: $H \equiv G$ (criterion Hessian equals Jacobian of the score).
-* $\Omega$ is the long-run covariance of $\sqrt{n}\,\bar g$ (estimated from `Z` via the chosen `VarianceEstimator`).
+# What is being estimated?
+
+You have moment conditions $g_t(\beta)\in\mathbb{R}^m$ (rows of your $n\times m$ matrix, one row per $t$). The long-run variance (LRV) you want is
+
+$$
+\Omega \;=\; \sum_{s=-\infty}^{\infty}\Gamma(s),\qquad \Gamma(s)=\mathbb{E}[\,g_{t+s}(\beta_0)g_t(\beta_0)'\,].
+$$
+
+Smith’s trick is to **smooth the moments themselves** first and then take a simple outer-product—this yields an **automatically p.s.d. HAC** estimator.&#x20;
+
+# Smoothed moments
+
+Define the smoothed moment at each time $t$ as a kernel-weighted average of nearby moments:
+
+$$
+g^{T}_t(\beta)\;=\;\frac{1}{S_T}\sum_{s=t-T}^{t-1} k\!\left(\frac{s}{S_T}\right)\, g_{t-s}(\beta),
+\qquad t=1,\dots,T.
+$$
+
+Here $S_T$ is a bandwidth and $k(\cdot)$ is a kernel function (defined below). This is Eq. (2.2) in Smith (2011) and the same construction in Smith (2005). &#x20;
+
+# The variance estimator (two equivalent normalizations)
+
+Let $k_j=\int_{-\infty}^{\infty} k(a)^j\,da$. Then a clean, **consistent** and p.s.d. estimator of $\Omega$ is
+
+$$
+\widehat{\Omega}_T(\hat\beta)\;=\;\frac{S_T}{T\,k_2}\sum_{t=1}^T g^{T}_t(\hat\beta)\, g^{T}_t(\hat\beta)'. \tag{A}
+$$
+
+This is Eq. (2.13) in Smith (2011).&#x20;
+
+Smith (2005) uses an equivalent **discrete** normalization:
+
+$$
+\widehat{\Omega}_T(\hat\beta)\;=\;\frac{1}{\sum_{s=-(T-1)}^{T-1} k\!\left(\frac{s}{S_T}\right)^2}\;
+\sum_{t=1}^T g^{T}_t(\hat\beta)\, g^{T}_t(\hat\beta)'. \tag{B}
+$$
+
+That’s his Eq. (2.5): normalized outer product of smoothed moments; it’s automatically p.s.d. Both (A) and (B) are first-order equivalent (replace the integral constant $k_2$ with the corresponding sample sum of squares, or vice-versa).&#x20;
+
+> In code: compute $g^{T}_t$ for all $t$; stack them in a $T\times m$ matrix $G^{T}$. Then
+> $\,\widehat{\Omega} = c\cdot (G^{T})' G^{T}/T$, with $c=S_T/k_2$ (continuous) or $c=1/\sum k^2$ (discrete).
+
+# What is the kernel, exactly?
+
+You choose a **smoothing kernel** $k(\cdot)$ (on the “observation” scale), and it induces a standard “lag” kernel $k^*(\cdot)$ via
+
+$$
+k^*(a) \;=\; \frac{1}{k_2}\int_{-\infty}^{\infty} k(b-a)\,k(b)\,db,
+$$
+
+which belongs to the usual **p.s.d. HAC kernel class $K_2$**. Equivalently, in frequency domain, $K^*(\lambda)=2\pi\,|K(\lambda)|^2/k_2$ where $K$ and $K^*$ are the spectral windows of $k$ and $k^*$. This is why Smith’s smoother yields a HAC estimator with good properties.  &#x20;
+
+## Concrete kernel choices & bandwidth orders (handy for coding)
+
+Smith (2011, §2.6) lists $k(\cdot)$ choices that imply standard $k^*(\cdot)$ and known bandwidth rates:
+
+* **Truncated/Uniform $k$** (box): $k(x)=1(|x|\le 1)$ → induced $k^*$ is **Bartlett**; optimal $m_T\propto T^{1/3}$ (with $S_T=(2m_T+1)/2$).&#x20;
+* **Bartlett $k$** (triangular): $k(x)=1-|x| \ (|x|\le 1)$ → induced $k^*$ is **Parzen**; optimal $m_T\propto T^{1/5}$.&#x20;
+* **Quadratic Spectral (QS) induced $k^*$**: pick $K(\lambda)=\sqrt{K^*(\lambda)}$ to back out $k$; this yields the familiar QS $k^*$ and again $S_T\propto T^{1/5}$. (Smith gives closed form using Bessel $J_1$.)&#x20;
+
+General requirements: $S_T\to\infty$, $S_T=o(T^{1/2})$; $k(\cdot)$ bounded, continuous a.e.; and an integrability condition ensuring discrete sums approximate integrals. &#x20;
+
+# How to compute it (drop-in algorithm)
+
+Inputs:
+
+* $G$ = $T\times m$ matrix of moments $g_t(\hat\beta)$.
+* `kernel(x)` = function implementing $k(x)$.
+* `S_T` = bandwidth (integer or float; see rates above).
+
+Steps:
+
+1. **Build weights** for integer shifts $s\in\{-(T-1),\dots,T-1\}$:
+
+   $$
+   w_s \;=\; \frac{1}{S_T}\,k\!\left(\frac{s}{S_T}\right).
+   $$
+2. **Smooth the moments** (a 1-D convolution across $t$ for each column of $G$):
+
+   $$
+   g^{T}_t\;=\;\sum_{s} w_s\, g_{t-s}\quad(\text{use zero/valid padding as in Smith’s sums}).
+   $$
+
+   This yields $G^{T}\in\mathbb{R}^{T\times m}$.
+3. **Normalization constant**:
+
+   * Continuous: compute $k_2=\int k(x)^2dx$ (closed forms exist for the examples above), set $c=S_T/k_2$.&#x20;
+   * Discrete: set $c = 1/\sum_{s} k(s/S_T)^2$.&#x20;
+4. **Variance**:
+
+   $$
+   \widehat{\Omega} \;=\; c\cdot \frac{(G^{T})' G^{T}}{T}.
+   $$
+
+That’s it—no lag-window on autocovariances, no Toeplitz summations. You still get a bona-fide HAC (and p.s.d.) estimator because the smoothing + outer product implicitly corresponds to a standard lag kernel $k^*$.&#x20;
+
+# Tiny code sketch (language-agnostic)
+
+```python
+# G: (T, m) matrix of moments
+# kernel(x): implements k(x)
+# S: bandwidth (float); use m_T = c*T**alpha if you want integer support
+import numpy as np
+
+T, m = G.shape
+# build discrete weights over s = -(T-1) ... (T-1)
+s = np.arange(-(T-1), T)
+w = (1.0/S) * np.array([kernel(si/S) for si in s])
+
+# smooth each column by 1-D convolution
+GT = np.vstack([np.sum(G*np.roll(w, t - (T-1))[:,None], axis=0) for t in range(T)])
+
+# normalization (choose one)
+k2 = known_k2_for_kernel   # e.g., 2 for box, 2/3 for Bartlett k, 2π for QS case in Smith (2011)
+c = S / k2
+# or: c = 1.0 / np.sum((np.array([kernel(si/S) for si in s]))**2)
+
+Omega_hat = c * (GT.T @ GT) / T     # (m x m)
+```
+
+# Notes on choosing $k(\cdot)$ and $S_T$
+
+* If you want something simple and robust: **box $k$** (uniform) with $m_T\propto T^{1/3}$ is fine and very common. It induces Bartlett $k^*$.&#x20;
+* If you want better MSE: use the **QS-induced** option with $S_T\propto T^{1/5}$.&#x20;
+* Smith gives the constants $k_1=\int k,\;k_2=\int k^2$ for the examples, which you can hard-code for speed.&#x20;
 
 ---
 
-## 2) Public API
+**Citations (where each piece comes from):**
 
-### 2.1 High-level covariance
+* Smoothed moments definition (Eq. 2.2), CLT/LLN for $g^T$, and variance estimator $(S_T/Tk_2)\sum g^Tg^{T\prime}$.&#x20;
+* Positive-semidefinite outer-product form and discrete normalization (Eq. 2.5).&#x20;
+* Induced kernel $k^*(\cdot)$ and its relation to $k(\cdot)$; spectral window relation $K^*=2\pi|K|^2/k_2$. &#x20;
+* Concrete kernel examples and optimal bandwidth rates. &#x20;
 
-```julia
-vcov(ve::VarianceEstimator, model;
-     form::Symbol = :auto,        # :information | :robust | :correctly_specified | :misspecified | :auto
-     W::Union{Nothing,AbstractMatrix}=nothing,  # optional W for GMM misspecified
-     scale::Symbol = :n,          # Ω scaling, see §6
-     rcond_tol::Real = 1e-12,
-     check::Bool = true,
-     warn::Bool = true) -> Matrix{Float64}
-
-stderror(ve::VarianceEstimator, model; kwargs...) -> Vector{Float64}
-```
-
-**Form resolution when `form=:auto`:**
-
-* Let `m = size(momentmatrix(model),2)` and `k = length(coef(model))`.
-* If `m == k` (M-like): default **`:robust`** (safe). Users can set `form=:information`.
-* If `m > k` (GMM-like): default **`:correctly_specified`** (your stated preference for GMM when moments are the focus and misspecification is “more problematic”). Users can set `form=:misspecified` explicitly to get the full robust GMM form.
-
-I think it is best to use julia multiple dispatch
-
-vcov(ve::VarianceEstimator, form::VarianceEstimatorType;
-     form::Symbol = :auto,        # :information | :robust | :correctly_specified | :misspecified | :auto
-     W::Union{Nothing,AbstractMatrix}=nothing,  # optional W for GMM misspecified
-     scale::Symbol = :n,          # Ω scaling, see §6
-     check::Bool = true,
-     warn::Bool = true) -> Matrix{Float64}
-
-
-where VarianceEstimatorType is abstract with subtype 
-- Information 
-- Robust 
-- CorrectlySpecified 
-- Misspecified 
-
-The "auto" feature is designing an automathic dispatching mechanism when vcov is called 
-`vcov(ve::VarianceEstimator; kwargs...)`
-
-
-### 2.2 Manual assembly (matrix path)
-Sometime it might be useful to manually assample an estimator. In this case, we simply provide 
-```julia
-vcov(ve::VarianceEstimator, Z::AbstractMatrix;
-    form::Symbol,                       # required here
-    jacobian::Union{Nothing,AbstractMatrix}=nothing,        # G (m×k)
-    objective_hessian::Union{Nothing,AbstractMatrix}=nothing, # H (k×k)
-    W::Union{Nothing,AbstractMatrix}=nothing,               # GMM weight (m×m)
-    rcond_tol::Real = 1e-12) -> Matrix{Float64}
-```
-
-As above, a better alternative is 
-```
-vcov(ve::VarianceEstimator, form::VarianceEstimatorType, Z::AbstractMatrix;
-    jacobian::Union{Nothing,AbstractMatrix}=nothing,        # G (m×k)
-    objective_hessian::Union{Nothing,AbstractMatrix}=nothing, # H (k×k)
-    W::Union{Nothing,AbstractMatrix}=nothing,               # GMM weight (m×m)
-    rcond_tol::Real = 1e-12) -> Matrix{Float64}
-```
-
-the dispatch then takes care of which is possible when one passes only the jacobain for instance (the sandwich is not possible in this case) and the form binds only if everything has been passed. 
-
-
-## 3) Model Integration Hooks (duck-typed)
-
-Third-party estimator objects should (ideally) implement:
-
-```julia
-CovarianceMatrices.momentmatrix(model)                         # n × m (at θ̂_0)
-CovarianceMatrices.momentmatrix(model, θ::AbstractVector)      # n × m 
-CovarianceMatrices.jacobian(model)                             # m × k
-CovarianceMatrices.objective_hessian(model)                    # k × k
-CovarianceMatrices.weight_matrix(model)                        # optional: W (m × m) (only for inefficient GMM)
-StatsBase.coef(model)                                          # θ̂
-```
-## 4) Exact Formulas (by `form`)
-
-### 4.1 M-like (exactly identified, m = k)
-
-* `form = :information` (correctly specified, iid MLE)
-
-  $$
-  V \;=\; H^{-1}.
-  $$
-
-  Requires `objective_hessian(model)` (or uses `G` if provided and symmetric).
-
-* `form = :robust` (misspecified / HC / HAC / CR / DK)
-
-  $$
-  V \;=\; G^{-1}\,\Omega\,G^{-T}.
-  $$
-
-> Identity: with m=k, $(G'\Omega^{-1}G)^{-1} \equiv G^{-1}\Omega G^{-T}$.
-
-### 4.2 GMM-like (overidentified, m > k)
-
-* `form = :correctly_specified` (optimal weight, correct moments)
-
-  $$
-  V \;=\; (G'\,\Omega^{-1}\,G)^{-1}.
-  $$
-
-  (We compute it without forming $\Omega^{-1}$ explicitly; see §7.)
-
-* `form = :misspecified` (robust to misspecified moments and dependence)
-
-  $$
-  V \;=\; (G' W G)^{-1} \, (G' W\,\Omega\,W G) \, (G' W G)^{-1}.
-  $$
-
-  * If `W === nothing`, default to $W = \Omega^{-1}$ (then it collapses to `:correctly_specified`).
-  * If the model provides `weight_matrix(model)`, we use that.
-
-## 5) When Methods Are Missing
-
-When "some" method are missing you should determine which form of the variance can be estimated and which cannot. 
-
-
-## Numerically Stable Implementations (no `inv`)
-
-Prefer a numerically scale optimization.  We implement each form using **factorizations/solves**, not matrix inverses. Outline:
-
-### 7.1 Helper: SPD-ish solver / pseudo-inverse
-
-* Try `cholesky(Symmetric(A); check=true)` → triangular solves.
-* Fallback to SVD-based pseudo-inverse when needed (`rcond_tol` cutoff).
-* Always symmetrize final covariances: `Symmetric(V)`.
-
-### 7.2 `:correctly_specified` (GMM)
-
-Compute $V=(G'\Omega^{-1}G)^{-1}$ without forming $\Omega^{-1}$:
-
-1. Factor $\Omega \approx C C'$ via Cholesky if SPD; else use an SVD-backed solver `C \ ·`.
-2. Solve $C X = G$ → $X = C^{-1} G$.
-3. $K = X' X = G' \Omega^{-1} G$.
-4. Factor $K$ (Cholesky or SVD) and solve $K^{-1}$ via triangular/SVD solves.
-
-### 7.3 `:misspecified` (general robust GMM)
-
-Let $K = G' W G$, $B = G' W \Omega W G$.
-
-* If `W` not given, **compute `W := Ω^{-1}`** via SPD/SVD solver (no explicit inverse).
-* Compute `K` and `B`; solve $V = K^{-1} B K^{-1}$ using Cholesky (or SVD (pinv) fallback) with **two solves**.
-
-### 7.4 `:robust` (M-like)
-
-Solve $V = G^{-1} \Omega G^{-T}$ with **one factorization** of $G$ (square):
-
-* Use `qr(G)` (robust for non-SPD).
-  Solve $G X = \Omega$ (left divide), then $X = V G'$ → $V = X / G'$.
-
-### 7.5 `:information` (M-like)
-
-Solve $V = H^{-1}$:
-
-* Prefer `ldlt`/`cholesky(Symmetric(H); check=false)`; SVD (pinv) fallback if needed.
-
-## Checks & Warnings
-
-* **Shape checks** (`check=true`):
-
-  * `Z: n×m`, `G: m×k`, `H: k×k`.
-  * M-like requires `m == k`.
-  * `:information` requires either `H` or `G` (if symmetric).
-
-* **Warnings** (`warn=true`):
-
-  * Using HAC/CR/DK kernels with `:information` → warn (user likely meant `:robust`).
-  * `:misspecified` with `W === nothing` → note it reduces to `:correctly_specified`.
-  * non invertibility or non psd and use of pinv in the calculation of the variance. 
-
-
-## 9) Examples
-
-### 9.1 M-like (Probit/Logit) — correctly specified
-
-```julia
-vc = vcov(IID(), Information(), probit)  # V = H^{-1}
-```
-
-### 9.2 M-like — robust HAC
-
-```julia
-vc = vcov(Bartlett(5), Robust(), probit) # V = G^{-1} Ω G^{-T}
-```
-
-### 9.3 GMM — correctly specified (preferred default)
-
-```julia
-vc = vcov(HC1(), CorrectlySpecified(), mygmm) # (G' Ω^{-1} G)^{-1}
-```
-
-### 9.4 GMM — misspecified (full robust GMM with user W)
-
-```julia
-W = weight_matrix(mygmm)             # e.g., from first-step
-vc = vcov(Bartlett(5), Misspecified(), mygmm, W=W)
-```
-
-### 9.5 Manual matrices
-
-```julia
-Z = momentmatrix(mygmm)
-G = jacobian(mygmm)
-vcov(Bartlett(5), Z; jacobian=G) ## Understand what to do depending on size. 
-
-but in this case just simple to do 
-B = aVar(Bartlett(5), Z)
-And the if the user has J^{-1} can form
-J^{-1}BJ^{-1}
-
-## Scaling issue
-
-Be aware that aVar return an estimate of the variance  sqrt{n}(mean(Z)). Thus the jacobian and the hessian thay have all to be scaled by n as well. 
-
-
-## 11) Backwards Compatibility & Migration
-
-* Keep `aVar(ve, Z)` unchanged.
-* Deprecate any legacy `bread(model)` usage:
-
-  * For M-like, instruct to implement `jacobian(model)` (equals the old bread).
-  * For GMM-like, provide `objective_hessian(model)` only if they really need it; most usage won’t require `H`.
-* Existing `GLM` extension can implement `momentmatrix/jacobian/objective_hessian` internally, preserving current behavior.
-
-## 11) Testing & Benchmarks
-
-* **Equivalences**:
-
-  * For m=k: `:robust` equals `:correctly_specified` numerically (identity above).
-  * For GMM: `:misspecified` with `W=Ω^{-1}` equals `:correctly_specified`.
-* **Stability**:
-
-  * Semi-definite Ω (few clusters, small T): SVD fallback, finite results.
-  * Nearly singular $G'WG$: SVD fallback.
-* **Performance**:
-
-  * No `inv` in hot paths.
-  * Reuse factorizations where possible; match/beat current `aVar` timings.
-
-
-
-## 12) Developer Guidance (1-page cheatsheet)
-
-To integrate your estimator `MyModel`:
-
-1. Implement:
-
-   ```julia
-   StatsBase.coef(model)::AbstractVector
-   CovarianceMatrices.momentmatrix(model)::AbstractMatrix         # n×m
-   CovarianceMatrices.jacobian(model)::AbstractMatrix             # m×k
-   ```
-
-   Optional:
-
-   ```julia
-   CovarianceMatrices.momentmatrix(model, θ)::AbstractMatrix
-   CovarianceMatrices.objective_hessian(model)::AbstractMatrix    # k×k
-   CovarianceMatrices.weight_matrix(model)::AbstractMatrix        # m×m
-   ```
-
-2. Get covariance:
-
-   * M-like: `vcov(Bartlett(5), model; form=:robust)` or `vcov(IID(), model; form=:information)`
-   * GMM-like: `vcov(HC1(), model; form=:correctly_specified)` or `vcov(Bartlett(5), model; form=:misspecified, W=W)`
-
-3. If you only have matrices, use `vcov(., ::AbstractMatrix,...)`.
+If you want, tell me your preferred kernel (box, Bartlett, QS) and I’ll drop in the exact $k(\cdot)$, $k_2$, and a ready-to-run function for your codebase.
 
