@@ -4,6 +4,31 @@ const WFLOAT = Sys.WORD_SIZE == 64 ? Float64 : Float32
 Abstraction
 ==========#
 
+"""
+`AVarEstimator`
+
+Abstract supertype for all asymptotic variance (covariance) estimators.
+
+This is the root type of the estimator hierarchy in CovarianceMatrices.jl. All robust covariance estimators inherit from this type.
+
+# Type Hierarchy
+
+- `AVarEstimator` (abstract)
+  - `HAC{G}` - Heteroskedasticity and Autocorrelation Consistent estimators
+    - `Bartlett`, `Parzen`, `QuadraticSpectral`, `TukeyHanning`, `Truncated`
+  - `HR` - Heteroskedasticity-Robust estimators
+    - `HR0`/`HC0`, `HR1`/`HC1`, `HR2`/`HC2`, `HR3`/`HC3`, `HR4`/`HC4`, `HR5`/`HC5`
+  - `CR` - Cluster-Robust estimators
+    - `CR0`, `CR1`, `CR2`, `CR3`
+  - Specialized estimators: `VARHAC`, `EWC`, `DriscollKraay`, `SmoothedMoments`
+
+# Interface
+
+All subtypes implement the core interface:
+- `aVar(estimator, X)` - compute asymptotic variance from data matrix
+- `vcov(estimator, model)` - compute variance-covariance matrix from fitted model
+- `stderror(estimator, model)` - compute standard errors from fitted model
+"""
 abstract type AVarEstimator end
 
 abstract type HAC{G} <: AVarEstimator end
@@ -17,8 +42,75 @@ HAC Types
 =========#
 abstract type BandwidthType end
 
+"""
+`NeweyWest`
+
+Newey-West automatic bandwidth selection for HAC estimators.
+
+# Mathematical Formula
+
+The Newey-West bandwidth selection rule chooses:
+```math
+T^{1/4} \\left(\\frac{4\\hat{\\rho}^2}{(1-\\hat{\\rho})^4}\\right)^{1/4}
+```
+
+where ``\\hat{\\rho}`` is an estimate of the first-order autocorrelation.
+
+# Properties
+- Automatic bandwidth selection based on data-dependent rule
+- Designed specifically for the Bartlett kernel
+- Generally produces smaller bandwidths than Andrews selection
+- Widely used in econometric applications
+
+# Usage
+```julia
+using CovarianceMatrices
+# Bartlett kernel with Newey-West bandwidth
+se_nw = stderror(Bartlett{NeweyWest}(), model)
+se_nw_alt = stderror(Bartlett(NeweyWest), model)  # Alternative syntax
+```
+
+**Note**: NeweyWest bandwidth selection is primarily designed for Bartlett kernels.
+"""
 struct NeweyWest <: BandwidthType end
+
+"""
+`Andrews`
+
+Andrews automatic bandwidth selection for HAC estimators.
+
+# Mathematical Formula
+
+The Andrews bandwidth selection rule chooses:
+```math
+T^{1/3} \\left(\\frac{2\\hat{\\sigma}^4}{\\hat{\\lambda}^2}\\right)^{1/3}
+```
+
+where ``\\hat{\\sigma}^4`` and ``\\hat{\\lambda}^2`` are estimated from an AR(1) approximation to the data.
+
+# Properties
+- Automatic bandwidth selection based on parametric approximation
+- Works with all kernel types (Bartlett, Parzen, QuadraticSpectral, etc.)
+- Generally produces larger bandwidths than Newey-West
+- Asymptotically optimal rate
+
+# Usage
+```julia
+using CovarianceMatrices
+# Various kernels with Andrews bandwidth
+se_bartlett = stderror(Bartlett{Andrews}(), model)
+se_parzen = stderror(Parzen{Andrews}(), model)
+se_qs = stderror(QuadraticSpectral{Andrews}(), model)
+
+# Alternative syntax
+se_bartlett_alt = stderror(Bartlett(Andrews), model)
+se_parzen_alt = stderror(Parzen(Andrews), model)
+```
+
+**Note**: Andrews bandwidth selection is compatible with all HAC kernels.
+"""
 struct Andrews <: BandwidthType end
+
 struct Fixed <: BandwidthType end
 
 """
@@ -65,6 +157,12 @@ struct TruncatedKernel{G <: BandwidthType} <: HAC{G}
     wlock::Vector{Bool}
 end
 
+"""
+`Truncated`
+
+Alias for `TruncatedKernel`. Implements the truncated (uniform) kernel for HAC covariance estimation.
+See [`TruncatedKernel`](@ref) for detailed documentation.
+"""
 const Truncated = TruncatedKernel
 
 """
@@ -110,6 +208,12 @@ struct BartlettKernel{G <: BandwidthType} <: HAC{G}
     wlock::Vector{Bool}
 end
 
+"""
+`Bartlett`
+
+Alias for `BartlettKernel`. Implements the Bartlett (triangular) kernel for HAC covariance estimation.
+See [`BartlettKernel`](@ref) for detailed documentation.
+"""
 const Bartlett = BartlettKernel
 
 """
@@ -156,7 +260,14 @@ struct ParzenKernel{G <: BandwidthType} <: HAC{G}
     wlock::Vector{Bool}
 end
 
+"""
+`Parzen`
+
+Alias for `ParzenKernel`. Implements the Parzen kernel for HAC covariance estimation.
+See [`ParzenKernel`](@ref) for detailed documentation.
+"""
 const Parzen = ParzenKernel
+
 """
 `TukeyHanning`
 
@@ -200,6 +311,12 @@ struct TukeyHanningKernel{G <: BandwidthType} <: HAC{G}
     wlock::Vector{Bool}
 end
 
+"""
+`TukeyHanning`
+
+Alias for `TukeyHanningKernel`. Implements the Tukey-Hanning kernel for HAC covariance estimation.
+See [`TukeyHanningKernel`](@ref) for detailed documentation.
+"""
 const TukeyHanning = TukeyHanningKernel
 
 """
@@ -243,6 +360,12 @@ struct QuadraticSpectralKernel{G <: BandwidthType} <: HAC{G}
     wlock::Vector{Bool}
 end
 
+"""
+`QuadraticSpectral`
+
+Alias for `QuadraticSpectralKernel`. Implements the Quadratic Spectral kernel for HAC covariance estimation.
+See [`QuadraticSpectralKernel`](@ref) for detailed documentation.
+"""
 const QuadraticSpectral = QuadraticSpectralKernel
 
 ## ------------------------------------------------------------------------------------------
@@ -338,35 +461,336 @@ end
 #=========
 HC
 =========#
+
+"""
+`HR0` (equivalent to `HC0`)
+
+Basic heteroskedasticity-robust covariance estimator without finite-sample corrections.
+
+# Mathematical Formula
+
+```math
+\\hat{\\Omega}_{HC0} = (X'X)^{-1} X'\\text{diag}(\\hat{u}_i^2) X (X'X)^{-1}
+```
+
+where ``\\hat{u}_i`` are the residuals.
+
+# Properties
+- No small-sample corrections
+- Simplest form of robust standard errors
+- Can be downward biased in small samples
+- Equivalent to White's original heteroskedasticity-robust estimator
+
+# Usage
+```julia
+using CovarianceMatrices
+se_hc0 = stderror(HC0(), model)
+vcov_hc0 = vcov(HR0(), model)
+```
+"""
 struct HR0 <: HR end
+
+"""
+`HR1` (equivalent to `HC1`)
+
+Heteroskedasticity-robust estimator with degrees-of-freedom correction.
+
+# Mathematical Formula
+
+```math
+\\hat{\\Omega}_{HC1} = \\frac{n}{n-k} \\hat{\\Omega}_{HC0}
+```
+
+where ``n`` is sample size and ``k`` is number of parameters.
+
+# Properties
+- Applies degrees-of-freedom correction
+- Better finite-sample properties than HC0
+- Most commonly used in practice
+- Standard choice for most applications
+
+# Usage
+```julia
+using CovarianceMatrices
+se_hc1 = stderror(HC1(), model)
+vcov_hc1 = vcov(HR1(), model)
+```
+"""
 struct HR1 <: HR end
+
+"""
+`HR2` (equivalent to `HC2`)
+
+Heteroskedasticity-robust estimator with leverage-based corrections.
+
+# Mathematical Formula
+
+```math
+\\hat{\\Omega}_{HC2} = (X'X)^{-1} X'\\text{diag}\\left(\\frac{\\hat{u}_i^2}{1-h_i}\\right) X (X'X)^{-1}
+```
+
+where ``h_i`` are the diagonal elements of the hat matrix ``H = X(X'X)^{-1}X'``.
+
+# Properties
+- Accounts for leverage effects
+- Better performance with influential observations
+- Recommended for moderate sample sizes
+- More robust than HC0/HC1 to outliers
+
+# Usage
+```julia
+using CovarianceMatrices
+se_hc2 = stderror(HC2(), model)
+vcov_hc2 = vcov(HR2(), model)
+```
+"""
 struct HR2 <: HR end
+
+"""
+`HR3` (equivalent to `HC3`)
+
+Heteroskedasticity-robust estimator with squared leverage corrections.
+
+# Mathematical Formula
+
+```math
+\\hat{\\Omega}_{HC3} = (X'X)^{-1} X'\\text{diag}\\left(\\frac{\\hat{u}_i^2}{(1-h_i)^2}\\right) X (X'X)^{-1}
+```
+
+where ``h_i`` are the diagonal elements of the hat matrix ``H = X(X'X)^{-1}X'``.
+
+# Properties
+- Stronger leverage correction than HC2
+- Recommended for small samples
+- Most robust to influential observations
+- Conservative standard errors
+
+# Usage
+```julia
+using CovarianceMatrices
+se_hc3 = stderror(HC3(), model)
+vcov_hc3 = vcov(HR3(), model)
+```
+"""
 struct HR3 <: HR end
+
+"""
+`HR4` (equivalent to `HC4`)
+
+Heteroskedasticity-robust estimator with alternative leverage correction.
+
+# Mathematical Formula
+
+```math
+\\hat{\\Omega}_{HC4} = (X'X)^{-1} X'\\text{diag}\\left(\\frac{\\hat{u}_i^2}{(1-h_i)^{\\delta_i}}\\right) X (X'X)^{-1}
+```
+
+where ``\\delta_i = \\min\\{4, h_i/\\bar{h}\\}`` and ``\\bar{h} = k/n``.
+
+# Properties
+- Adaptive leverage correction
+- Good performance across different leverage patterns
+- Balance between HC2 and HC3
+- Less conservative than HC3
+
+# Usage
+```julia
+using CovarianceMatrices
+se_hc4 = stderror(HC4(), model)
+vcov_hc4 = vcov(HR4(), model)
+```
+"""
 struct HR4 <: HR end
+
+"""
+`HR4m` (equivalent to `HC4m`)
+
+Modified version of HC4 with different leverage cutoff.
+
+# Mathematical Formula
+
+Similar to HC4 but with ``\\delta_i = \\min\\{1, h_i/\\bar{h}\\} + \\min\\{1.5, h_i/\\bar{h}\\}``.
+
+# Properties
+- Alternative to standard HC4
+- Different leverage weighting scheme
+- Experimental variant
+
+# Usage
+```julia
+using CovarianceMatrices
+se_hc4m = stderror(HC4m(), model)
+vcov_hc4m = vcov(HR4m(), model)
+```
+"""
 struct HR4m <: HR end
+
+"""
+`HR5` (equivalent to `HC5`)
+
+Heteroskedasticity-robust estimator with maximum leverage correction.
+
+# Mathematical Formula
+
+```math
+\\hat{\\Omega}_{HC5} = (X'X)^{-1} X'\\text{diag}\\left(\\frac{\\hat{u}_i^2}{\\sqrt{(1-h_i)(1-h_i^*)}}\\right) X (X'X)^{-1}
+```
+
+where ``h_i^* = \\max\\{4h_i/k, h_i\\}``.
+
+# Properties
+- Complex leverage correction
+- Designed for high-leverage situations
+- Most sophisticated HC variant
+- Rarely used in practice
+
+# Usage
+```julia
+using CovarianceMatrices
+se_hc5 = stderror(HC5(), model)
+vcov_hc5 = vcov(HR5(), model)
+```
+"""
 struct HR5 <: HR end
 
 #=========
 CR
 =========#
+
+"""
+`CR0`
+
+Basic cluster-robust covariance estimator without small-sample adjustments.
+
+# Mathematical Formula
+
+```math
+\\hat{\\Omega}_{CR0} = \\frac{G}{G-1} \\sum_{g=1}^G \\hat{u}_g \\hat{u}_g'
+```
+
+where ``\\hat{u}_g = \\sum_{t \\in g} g_t`` is the cluster-level sum of moment conditions.
+
+# Properties
+- No small-sample adjustments
+- Simplest form of cluster-robust inference
+- Can be downward biased in small samples
+- Requires at least 30-50 clusters for good asymptotic properties
+
+# Usage
+```julia
+using CovarianceMatrices
+cluster_ids = [1, 1, 2, 2, 3, 3, 4, 4]
+se_cr0 = stderror(CR0(cluster_ids), model)
+
+# Multi-way clustering
+se_cr0_multi = stderror(CR0((firm_ids, year_ids)), model)
+```
+"""
 struct CR0{G} <: CR
     g::G
     CR0(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
     CR0(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
 end
 
+"""
+`CR1`
+
+Cluster-robust estimator with degrees-of-freedom correction.
+
+# Mathematical Formula
+
+```math
+\\hat{\\Omega}_{CR1} = \\frac{G}{G-1} \\cdot \\frac{N-1}{N-K} \\sum_{g=1}^G \\hat{u}_g \\hat{u}_g'
+```
+
+where ``N`` is total sample size, ``K`` is number of parameters, and ``G`` is number of clusters.
+
+# Properties
+- Applies degrees-of-freedom correction for parameters
+- Better finite-sample properties than CR0
+- **Most commonly used in practice**
+- Recommended default for cluster-robust inference
+
+# Usage
+```julia
+using CovarianceMatrices
+cluster_ids = [1, 1, 2, 2, 3, 3, 4, 4]
+se_cr1 = stderror(CR1(cluster_ids), model)
+
+# Multi-way clustering
+se_cr1_multi = stderror(CR1((firm_ids, year_ids)), model)
+```
+"""
 struct CR1{G} <: CR
     g::G
     CR1(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
     CR1(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
 end
 
+"""
+`CR2`
+
+Cluster-robust estimator with leverage-based corrections.
+
+# Mathematical Formula
+
+```math
+\\hat{\\Omega}_{CR2} = \\frac{G}{G-1} \\sum_{g=1}^G \\frac{1}{1-h_g} \\hat{u}_g \\hat{u}_g'
+```
+
+where ``h_g`` represents cluster-level leverage values.
+
+# Properties
+- Accounts for cluster-specific leverage effects
+- More robust to influential clusters
+- Better performance with unbalanced clusters
+- Recommended when clusters have very different sizes
+
+# Usage
+```julia
+using CovarianceMatrices
+cluster_ids = [1, 1, 2, 2, 3, 3, 4, 4]
+se_cr2 = stderror(CR2(cluster_ids), model)
+
+# Multi-way clustering
+se_cr2_multi = stderror(CR2((firm_ids, year_ids)), model)
+```
+"""
 struct CR2{G} <: CR
     g::G
     CR2(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
     CR2(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
 end
 
+"""
+`CR3`
+
+Cluster-robust estimator with squared leverage corrections.
+
+# Mathematical Formula
+
+```math
+\\hat{\\Omega}_{CR3} = \\frac{G}{G-1} \\sum_{g=1}^G \\frac{1}{(1-h_g)^2} \\hat{u}_g \\hat{u}_g'
+```
+
+where ``h_g`` represents cluster-level leverage values.
+
+# Properties
+- Stronger leverage correction than CR2
+- Most robust to influential clusters
+- Conservative standard errors
+- Good choice for severely unbalanced clusters
+
+# Usage
+```julia
+using CovarianceMatrices
+cluster_ids = [1, 1, 2, 2, 3, 3, 4, 4]
+se_cr3 = stderror(CR3(cluster_ids), model)
+
+# Multi-way clustering
+se_cr3_multi = stderror(CR3((firm_ids, year_ids)), model)
+```
+"""
 struct CR3{G} <: CR
     g::G
     CR3(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
@@ -630,12 +1054,61 @@ function DriscollKraay(
 ) where {T <: AbstractFloat}
     return DriscollKraay(K, GroupedArray(tis), GroupedArray(iis))
 end
+
+"""
+`HC0`
+
+Alias for `HR0`. Basic heteroskedasticity-robust covariance estimator without finite-sample corrections.
+See [`HR0`](@ref) for details.
+"""
 const HC0 = HR0
+
+"""
+`HC1`
+
+Alias for `HR1`. Heteroskedasticity-robust estimator with degrees-of-freedom correction.
+See [`HR1`](@ref) for details.
+"""
 const HC1 = HR1
+
+"""
+`HC2`
+
+Alias for `HR2`. Heteroskedasticity-robust estimator with leverage-based corrections.
+See [`HR2`](@ref) for details.
+"""
 const HC2 = HR2
+
+"""
+`HC3`
+
+Alias for `HR3`. Heteroskedasticity-robust estimator with squared leverage corrections.
+See [`HR3`](@ref) for details.
+"""
 const HC3 = HR3
+
+"""
+`HC4`
+
+Alias for `HR4`. Heteroskedasticity-robust estimator with alternative leverage correction.
+See [`HR4`](@ref) for details.
+"""
 const HC4 = HR4
+
+"""
+`HC4m`
+
+Alias for `HR4m`. Modified version of HC4 with different leverage cutoff.
+See [`HR4m`](@ref) for details.
+"""
 const HC4m = HR4m
+
+"""
+`HC5`
+
+Alias for `HR5`. Heteroskedasticity-robust estimator with maximum leverage correction.
+See [`HR5`](@ref) for details.
+"""
 const HC5 = HR5
 
 Base.String(::Type{T}) where {T <: Truncated} = "Truncated"
