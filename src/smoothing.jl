@@ -61,8 +61,11 @@ Induces Parzen HAC kernel, optimal bandwidth S_T ∝ T^(1/5)
 struct TriangularKernel <: SmoothingKernel end
 
 # Kernel function evaluations
-@inline kernel_func(::UniformKernel, x::T) where {T<:Real} = abs(x) ≤ one(T) ? one(T) : zero(T)
-@inline kernel_func(::TriangularKernel, x::T) where {T<:Real} = abs(x) ≤ one(T) ? one(T) - abs(x) : zero(T)
+@inline kernel_func(::UniformKernel, x::T) where {T <:
+                                                  Real} = abs(x) ≤ one(T) ? one(T) : zero(T)
+@inline kernel_func(::TriangularKernel, x::T) where {T <:
+                                                     Real} = abs(x) ≤ one(T) ?
+                                                             one(T) - abs(x) : zero(T)
 
 # Kernel constants k₂ = ∫ k(x)² dx (precomputed for efficiency)
 kernel_k2(::UniformKernel) = 2.0  # ∫₋₁¹ 1² dx = 2
@@ -87,25 +90,31 @@ Smith's smoothed moments variance estimator.
 - Smith, R.J. (2005). Automatic positive semidefinite HAC covariance matrix and GMM estimation
 - Smith, R.J. (2011). GEL criteria for moment condition models
 """
-struct SmoothedMoments{K<:SmoothingKernel} <: AVarEstimator
+struct SmoothedMoments{K <: SmoothingKernel} <: AVarEstimator
     kernel::K
     bandwidth::WFLOAT
     auto_bandwidth::Bool
     threaded::Bool
 
-    function SmoothedMoments(kernel::K, bandwidth::Real; threaded::Bool=true) where {K<:SmoothingKernel}
+    function SmoothedMoments(kernel::K, bandwidth::Real; threaded::Bool = true) where {K <:
+                                                                                       SmoothingKernel}
         bandwidth > 0 || throw(ArgumentError("Bandwidth must be positive"))
         new{K}(kernel, WFLOAT(bandwidth), false, threaded)
     end
 
-    function SmoothedMoments(kernel::K; auto_bandwidth::Bool=true, threaded::Bool=true) where {K<:SmoothingKernel}
+    function SmoothedMoments(kernel::K; auto_bandwidth::Bool = true,
+            threaded::Bool = true) where {K <: SmoothingKernel}
         new{K}(kernel, WFLOAT(0.0), auto_bandwidth, threaded)
     end
 end
 
 # Convenience constructors
-SmoothedMoments(bandwidth::Real; threaded::Bool=true) = SmoothedMoments(UniformKernel(), bandwidth; threaded=threaded)
-SmoothedMoments(; threaded::Bool=true) = SmoothedMoments(UniformKernel(); threaded=threaded)
+function SmoothedMoments(bandwidth::Real; threaded::Bool = true)
+    SmoothedMoments(UniformKernel(), bandwidth; threaded = threaded)
+end
+function SmoothedMoments(; threaded::Bool = true)
+    SmoothedMoments(UniformKernel(); threaded = threaded)
+end
 
 """
     optimal_bandwidth(kernel::SmoothingKernel, T::Int) -> Float64
@@ -129,7 +138,8 @@ True in-place smoothing that modifies G directly using kernel-based approach.
 Much more efficient than weight-based approach for simple kernels.
 Uses a temporary column buffer to avoid corruption while keeping memory usage minimal.
 """
-function smooth_moments!(G::AbstractMatrix{F}, kernel::UniformKernel, bandwidth::Real, T::Int) where {F<:AbstractFloat}
+function smooth_moments!(G::AbstractMatrix{F}, kernel::UniformKernel,
+        bandwidth::Real, T::Int) where {F <: AbstractFloat}
     T_data, m = size(G)
 
     # For uniform kernel, max_lag is just the bandwidth
@@ -154,7 +164,7 @@ function smooth_moments!(G::AbstractMatrix{F}, kernel::UniformKernel, bandwidth:
             smooth_val = zero(F)
 
             # Sum over the bandwidth window with uniform weights (all = 1)
-            for lag in -max_lag:max_lag
+            for lag in (-max_lag):max_lag
                 source_idx = t - lag
                 if 1 ≤ source_idx ≤ T_data
                     smooth_val += temp_col[source_idx]
@@ -168,7 +178,8 @@ function smooth_moments!(G::AbstractMatrix{F}, kernel::UniformKernel, bandwidth:
     return G
 end
 
-function smooth_moments!(G::AbstractMatrix{F}, kernel::TriangularKernel, bandwidth::Real, T::Int) where {F<:AbstractFloat}
+function smooth_moments!(G::AbstractMatrix{F}, kernel::TriangularKernel,
+        bandwidth::Real, T::Int) where {F <: AbstractFloat}
     T_data, m = size(G)
 
     # For triangular kernel, max_lag is the bandwidth
@@ -193,7 +204,7 @@ function smooth_moments!(G::AbstractMatrix{F}, kernel::TriangularKernel, bandwid
             smooth_val = zero(F)
 
             # Sum over the bandwidth window with triangular weights
-            for lag in -max_lag:max_lag
+            for lag in (-max_lag):max_lag
                 source_idx = t - lag
                 if 1 ≤ source_idx ≤ T_data
                     weight = (1 / bandwidth) * (1 - abs(lag) / bandwidth)  # Include 1/S_T factor
@@ -209,14 +220,16 @@ function smooth_moments!(G::AbstractMatrix{F}, kernel::TriangularKernel, bandwid
 end
 
 # Fallback for other kernels that need precomputed weights (like QuadraticSpectral)
-function smooth_moments!(G::AbstractMatrix{F}, kernel::SmoothingKernel, bandwidth::Real, T::Int) where {F<:AbstractFloat}
+function smooth_moments!(G::AbstractMatrix{F}, kernel::SmoothingKernel,
+        bandwidth::Real, T::Int) where {F <: AbstractFloat}
     # For complex kernels, fall back to weight-based approach
     weights = compute_weights(kernel, bandwidth, T, F)
     return smooth_moments!(G, weights, T)
 end
 
 # Old weight-based version for backward compatibility
-function smooth_moments!(G::AbstractMatrix{F}, weights::AbstractVector{F}, T::Int) where {F<:AbstractFloat}
+function smooth_moments!(G::AbstractMatrix{F}, weights::AbstractVector{F}, T::Int) where {F <:
+                                                                                          AbstractFloat}
     T_data, m = size(G)
 
     n_weights = length(weights)
@@ -247,6 +260,7 @@ function smooth_moments!(G::AbstractMatrix{F}, weights::AbstractVector{F}, T::In
         if !isempty(nz_weights)
             w = nz_weights[1]  # Should be the weight at lag 0
             @inbounds for j in 1:m, t in 1:T_data
+
                 G[t, j] *= w
             end
         end
@@ -268,7 +282,7 @@ function smooth_moments!(G::AbstractMatrix{F}, weights::AbstractVector{F}, T::In
         # Compute smoothed values using three-region optimization
         if safe_start <= safe_end
             # Head region: need bounds checking
-            for t in 1:(safe_start-1)
+            for t in 1:(safe_start - 1)
                 smooth_val = zero(F)
                 for k in 1:n_nz
                     source_idx = t - nz_lags[k]
@@ -290,7 +304,7 @@ function smooth_moments!(G::AbstractMatrix{F}, weights::AbstractVector{F}, T::In
             end
 
             # Tail region: need bounds checking
-            for t in (safe_end+1):T_data
+            for t in (safe_end + 1):T_data
                 smooth_val = zero(F)
                 for k in 1:n_nz
                     source_idx = t - nz_lags[k]
@@ -325,9 +339,10 @@ Two-argument version for when result and G are different matrices.
 Uses kernel-based approach for efficiency.
 """
 function smooth_moments!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
-                        kernel::UniformKernel, bandwidth::Real, T::Int) where {F<:AbstractFloat}
+        kernel::UniformKernel, bandwidth::Real, T::Int) where {F <: AbstractFloat}
     T_data, m = size(G)
-    @boundscheck size(result) == (T_data, m) || throw(DimensionMismatch("result and G must have same size"))
+    @boundscheck size(result) == (T_data, m) ||
+                 throw(DimensionMismatch("result and G must have same size"))
 
     # For uniform kernel, max_lag is just the bandwidth
     max_lag = floor(Int, bandwidth)
@@ -346,7 +361,7 @@ function smooth_moments!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
             smooth_val = zero(F)
 
             # Sum over the bandwidth window with uniform weights (all = 1)
-            for lag in -max_lag:max_lag
+            for lag in (-max_lag):max_lag
                 source_idx = t - lag
                 if 1 ≤ source_idx ≤ T_data
                     smooth_val += G[source_idx, j]
@@ -361,9 +376,10 @@ function smooth_moments!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
 end
 
 function smooth_moments!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
-                        kernel::TriangularKernel, bandwidth::Real, T::Int) where {F<:AbstractFloat}
+        kernel::TriangularKernel, bandwidth::Real, T::Int) where {F <: AbstractFloat}
     T_data, m = size(G)
-    @boundscheck size(result) == (T_data, m) || throw(DimensionMismatch("result and G must have same size"))
+    @boundscheck size(result) == (T_data, m) ||
+                 throw(DimensionMismatch("result and G must have same size"))
 
     # For triangular kernel, max_lag is the bandwidth
     max_lag = floor(Int, bandwidth)
@@ -382,7 +398,7 @@ function smooth_moments!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
             smooth_val = zero(F)
 
             # Sum over the bandwidth window with triangular weights
-            for lag in -max_lag:max_lag
+            for lag in (-max_lag):max_lag
                 source_idx = t - lag
                 if 1 ≤ source_idx ≤ T_data
                     weight = (1 / bandwidth) * (1 - abs(lag) / bandwidth)  # Include 1/S_T factor
@@ -399,16 +415,17 @@ end
 
 # Fallback for complex kernels
 function smooth_moments!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
-                        kernel::SmoothingKernel, bandwidth::Real, T::Int) where {F<:AbstractFloat}
+        kernel::SmoothingKernel, bandwidth::Real, T::Int) where {F <: AbstractFloat}
     weights = compute_weights(kernel, bandwidth, T, F)
     return smooth_moments!(result, G, weights, T)
 end
 
 # Old weight-based version for backward compatibility
 function smooth_moments!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
-                        weights::AbstractVector{F}, T::Int) where {F<:AbstractFloat}
+        weights::AbstractVector{F}, T::Int) where {F <: AbstractFloat}
     T_data, m = size(G)
-    @boundscheck size(result) == (T_data, m) || throw(DimensionMismatch("result and G must have same size"))
+    @boundscheck size(result) == (T_data, m) ||
+                 throw(DimensionMismatch("result and G must have same size"))
 
     n_weights = length(weights)
     offset = n_weights ÷ 2  # Center of weight vector
@@ -443,7 +460,7 @@ function smooth_moments!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
     @inbounds for j in 1:m
         if safe_start <= safe_end
             # Head region: need bounds checking
-            for t in 1:(safe_start-1)
+            for t in 1:(safe_start - 1)
                 for k in 1:n_nz
                     source_idx = t - nz_lags[k]
                     if 1 ≤ source_idx ≤ T_data
@@ -461,7 +478,7 @@ function smooth_moments!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
             end
 
             # Tail region: need bounds checking
-            for t in (safe_end+1):T_data
+            for t in (safe_end + 1):T_data
                 for k in 1:n_nz
                     source_idx = t - nz_lags[k]
                     if 1 ≤ source_idx ≤ T_data
@@ -490,9 +507,10 @@ Multithreaded version of smooth_moments! using kernel-based approach.
 Parallelizes computation column by column for cache efficiency.
 """
 function smooth_moments_threaded!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
-                                 kernel::UniformKernel, bandwidth::Real, T::Int) where {F<:AbstractFloat}
+        kernel::UniformKernel, bandwidth::Real, T::Int) where {F <: AbstractFloat}
     T_data, m = size(G)
-    @boundscheck size(result) == (T_data, m) || throw(DimensionMismatch("result and G must have same size"))
+    @boundscheck size(result) == (T_data, m) ||
+                 throw(DimensionMismatch("result and G must have same size"))
 
     # For uniform kernel, max_lag is just the bandwidth
     max_lag = floor(Int, bandwidth)
@@ -510,7 +528,7 @@ function smooth_moments_threaded!(result::AbstractMatrix{F}, G::AbstractMatrix{F
             smooth_val = zero(F)
 
             # Sum over the bandwidth window with uniform weights (all = 1)
-            for lag in -max_lag:max_lag
+            for lag in (-max_lag):max_lag
                 source_idx = t - lag
                 if 1 ≤ source_idx ≤ T_data
                     smooth_val += G[source_idx, j]
@@ -525,9 +543,10 @@ function smooth_moments_threaded!(result::AbstractMatrix{F}, G::AbstractMatrix{F
 end
 
 function smooth_moments_threaded!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
-                                 kernel::TriangularKernel, bandwidth::Real, T::Int) where {F<:AbstractFloat}
+        kernel::TriangularKernel, bandwidth::Real, T::Int) where {F <: AbstractFloat}
     T_data, m = size(G)
-    @boundscheck size(result) == (T_data, m) || throw(DimensionMismatch("result and G must have same size"))
+    @boundscheck size(result) == (T_data, m) ||
+                 throw(DimensionMismatch("result and G must have same size"))
 
     # For triangular kernel, max_lag is the bandwidth
     max_lag = floor(Int, bandwidth)
@@ -545,7 +564,7 @@ function smooth_moments_threaded!(result::AbstractMatrix{F}, G::AbstractMatrix{F
             smooth_val = zero(F)
 
             # Sum over the bandwidth window with triangular weights
-            for lag in -max_lag:max_lag
+            for lag in (-max_lag):max_lag
                 source_idx = t - lag
                 if 1 ≤ source_idx ≤ T_data
                     weight = (1 / bandwidth) * (1 - abs(lag) / bandwidth)  # Include 1/S_T factor
@@ -562,16 +581,17 @@ end
 
 # Fallback for complex kernels
 function smooth_moments_threaded!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
-                                 kernel::SmoothingKernel, bandwidth::Real, T::Int) where {F<:AbstractFloat}
+        kernel::SmoothingKernel, bandwidth::Real, T::Int) where {F <: AbstractFloat}
     weights = compute_weights(kernel, bandwidth, T, F)
     return smooth_moments_threaded!(result, G, weights, T)
 end
 
 # Old weight-based version for backward compatibility
 function smooth_moments_threaded!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
-                                 weights::AbstractVector{F}, T::Int) where {F<:AbstractFloat}
+        weights::AbstractVector{F}, T::Int) where {F <: AbstractFloat}
     T_data, m = size(G)
-    @boundscheck size(result) == (T_data, m) || throw(DimensionMismatch("result and G must have same size"))
+    @boundscheck size(result) == (T_data, m) ||
+                 throw(DimensionMismatch("result and G must have same size"))
 
     n_weights = length(weights)
     offset = n_weights ÷ 2  # Center of weight vector
@@ -605,7 +625,7 @@ function smooth_moments_threaded!(result::AbstractMatrix{F}, G::AbstractMatrix{F
             # We have three regions: head, middle (safe), tail
 
             # Head region: need bounds checking (single-threaded)
-            for t in 1:(safe_start-1)
+            for t in 1:(safe_start - 1)
                 for (w, lag) in zip(nz_weights, nz_lags)
                     source_idx = t - lag
                     if 1 ≤ source_idx ≤ T_data
@@ -623,7 +643,7 @@ function smooth_moments_threaded!(result::AbstractMatrix{F}, G::AbstractMatrix{F
             end
 
             # Tail region: need bounds checking (single-threaded)
-            for t in (safe_end+1):T_data
+            for t in (safe_end + 1):T_data
                 for (w, lag) in zip(nz_weights, nz_lags)
                     source_idx = t - lag
                     if 1 ≤ source_idx ≤ T_data
@@ -650,14 +670,16 @@ end
 
 Out-of-place smoothing of moments matrix G using kernel-based approach.
 """
-function smooth_moments(G::AbstractMatrix{F}, kernel::SmoothingKernel, bandwidth::Real, T::Int) where {F<:AbstractFloat}
+function smooth_moments(G::AbstractMatrix{F}, kernel::SmoothingKernel,
+        bandwidth::Real, T::Int) where {F <: AbstractFloat}
     result = similar(G)
     smooth_moments!(result, G, kernel, bandwidth, T)
     return result
 end
 
 # Old weight-based version for backward compatibility
-function smooth_moments(G::AbstractMatrix{F}, weights::AbstractVector{F}, T::Int) where {F<:AbstractFloat}
+function smooth_moments(G::AbstractMatrix{F}, weights::AbstractVector{F}, T::Int) where {F <:
+                                                                                         AbstractFloat}
     result = similar(G)
     smooth_moments!(result, G, weights, T)
     return result
@@ -668,14 +690,16 @@ end
 
 Out-of-place threaded smoothing of moments matrix G using kernel-based approach.
 """
-function smooth_moments_threaded(G::AbstractMatrix{F}, kernel::SmoothingKernel, bandwidth::Real, T::Int) where {F<:AbstractFloat}
+function smooth_moments_threaded(G::AbstractMatrix{F}, kernel::SmoothingKernel,
+        bandwidth::Real, T::Int) where {F <: AbstractFloat}
     result = similar(G)
     smooth_moments_threaded!(result, G, kernel, bandwidth, T)
     return result
 end
 
 # Old weight-based version for backward compatibility
-function smooth_moments_threaded(G::AbstractMatrix{F}, weights::AbstractVector{F}, T::Int) where {F<:AbstractFloat}
+function smooth_moments_threaded(
+        G::AbstractMatrix{F}, weights::AbstractVector{F}, T::Int) where {F <: AbstractFloat}
     result = similar(G)
     smooth_moments_threaded!(result, G, weights, T)
     return result
@@ -686,7 +710,8 @@ end
 
 Compute discrete smoothing weights wₛ = (1/S_T) * k(s/S_T) for s ∈ {-(T-1), ..., T-1}.
 """
-function compute_weights(kernel::SmoothingKernel, S_T::Real, T::Int, ::Type{F} = WFLOAT) where F<:AbstractFloat
+function compute_weights(kernel::SmoothingKernel, S_T::Real, T::Int,
+        ::Type{F} = WFLOAT) where {F <: AbstractFloat}
     # Weight indices: s = -(T-1), ..., -1, 0, 1, ..., T-1
     n_weights = 2 * T - 1
     weights = Vector{F}(undef, n_weights)
@@ -707,7 +732,8 @@ Compute normalization constant c for variance estimation.
 - If discrete=true: c = 1 / Σₛ k(s/S_T)²
 - If discrete=false: c = S_T / k₂ where k₂ = ∫ k(x)² dx
 """
-function compute_normalization(kernel::SmoothingKernel, weights::AbstractVector, S_T::Real; discrete::Bool=true)
+function compute_normalization(
+        kernel::SmoothingKernel, weights::AbstractVector, S_T::Real; discrete::Bool = true)
     if discrete
         # Discrete normalization: c = 1 / Σ wₛ²
         weight_sum_sq = sum(abs2, weights)
@@ -725,7 +751,8 @@ end
 Main implementation of Smith's smoothed moments variance estimator.
 Supports optional prewhitening which can improve finite sample performance.
 """
-function avar(estimator::SmoothedMoments, X::AbstractMatrix{F}; prewhite::Bool=false) where {F<:Real}
+function avar(estimator::SmoothedMoments, X::AbstractMatrix{F}; prewhite::Bool = false) where {F <:
+                                                                                               Real}
     # Apply prewhitening if requested (using same approach as HAC)
     Z, D = finalize_prewhite(X, Val(prewhite))
     T, m = size(Z)
@@ -749,7 +776,7 @@ function avar(estimator::SmoothedMoments, X::AbstractMatrix{F}; prewhite::Bool=f
     # For kernel-based approach, we still need normalization constant for discrete case
     # We compute it from the kernel and bandwidth for consistency
     weights = compute_weights(estimator.kernel, S_T, T, F)  # Only used for normalization
-    c = compute_normalization(estimator.kernel, weights, S_T; discrete=true)
+    c = compute_normalization(estimator.kernel, weights, S_T; discrete = true)
 
     # Compute variance: Ω̂ = c * (G^T)' * G^T (scaling by T handled by aVar)
     V = Matrix{F}(undef, m, m)

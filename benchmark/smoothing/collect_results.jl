@@ -23,7 +23,8 @@ function get_system_info()
     @printf(buffer, "| OS              | %s (%s) |\n", Sys.KERNEL, Sys.ARCH)
     @printf(buffer, "| CPU Threads     | %d |\n", Sys.CPU_THREADS)
     @printf(buffer, "| Hostname        | %s |\n", gethostname())
-    @printf(buffer, "| User            | %s |\n", get(ENV, "USER", get(ENV, "USERNAME", "N/A")))
+    @printf(buffer, "| User            | %s |\n",
+        get(ENV, "USER", get(ENV, "USERNAME", "N/A")))
     println(buffer, "")
 
     println(buffer, "## 🧠 CPU")
@@ -95,20 +96,26 @@ function parse_results(filename)
                     two_arg_allocs = parts[7] == "NaN" ? NaN : parse(Float64, parts[7])
                     two_arg_memory = parts[8] == "NaN" ? NaN : parse(Float64, parts[8])
                     out_of_place_time = parts[9] == "NaN" ? NaN : parse(Float64, parts[9])
-                    out_of_place_allocs = parts[10] == "NaN" ? NaN : parse(Float64, parts[10])
-                    out_of_place_memory = parts[11] == "NaN" ? NaN : parse(Float64, parts[11])
+                    out_of_place_allocs = parts[10] == "NaN" ? NaN :
+                                          parse(Float64, parts[10])
+                    out_of_place_memory = parts[11] == "NaN" ? NaN :
+                                          parse(Float64, parts[11])
 
                     threaded_time = parts[12] == "NaN" ? NaN : parse(Float64, parts[12])
                     threaded_allocs = parts[13] == "NaN" ? NaN : parse(Float64, parts[13])
                     threaded_memory = parts[14] == "NaN" ? NaN : parse(Float64, parts[14])
 
-                    push!(results, (
-                        threads = threads, T = T,
-                        single_time = single_time, single_allocs = single_allocs, single_memory = single_memory,
-                        two_arg_time = two_arg_time, two_arg_allocs = two_arg_allocs, two_arg_memory = two_arg_memory,
-                        out_of_place_time = out_of_place_time, out_of_place_allocs = out_of_place_allocs, out_of_place_memory = out_of_place_memory,
-                        threaded_time = threaded_time, threaded_allocs = threaded_allocs, threaded_memory = threaded_memory
-                    ))
+                    push!(results,
+                        (
+                            threads = threads, T = T,
+                            single_time = single_time, single_allocs = single_allocs, single_memory = single_memory,
+                            two_arg_time = two_arg_time, two_arg_allocs = two_arg_allocs,
+                            two_arg_memory = two_arg_memory,
+                            out_of_place_time = out_of_place_time, out_of_place_allocs = out_of_place_allocs,
+                            out_of_place_memory = out_of_place_memory,
+                            threaded_time = threaded_time, threaded_allocs = threaded_allocs,
+                            threaded_memory = threaded_memory
+                        ))
                 end
             end
         end
@@ -152,7 +159,8 @@ function generate_markdown_report(all_results)
         result = findfirst(r -> r.T == T, single_thread_results)
         if result !== nothing
             r = single_thread_results[result]
-            println(report, "| $(T) | $(format_time(r.single_time)) | $(format_time(r.two_arg_time)) | $(format_time(r.out_of_place_time)) |")
+            println(report,
+                "| $(T) | $(format_time(r.single_time)) | $(format_time(r.two_arg_time)) | $(format_time(r.out_of_place_time)) |")
         end
     end
     println(report, "")
@@ -161,7 +169,9 @@ function generate_markdown_report(all_results)
     println(report, "### Threaded Method Performance")
     println(report, "")
     println(report, "| T / Threads | ", join(["$(t)t" for t in thread_counts if t > 1], " | "), " |")
-    println(report, "|", join([":---" for _ in 1:(length([t for t in thread_counts if t > 1])+1)], "|"), "|")
+    println(report, "|",
+        join([":---" for _ in 1:(length([t for t in thread_counts if t > 1]) + 1)], "|"),
+        "|")
 
     for T in T_values
         times_row = String[]
@@ -213,7 +223,8 @@ function generate_markdown_report(all_results)
                         "N/A"
                     end
 
-                    println(report, "| $(threads) | $(format_time(r.single_time)) | $(format_time(r.two_arg_time)) | $(format_time(r.out_of_place_time)) | $(format_time(r.threaded_time)) | $(best_method) |")
+                    println(report,
+                        "| $(threads) | $(format_time(r.single_time)) | $(format_time(r.two_arg_time)) | $(format_time(r.out_of_place_time)) | $(format_time(r.threaded_time)) | $(best_method) |")
                 end
             end
             println(report, "")
@@ -236,7 +247,8 @@ function generate_markdown_report(all_results)
             result = findfirst(r -> r.T == T && r.threads == 1, all_results)
             if result !== nothing
                 r = all_results[result]
-                println(report, "| $(T) | $(format_memory(r.single_memory)) | $(format_memory(r.two_arg_memory)) | $(format_memory(r.out_of_place_memory)) |")
+                println(report,
+                    "| $(T) | $(format_memory(r.single_memory)) | $(format_memory(r.two_arg_memory)) | $(format_memory(r.out_of_place_memory)) |")
             end
         end
         println(report, "")
@@ -246,7 +258,9 @@ function generate_markdown_report(all_results)
     println(report, "### Threaded Method Memory Usage")
     println(report, "")
     println(report, "| T / Threads | ", join(["$(t)t" for t in thread_counts if t > 1], " | "), " |")
-    println(report, "|", join([":---" for _ in 1:(length([t for t in thread_counts if t > 1])+1)], "|"), "|")
+    println(report, "|",
+        join([":---" for _ in 1:(length([t for t in thread_counts if t > 1]) + 1)], "|"),
+        "|")
 
     for T in T_values
         memory_row = String[]
@@ -270,7 +284,8 @@ function generate_markdown_report(all_results)
     # Threading efficiency analysis
     println(report, "## Threading Efficiency Analysis")
     println(report, "")
-    println(report, "Speedup comparison: Threaded method vs best single-threaded method (Single-arg In-place)")
+    println(report,
+        "Speedup comparison: Threaded method vs best single-threaded method (Single-arg In-place)")
     println(report, "")
 
     for T in T_values
@@ -303,7 +318,8 @@ function generate_markdown_report(all_results)
                                 "$(round(1/speedup, digits=2))x slower"
                             end
 
-                            println(report, "| $(threads) | $(format_time(r.threaded_time)) | $(format_time(baseline_time)) | $(speedup_str) | $(round(efficiency, digits=1))% |")
+                            println(report,
+                                "| $(threads) | $(format_time(r.threaded_time)) | $(format_time(baseline_time)) | $(speedup_str) | $(round(efficiency, digits=1))% |")
                         end
                     end
                 end
@@ -345,9 +361,11 @@ function generate_markdown_report(all_results)
             if !isempty(faster_configs)
                 best_idx = argmax([x[2] for x in faster_configs])
                 best_config = faster_configs[best_idx]
-                println(report, "- **T=$(T)**: Threading beneficial with $(best_config[1])+ threads (up to $(round(best_config[2], digits=2))x speedup)")
+                println(report,
+                    "- **T=$(T)**: Threading beneficial with $(best_config[1])+ threads (up to $(round(best_config[2], digits=2))x speedup)")
             else
-                println(report, "- **T=$(T)**: Single-threaded methods faster for all tested configurations")
+                println(report,
+                    "- **T=$(T)**: Single-threaded methods faster for all tested configurations")
             end
         end
     end

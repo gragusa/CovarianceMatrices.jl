@@ -96,7 +96,8 @@ function run_benchmark()
         weights = CovarianceMatrices.compute_weights(kernel, bandwidth, T, Float64)
 
         # Method 1: Single-argument in-place (only benchmark on 1 thread)
-        time1, allocs1, memory1 = if current_threads == 1
+        time1, allocs1,
+        memory1 = if current_threads == 1
             X_test = copy(X)
             bench1 = @benchmark CovarianceMatrices.smooth_moments!($X_test, $weights, $T) setup=(X_test = copy($X))
             (minimum(bench1.times) / 1e6, bench1.allocs, bench1.memory)
@@ -105,17 +106,20 @@ function run_benchmark()
         end
 
         # Method 2: Two-argument (only benchmark on 1 thread)
-        time2, allocs2, memory2 = if current_threads == 1
+        time2, allocs2,
+        memory2 = if current_threads == 1
             X_test = copy(X)
             result = similar(X)
-            bench2 = @benchmark CovarianceMatrices.smooth_moments!($result, $X_test, $weights, $T) setup=(X_test = copy($X); result = similar($X))
+            bench2 = @benchmark CovarianceMatrices.smooth_moments!($result, $X_test, $weights, $T) setup=(
+                X_test = copy($X); result = similar($X))
             (minimum(bench2.times) / 1e6, bench2.allocs, bench2.memory)
         else
             (NaN, NaN, NaN)  # Skip for multi-threaded runs
         end
 
         # Method 3: Out-of-place (only benchmark on 1 thread)
-        time3, allocs3, memory3 = if current_threads == 1
+        time3, allocs3,
+        memory3 = if current_threads == 1
             X_test = copy(X)
             bench3 = @benchmark CovarianceMatrices.smooth_moments($X_test, $weights, $T) setup=(X_test = copy($X))
             (minimum(bench3.times) / 1e6, bench3.allocs, bench3.memory)
@@ -124,23 +128,27 @@ function run_benchmark()
         end
 
         # Method 4: Threaded (always benchmark if threads > 1)
-        time4, allocs4, memory4 = if current_threads > 1
+        time4, allocs4,
+        memory4 = if current_threads > 1
             X_test = copy(X)
             result_threaded = similar(X)
-            bench4 = @benchmark CovarianceMatrices.smooth_moments_threaded!($result_threaded, $X_test, $weights, $T) setup=(X_test = copy($X); result_threaded = similar($X))
+            bench4 = @benchmark CovarianceMatrices.smooth_moments_threaded!(
+                $result_threaded, $X_test, $weights, $T) setup=(
+                X_test = copy($X); result_threaded = similar($X))
             (minimum(bench4.times) / 1e6, bench4.allocs, bench4.memory)
         else
             (NaN, NaN, NaN)  # Skip for single-threaded runs
         end
 
-        push!(results, (
-            T = T,
-            threads = current_threads,
-            single_time = time1, single_allocs = allocs1, single_memory = memory1,
-            two_arg_time = time2, two_arg_allocs = allocs2, two_arg_memory = memory2,
-            out_of_place_time = time3, out_of_place_allocs = allocs3, out_of_place_memory = memory3,
-            threaded_time = time4, threaded_allocs = allocs4, threaded_memory = memory4
-        ))
+        push!(results,
+            (
+                T = T,
+                threads = current_threads,
+                single_time = time1, single_allocs = allocs1, single_memory = memory1,
+                two_arg_time = time2, two_arg_allocs = allocs2, two_arg_memory = memory2,
+                out_of_place_time = time3, out_of_place_allocs = allocs3, out_of_place_memory = memory3,
+                threaded_time = time4, threaded_allocs = allocs4, threaded_memory = memory4
+            ))
     end
 
     return results

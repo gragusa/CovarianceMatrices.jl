@@ -27,7 +27,7 @@ makedocs(
         ],
         "Tutorials" => [
             "Matrix Interface Tutorial" => "tutorials/matrix_tutorial.md",
-            "GLM Integration Tutorial" => "tutorials/glm_tutorial.md",
+            "GLM Integration Tutorial" => "tutorials/glm_tutorial.md"
         ],
         "API Reference" => "api.md",
         "Performance Notes" => "performance.md"

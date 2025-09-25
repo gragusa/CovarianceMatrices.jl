@@ -23,7 +23,8 @@ println()
 
 # Benchmark new kernel-based implementation
 println("🆕 NEW: Kernel-based implementation")
-result_new = @benchmark CovarianceMatrices.smooth_moments!($G_copy1, $kernel, $bandwidth, $T) setup=(copyto!($G_copy1, $G))
+result_new = @benchmark CovarianceMatrices.smooth_moments!($G_copy1, $kernel, $bandwidth, $T) setup=(copyto!(
+    $G_copy1, $G))
 display(result_new)
 println()
 
