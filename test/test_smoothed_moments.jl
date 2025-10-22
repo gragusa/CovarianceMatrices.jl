@@ -19,6 +19,41 @@ using Random
     # Set up stable RNG for reproducible tests
     rng = StableRNG(123456)
 
+    @testset "Correctness" begin
+        # Test m_T = 3 -> bw = (2*m_T + 1)
+        T = 10
+        m_T = 3
+        S_T = 2*m_T + 1
+       G = hcat(collect(1.0:10), collect(11.0:20))  # 10×2 matrix
+       G̃uniform = [20/7 100/7;
+                    30/7 130/7;
+                        6 162/7;
+                        8  28;
+                       10  30;
+                       12  32;
+                       14  34;
+                     90/7  30;
+                     80/7 180/7
+                     68/7 148/7]
+
+        G̃triangualar = [220/49	1020/49;
+                        310/49	1210/49;
+                         58/7	1366/49;
+                         72/7	212/7;
+                         86/7	226/7;
+                        100/7	240/7;
+                        114/7	254/7;
+                        610/49	190/7;
+                        440/49	940/49;
+                        292/49	612/49]
+        k = CovarianceMatrices.UniformKernel()
+        G_uniform = CovarianceMatrices.smooth_moments(G, k, float(S_T), T)
+        k = CovarianceMatrices.TriangularKernel()
+        G_triangular = CovarianceMatrices.smooth_moments(G, k, float(S_T), T)
+        @test G_uniform ≈ G̃uniform rtol=1e-14
+        @test G_triangular ≈ G̃triangualar rtol=1e-14
+    end
+
     @testset "Kernel Functions" begin
         @testset "UniformKernel" begin
             k = CovarianceMatrices.UniformKernel()
