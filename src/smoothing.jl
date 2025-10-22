@@ -53,7 +53,7 @@ Induces Bartlett HAC kernel, optimal bandwidth S_T ∝ T^(1/3)
 struct UniformKernel <: SmoothingKernel
     m_T::Int64
     S_T::WFLOAT
-    function UniformKernel(; m_T::Union{Int, Nothing}=nothing, S_T::Union{Int, Nothing}=nothing)
+    function UniformKernel(; m_T::Union{Int, Nothing} = nothing, S_T::Union{Int, Nothing} = nothing)
         if m_T === nothing && S_T === nothing
             throw(ArgumentError("Either m_T or S_T must be provided"))
         elseif m_T !== nothing && S_T !== nothing
@@ -77,7 +77,7 @@ Induces Parzen HAC kernel, optimal bandwidth S_T ∝ T^(1/5)
 struct TriangularKernel <: SmoothingKernel
     m_T::Int64
     S_T::WFLOAT
-    function TrianularKernel(; m_T::Union{Int, Nothing}=nothing, S_T::Union{Int, Nothing}=nothing)
+    function TrianularKernel(; m_T::Union{Int, Nothing} = nothing, S_T::Union{Int, Nothing} = nothing)
         if m_T === nothing && S_T === nothing
             throw(ArgumentError("Either m_T or S_T must be provided"))
         elseif m_T !== nothing && S_T !== nothing
@@ -94,8 +94,6 @@ end
 
 lagtruncation(k::SmoothingKernel) = k.m_T
 bandwidth(k::SmoothingKernel) = k.S_T
-
-
 
 # Kernel function evaluations
 @inline kernel_func(::UniformKernel, x::T) where {T <:
@@ -172,15 +170,13 @@ function optimal_bandwidth(::TriangularKernel, T::Int)
     return 1.5 * T^(1.0/5.0)
 end
 
-
-
-function smooth_moments(G::AbstractMatrix{F}, kernel::SmoothingKernel) where {F <: AbstractFloat}
+function smooth_moments(G::AbstractMatrix{F}, kernel::SmoothingKernel) where {F <:
+                                                                              AbstractFloat}
     T_data, m = size(G)
     result = similar(G, float(F), T_data, m)
     smooth_moments!(result, G, kernel)
     return result
 end
-
 
 function smooth_moments!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
         kernel::UniformKernel) where {F <: AbstractFloat}
@@ -199,7 +195,6 @@ function smooth_moments!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
     end
 
     return uniform_smooth!(result, G, m_T)
-
 end
 
 function uniform_smooth!(out::AbstractMatrix, G::AbstractMatrix, m_T::Integer)
@@ -221,20 +216,16 @@ end
     P = Vector{float(eltype(col))}(undef, T + 1)
     P[1] = zero(eltype(P))
     for i in 1:T
-        P[i+1] = P[i] + col[i]
+        P[i + 1] = P[i] + col[i]
     end
     for t in eachindex(dest)
         a = max(1, t - mT)
         b = min(T, t + mT)
         # sum(col[a:b]) = P[b+1] - P[a]   (no 0 index!)
-        dest[t] = factor * (P[b+1] - P[a])
+        dest[t] = factor * (P[b + 1] - P[a])
     end
     return dest
 end
-
-
-
-
 
 # function smooth_moments!(result::AbstractMatrix{F}, G::AbstractMatrix{F},
 #         kernel::TriangularKernel, bandwidth::Real, T::Int) where {F <: AbstractFloat}
@@ -612,7 +603,10 @@ end
 Main implementation of Smith's smoothed moments variance estimator.
 Supports optional prewhitening which can improve finite sample performance.
 """
-function avar(kernel::K, X::AbstractMatrix{F}; prewhite::Bool = false) where {F <: Real, K <: Union{UniformKernel, TriangularKernel}}
+function avar(kernel::K,
+        X::AbstractMatrix{F};
+        prewhite::Bool = false) where {
+        F <: Real, K <: Union{UniformKernel, TriangularKernel}}
     # Apply prewhitening if requested (using same approach as HAC)
     Z, D = finalize_prewhite(X, Val(prewhite))
     T, m = size(Z)
