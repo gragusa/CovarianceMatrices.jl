@@ -37,15 +37,15 @@ using Random
                      34 74]
 
         G̃triangular = [110/7 510/7;
-                         155/7 605/7;
-                         29 683/7;
-                         36 106;
-                         43 113;
-                         50 120;
-                         57 127;
-                         305/7 95;
-                         220/7 470/7;
-                         146/7 306/7]
+                        155/7 605/7;
+                        29 683/7;
+                        36 106;
+                        43 113;
+                        50 120;
+                        57 127;
+                        305/7 95;
+                        220/7 470/7;
+                        146/7 306/7]
 
         k = CovarianceMatrices.UniformSmoother(m_T = m_T)
         @test k.m_T == m_T
@@ -73,18 +73,18 @@ using Random
                      40 90]
 
         G̃triangular = [215/9 865/9;
-                         287/9 1007/9;
-                         364/9 126;
-                         148/3 1244/9;
-                         175/3 445/3;
-                         202/3 472/3;
-                         500/9 380/3;
-                         133/3 889/9;
-                         305/9 665/9;
-                         220/9 470/9]
+                        287/9 1007/9;
+                        364/9 126;
+                        148/3 1244/9;
+                        175/3 445/3;
+                        202/3 472/3;
+                        500/9 380/3;
+                        133/3 889/9;
+                        305/9 665/9;
+                        220/9 470/9]
 
         k = CovarianceMatrices.UniformSmoother(m_T = m_T)
-        @test k.m_T == (2S_T -  1) / 2
+        @test k.m_T == (2S_T - 1) / 2
         @test k.S_T == (2m_T + 1) / 2
         k = CovarianceMatrices.UniformSmoother(S_T = S_T)
         @test k.m_T == (2S_T - 1) / 2
@@ -155,7 +155,7 @@ using Random
         @testset "UniformSmoother" begin
             X = randn(rng, 50000, 3)
             aVar(Bartlett(12), X)  # Warm-up
-            aVar(CovarianceMatrices.TriangularSmoother(S_T=12), X)  # Warm-up
+            aVar(CovarianceMatrices.TriangularSmoother(S_T = 12), X)  # Warm-up
             ## Test inplace and out-of-place smoothing
             ## THEY SHOULD GIVE THE SAME RESULTS EVEN WHEN RUNNED MULTIPLE TIMES
             ## Using G̃triangular from previous test for which we know the smoothing
@@ -166,5 +166,4 @@ using Random
             ## Using G̃triangular from previous test for which we know the smoothing
         end
     end
-
 end

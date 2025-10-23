@@ -19,12 +19,12 @@ UniformSmoother()
 Uniform/box kernel: k(x) = 1(|x| ≤ 1)
 Induces Bartlett HAC kernel, thus optimal bandwidth S_T ∝ T^(1/3)
 """
-struct UniformSmoother{T<:AbstractFloat} <: MomentSmoother
+struct UniformSmoother{T <: AbstractFloat} <: MomentSmoother
     m_T::T
     S_T::T
 end
 
-function UniformSmoother(; m_T::Union{Real, Nothing}=nothing, S_T::Union{Real, Nothing}=nothing)
+function UniformSmoother(; m_T::Union{Real, Nothing} = nothing, S_T::Union{Real, Nothing} = nothing)
     if m_T === nothing && S_T === nothing
         throw(ArgumentError("Either m_T or S_T must be provided"))
     elseif m_T !== nothing && S_T !== nothing
@@ -44,24 +44,25 @@ end
 Bartlett/triangular kernel: k(x) = (1 - |x|) * 1(|x| ≤ 1)
 Induces Parzen HAC kernel, optimal bandwidth S_T ∝ T^(1/5)
 """
-struct TriangularSmoother{T<:Real} <: MomentSmoother
+struct TriangularSmoother{T <: Real} <: MomentSmoother
     m_T::T
     S_T::T
 end
 
-function TriangularSmoother(; m_T::Union{Real, Nothing}=nothing, S_T::Union{Real, Nothing}=nothing)
-        if m_T === nothing && S_T === nothing
-            throw(ArgumentError("Either m_T or S_T must be provided"))
-        elseif m_T !== nothing && S_T !== nothing
-            throw(ArgumentError("Only one of m_T or S_T should be provided"))
-        elseif m_T !== nothing
-            S_T_val = float((2 * m_T + 1)/2)
-            return TriangularSmoother(float(m_T), S_T_val)
-        else
-            m_T_val = float(floor(Int, (2S_T - 1) / 2))
-            return TriangularSmoother(m_T_val, float(S_T))
-        end
+function TriangularSmoother(; m_T::Union{Real, Nothing} = nothing, S_T::Union{
+        Real, Nothing} = nothing)
+    if m_T === nothing && S_T === nothing
+        throw(ArgumentError("Either m_T or S_T must be provided"))
+    elseif m_T !== nothing && S_T !== nothing
+        throw(ArgumentError("Only one of m_T or S_T should be provided"))
+    elseif m_T !== nothing
+        S_T_val = float((2 * m_T + 1)/2)
+        return TriangularSmoother(float(m_T), S_T_val)
+    else
+        m_T_val = float(floor(Int, (2S_T - 1) / 2))
+        return TriangularSmoother(m_T_val, float(S_T))
     end
+end
 
 lagtruncation(k::MomentSmoother) = k.m_T
 bandwidth(k::MomentSmoother) = k.S_T
@@ -92,19 +93,15 @@ function kernel_func(k, s::AbstractRange)
     return w
 end
 
-
-
 # Calculate k(s/S_T) for the triangular kernel
 
-
 # Kernel constants k₂ = ∫ k(x)² dx (precomputed for efficiency)
-kernel_k1(::UniformSmoother{T}) where T = T(2)  # ∫k(a) da = 2
-kernel_k2(::UniformSmoother{T}) where T = T(2)  # ∫k(a)² da = 2
-kernel_k3(::UniformSmoother{T}) where T = T(2)  # ∫k(a)³ da = 2
-kernel_k1(::TriangularSmoother{T}) where T = T(1)  # ∫k(a) da = 1
-kernel_k2(::TriangularSmoother{T}) where T = T(2)/T(3)  # ∫k(a)² da = 2/3
-kernel_k3(::TriangularSmoother{T}) where T = T(1)/T(2)  # ∫k(a) da = 1/2
-
+kernel_k1(::UniformSmoother{T}) where {T} = T(2)  # ∫k(a) da = 2
+kernel_k2(::UniformSmoother{T}) where {T} = T(2)  # ∫k(a)² da = 2
+kernel_k3(::UniformSmoother{T}) where {T} = T(2)  # ∫k(a)³ da = 2
+kernel_k1(::TriangularSmoother{T}) where {T} = T(1)  # ∫k(a) da = 1
+kernel_k2(::TriangularSmoother{T}) where {T} = T(2)/T(3)  # ∫k(a)² da = 2/3
+kernel_k3(::TriangularSmoother{T}) where {T} = T(1)/T(2)  # ∫k(a) da = 1/2
 
 """
     optimal_bandwidth(kernel::MomentSmoother, T::Int) -> Float64
@@ -121,21 +118,24 @@ function optimal_bandwidth(::TriangularSmoother, T::Int)
     return 1.5 * T^(1.0/5.0)
 end
 
-
-function smooth_moments(G::AbstractMatrix, kernel::T; threaded::Bool = false) where T<:UniformSmoother
-    return uniform_sum(G, kernel.m_T; threaded=threaded)
+function smooth_moments(G::AbstractMatrix, kernel::T; threaded::Bool = false) where {T <:
+                                                                                     UniformSmoother}
+    return uniform_sum(G, kernel.m_T; threaded = threaded)
 end
 
-function smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::T; threaded::Bool = false) where T<:UniformSmoother
-    return uniform_sum!(dest, G, kernel.m_T; threaded=threaded)
+function smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::T;
+        threaded::Bool = false) where {T <: UniformSmoother}
+    return uniform_sum!(dest, G, kernel.m_T; threaded = threaded)
 end
 
-function smooth_moments(G::AbstractMatrix, kernel::T; threaded::Bool = false) where T<:TriangularSmoother
-    return triangular_sum(G, kernel.m_T, kernel.S_T; threaded=threaded)
+function smooth_moments(G::AbstractMatrix, kernel::T; threaded::Bool = false) where {T <:
+                                                                                     TriangularSmoother}
+    return triangular_sum(G, kernel.m_T, kernel.S_T; threaded = threaded)
 end
 
-function smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::T; threaded::Bool = false) where T<:TriangularSmoother
-    return triangular_sum!(dest, G, kernel.m_T, kernel.S_T; threaded=threaded)
+function smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::T;
+        threaded::Bool = false) where {T <: TriangularSmoother}
+    return triangular_sum!(dest, G, kernel.m_T, kernel.S_T; threaded = threaded)
 end
 
 using Base.Threads
@@ -148,11 +148,13 @@ using Base.Threads
 
     Computes sum_{s=max(t-T,-m_T)}^{min(t-1,m_T)} G[t-s, j].
 """
-function uniform_sum!(dest::AbstractMatrix{T}, G::AbstractMatrix{<:Int}, m_T; threaded::Bool = true) where T<:Real
-    uniform_sum!(dest, float.(G), m_T; threaded=threaded)
+function uniform_sum!(dest::AbstractMatrix{T}, G::AbstractMatrix{<:Int},
+        m_T; threaded::Bool = true) where {T <: Real}
+    uniform_sum!(dest, float.(G), m_T; threaded = threaded)
 end
 
-function uniform_sum!(dest::AbstractMatrix{T}, G::AbstractMatrix{T}, m_T; threaded::Bool = true) where T<:Real
+function uniform_sum!(dest::AbstractMatrix{T}, G::AbstractMatrix{T},
+        m_T; threaded::Bool = true) where {T <: Real}
     n, m = size(G)
     @assert size(dest) == (n, m) "Destination matrix must have the same size as G, ($n, $m)"
     P = Vector{T}(undef, n + 1)
@@ -169,32 +171,32 @@ function uniform_sum!(dest::AbstractMatrix{T}, G::AbstractMatrix{T}, m_T; thread
 end
 
 function uniform_sum(G::AbstractMatrix{<:Int}, m_T; threaded::Bool = true)
-    uniform_sum(float.(G), m_T; threaded=threaded)
+    uniform_sum(float.(G), m_T; threaded = threaded)
 end
 
-function uniform_sum(G::AbstractMatrix{T}, m_T; threaded::Bool = true) where T<:Real
+function uniform_sum(G::AbstractMatrix{T}, m_T; threaded::Bool = true) where {T <: Real}
     dest = similar(G)
-    return uniform_sum!(dest, G, m_T; threaded=threaded)
+    return uniform_sum!(dest, G, m_T; threaded = threaded)
 end
 
 # One column, O(T), raw sum over the window (no scaling)
-@inline function _col_uniform_sum!(dest::AbstractVector{T}, col::AbstractVector{T}, m_T, P) where T<:Real
+@inline function _col_uniform_sum!(dest::AbstractVector{T}, col::AbstractVector{T}, m_T, P) where {T <:
+                                                                                                   Real}
     n = length(col)
     begin
         mT = Int(m_T)
         P[1] = zero(T)
         for i in eachindex(col)
-            P[i+1] = P[i] + col[i]
+            P[i + 1] = P[i] + col[i]
         end
         for t in eachindex(col)
             a = max(1, t - mT)
             b = min(n, t + mT)
-            dest[t] = P[b+1] - P[a]   # raw sum, no factor
+            dest[t] = P[b + 1] - P[a]   # raw sum, no factor
         end
     end
     return dest
 end
-
 
 # ==========================
 # TRIANGULAR (UNSCALED)
@@ -203,12 +205,13 @@ end
 # which equals sum_{k=a}^{b} (1 - 2(t-k)/D) * G[k, j]
 # with D = 2m_T + 1. No outer factor 2/D is applied here.
 
-function triangular_sum!(dest::AbstractMatrix{T}, G::AbstractMatrix{<:Int}, m_T, S_T; threaded::Bool = true) where T<:Real
-    triangular_sum!(dest, float.(G), S_T; threaded=threaded)
+function triangular_sum!(dest::AbstractMatrix{T}, G::AbstractMatrix{<:Int},
+        m_T, S_T; threaded::Bool = true) where {T <: Real}
+    triangular_sum!(dest, float.(G), S_T; threaded = threaded)
 end
 
-
-function triangular_sum!(dest::AbstractMatrix{T}, G::AbstractMatrix{T}, m_T, S_T; threaded::Bool = true) where T<:Real
+function triangular_sum!(dest::AbstractMatrix{T}, G::AbstractMatrix{T},
+        m_T, S_T; threaded::Bool = true) where {T <: Real}
     n, m = size(G)
     @assert size(dest) == (n, m) "Destination matrix must have the same size as G, ($n, $m)"
 
@@ -227,16 +230,19 @@ function triangular_sum!(dest::AbstractMatrix{T}, G::AbstractMatrix{T}, m_T, S_T
 end
 
 function triangular_sum(G::AbstractMatrix{<:Int}, m_T, S_T; threaded::Bool = true)
-    triangular_sum(float.(G), m_T, S_T; threaded=threaded)
+    triangular_sum(float.(G), m_T, S_T; threaded = threaded)
 end
 
-function triangular_sum(G::AbstractMatrix{T}, m_T, S_T; threaded::Bool = true) where T<:Real
+function triangular_sum(G::AbstractMatrix{T}, m_T, S_T; threaded::Bool = true) where {T <:
+                                                                                      Real}
     dest = similar(G, T)
-    return triangular_sum!(dest, G, m_T, S_T; threaded=threaded)
+    return triangular_sum!(dest, G, m_T, S_T; threaded = threaded)
 end
 
 # One column, O(T), using two prefix sums
-@inline function _col_triangular_sum!(dest::AbstractVector{T}, col::AbstractVector{T}, m_T, S_T, P0::AbstractVector{T}, P1::AbstractVector{T}) where T<:Real
+@inline function _col_triangular_sum!(
+        dest::AbstractVector{T}, col::AbstractVector{T}, m_T, S_T,
+        P0::AbstractVector{T}, P1::AbstractVector{T}) where {T <: Real}
     n = length(col)
     begin
         mT = Int(m_T)
@@ -245,21 +251,20 @@ end
         P1[1] = zero(T)
         for i in eachindex(col)
             xi = col[i]
-            P0[i+1] = P0[i] + xi
-            P1[i+1] = P1[i] + i*xi
+            P0[i + 1] = P0[i] + xi
+            P1[i + 1] = P1[i] + i*xi
         end
 
         for t in eachindex(col)
             a = max(1, t - mT)
             b = min(n, t + mT)
-            S0 = P0[b+1] - P0[a]   # sum G[k]
-            S1 = P1[b+1] - P1[a]   # sum k*G[k]
+            S0 = P0[b + 1] - P0[a]   # sum G[k]
+            S1 = P1[b + 1] - P1[a]   # sum k*G[k]
             dest[t] = (1 - t*invS_T)*S0 + invS_T*S1
         end
     end
     return dest
 end
-
 
 """
     avar(estimator::SmoothedMoments, X::AbstractMatrix{F}; prewhite::Bool=false) where {F<:Real}
@@ -268,7 +273,7 @@ Main implementation of Smith's smoothed moments variance estimator.
 Supports optional prewhitening which can improve finite sample performance.
 """
 function avar(k::MomentSmoother, X::AbstractMatrix{F}; prewhite::Bool = false) where {F <:
-                                                                                               Real}
+                                                                                      Real}
     # Apply prewhitening if requested (using same approach as HAC)
     Z, D = finalize_prewhite(X, Val(prewhite))
     T, m = size(Z)
@@ -277,9 +282,9 @@ function avar(k::MomentSmoother, X::AbstractMatrix{F}; prewhite::Bool = false) w
     # Use threading automatically for large samples (T > 800) or if explicitly requested
     use_threading = T > 1800 && m > 5 && nthreads() > 1
     G_smoothed = if use_threading
-        smooth_moments(Z, k; threaded=true)
+        smooth_moments(Z, k; threaded = true)
     else
-        smooth_moments(Z, k; threaded=false)
+        smooth_moments(Z, k; threaded = false)
     end
 
     ## The normaliation is k₂*S_T where
@@ -297,4 +302,3 @@ function avar(k::MomentSmoother, X::AbstractMatrix{F}; prewhite::Bool = false) w
 
     return V
 end
-
