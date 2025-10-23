@@ -66,8 +66,6 @@ function TriangularSmoother(; m_T::Union{Real, Nothing}=nothing, S_T::Union{Real
 lagtruncation(k::MomentSmoother) = k.m_T
 bandwidth(k::MomentSmoother) = k.S_T
 
-
-
 # Kernel function evaluations
 # Calculate k(s/S_T) for the uniform kernel
 function kernel_func(k::UniformSmoother, s::T) where {T <: Real}
