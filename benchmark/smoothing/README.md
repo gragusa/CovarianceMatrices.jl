@@ -24,7 +24,7 @@ The benchmark suite tests **four different implementations** of smooth_moments:
 
 - **Problem sizes**: T ∈ {100, 500, 1000, 10000}
 - **Matrix dimensions**: k = 5 columns
-- **Bandwidth**: 5.0 (UniformKernel)
+- **Bandwidth**: 5.0 (UniformSmoother)
 - **Metrics**: Execution time, memory allocation, allocation count
 - **Thread configurations**: 1, 2, 4, 6, 8 threads
 
@@ -132,8 +132,8 @@ bandwidth = 5.0  # Kernel bandwidth
 ### Adding Different Kernels
 
 ```julia
-# Test both UniformKernel and TriangularKernel
-kernels = [CovarianceMatrices.UniformKernel(), CovarianceMatrices.TriangularKernel()]
+# Test both UniformSmoother and TriangularSmoother
+kernels = [CovarianceMatrices.UniformSmoother(), CovarianceMatrices.TriangularSmoother()]
 ```
 
 ### Different Thread Configurations

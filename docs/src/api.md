@@ -104,8 +104,8 @@ DifferentOwnLags
 
 ```@docs
 SmoothedMoments
-UniformKernel
-TriangularKernel
+UniformSmoother
+TriangularSmoother
 ```
 
 ### Panel Data Estimators

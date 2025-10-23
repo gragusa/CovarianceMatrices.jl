@@ -14,7 +14,7 @@ G_copy1 = copy(G)
 G_copy2 = copy(G)
 
 # Create kernel for new implementation
-kernel = CovarianceMatrices.UniformKernel()
+kernel = CovarianceMatrices.UniformSmoother()
 
 println("🔬 Direct Algorithm Comparison")
 println("=" ^ 50)

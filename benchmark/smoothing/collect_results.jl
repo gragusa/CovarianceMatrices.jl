@@ -134,7 +134,7 @@ function generate_markdown_report(all_results)
     println(report, "**Configuration:**")
     println(report, "- Problem sizes: T ∈ {100, 500, 1000, 10000}")
     println(report, "- Matrix dimensions: k = 5")
-    println(report, "- Bandwidth: 5.0 (UniformKernel)")
+    println(report, "- Bandwidth: 5.0 (UniformSmoother)")
     println(report, "- Threaded version: Activated for T > 800")
     println(report, "")
 

@@ -28,7 +28,7 @@ Generated on: 2025-09-25T00:28:40.540
 **Configuration:**
 - Problem sizes: T ∈ {100, 500, 1000, 10000}
 - Matrix dimensions: k = 5
-- Bandwidth: 5.0 (UniformKernel)
+- Bandwidth: 5.0 (UniformSmoother)
 - Threaded version: Activated for T > 800
 
 ## Performance Comparison by Method

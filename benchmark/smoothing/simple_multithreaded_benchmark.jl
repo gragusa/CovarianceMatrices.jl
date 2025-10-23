@@ -81,7 +81,7 @@ function run_benchmark()
     T_values = [100, 500, 1000, 10000]
     k = 5
     bandwidth = 5.0
-    kernel = CovarianceMatrices.UniformKernel()
+    kernel = CovarianceMatrices.UniformSmoother()
     rng = StableRNG(42)
 
     # Results storage
