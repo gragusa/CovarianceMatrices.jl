@@ -67,3 +67,56 @@ SUITE["CRHC (large)"]["CRHC3"] = @benchmarkable vcov($k3, lm1)
 SUITE["CRHC (small)"]["CRHC0"] = @benchmarkable vcov($k20, lm2)
 SUITE["CRHC (small)"]["CRHC2"] = @benchmarkable vcov($k22, lm2)
 SUITE["CRHC (small)"]["CRHC3"] = @benchmarkable vcov($k23, lm2)
+
+# ========================================
+# Smoothing Benchmarks
+# ========================================
+
+# Create benchmark data for smoothing
+T_sizes = [100, 1000, 5000]
+k_sizes = [3, 10, 50]
+m_T_values = [2, 5, 10]
+
+SUITE["Smoothing"] = BenchmarkGroup()
+SUITE["Smoothing"]["Uniform"] = BenchmarkGroup()
+SUITE["Smoothing"]["Triangular"] = BenchmarkGroup()
+SUITE["Smoothing"]["Uniform In-place"] = BenchmarkGroup()
+SUITE["Smoothing"]["Triangular In-place"] = BenchmarkGroup()
+SUITE["Smoothing"]["aVar Uniform"] = BenchmarkGroup()
+SUITE["Smoothing"]["aVar Triangular"] = BenchmarkGroup()
+
+# Generate test data for each configuration
+for T in T_sizes
+    for k in k_sizes
+        for m_T in m_T_values
+            # Create test data
+            G_data = randn(T, k)
+            G_dest = similar(G_data)
+
+            # Create smoothers
+            smoother_u = CovarianceMatrices.UniformSmoother(m_T)
+            smoother_t = CovarianceMatrices.TriangularSmoother(m_T)
+
+            # Label for this configuration
+            label = "T=$(T)_k=$(k)_m=$(m_T)"
+
+            # Out-of-place smoothing benchmarks
+            SUITE["Smoothing"]["Uniform"][label] =
+                @benchmarkable CovarianceMatrices.smooth_moments($G_data, $smoother_u)
+            SUITE["Smoothing"]["Triangular"][label] =
+                @benchmarkable CovarianceMatrices.smooth_moments($G_data, $smoother_t)
+
+            # In-place smoothing benchmarks
+            SUITE["Smoothing"]["Uniform In-place"][label] =
+                @benchmarkable CovarianceMatrices.smooth_moments!($G_dest, $G_data, $smoother_u)
+            SUITE["Smoothing"]["Triangular In-place"][label] =
+                @benchmarkable CovarianceMatrices.smooth_moments!($G_dest, $G_data, $smoother_t)
+
+            # aVar benchmarks (full HAC estimation)
+            SUITE["Smoothing"]["aVar Uniform"][label] =
+                @benchmarkable aVar($smoother_u, $G_data)
+            SUITE["Smoothing"]["aVar Triangular"][label] =
+                @benchmarkable aVar($smoother_t, $G_data)
+        end
+    end
+end
