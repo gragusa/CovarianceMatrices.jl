@@ -24,7 +24,8 @@ function CovarianceMatrices.Λ!(L::AbstractVector{F}, j::Integer,
     return L
 end
 
-function CovarianceMatrices.avar(k::EWC, X::AbstractMatrix{F}; prewhite = false) where {F <: ForwardDiff.Dual}
+function CovarianceMatrices.avar(k::EWC, X::AbstractMatrix{F}; prewhite = false) where {F <:
+                                                                                        ForwardDiff.Dual}
     if prewhite
         Z, D = fit_var(X)
     else
