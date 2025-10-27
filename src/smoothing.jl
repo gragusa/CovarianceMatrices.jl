@@ -671,5 +671,3 @@ function smooth_triangular_plain2(G::Matrix{Float64}, m_T::Int)
 
     return G_smooth
 end
-
-# Test the functions

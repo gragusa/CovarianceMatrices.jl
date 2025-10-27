@@ -305,5 +305,4 @@ using Random
             ## Using G̃triangular from previous test for which we know the smoothing
         end
     end
-
 end
