@@ -36,16 +36,16 @@ using Random
                      40 90;
                      34 74]
 
-        G̃triangular = [ 4.28571  27.1429;
-                        7.28571  37.2857;
-                       10.7143   45.0;
-                       14.2857   50.0;
-                       17.8571   53.5714;
-                       21.4286   57.1429;
-                       25.0      60.7143;
-                       27.0      61.2857;
-                       25.7143   55.7143;
-                       20.8571   43.7143];
+        G̃triangular = [4.28571 27.1429;
+                        7.28571 37.2857;
+                        10.7143 45.0;
+                        14.2857 50.0;
+                        17.8571 53.5714;
+                        21.4286 57.1429;
+                        25.0 60.7143;
+                        27.0 61.2857;
+                        25.7143 55.7143;
+                        20.8571 43.7143];
 
         k = CovarianceMatrices.UniformSmoother(m_T)
         @test k.m_T == m_T
@@ -69,19 +69,19 @@ using Random
                      45 105;
                      40 90]
 
-        G̃triangular = [ 6.11111  33.8889;
-                        9.66667  45.2222;
-                       13.7778   54.8889;
-                       18.2222   62.6667;
-                       22.7778   68.3333;
-                       27.3333   72.8889;
-                       30.6667   75.1111;
-                       31.4444   72.5556;
-                       29.4444   65.0;
-                       24.4444   52.2222]
+        G̃triangular = [6.11111 33.8889;
+                        9.66667 45.2222;
+                        13.7778 54.8889;
+                        18.2222 62.6667;
+                        22.7778 68.3333;
+                        27.3333 72.8889;
+                        30.6667 75.1111;
+                        31.4444 72.5556;
+                        29.4444 65.0;
+                        24.4444 52.2222]
 
         k = CovarianceMatrices.UniformSmoother(m_T)
-        @test k.m_T == (2S_T -  1) / 2
+        @test k.m_T == (2S_T - 1) / 2
         @test CovarianceMatrices.S_T(k) == (2m_T + 1) / 2
         G_uniform = CovarianceMatrices.smooth_moments(G, k)
         @test G_uniform == G̃uniform
@@ -220,14 +220,14 @@ using Random
     @testset "Correctness: Fast vs Plain Implementations" begin
         # Test that fast implementations match plain reference implementations
         test_params = [
-            (T=50, k=2, m_T=2),
-            (T=50, k=5, m_T=5),
-            (T=100, k=2, m_T=2),
-            (T=100, k=5, m_T=5),
-            (T=100, k=10, m_T=10),
-            (T=500, k=2, m_T=2),
-            (T=500, k=5, m_T=10),
-            (T=500, k=10, m_T=5)
+            (T = 50, k = 2, m_T = 2),
+            (T = 50, k = 5, m_T = 5),
+            (T = 100, k = 2, m_T = 2),
+            (T = 100, k = 5, m_T = 5),
+            (T = 100, k = 10, m_T = 10),
+            (T = 500, k = 2, m_T = 2),
+            (T = 500, k = 5, m_T = 10),
+            (T = 500, k = 10, m_T = 5)
         ]
 
         for params in test_params
@@ -253,9 +253,9 @@ using Random
     @testset "In-place vs Out-of-place Smoothing" begin
         # Test that in-place smoothing matches out-of-place
         test_configs = [
-            (T=50, k=3, m_T=2),
-            (T=100, k=5, m_T=5),
-            (T=200, k=10, m_T=10)
+            (T = 50, k = 3, m_T = 2),
+            (T = 100, k = 5, m_T = 5),
+            (T = 200, k = 10, m_T = 10)
         ]
 
         for config in test_configs

@@ -101,22 +101,20 @@ for T in T_sizes
             label = "T=$(T)_k=$(k)_m=$(m_T)"
 
             # Out-of-place smoothing benchmarks
-            SUITE["Smoothing"]["Uniform"][label] =
-                @benchmarkable CovarianceMatrices.smooth_moments($G_data, $smoother_u)
-            SUITE["Smoothing"]["Triangular"][label] =
-                @benchmarkable CovarianceMatrices.smooth_moments($G_data, $smoother_t)
+            SUITE["Smoothing"]["Uniform"][label] = @benchmarkable CovarianceMatrices.smooth_moments(
+                $G_data, $smoother_u)
+            SUITE["Smoothing"]["Triangular"][label] = @benchmarkable CovarianceMatrices.smooth_moments(
+                $G_data, $smoother_t)
 
             # In-place smoothing benchmarks
-            SUITE["Smoothing"]["Uniform In-place"][label] =
-                @benchmarkable CovarianceMatrices.smooth_moments!($G_dest, $G_data, $smoother_u)
-            SUITE["Smoothing"]["Triangular In-place"][label] =
-                @benchmarkable CovarianceMatrices.smooth_moments!($G_dest, $G_data, $smoother_t)
+            SUITE["Smoothing"]["Uniform In-place"][label] = @benchmarkable CovarianceMatrices.smooth_moments!(
+                $G_dest, $G_data, $smoother_u)
+            SUITE["Smoothing"]["Triangular In-place"][label] = @benchmarkable CovarianceMatrices.smooth_moments!(
+                $G_dest, $G_data, $smoother_t)
 
             # aVar benchmarks (full HAC estimation)
-            SUITE["Smoothing"]["aVar Uniform"][label] =
-                @benchmarkable aVar($smoother_u, $G_data)
-            SUITE["Smoothing"]["aVar Triangular"][label] =
-                @benchmarkable aVar($smoother_t, $G_data)
+            SUITE["Smoothing"]["aVar Uniform"][label] = @benchmarkable aVar($smoother_u, $G_data)
+            SUITE["Smoothing"]["aVar Triangular"][label] = @benchmarkable aVar($smoother_t, $G_data)
         end
     end
 end
