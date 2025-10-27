@@ -1,36 +1,53 @@
-Base.@propagate_inbounds function Λ(
-        j::Integer,
-        m::AbstractMatrix{F}
-) where {F <: AbstractFloat}
+function Λ!(L::AbstractVector{F}, j::Integer, m::AbstractMatrix{F}) where {F <: Real}
     T, p = size(m)
-    L = similar(m, (p, 1))
     fill!(L, zero(F))
-    for t in 1:T
-        w = cos((π * j * ((t - 0.5) / T)))
-        z = view(m, t, :)
-        L .= L .+ w .* z
+
+    inv_T = 1 / T
+    scale = sqrt(2 * inv_T)
+
+    @inbounds for t in 1:T
+        w = cos(π * j * (t - F(0.5)) * inv_T)
+        # Use BLAS axpy: L = L + w * m[t, :]
+        #L .= L + w * view(m, t, :)
+        BLAS.axpy!(w, view(m, t, :), L)
     end
-    return rmul!(L, sqrt(2 / T))
+    # Scale in-place
+    lmul!(scale, L)
+    return L
 end
 
-Base.@propagate_inbounds function avar(
-        k::EWC,
-        X::Matrix{F};
-        prewhite = false
-) where {F <: AbstractFloat}
+# Non-mutating version
+function Λ(j::Integer, m::AbstractMatrix{F}) where {F <: AbstractFloat}
+    T, p = size(m)
+    L = zeros(F, p)
+    return Λ!(L, j, m)
+end
+
+function avar(k::EWC, X::AbstractMatrix{F}; prewhite = false) where {F <: Real}
     if prewhite
         Z, D = fit_var(X)
     else
         Z = X
     end
+
     B = k.B
     T, p = size(Z)
-    Ω = similar(Z, (p, p))
-    fill!(Ω, zero(F))
-    for j in 1:B
-        L = Λ(j, Z)
-        @. Ω += L * L'
+    Ω = zeros(F, p, p)
+    L = Vector{F}(undef, p)
+
+    inv_B = 1 / B
+
+    @inbounds for j in 1:B
+        Λ!(L, j, Z)
+        # Use BLAS syr! for symmetric rank-1 update: Ω += L * L'
+        # syr!(uplo, alpha, x, A) computes A = A + alpha * x * x'
+        #Ω += inv_B * L * L'
+        BLAS.syr!('U', inv_B, L, Ω)
     end
-    rmul!(Ω, 1 // B)
-    return Symmetric(Ω)
+    # Fill lower triangle from upper (syr! only updates one triangle)
+    @inbounds for i in 1:p, j in 1:i-1
+        Ω[i, j] = Ω[j, i]
+    end
+
+    return Ω
 end
