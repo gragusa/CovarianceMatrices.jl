@@ -26,7 +26,7 @@ Below a description of the method:
 You have moment conditions $g_t(\beta)\in\mathbb{R}^m$ (rows of your $n\times m$ matrix, one row per $t$). The long-run variance (LRV) you want is
 
 $$
-\Omega \;=\; \sum_{s=-\infty}^{\infty}\Gamma(s),\qquad \Gamma(s)=\mathbb{E}[\,g_{t+s}(\beta_0)g_t(\beta_0)'\,].
+\Omega = \sum_{s=-\infty}^{\infty}\Gamma(s),\qquad \Gamma(s)=\mathbb{E}[g{t+s}(\beta_0)g_t(\beta_0)].
 $$
 
 Smith’s trick is to **smooth the moments themselves** first and then take a simple outer-product—this yields an **automatically p.s.d. HAC** estimator.&#x20;
