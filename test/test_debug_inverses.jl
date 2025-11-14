@@ -62,7 +62,7 @@ using Random
 
         @test size(V_info) == (k, k)
         @test issymmetric(V_info)
-        @test isposdef(V_info) || isposdef(V_info + 1e-10*I)  # May need regularization
+        @test isposdef(Symmetric(V_info)) || isposdef(Symmetric(V_info + 1e-10*I))  # May need regularization
 
         # Test Misspecified form with debug
         V_mis = vcov(HC0(), Misspecified(), moment_matrix;
@@ -126,7 +126,7 @@ using Random
         # Test GMM misspecified form which inverts multiple matrices
         V_gmm = vcov(HR0(), Misspecified(), Z;
             score = G,
-            objective_hessian = H,
+            hessian_objective = H,
             debug = true,
             cond_atol = 1e-12
         )

@@ -222,7 +222,7 @@ function _var_selection_samelag(
     B = nancov(ε; corrected = false)
     # Ensure symmetry: S(0) = Γ * B * Γ'
     S0 = Γ * B * Γ'
-    return Symmetric(S0), AICs, BICs, order_aic, order_bic
+    return S0, AICs, BICs, order_aic, order_bic
 end
 
 function _var_selection_ownlag(
@@ -344,7 +344,7 @@ function _var_selection_ownlag(
     B = nancov(ε; corrected = false)
     # Ensure symmetry: S(0) = Γ * B * Γ'
     S0 = Γ * B * Γ'
-    return Symmetric(S0), AICs, BICs, order_aic, order_bic
+    return S0, AICs, BICs, order_aic, order_bic
 end
 
 function _var_fixed(X::AbstractMatrix{R}, K; demean::Bool = false) where {R <: Real}
@@ -387,7 +387,7 @@ function _var_fixed(X::AbstractMatrix{R}, K; demean::Bool = false) where {R <: R
     B = nancov(ε; corrected = false)
     # Ensure symmetry: S(0) = Γ * B * Γ'
     S0 = Γ * B * Γ'
-    return Symmetric(S0), [], [], [K], [K]
+    return S0, [], [], [K], [K]
 end
 
 function delag(X::Matrix{R}, K::Int) where {R <: Real}

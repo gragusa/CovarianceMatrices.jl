@@ -7,67 +7,62 @@ instead of explicit matrix inversions for numerical stability.
 
 using LinearAlgebra
 
-"""
-    _compute_vcov(form::VarianceForm, model, Ω, W; kwargs...)
+# ============================================================================
+# MLikeModel Computations
+# ============================================================================
 
-Dispatch to appropriate variance computation based on form.
 """
-function _compute_vcov(
-        form::Information,
-        H,
-        G,
-        Ω,
-        W;
+    _compute_mle_information(M; kwargs...)
+
+Compute V = inv(M) for MLE Information form.
+M can be either H (hessian) or G (cross_score).
+
+For unscaled inputs (H and G are sums, not averages):
+V = inv(M)
+"""
+function _compute_mle_information(
+        M::AbstractMatrix;
         cond_atol::Union{Nothing, Real} = nothing,
         cond_rtol::Union{Nothing, Real} = nothing,
         debug::Bool = false,
         warn::Bool = true
 )
-    # Set default tolerances if not provided
+    # Set default tolerances
     atol = cond_atol === nothing ? 0.0 : cond_atol
-    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
+    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(M)))) * min(size(M)...)) :
                cond_rtol
 
     # Force warn=true when debug=true
     warn = debug || warn
 
-    # Check if we have a Hessian (MLE case) or need to use score (GMM case)
-    if H !== nothing
-        # MLE case: V = H⁻¹ (Fisher Information)
-        Hinv, flag, svals = ipinv(H; atol = atol, rtol = rtol_val)
-        _debug_report_inversion("H (Hessian)", flag, svals, "$(size(H))", debug, warn)
-        return Hinv
-    else
-        # GMM case: V = (G'Ω⁻¹G)⁻¹ (efficient GMM)
-        Ωinv, flag_omega, svals_omega = ipinv(Ω; atol = atol, rtol = rtol_val)
-        _debug_report_inversion("Omega", flag_omega, svals_omega, "$(size(Ω))", debug, warn)
+    # V = inv(M)
+    Minv, flag, svals = ipinv(M; atol = atol, rtol = rtol_val)
+    _debug_report_inversion("Fisher Information Matrix", flag, svals, "$(size(M))", debug,
+        warn)
 
-        G_omega_G = G' * Ωinv * G
-        V, flag_v, svals_v = ipinv(G_omega_G; atol = atol, rtol = rtol_val)
-        _debug_report_inversion("G'Omega^(-1)G (variance matrix)", flag_v,
-            svals_v, "$(size(G_omega_G))", debug, warn)
-        return V
-    end
+    return Minv
 end
 
-# Misspecified form - dispatches based on model type context
-# For MLE-like models (m=k): robust sandwich V = G⁻¹ΩG⁻ᵀ
-# For GMM-like models (m>k): robust GMM V = (G'WG)⁻¹(G'WΩWG)(G'WG)⁻¹
+"""
+    _compute_mle_misspecified(H, Ω; kwargs...)
 
-function _compute_vcov(
-        form::Misspecified,
-        H,
-        G,
-        Ω,
-        W;
+Compute robust sandwich variance for MLE: V = inv(H) * Ω * inv(H)
+
+For unscaled inputs:
+- H: Hessian (sum, not average)
+- Ω: Long-run covariance of scores (sum, not average)
+
+The formula is: V = inv(H) * Ω * inv(H)
+"""
+function _compute_mle_misspecified(
+        H::AbstractMatrix,
+        Ω::AbstractMatrix;
         cond_atol::Union{Nothing, Real} = nothing,
         cond_rtol::Union{Nothing, Real} = nothing,
         debug::Bool = false,
         warn::Bool = true
 )
-    m, k = size(G)
-
-    # Set default tolerances if not provided
+    # Set default tolerances
     atol = cond_atol === nothing ? 0.0 : cond_atol
     rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
                cond_rtol
@@ -75,16 +70,162 @@ function _compute_vcov(
     # Force warn=true when debug=true
     warn = debug || warn
 
-    if m == k
-        # MLE-like: robust sandwich form V = G⁻¹ΩG⁻ᵀ
-        Ginv, flag, svals = ipinv(G; atol = atol, rtol = rtol_val)
-        _debug_report_inversion("G (score matrix)", flag, svals, "$(size(G))", debug, warn)
-        return Ginv' * Ω * Ginv
+    # Invert H
+    Hinv, flag_h, svals_h = ipinv(H; atol = atol, rtol = rtol_val)
+    _debug_report_inversion("H (Hessian)", flag_h, svals_h, "$(size(H))", debug, warn)
+
+    # Compute V = Hinv' * Ω * Hinv
+    return Hinv' * Ω * Hinv
+end
+
+# ============================================================================
+# GMMLikeModel Computations
+# ============================================================================
+
+"""
+    _compute_gmm_information(G, Ω; kwargs...)
+
+Compute efficient GMM variance: V = inv(G' * inv(Ω) * G)
+
+For unscaled inputs:
+- G: Jacobian matrix (sum, not average)
+- Ω: Long-run covariance (sum, not average)
+
+The formula is: V = inv(G' * inv(Ω) * G)
+"""
+function _compute_gmm_information(
+        G::AbstractMatrix,
+        Ω::AbstractMatrix;
+        cond_atol::Union{Nothing, Real} = nothing,
+        cond_rtol::Union{Nothing, Real} = nothing,
+        debug::Bool = false,
+        warn::Bool = true
+)
+    # Set default tolerances
+    atol = cond_atol === nothing ? 0.0 : cond_atol
+    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
+               cond_rtol
+
+    # Force warn=true when debug=true
+    warn = debug || warn
+
+    # Invert Ω
+    Ωinv, flag_omega, svals_omega = ipinv(Ω; atol = atol, rtol = rtol_val)
+    _debug_report_inversion("Omega", flag_omega, svals_omega, "$(size(Ω))", debug, warn)
+
+    # Compute G' * Ωinv * G
+    G_omega_G = G' * Ωinv * G
+
+    # Invert to get variance
+    V, flag_v, svals_v = ipinv(G_omega_G; atol = atol, rtol = rtol_val)
+    _debug_report_inversion("G'Omega^(-1)G", flag_v, svals_v, "$(size(G_omega_G))", debug,
+        warn)
+
+    return V
+end
+
+"""
+    _compute_gmm_information_weighted(G, Ω, W; kwargs...)
+
+Compute GMM variance with arbitrary weight matrix: V = inv(G' * W * inv(Ω) * W * G)
+
+For unscaled inputs:
+- G: Jacobian matrix (sum, not average)
+- Ω: Long-run covariance (sum, not average)
+- W: Weight matrix (m × m)
+
+The formula is: V = inv(G' * W * inv(Ω) * W * G)
+"""
+function _compute_gmm_information_weighted(
+        G::AbstractMatrix,
+        Ω::AbstractMatrix,
+        W::AbstractMatrix;
+        cond_atol::Union{Nothing, Real} = nothing,
+        cond_rtol::Union{Nothing, Real} = nothing,
+        debug::Bool = false,
+        warn::Bool = true
+)
+    # Set default tolerances
+    atol = cond_atol === nothing ? 0.0 : cond_atol
+    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
+               cond_rtol
+
+    # Force warn=true when debug=true
+    warn = debug || warn
+
+    # Invert Ω
+    Ωinv, flag_omega, svals_omega = ipinv(Ω; atol = atol, rtol = rtol_val)
+    _debug_report_inversion("Omega", flag_omega, svals_omega, "$(size(Ω))", debug, warn)
+
+    # Compute G' * W * Ωinv * W * G
+    WΩinvW = W * Ωinv * W
+    G_WOmegaW_G = G' * WΩinvW * G
+
+    # Invert to get variance
+    V, flag_v, svals_v = ipinv(G_WOmegaW_G; atol = atol, rtol = rtol_val)
+    _debug_report_inversion("G'W*Omega^(-1)*W*G", flag_v, svals_v, "$(size(G_WOmegaW_G))",
+        debug, warn)
+
+    return V
+end
+
+"""
+    _compute_gmm_misspecified(H, G, Ω, W; kwargs...)
+
+Compute robust GMM variance:
+- If W is nothing: V = inv(H) * inv(G' * inv(Ω) * G) * inv(H) (optimal GMM)
+- If W is provided: V = inv(H) * inv(G' * W * inv(Ω) * W * G) * inv(H) (suboptimal GMM)
+
+For unscaled inputs:
+- H: Hessian (sum, not average)
+- G: Jacobian matrix (sum, not average)
+- Ω: Long-run covariance (sum, not average)
+- W: Optional weight matrix (if nothing, uses optimal weight inv(Ω))
+"""
+function _compute_gmm_misspecified(
+        H::AbstractMatrix,
+        G::AbstractMatrix,
+        Ω::AbstractMatrix,
+        W::Union{Nothing, AbstractMatrix};
+        cond_atol::Union{Nothing, Real} = nothing,
+        cond_rtol::Union{Nothing, Real} = nothing,
+        debug::Bool = false,
+        warn::Bool = true
+)
+    # Set default tolerances
+    atol = cond_atol === nothing ? 0.0 : cond_atol
+    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
+               cond_rtol
+
+    # Force warn=true when debug=true
+    warn = debug || warn
+
+    # Invert Ω
+    Ωinv, flag_omega, svals_omega = ipinv(Ω; atol = atol, rtol = rtol_val)
+    _debug_report_inversion("Ω", flag_omega, svals_omega, "$(size(Ω))", debug, warn)
+
+    # Compute B = inv(G' * W * inv(Ω) * W * G) or inv(G' * inv(Ω) * G)
+    if W === nothing
+        # Optimal weight: B = inv(G' * inv(Ω) * G)
+        B = G' * Ωinv * G
+        # B, flag_gomega, svals_gomega = ipinv(G_omega_G; atol = atol, rtol = rtol_val)
+        # _debug_report_inversion("G'Omega^(-1)G", flag_gomega, svals_gomega,
+        #     "$(size(G_omega_G))", debug, warn)
     else
-        # GMM-like: robust GMM form V = (G'WG)⁻¹(G'WΩWG)(G'WG)⁻¹
-        _compute_vcov_gmm_misspecified(H, G, Ω, W; cond_atol = cond_atol,
-            cond_rtol = cond_rtol, debug = debug, warn = warn)
+        # Suboptimal weight: B = inv(G' * W * inv(Ω) * W * G)
+        WΩinvW = W * Ωinv * W
+        B = G' * WΩinvW * G
+        # B, flag_gomega, svals_gomega = ipinv(G_WOmegaW_G; atol = atol, rtol = rtol_val)
+        # _debug_report_inversion("G'W*Omega^(-1)*W*G", flag_gomega, svals_gomega,
+        #     "$(size(G_WOmegaW_G))", debug, warn)
     end
+
+    # Invert H
+    Hinv, flag_h, svals_h = ipinv(H; atol = atol, rtol = rtol_val)
+    _debug_report_inversion("H (Hessian)", flag_h, svals_h, "$(size(H))", debug, warn)
+
+    # Compute V = inv(H) * B * inv(H)
+    return Hinv' * B * Hinv
 end
 
 function _debug_report_inversion(matrix_name::String, flag::AbstractVector{Bool},
@@ -111,38 +252,6 @@ function _debug_report_inversion(matrix_name::String, flag::AbstractVector{Bool}
     end
 end
 
-function _compute_vcov_gmm_misspecified(
-        H,
-        G,
-        Ω,
-        W;
-        cond_atol::Union{Nothing, Real} = nothing,
-        cond_rtol::Union{Nothing, Real} = nothing,
-        debug::Bool = false,
-        warn::Bool = true
-)
-    # Set default tolerances if not provided
-    atol = cond_atol === nothing ? 0.0 : cond_atol
-    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
-               cond_rtol
-
-    # Force warn=true when debug=true
-    warn = debug || warn
-
-    ## Invert matrices with debug reporting
-    Ωinv, flag_omega, svals_omega = ipinv(Ω; atol = atol, rtol = rtol_val)
-    _debug_report_inversion("Ω", flag_omega, svals_omega, "$(size(Ω))", debug, warn)
-
-    G_omega_G = G' * Ωinv * G
-    B, flag_gomega, svals_gomega = ipinv(G_omega_G; atol = atol, rtol = rtol_val)
-    _debug_report_inversion(
-        "G'Omega^(-1)G", flag_gomega, svals_gomega, "$(size(G_omega_G))", debug, warn)
-
-    Hinv, flag_h, svals_h = ipinv(H; atol = atol, rtol = rtol_val)
-    _debug_report_inversion("H", flag_h, svals_h, "$(size(H))", debug, warn)
-
-    return Hinv' * B * Hinv
-end
 
 function ipinv(
         A::AbstractMatrix{T};

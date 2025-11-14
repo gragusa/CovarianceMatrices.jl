@@ -95,31 +95,73 @@ function momentmatrix end
 # Note: momentmatrix is already defined in api.jl, we just extend the documentation here
 
 """
-    score(model) -> AbstractMatrix
+    cross_score(model) -> AbstractMatrix
 
-Return the Jacobian matrix of the moment conditions.
+Return the cross-product matrix of the moment conditions (also known as the "meat"
+of the sandwich estimator or the Jacobian matrix of moment conditions).
 
-This is the matrix of partial derivatives ∂ḡ/∂θ' evaluated at the estimated
-parameters, where ḡ is the sample mean of the moment conditions.
+This is the **unscaled** cross-product: G = ∑ᵢ gᵢgᵢ' where gᵢ are the moment
+contributions (or equivalently g'g where g is the moment matrix).
+
+# Returns
+- `AbstractMatrix`: m × m matrix where m is the number of moment conditions.
+
+# Default Implementation
+A default implementation is provided based on the moment matrix:
+```julia
+function cross_score(model)
+    g = momentmatrix(model)
+    return (g' * g)
+end
+```
+
+This default works for most cases. Override only if you have an analytical
+expression or need custom behavior.
+
+# Important: Scaling Convention
+The returned matrix should be **unscaled** - that is, it should be the **sum**
+of cross-products, NOT divided by the number of observations.
+
+This convention ensures consistency with the unscaled Hessian and allows the
+variance computation formulas to work correctly.
+
+# Note
+For MLE models, this is related to the Fisher Information matrix.
+For GMM models, this is the "G" matrix in the variance formula.
+"""
+function cross_score(model)
+    # Default implementation: unscaled cross-product of moment matrix
+    g = momentmatrix(model)
+    return (g' * g)
+end
+
+"""
+    jacobian_momentfunction(model) -> AbstractMatrix
+
+Return the Jacobian matrix of the moment function with respect to parameters.
+
+This is the matrix of derivatives of the (summed) moment conditions with respect
+to the parameters: ∂(∑ᵢ gᵢ)/∂θ' where gᵢ are individual moment contributions.
 
 # Returns
 - `AbstractMatrix`: m × k matrix where m is the number of moment conditions
   and k is the number of parameters.
 
+# Important: Scaling Convention
+The returned matrix should be **unscaled** - the derivative of the sum of moments,
+not the average.
+
 # Note
-For exactly identified models (m = k), this equals the negative inverse
-of the Hessian of the objective function in many cases.
+For GMM models, this is required for variance computation.
+For MLE models, this may equal the negative cross_score matrix.
 """
-function score(x)
-    t = typeof(x)
-    error(
-        "score not implemented for type $t. " *
-        "Please implement: CovarianceMatrices.score(::$(t)) -> AbstractMatrix",
-    )
+function jacobian_momentfunction(model)
+    # Default: not available
+    return nothing
 end
 
 """
-    objective_hessian(model) -> Union{Nothing, AbstractMatrix}
+    hessian_objective(model) -> Union{Nothing, AbstractMatrix}
 
 Return the Hessian matrix of the estimator's objective function.
 
@@ -130,11 +172,16 @@ respect to the parameters, evaluated at the estimated parameters.
 - `AbstractMatrix`: k × k matrix where k is the number of parameters
 - `Nothing`: if not available or not applicable
 
+# Important: Scaling Convention
+The returned matrix should be **unscaled**, that is, NOT divided by the number of observations
+
+```
+
 # Note
 For MLE, this is the Hessian of the negative log-likelihood.
-For exactly identified models, this often equals the Jacobian matrix.
+
 """
-function objective_hessian(x)
+function hessian_objective(x)
     # Default: not available
     return nothing
 end
@@ -229,17 +276,8 @@ function _check_dimensions(form::VarianceForm, model::MLikeModel)
         throw(ArgumentError("MLikeModel requires exactly identified system: m=$m parameters but k=$k moment conditions"))
     end
 
-    # Check that required methods are available for Misspecified form
-    if form isa Misspecified
-        try
-            score_result = score(model)
-            if score_result === nothing
-                throw(ArgumentError("Misspecified form for MLE models requires score(model) to return a k×k matrix where k=$k parameters, but got nothing"))
-            end
-        catch ErrorException
-            throw(ArgumentError("Misspecified form for MLE models requires score(model) to be implemented and return a k×k matrix where k=$k parameters"))
-        end
-    end
+    # cross_score is always available via default implementation
+    # No additional checks needed for MLikeModel
 end
 
 function _check_dimensions(form::VarianceForm, model::GMMLikeModel)
@@ -252,53 +290,12 @@ function _check_dimensions(form::VarianceForm, model::GMMLikeModel)
         throw(ArgumentError("GMMLikeModel requires at least identified system: m=$m moment conditions but k=$k parameters"))
     end
 
-    # Check what methods are available and build comprehensive error message
-    score_available = false
-    score_error = nothing
-    try
-        score_result = score(model)
-        score_available = (score_result !== nothing)
-    catch e
-        score_error = e
-    end
-
-    hessian_available = false
+    # cross_score is always available via default implementation
+    # Only check hessian_objective for Misspecified form
     if form isa Misspecified
-        hessian_result = objective_hessian(model)
-        hessian_available = (hessian_result !== nothing)
-    end
-
-    # Get dimensions for helpful error messages
-    # m = number of moment conditions, k = number of parameters
-
-    # Check requirements and provide comprehensive error messages with dimensions
-    if form isa Information
-        if !score_available
-            if score_error !== nothing
-                throw(ArgumentError("Information form requires score(model) to be implemented for GMM models. Expected: score(model) should return an m×k matrix where m=$m moment conditions, k=$k parameters"))
-            else
-                throw(ArgumentError("Information form requires score(model) to return a matrix for GMM models. Expected: m×k matrix where m=$m moment conditions, k=$k parameters, but got nothing"))
-            end
-        end
-    elseif form isa Misspecified
-        missing_methods = String[]
-        if !score_available
-            if score_error !== nothing
-                push!(missing_methods,
-                    "score(model) must be implemented and return an m×k matrix where m=$m moment conditions, k=$k parameters")
-            else
-                push!(missing_methods,
-                    "score(model) must return a matrix (expected m×k where m=$m, k=$k) but got nothing")
-            end
-        end
-        if !hessian_available
-            push!(missing_methods,
-                "objective_hessian(model) must return a k×k matrix where k=$k parameters")
-        end
-
-        if !isempty(missing_methods)
-            methods_str = join(missing_methods, " and ")
-            throw(ArgumentError("Misspecified form for GMM models requires both score and objective_hessian methods: $methods_str"))
+        hessian_result = hessian_objective(model)
+        if hessian_result === nothing
+            throw(ArgumentError("Misspecified form for GMM models requires hessian_objective(model) to return a k×k matrix where k=$k parameters"))
         end
     end
 end
@@ -311,88 +308,78 @@ function _check_dimensions(form::VarianceForm, model)
     θ = StatsBase.coef(model)
     m, k = size(Z, 2), length(θ)
 
-    # For exactly identified models (m = k), assume MLE-like
-    if m == k
-        # Check that required methods are available for Misspecified form
-        if form isa Misspecified && score(model) === nothing
-            throw(
-                ArgumentError("Misspecified form for exactly identified models (MLE-like) requires score(model) to return a k×k matrix where k=$k parameters, but got nothing"),
-            )
+    # cross_score is always available via default implementation
+    # Only check hessian_objective for GMM Misspecified form
+    if m > k && form isa Misspecified
+        if hessian_objective(model) === nothing
+            throw(ArgumentError("Misspecified form for overidentified models (GMM-like) requires hessian_objective(model) to return a k×k matrix where k=$k parameters"))
         end
-        # For overidentified models (m > k), assume GMM-like
-    elseif m > k
-        # Both forms require score for GMM
-        if score(model) === nothing
-            throw(
-                ArgumentError(
-                "$(typeof(form)) form for overidentified models (GMM-like) requires score(model) to return an m×k matrix where m=$m moment conditions, k=$k parameters, but got nothing",
-            ),
-            )
-        end
-    else
+    end
+
+    if m < k
         throw(ArgumentError("Invalid model: fewer moments (m=$m) than parameters (k=$k)"))
     end
 end
 
 """
-    _check_matrix_compatibility(form::VarianceForm, Z, score, objective_hessian, W)
+    _check_matrix_compatibility(form::VarianceForm, Z, cross_score, hessian_objective, W)
 
 Check compatibility of provided matrices for manual API.
 """
 function _check_matrix_compatibility(
         form::Information,
         Z::AbstractMatrix,
-        score,
-        objective_hessian,
+        cross_score_mat,
+        hessian_objective,
         W
 )
     n, m = size(Z)
 
-    if objective_hessian !== nothing
-        k_h, k_h2 = size(objective_hessian)
+    if hessian_objective !== nothing
+        k_h, k_h2 = size(hessian_objective)
         if k_h != k_h2
             throw(
                 ArgumentError(
-                "objective_hessian must be square, got size $(size(objective_hessian))",
+                "hessian_objective must be square, got size $(size(hessian_objective))",
             ),
             )
         end
     end
 
-    if score !== nothing
-        m_j, k_j = size(score)
-        if m_j != m
+    if cross_score_mat !== nothing
+        m_cs, m_cs2 = size(cross_score_mat)
+        if m_cs != m_cs2 || m_cs != m
             throw(
                 ArgumentError(
-                "score first dimension ($m_j) must match moment matrix second dimension ($m)",
+                "cross_score must be m×m where m=$m moment conditions, got size $(size(cross_score_mat))",
             ),
             )
         end
     end
 
-    if objective_hessian === nothing && score === nothing
-        throw(ArgumentError("Information form requires either objective_hessian or score"))
+    if hessian_objective === nothing && cross_score_mat === nothing
+        throw(ArgumentError("Information form requires either hessian_objective or cross_score"))
     end
 end
 
 function _check_matrix_compatibility(
         form::Misspecified,
         Z::AbstractMatrix,
-        score,
-        objective_hessian,
+        cross_score_mat,
+        hessian_objective,
         W
 )
     n, m = size(Z)
 
-    if score === nothing
-        throw(ArgumentError("Misspecified form requires score matrix"))
+    if cross_score_mat === nothing
+        throw(ArgumentError("Misspecified form requires cross_score matrix"))
     end
 
-    m_j, k_j = size(score)
-    if m_j != m
+    m_cs, m_cs2 = size(cross_score_mat)
+    if m_cs != m_cs2 || m_cs != m
         throw(
             ArgumentError(
-            "score first dimension ($m_j) must match moment matrix second dimension ($m)",
+            "cross_score must be m×m where m=$m moment conditions, got size $(size(cross_score_mat))",
         ),
         )
     end

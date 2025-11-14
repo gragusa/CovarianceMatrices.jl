@@ -24,11 +24,7 @@ function Λ(j::Integer, m::AbstractMatrix{F}) where {F <: AbstractFloat}
 end
 
 function avar(k::EWC, X::AbstractMatrix{F}; prewhite = false) where {F <: Real}
-    if prewhite
-        Z, D = fit_var(X)
-    else
-        Z = X
-    end
+    Z, D = finalize_prewhite(X, Val(prewhite))
 
     B = k.B
     T, p = size(Z)
@@ -46,9 +42,10 @@ function avar(k::EWC, X::AbstractMatrix{F}; prewhite = false) where {F <: Real}
     end
     # Fill lower triangle from upper (syr! only updates one triangle)
     @inbounds for i in 1:p, j in 1:(i - 1)
-
         Ω[i, j] = Ω[j, i]
     end
 
-    return Ω
+    # Transform back if prewhitened
+    v = inv(one(F) * I - D')
+    return v * Ω * v'
 end

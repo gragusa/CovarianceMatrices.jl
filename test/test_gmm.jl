@@ -34,9 +34,15 @@ function CovarianceMatrices.momentmatrix(p::LinearGMM)
     Z .* (y .- X*coef(p))
 end
 
-function CovarianceMatrices.score(p::LinearGMM)
+function CovarianceMatrices.cross_score(p::LinearGMM)
     y, X, Z = p.data
-    return -(Z' * X) ./ nobs(p)
+    return -(Z' * X)
+end
+
+function CovarianceMatrices.jacobian_moment(p::LinearGMM)
+    y, X, Z = p.data
+    # Jacobian of sum of moment functions: ∂(∑ᵢ Zᵢ(yᵢ - Xᵢβ))/∂β = -Z'X
+    return -(Z' * X)
 end
 
 ## Constructor - We estimate the parameters
@@ -56,12 +62,11 @@ function LinearGMM(data; v::CovarianceMatrices.AbstractAsymptoticVarianceEstimat
     return gmm
 end
 
-function CovarianceMatrices.objective_hessian(p::LinearGMM)
-    y, X, Z = data
+function CovarianceMatrices.hessian_objective(p::LinearGMM)
+    y, X, Z = p.data
     M = CovarianceMatrices.momentmatrix(p, coef(p))
     Omega = aVar(p.v, M)
-    n = nobs(p)
-    H = -(X'Z/n)*pinv(Omega)*(Z'X/n)
+    H = -(X'Z)*pinv(Omega)*(Z'X)
     return H
 end
 

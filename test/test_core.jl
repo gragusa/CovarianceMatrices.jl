@@ -260,23 +260,9 @@ df.y = Y;
     end
 
     @testset "Smoothed HAC ✅" begin
-        # Legacy tests commented out - BartlettSmoother and TruncatedSmoother are deprecated
-        # and now use the new SmoothedMoments implementation which produces different (correct) results
-        # See test_smoothed_moments.jl for comprehensive tests of the new implementation
-
-        # X = randn(StableRNG(12322), 3700000, 3)
-        # k = BartlettSmoother(3)
-        # Σₛ = a𝕍ar(k, X; demean = true)
-        # Σₕ = a𝕍ar(Parzen(3), X; demean = true)
-        # @test Σₛ ≈ Σₕ rtol = 1e-3
-        # k = TruncatedSmoother(3)
-        # Σₛ = a𝕍ar(k, X; demean = true)
-        # Σₕ = a𝕍ar(Bartlett(3), X; demean = true)
-        # @test Σₛ ≈ Σₕ rtol = 1e-3
-
-        # Simple test to ensure deprecated constructors still work
+        # Test smoothed moment estimators
         X = randn(StableRNG(12322), 100, 3)
-        k = BartlettSmoother(3)
+        k = UniformSmoother(3)
         Σₛ = a𝕍ar(k, X; demean = true)
         @test size(Σₛ) == (3, 3)
         @test issymmetric(Σₛ)

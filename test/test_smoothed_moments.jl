@@ -297,6 +297,7 @@ using Random
             @test A ≈ B atol=1e-1
         end
         @testset "TriangularSmoother" begin
+            X = randn(rng, 50000, 3);
             A = aVar(Parzen(12), X)  # Warm-up
             B = aVar(CovarianceMatrices.TriangularSmoother(11), X)  # Warm-up
             @test A ≈ B atol=1e-1

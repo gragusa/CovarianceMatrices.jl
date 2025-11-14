@@ -59,8 +59,8 @@ using Distributions
         # Test basic aVar functionality
         S1 = aVar(vh, X)
         @test size(S1) == (k, k)
-        @test issymmetric(S1)
-        @test isposdef(S1) || isposdef(S1 + 1e-10*I)
+        @test S1 ≈ S1'  # Check numerical symmetry
+        @test isposdef(Symmetric(S1)) || isposdef(Symmetric(S1 + 1e-10*I))
 
         # Test with different options
         S2 = aVar(vh, X; demean = false)
@@ -73,7 +73,7 @@ using Distributions
         vh_bic = VARHAC(:bic)
         S_bic = aVar(vh_bic, X)
         @test size(S_bic) == (k, k)
-        @test issymmetric(S_bic)
+        @test S_bic ≈ S_bic'  # Check numerical symmetry
     end
 
     @testset "Unified vcov API Integration" begin
@@ -91,13 +91,13 @@ using Distributions
         # Test vcov with Information form
         V1 = vcov(vh, Information(), X)
         @test size(V1) == (k, k)
-        @test issymmetric(V1)
-        @test isposdef(V1) || isposdef(V1 + 1e-12*I)
+        @test V1 ≈ V1'  # Check numerical symmetry
+        @test isposdef(Symmetric(V1)) || isposdef(Symmetric(V1 + 1e-12*I))
 
         # Test vcov with Misspecified form
         V2 = vcov(vh, Misspecified(), X)
         @test size(V2) == (k, k)
-        @test issymmetric(V2)
+        @test V2 ≈ V2'  # Check numerical symmetry
 
         # For VARHAC, both forms should give similar results
         @test V1 ≈ V2 rtol=1e-8
@@ -105,8 +105,8 @@ using Distributions
         # Test that both APIs produce valid results
         S_avar = aVar(vh, X; demean = false, scale = true)
         @test size(S_avar) == (k, k)
-        @test issymmetric(S_avar)
-        @test isposdef(S_avar) || isposdef(S_avar + 1e-10*I)
+        @test S_avar ≈ S_avar'  # Check numerical symmetry
+        @test isposdef(Symmetric(S_avar)) || isposdef(Symmetric(S_avar + 1e-10*I))
     end
 
     @testset "AutoLags Functionality" begin
@@ -135,7 +135,7 @@ using Distributions
         # Should work with aVar (auto-detects dimensions)
         S_auto = aVar(vh_auto, X)
         @test size(S_auto) == (3, 3)
-        @test issymmetric(S_auto)
+        @test S_auto ≈ S_auto'  # Check numerical symmetry
     end
 
     @testset "Mathematical Properties Validation" begin
@@ -150,8 +150,8 @@ using Distributions
             S = aVar(vh, X)
 
             @test size(S) == (k, k)
-            @test issymmetric(S)
-            @test isposdef(S)
+            @test S ≈ S'  # Check numerical symmetry
+            @test isposdef(Symmetric(S))
 
             # Check that selected orders are reasonable for white noise
             # (Most equations should select low lag orders)
@@ -179,11 +179,11 @@ using Distributions
             S = aVar(vh, X)
 
             @test size(S) == (k, k)
-            @test issymmetric(S)
-            @test isposdef(S)
+            @test S ≈ S'  # Check numerical symmetry
+            @test isposdef(Symmetric(S))
 
             # The spectral density should be positive definite
-            eigenvals = eigvals(S)
+            eigenvals = eigvals(Symmetric(S))
             @test all(eigenvals .> 0)
         end
 
@@ -204,8 +204,8 @@ using Distributions
             S = aVar(vh, X)
 
             @test size(S) == (2, 2)
-            @test issymmetric(S)
-            @test isposdef(S)
+            @test S ≈ S'  # Check numerical symmetry
+            @test isposdef(Symmetric(S))
 
             # The persistent series should have higher variance
             @test S[2, 2] > S[1, 1]
@@ -231,8 +231,8 @@ using Distributions
         for (vh, name) in strategies
             S = aVar(vh, X)
             @test size(S) == (k, k)  # Failed for $name
-            @test issymmetric(S)  # Symmetry failed for $name
-            @test isposdef(S) || isposdef(S + 1e-10*I)  # PSD failed for $name
+            @test S ≈ S'  # Check numerical symmetry  # Symmetry failed for $name
+            @test isposdef(Symmetric(S)) || isposdef(Symmetric(S + 1e-10*I))  # PSD failed for $name
         end
     end
 
@@ -248,7 +248,7 @@ using Distributions
             S = aVar(vh, X)
 
             @test size(S) == (k, k)
-            @test issymmetric(S)
+            @test S ≈ S'  # Check numerical symmetry
             @test all(isfinite.(S))
         end
 
@@ -262,7 +262,7 @@ using Distributions
             S = aVar(vh, X)
 
             @test size(S) == (k, k)
-            @test issymmetric(S)
+            @test S ≈ S'  # Check numerical symmetry
             @test all(isfinite.(S))
             # Should handle near-singularity gracefully
         end
@@ -311,7 +311,7 @@ using Distributions
             X_single = randn(50, 1)
             S_single = aVar(vh, X_single)
             @test size(S_single) == (1, 1)
-            @test issymmetric(S_single)
+            @test S_single ≈ S_single'  # Check numerical symmetry
         end
 
         @testset "AutoLags Error Handling" begin

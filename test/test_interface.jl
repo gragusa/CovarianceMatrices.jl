@@ -38,13 +38,13 @@ function CovarianceMatrices.momentmatrix(m::SimpleProbit)
     return m.X .* (residuals .* weights)
 end
 
-function CovarianceMatrices.objective_hessian(m::SimpleProbit)
+function CovarianceMatrices.hessian_objective(m::SimpleProbit)
     weights = m.fitted_densities .^ 2 ./ (m.fitted_probs .* (1 .- m.fitted_probs) .+ 1e-15)
-    return (m.X' * Diagonal(weights) * m.X) / length(m.y)
+    return (m.X' * Diagonal(weights) * m.X)
 end
 
-function CovarianceMatrices.score(m::SimpleProbit)
-    return -CovarianceMatrices.objective_hessian(m)
+function CovarianceMatrices.cross_score(m::SimpleProbit)
+    return -CovarianceMatrices.hessian_objective(m)
 end
 
 # Simple GMM model for testing
@@ -92,9 +92,15 @@ function CovarianceMatrices.momentmatrix(m::SimpleGMM)
     return Z .* (y .- X * coef(m))
 end
 
-function CovarianceMatrices.score(m::SimpleGMM)
+function CovarianceMatrices.cross_score(m::SimpleGMM)
     y, X, Z = m.data.y, m.data.x, m.data.z
-    return -(Z' * X) / nobs(m)
+    return -(Z' * X)
+end
+
+function CovarianceMatrices.jacobian_momentfunction(m::SimpleGMM)
+    y, X, Z = m.data.y, m.data.x, m.data.z
+    # Jacobian of sum of moment functions: ∂(∑ᵢ Zᵢ(yᵢ - Xᵢβ))/∂β = -Z'X
+    return -(Z' * X)
 end
 
 @testset "Model Interface Validation ✅" begin
@@ -140,7 +146,7 @@ end
             HC0(),
             Information(),
             Z;
-            objective_hessian = nothing,
+            hessian_objective = nothing,
             score = nothing
         )
     end
@@ -156,12 +162,12 @@ end
     @testset "Matrix Dimension Validation" begin
         Z = randn(100, 3)
 
-        # Invalid objective_hessian dimensions
+        # Invalid hessian_objective dimensions
         @test_throws ArgumentError vcov(
             HC0(),
             Information(),
             Z;
-            objective_hessian = randn(3, 2)
+            hessian_objective = randn(3, 2)
         )
 
         # Invalid score dimensions
@@ -191,7 +197,7 @@ end
         StatsBase.coef(m::UnderidentifiedModel) = m.β
         StatsBase.nobs(m::UnderidentifiedModel) = size(m.Z, 1)
         CovarianceMatrices.momentmatrix(m::UnderidentifiedModel) = m.Z
-        CovarianceMatrices.score(m::UnderidentifiedModel) = G
+        CovarianceMatrices.cross_score(m::UnderidentifiedModel) = G
 
         model = UnderidentifiedModel(Z, [1.0, 2.0, 3.0])
 
@@ -316,12 +322,12 @@ end
 
         # Test matrix API equivalence
         Z = CovarianceMatrices.momentmatrix(probit_model)
-        H = CovarianceMatrices.objective_hessian(probit_model)
-        G = CovarianceMatrices.score(probit_model)
+        H = CovarianceMatrices.hessian_objective(probit_model)
+        G = CovarianceMatrices.cross_score(probit_model)
 
         for est in [HC0(), HC1()]
             V_model_info = vcov(est, Information(), probit_model)
-            V_matrix_info = vcov(est, Information(), Z; objective_hessian = H)
+            V_matrix_info = vcov(est, Information(), Z; hessian_objective = H)
             @test V_model_info ≈ V_matrix_info
 
             V_model_mis = vcov(est, Misspecified(), probit_model)
@@ -344,7 +350,7 @@ end
             V_info = vcov(est, Information(), gmm_model)
             @test size(V_info, 1) == size(V_info, 2)
 
-            # Misspecified form should throw error for GMM without objective_hessian
+            # Misspecified form should throw error for GMM without hessian_objective
             @test_throws ArgumentError vcov(est, Misspecified(), gmm_model)
         end
 
@@ -383,7 +389,7 @@ end
         V_info_gmm = vcov(HR0(), Information(), gmm_model)
         @test isposdef(V_info_gmm)
 
-        # Misspecified form should throw error without objective_hessian
+        # Misspecified form should throw error without hessian_objective
         @test_throws ArgumentError vcov(HR0(), Misspecified(), gmm_model)
     end
 end
@@ -440,21 +446,21 @@ end
 
         minimal = MinimalModel([1.0, 2.0])
 
-        # Should work with Information form if objective_hessian is provided
+        # Should work with Information form if hessian_objective is provided
         H = Matrix{Float64}(I, 2, 2)
         V = vcov(
             HC0(),
             Information(),
             CovarianceMatrices.momentmatrix(minimal);
-            objective_hessian = H
+            hessian_objective = H
         )
         @test size(V) == (2, 2)
 
         # Test optional weight_matrix method
         @test CovarianceMatrices.weight_matrix(minimal) === nothing
 
-        # Test optional objective_hessian method
-        @test CovarianceMatrices.objective_hessian(minimal) === nothing
+        # Test optional hessian_objective method
+        @test CovarianceMatrices.hessian_objective(minimal) === nothing
     end
 
     @testset "Method Dispatch" begin
@@ -468,7 +474,7 @@ end
         StatsBase.coef(m::TestMLE) = m.β
         StatsBase.nobs(m::TestMLE) = 50
         CovarianceMatrices.momentmatrix(m::TestMLE) = randn(50, length(m.β))
-        CovarianceMatrices.score(m::TestMLE) = randn(length(m.β), length(m.β))
+        CovarianceMatrices.cross_score(m::TestMLE) = randn(length(m.β), length(m.β))
 
         mle = TestMLE([1.0, 2.0])
 
@@ -487,8 +493,8 @@ end
         StatsBase.coef(m::TestGMM) = m.β
         StatsBase.nobs(m::TestGMM) = 50
         CovarianceMatrices.momentmatrix(m::TestGMM) = randn(50, 4)  # overidentified
-        CovarianceMatrices.score(m::TestGMM) = randn(4, length(m.β))
-        CovarianceMatrices.objective_hessian(m::TestGMM) = randn(length(m.β), length(m.β))
+        CovarianceMatrices.cross_score(m::TestGMM) = randn(4, length(m.β))
+        CovarianceMatrices.hessian_objective(m::TestGMM) = randn(length(m.β), length(m.β))
 
         gmm = TestGMM([1.0, 2.0])
 
@@ -557,7 +563,7 @@ end
                 G = randn(4, 4)
 
                 # Test Information form
-                V_info = vcov(est, Information(), Z; objective_hessian = H)
+                V_info = vcov(est, Information(), Z; hessian_objective = H)
                 @test size(V_info) == (4, 4)
 
                 # Test Misspecified form
@@ -631,7 +637,7 @@ end
         X = randn(Random.Xoshiro(888), 1000, 2)  # Larger sample for smoothing
 
         # Test smoothed estimators
-        smoothers = [BartlettSmoother(3), TruncatedSmoother(3)]
+        smoothers = [TriangularSmoother(3), UniformSmoother(3)]
 
         for smoother in smoothers
             V = aVar(smoother, X; demean = true)
@@ -704,7 +710,7 @@ end
         no_score = NoScoreModel()
 
         # This should fail for Misspecified form
-        @test_throws ErrorException CovarianceMatrices.score(no_score)
+        @test_throws ErrorException CovarianceMatrices.cross_score(no_score)
     end
 
     @testset "Bandwidth Validation" begin

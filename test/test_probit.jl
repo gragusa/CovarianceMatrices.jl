@@ -145,25 +145,25 @@ function CovarianceMatrices.momentmatrix(model::ProbitModel)
 end
 
 """
-Return the Jacobian matrix (average derivative of moment conditions).
+Return the Jacobian matrix (unscaled derivative of moment conditions).
 
-For Probit MLE, this is the negative of the average Hessian:
-J = -E[∂g_i/∂β'] = -H/n
+For Probit MLE, this is the negative of the (unscaled) Hessian:
+J = -∑ᵢ ∂g_i/∂β' = -H (unscaled)
 """
-function CovarianceMatrices.score(model::ProbitModel)
+function CovarianceMatrices.cross_score(model::ProbitModel)
     W = Diagonal(model.φ .^ 2 ./ (model.Φ .* (1 .- model.Φ) .+ 1e-15))
     hessian = model.X' * W * model.X
-    return -hessian / length(model.y)
+    return -hessian
 end
 
 """
 Return the objective Hessian (negative Hessian of log-likelihood).
 
-For MLE, this equals the Fisher Information matrix.
+For MLE, this equals the Fisher Information matrix (unscaled).
 """
-function CovarianceMatrices.objective_hessian(model::ProbitModel)
+function CovarianceMatrices.hessian_objective(model::ProbitModel)
     W = Diagonal(model.φ .^ 2 ./ (model.Φ .* (1 .- model.Φ) .+ 1e-15))
-    return model.X' * W * model.X / length(model.y)
+    return model.X' * W * model.X
 end
 
 # ============================================================================
@@ -223,13 +223,13 @@ V3 = vcov(Bartlett(3), Misspecified(), model)
 
 # Test the matrix-based API
 M_manual = CovarianceMatrices.momentmatrix(model)
-G_manual = CovarianceMatrices.score(model)
-H_manual = CovarianceMatrices.objective_hessian(model)
+G_manual = CovarianceMatrices.cross_score(model)
+H_manual = CovarianceMatrices.hessian_objective(model)
 # Test with full specification
 V_manual = vcov(
-    HC1(), Information(), M_manual; score = G_manual, objective_hessian = H_manual)
+    HC1(), Information(), M_manual; score = G_manual, hessian_objective = H_manual)
 
 V2_manual = vcov(
-    HC1(), Misspecified(), M_manual; objective_hessian = H_manual, score = G_manual)
+    HC1(), Misspecified(), M_manual; hessian_objective = H_manual, score = G_manual)
 
 @test V2 == V2_manual
