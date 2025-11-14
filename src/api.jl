@@ -254,7 +254,6 @@ function StatsBase.vcov(
     return V
 end
 
-
 """
     stderror(ve::AbstractAsymptoticVarianceEstimator, args...; kwargs...)
 

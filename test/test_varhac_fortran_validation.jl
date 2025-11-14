@@ -385,7 +385,8 @@ end
 
             @test size(result_auto) == (5, 5)
             @test result_auto ≈ result_auto'  # Check numerical symmetry
-            @test isposdef(Symmetric(result_auto)) || isposdef(Symmetric(result_auto + 1e-10*I))
+            @test isposdef(Symmetric(result_auto)) ||
+                  isposdef(Symmetric(result_auto + 1e-10*I))
 
             # Check that AutoLags selection follows T^(1/3) rule
             selected_maxlag = CovarianceMatrices.compute_auto_maxlag(T_size, 5)

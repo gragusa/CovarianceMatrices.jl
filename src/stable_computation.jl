@@ -252,7 +252,6 @@ function _debug_report_inversion(matrix_name::String, flag::AbstractVector{Bool}
     end
 end
 
-
 function ipinv(
         A::AbstractMatrix{T};
         atol::Real = 0.0,
