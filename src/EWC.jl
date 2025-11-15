@@ -42,6 +42,7 @@ function avar(k::EWC, X::AbstractMatrix{F}; prewhite = false) where {F <: Real}
     end
     # Fill lower triangle from upper (syr! only updates one triangle)
     @inbounds for i in 1:p, j in 1:(i - 1)
+
         Ω[i, j] = Ω[j, i]
     end
 

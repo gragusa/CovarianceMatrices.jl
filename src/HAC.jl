@@ -142,7 +142,6 @@ function kernelestimator!(k::K, V::AbstractMatrix{F}, Q, Z) where {K <: HAC, F <
     return V
 end
 
-
 """
     avarscaler(K::HAC, X; prewhite=false)
 
@@ -512,7 +511,6 @@ function allequal(x)
     end
     return true
 end
-
 
 # -----------------------------------------------------------------------------
 # Fit function
