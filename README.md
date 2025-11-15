@@ -7,10 +7,10 @@
 The package offers several classes of estimators to handle different data structures and dependence patterns:
 
 1. **HAC** (Heteroskedasticity and Autocorrelation Consistent)
-   - Kernel-based estimators (Bartlett, Parzen, Quadratic Spectral, Truncated)
-   - EWC (Exponentially Weighted Covariance)
-   - Smoothed moment estimators
-   - VARHAC (VAR-based HAC with data-driven lag selection)
+   - **Kernel-based** estimators (`Bartlett`, `Parzen`, `QuadraticSpectral`, `Truncated`)
+   - **EWC** (Exponentially Weighted Covariance)
+   - **Smoothed moments** estimators
+   - **VARHAC** (VAR-based HAC with data-driven lag selection)
 2. **HC** (Heteroskedasticity Consistent) - for cross-sectional data with independent observations
 3. **CR** (Cluster Robust) - for data with clustering structure
 4. **Driscoll-Kraay** - for panel data with cross-sectional dependence
@@ -177,9 +177,8 @@ function CovarianceMatrices.hessian_objective(m::SimpleProbit)
     Φ = cdf.(Normal(), qᵢ.*Xβ)
     ϕ = pdf.(Normal(), qᵢ.*Xβ)
     λ₁ = qᵢ .* (ϕ ./ Φ)  # Inverse Mills ratio for y=1 and y=0
-    w = -λ₁ .* (λ₁ .+ Xβ)
-    ## No scaling!
-    (m.X' * Diagonal(w) * m.X)
+    w = -(λ₁ .* (λ₁ .+ Xβ))
+    -(m.X' * Diagonal(w) * m.X)
 end
 
 # Example usage
@@ -232,11 +231,8 @@ function CovarianceMatrices.momentmatrix(p::LinearGMM)
     return CovarianceMatrices.momentmatrix(p, coef(p))
 end
 
-# Note: cross_score uses the default implementation (g'g)/nobs
-# where g = Z .* (y - X*β), so we don't need to override it
 
-## Constructor - We estimate the parameters using two-step GMM
-## with identity weighting matrix in the first step
+## Estimate the parameters using two-step GMM with identity weighting matrix in the first step
 function LinearGMM(data; v::CovarianceMatrices.AbstractAsymptoticVarianceEstimator = HR0())
     y, X, Z = data
 
@@ -268,13 +264,10 @@ end
 function CovarianceMatrices.jacobian_momentfunction(p::LinearGMM)
     y, X, Z = p.data
     G = -Z'* X 
-    return H
+    return G
 end
 
-
-
-## Usage
-## Assume data is a named tuple with y (dependent variable),
+## Data is a named tuple with y (dependent variable),
 ## X (endogenous regressors), and Z (instruments)
 Random.seed!(123)
 n = 100
@@ -285,7 +278,6 @@ data = (
 )
 
 model = LinearGMM(data)
-coef(model)
 
 ## Standard variance estimator (assumes correct specification)
 V1 = vcov(HR0(), Information(), model)
@@ -297,10 +289,11 @@ V2 = vcov(HR0(), Misspecified(), model)
 model_hac = LinearGMM(data; v = Bartlett(5))
 
 # Information-form variance with HAC
-V3 = vcov(Bartlett(3), Information(), model_hac)
+V3 = vcov(Bartlett(5), Information(), model_hac)
 
 ## Sandwich variance (robust to moment condition misspecification)
-V4 = vcov(Bartlett(3), Misspecified(), model_hac)
+V4 = vcov(Bartlett(5), Misspecified(), model_hac)
+
 ```
 
 ## Performance

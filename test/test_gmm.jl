@@ -34,12 +34,7 @@ function CovarianceMatrices.momentmatrix(p::LinearGMM)
     Z .* (y .- X*coef(p))
 end
 
-function CovarianceMatrices.cross_score(p::LinearGMM)
-    y, X, Z = p.data
-    return -(Z' * X)
-end
-
-function CovarianceMatrices.jacobian_moment(p::LinearGMM)
+function CovarianceMatrices.jacobian_momentfunction(p::LinearGMM)
     y, X, Z = p.data
     # Jacobian of sum of moment functions: ∂(∑ᵢ Zᵢ(yᵢ - Xᵢβ))/∂β = -Z'X
     return -(Z' * X)
@@ -65,7 +60,7 @@ end
 function CovarianceMatrices.hessian_objective(p::LinearGMM)
     y, X, Z = p.data
     M = CovarianceMatrices.momentmatrix(p, coef(p))
-    Omega = aVar(p.v, M)
+    Omega = aVar(p.v, M; scale = false)
     H = -(X'Z)*pinv(Omega)*(Z'X)
     return H
 end
@@ -131,9 +126,9 @@ println("IV estimates: $(round.(model.beta, digits=3))")
 
 V1 = vcov(HR0(), Information(), model)
 V2 = vcov(HR0(), Misspecified(), model)
-@test maximum(abs.(V1 .- V2)) < 0.004
+@test V1 ≈ V2
 
 model = LinearGMM(data; v = Bartlett(5))
-V3 = vcov(Bartlett(3), Information(), model)
-V4 = vcov(Bartlett(3), Misspecified(), model)
-@test maximum(abs.(V3 .- V4)) < 0.004
+V3 = vcov(Bartlett(5), Information(), model)
+V4 = vcov(Bartlett(5), Misspecified(), model)
+@test V3 ≈ V4

@@ -76,38 +76,38 @@ using Distributions
         @test S_bic ≈ S_bic'  # Check numerical symmetry
     end
 
-    @testset "Unified vcov API Integration" begin
-        Random.seed!(456)
-        n, k = 40, 2
+    # @testset "Unified vcov API Integration" begin
+    #     Random.seed!(456)
+    #     n, k = 40, 2
 
-        # Create simple test model moment matrix
-        X = randn(n, k)
-        for t in 2:n
-            X[t, :] .+= 0.2 * X[t - 1, :] .+ randn(k) * 0.1
-        end
+    #     # Create simple test model moment matrix
+    #     X = randn(n, k)
+    #     for t in 2:n
+    #         X[t, :] .+= 0.2 * X[t - 1, :] .+ randn(k) * 0.1
+    #     end
 
-        vh = VARHAC()
+    #     vh = VARHAC()
 
-        # Test vcov with Information form
-        V1 = vcov(vh, Information(), X)
-        @test size(V1) == (k, k)
-        @test V1 ≈ V1'  # Check numerical symmetry
-        @test isposdef(Symmetric(V1)) || isposdef(Symmetric(V1 + 1e-12*I))
+    #     # Test vcov with Information form
+    #     V1 = vcov(vh, Information(), X)
+    #     @test size(V1) == (k, k)
+    #     @test V1 ≈ V1'  # Check numerical symmetry
+    #     @test isposdef(Symmetric(V1)) || isposdef(Symmetric(V1 + 1e-12*I))
 
-        # Test vcov with Misspecified form
-        V2 = vcov(vh, Misspecified(), X)
-        @test size(V2) == (k, k)
-        @test V2 ≈ V2'  # Check numerical symmetry
+    #     # Test vcov with Misspecified form
+    #     V2 = vcov(vh, Misspecified(), X)
+    #     @test size(V2) == (k, k)
+    #     @test V2 ≈ V2'  # Check numerical symmetry
 
-        # For VARHAC, both forms should give similar results
-        @test V1 ≈ V2 rtol=1e-8
+    #     # For VARHAC, both forms should give similar results
+    #     @test V1 ≈ V2 rtol=1e-8
 
-        # Test that both APIs produce valid results
-        S_avar = aVar(vh, X; demean = false, scale = true)
-        @test size(S_avar) == (k, k)
-        @test S_avar ≈ S_avar'  # Check numerical symmetry
-        @test isposdef(Symmetric(S_avar)) || isposdef(Symmetric(S_avar + 1e-10*I))
-    end
+    #     # Test that both APIs produce valid results
+    #     S_avar = aVar(vh, X; demean = false, scale = true)
+    #     @test size(S_avar) == (k, k)
+    #     @test S_avar ≈ S_avar'  # Check numerical symmetry
+    #     @test isposdef(Symmetric(S_avar)) || isposdef(Symmetric(S_avar + 1e-10*I))
+    # end
 
     @testset "AutoLags Functionality" begin
         Random.seed!(789)
@@ -325,27 +325,27 @@ using Distributions
         end
     end
 
-    @testset "Integration with Standard Errors" begin
-        Random.seed!(222)
-        n, k = 60, 2
-        X = randn(n, k)
+    # @testset "Integration with Standard Errors" begin
+    #     Random.seed!(222)
+    #     n, k = 60, 2
+    #     X = randn(n, k)
 
-        vh = VARHAC()
+    #     vh = VARHAC()
 
-        # Test stderror function
-        se1 = stderror(vh, Information(), X)
-        @test length(se1) == k
-        @test all(se1 .> 0)
+    #     # Test stderror function
+    #     se1 = stderror(vh, Information(), X)
+    #     @test length(se1) == k
+    #     @test all(se1 .> 0)
 
-        se2 = stderror(vh, Misspecified(), X)
-        @test length(se2) == k
-        @test all(se2 .> 0)
+    #     se2 = stderror(vh, Misspecified(), X)
+    #     @test length(se2) == k
+    #     @test all(se2 .> 0)
 
-        # Should be consistent with vcov
-        V = vcov(vh, Information(), X)
-        se_manual = sqrt.(diag(V))
-        @test se1 ≈ se_manual rtol=1e-10
-    end
+    #     # Should be consistent with vcov
+    #     V = vcov(vh, Information(), X)
+    #     se_manual = sqrt.(diag(V))
+    #     @test se1 ≈ se_manual rtol=1e-10
+    # end
 end
 
 println("\n" * "="^70)

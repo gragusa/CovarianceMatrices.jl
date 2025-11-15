@@ -95,7 +95,7 @@ export AbstractAsymptoticVarianceEstimator,
        GMMLikeModel,
        momentmatrix,
        cross_score,
-       jacobian_moment,
+       jacobian_momentfunction,
        hessian_objective,
        weight_matrix
 end
