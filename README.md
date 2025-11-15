@@ -1,6 +1,6 @@
 # CovarianceMatrices.jl
 
-[![codecov.io](http://codecov.io/github/gragusa/CovarianceMatrices.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/CovarianceMatrices.jl?branch=master)
+[![CI](https://github.com/gragusa/CovarianceMatrices.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/gragusa/CovarianceMatrices.jl/actions/workflows/ci.yml)[![codecov.io](http://codecov.io/github/gragusa/CovarianceMatrices.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/CovarianceMatrices.jl?branch=master)
 
 `CovarianceMatrices.jl` is a Julia package for robust covariance matrix estimation. It provides consistent estimates of the long-run covariance matrix of random processes, which is crucial for conducting valid statistical inference about the parameters of econometric and statistical models.
 
