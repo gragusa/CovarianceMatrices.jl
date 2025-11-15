@@ -36,8 +36,8 @@ where $k(\cdot)$ is the kernel function and $S_T$ is the bandwidth.
 
 ```@docs
 SmoothedMoments
-UniformKernel
-TriangularKernel
+UniformSmoother
+TriangularSmoother
 ```
 
 ## Available Kernels
@@ -65,10 +65,10 @@ k(x) = \begin{cases}
 using CovarianceMatrices
 
 # Automatic bandwidth (T^(1/3) scaling)
-sm_uniform = SmoothedMoments(UniformKernel())
+sm_uniform = SmoothedMoments(UniformSmoother())
 
 # Fixed bandwidth
-sm_uniform_fixed = SmoothedMoments(UniformKernel(), 8.0)
+sm_uniform_fixed = SmoothedMoments(UniformSmoother(), 8.0)
 ```
 
 ### Triangular Kernel
@@ -92,10 +92,10 @@ k(x) = \begin{cases}
 
 ```julia
 # Automatic bandwidth (T^(1/5) scaling)
-sm_triangular = SmoothedMoments(TriangularKernel())
+sm_triangular = SmoothedMoments(TriangularSmoother())
 
 # Fixed bandwidth
-sm_triangular_fixed = SmoothedMoments(TriangularKernel(), 12.0)
+sm_triangular_fixed = SmoothedMoments(TriangularSmoother(), 12.0)
 ```
 
 ## Automatic Bandwidth Selection
@@ -133,8 +133,8 @@ for t in 2:T
 end
 
 # Automatic bandwidth selection
-sm_auto_uniform = SmoothedMoments(UniformKernel())
-sm_auto_triangular = SmoothedMoments(TriangularKernel())
+sm_auto_uniform = SmoothedMoments(UniformSmoother())
+sm_auto_triangular = SmoothedMoments(TriangularSmoother())
 
 Ω_uniform = aVar(sm_auto_uniform, X)
 Ω_triangular = aVar(sm_auto_triangular, X)
@@ -195,8 +195,8 @@ end
 
 Smoothed moments estimators are asymptotically equivalent to their HAC counterparts:
 
-- `SmoothedMoments(UniformKernel())` ≡ `Bartlett{Andrews}()` (asymptotically)
-- `SmoothedMoments(TriangularKernel())` ≡ `Parzen{Andrews}()` (asymptotically)
+- `SmoothedMoments(UniformSmoother())` ≡ `Bartlett{Andrews}()` (asymptotically)
+- `SmoothedMoments(TriangularSmoother())` ≡ `Parzen{Andrews}()` (asymptotically)
 
 ### Empirical Comparison
 
@@ -206,8 +206,8 @@ T = 500
 X_persistent = cumsum(randn(T, 3), dims=1)  # Random walk
 
 # Smoothed moments
-sm_uniform = SmoothedMoments(UniformKernel())
-sm_triangular = SmoothedMoments(TriangularKernel())
+sm_uniform = SmoothedMoments(UniformSmoother())
+sm_triangular = SmoothedMoments(TriangularSmoother())
 
 # Corresponding HAC estimators
 hac_bartlett = Bartlett{Andrews}()
@@ -244,7 +244,7 @@ bandwidths = [5.0, 10.0, 15.0, 20.0]
 
 println("Bandwidth\tTrace\tCondition Number")
 for bw in bandwidths
-    sm = SmoothedMoments(UniformKernel(), bw)
+    sm = SmoothedMoments(UniformSmoother(), bw)
     Ω = aVar(sm, X)
     println("$bw\t\t$(round(tr(Ω), digits=3))\t$(round(cond(Ω), digits=1))")
 end
@@ -297,8 +297,8 @@ model = lm(@formula(y ~ x1 + x2), df)
 
 # Compare standard errors
 se_classical = stderror(model)
-se_smoothed_uniform = stderror(SmoothedMoments(UniformKernel()), model)
-se_smoothed_triangular = stderror(SmoothedMoments(TriangularKernel()), model)
+se_smoothed_uniform = stderror(SmoothedMoments(UniformSmoother()), model)
+se_smoothed_triangular = stderror(SmoothedMoments(TriangularSmoother()), model)
 se_hac_bartlett = stderror(Bartlett{Andrews}(), model)
 
 results = DataFrame(
@@ -342,8 +342,8 @@ println("Uniform/Bartlett: ", round.(se_smoothed_uniform ./ se_hac_bartlett, dig
 function choose_kernel(X, criterion="trace_stability")
     T, k = size(X)
 
-    sm_uniform = SmoothedMoments(UniformKernel())
-    sm_triangular = SmoothedMoments(TriangularKernel())
+    sm_uniform = SmoothedMoments(UniformSmoother())
+    sm_triangular = SmoothedMoments(TriangularSmoother())
 
     Ω_uniform = aVar(sm_uniform, X)
     Ω_triangular = aVar(sm_triangular, X)
@@ -354,9 +354,9 @@ function choose_kernel(X, criterion="trace_stability")
         cond_triangular = cond(Ω_triangular)
 
         if cond_uniform < cond_triangular
-            return "UniformKernel", Ω_uniform
+            return "UniformSmoother", Ω_uniform
         else
-            return "TriangularKernel", Ω_triangular
+            return "TriangularSmoother", Ω_triangular
         end
 
     elseif criterion == "eigenvalue_spread"
@@ -368,9 +368,9 @@ function choose_kernel(X, criterion="trace_stability")
         spread_triangular = maximum(eig_triangular) / minimum(eig_triangular)
 
         if spread_uniform < spread_triangular
-            return "UniformKernel", Ω_uniform
+            return "UniformSmoother", Ω_uniform
         else
-            return "TriangularKernel", Ω_triangular
+            return "TriangularSmoother", Ω_triangular
         end
     end
 end
@@ -411,7 +411,7 @@ sample_size_recommendations()
 function bandwidth_diagnostic(X)
     T, k = size(X)
 
-    sm_uniform = SmoothedMoments(UniformKernel())
+    sm_uniform = SmoothedMoments(UniformSmoother())
     Ω_sm = aVar(sm_uniform, X)
 
     hac_bartlett = Bartlett{Andrews}()
@@ -428,7 +428,7 @@ function bandwidth_diagnostic(X)
     println("Ratio: $(round(bw_sm_auto / bw_hac, digits=2))")
 
     # Try matching bandwidth
-    sm_matched = SmoothedMoments(UniformKernel(), bw_hac)
+    sm_matched = SmoothedMoments(UniformSmoother(), bw_hac)
     Ω_matched = aVar(sm_matched, X)
 
     println("\nTrace comparison:")
@@ -448,7 +448,7 @@ The implementation uses efficient kernel-based computation:
 
 ```julia
 # Example of the kernel-based approach (conceptual)
-function smooth_moments_conceptual(G, kernel::UniformKernel, bandwidth, T)
+function smooth_moments_conceptual(G, kernel::UniformSmoother, bandwidth, T)
     T_data, m = size(G)
     max_lag = floor(Int, bandwidth)
 

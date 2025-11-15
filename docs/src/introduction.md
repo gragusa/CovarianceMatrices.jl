@@ -1,36 +1,53 @@
 # Introduction
 
-CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl/) implements several covariance estimators for stochastic processes. Using these covariances as building blocks, the package extends [GLM.jl](https://github.com/gragusa/CovarianceMatrices.jl/) to permit inference about the GLM's coefficients in those cases where the distributions of the random variables are not independently and identically distributed.
+[CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl/) implements several covariance estimators for stochastic processes. Using these covariances as building blocks, the package extends [GLM.jl](https://github.com/gragusa/CovarianceMatrices.jl/) to permit inference about the GLM's coefficients in those cases where the distributions of the random variables are not independently and identically distributed.
 
-Three classes of estimators are considered:
+## Long run covariance
 
-1. **HAC** 
-    - heteroskedasticity and autocorrelation consistent (Andrews, 1996; Newey and West, 1994)
-2. **VARHAC**    
-3. **HC**  
-    - heteroskedasticity consistent (White, 1982)
-4. **CRVE** 
-    - cluster robust (Arellano, 1986)
-
-# Long run covariance
-
-For what follows, let $\{X_t, t\in\mathBB{N}\}$ be a stochastic process, i.e., a sequence of random vectors (r.v.). We will assume throughout that the r.v. are $p$-dimensional. The sample average of the process is defined as
+For what follows, let $\{X_t, t\in\mathbb{Z}_{+}\}$ be a stochastic process, i.e., a sequence of random vectors (r.v.). We will assume throughout that the r.v. are $p$-dimensional. The sample average of the process is defined as
 $$
-\bar{X}_T = \frac{1}{n} \sum_{t=1}^n X_t 
+\bar{X}_n = \frac{1}{n} \sum_{t=1}^n X_t 
 $$
-It is often the case that the sampling distribution of $\sqrt{T}\bar{X}_T$ can be approximated (as $n\to\infty$) by the distribution of a standard multivariate normal distribution centered at $\mu_T:=E(\bar{X}_T)$ and with *asymptotic variance-covariance* $V$:
+It is often the case that the sampling distribution of $\sqrt{n}\bar{X}_n$ can be approximated (as $n\to\infty$) by the distribution of a standard multivariate normal distribution centered at $\mu_n:=E(\bar{X}_n)$ and with *asymptotic variance-covariance* $V$:
 $$
-\sqrt{n}V^{-1/2}(\bar{X}_T - \mu_T) \xrightarrow{d} N(0, I_{p}),
+\sqrt{n}\Omega^{-1/2}(\bar{X}_n - \mu_n) \xrightarrow{d} N(0, I_{p}),
 $$
 where 
 $$
-V_T \equiv \lim_{n\to\infty} \frac{1}{T} E\left[(\sum_{t=1}^T X_t - \bar{X}_T)(\sum_{t=1}^T X_t- \bar{X}_T)'\right].
+\Omega_n \equiv \lim_{n\to\infty} \mathrm{Var}\left(\frac{1}{\sqrt{n}} \bar{X}_n\right)= E\left[\left(\frac{1}{\sqrt n}\sum_{t=1}^n (X_t - \bar{X}_n)\right)\left(\frac{1}{\sqrt n}\sum_{t=1}^n (X_t- \bar{X}_n)\right)'\right].
 $$
-Estimation of $V$ is central in many statistics applications. For instance, we might be interested in constructing asymptotically valid confidence intervals for a linear combination of the unknown expected value of the process $\mu_T$; that is, we are interested in carrying out inference about $c'\mu_T$ for some $p$-dimensional vector $c$. For any random random matrix $\hat{V}_T$ tending in probability (as $n\to\infty$) to $V_T$, a confidence interval for $c'\bar{X}_T$ with asymptotic coverage $(\alpha\times 100)\%$ is given by
+Estimation of $\Omega_n$ is central in many statistics applications. For instance, we might be interested in constructing asymptotically valid confidence intervals for a linear combination of the unknown expected value of the process $\mu_n$; that is, we are interested in carrying out inference about $c'\mu_n$ for some $p$-dimensional vector $c$. For any random random matrix $\hat{\Omega}_n$ tending in probability (as $n\to\infty$) to $\Omega_n$, a confidence interval for $c'\bar{X}_n$ with asymptotic coverage $(\alpha\times 100)\%$ is given by
 $$
-\left[c'\bar{X}_{T}-q_{(1-\alpha)/2}\frac{c'\hat{V}_Tc}{\sqrt{T}},c'\bar{X}_{T}+q_{(1-\alpha)/2}\frac{c'\hat{V}_Tc}{\sqrt{T}}\right]
+\left[c'\bar{X}_{n}-q_{(1-\alpha)/2}\frac{c'\hat{\Omega}_nc}{\sqrt{n}},c'\bar{X}_{n}+q_{(1-\alpha)/2}\frac{c'\hat{\Omega}_nc}{\sqrt{n}}\right]
 $$
 where $q_{\alpha}$ is the $\alpha$-quantile of the standard normal distribution: $\Pr(N(0,1)\leqslant q_{\alpha}) = \alpha$.
+
+## Estimation
+
+It is often the case that we are interested in the asymptotic distribution of the estimator $\hat{\theta}_n := \theta(X_1,\ldots,X_n)$ of some parameter $\theta_0\in\mathbb{R}^d$. If show that $\hat{\theta}_n$ is asymptotically normal with asymptotic variance-covariance matrix $\Sigma_n$, i.e.,
+$$
+\sqrt{n}\Sigma_n^{-1/2}(\hat{\theta}_n - \theta_0) \xrightarrow{d} N(0, I_{d}),
+$$
+then we can use $\hat{\Sigma}_n$ consistent estimator of $\Sigma_n$ to construct asymptotically valid confidence intervals for linear combinations of the components of $\theta_0$.
+
+::: Definition
+The **asymptotic variance-covariance matrix** of an estimator $\hat{\theta}_n$ is defined as
+$$
+\mathrm{aVar}(\hat{\theta}_n) := \frac{\Sigma_n}{n}.
+$$
+:::
+
+### Example: Ordinary Least Squares
+Consider the linear regression model
+$$
+Y_t = X_t'\beta_0 + u_t, \quad t=1,\ldots,n,
+$$
+where $Y_t$ is the response variable, $X_t$ is the vector of predictors, $\beta_0\in\mathbb{R}^p$ is the parameter vector, and $u_t$ is the error term.
+The Ordinary Least Squares (OLS) estimator of $\beta_0$ is given by
+$$
+\hat{\beta}_0 = \left(\frac{1}{n}\sum_{t=1}^n X_tX_t'\right)^{-1}\frac{1}{n}\sum_{t=1}^n X_tY_t,
+$$
+Under regularity conditions, the OLS estimator is asymptotically normal:
 
 ### Generalized Linear Models
 

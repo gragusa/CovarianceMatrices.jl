@@ -7,7 +7,7 @@ function clusterize(X::Matrix, g::GroupedArray)
             X2[g.groups[i], idx] += X[i, j]
         end
     end
-    return Symmetric(X2' * X2)
+    return X2' * X2
 end
 
 function clusterize_mean(X::Matrix, g::GroupedArray)

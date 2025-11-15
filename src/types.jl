@@ -5,7 +5,7 @@ Abstraction
 ==========#
 
 """
-`AVarEstimator`
+`AbstractAsymptoticVarianceEstimator`
 
 Abstract supertype for all asymptotic variance (covariance) estimators.
 
@@ -13,14 +13,16 @@ This is the root type of the estimator hierarchy in CovarianceMatrices.jl. All r
 
 # Type Hierarchy
 
-- `AVarEstimator` (abstract)
-  - `HAC{G}` - Heteroskedasticity and Autocorrelation Consistent estimators
-    - `Bartlett`, `Parzen`, `QuadraticSpectral`, `TukeyHanning`, `Truncated`
-  - `HR` - Heteroskedasticity-Robust estimators
+- `AbstractAsymptoticVarianceEstimator` (abstract)
+  - `Uncorrelated` - For uncorrelated moments (iid errors)
+  - `Correlated` (abstract) - For various forms of correlation
+    - `HAC{G}` - Heteroskedasticity and Autocorrelation Consistent estimators
+      - `Bartlett`, `Parzen`, `QuadraticSpectral`, `TukeyHanning`, `Truncated`
+    - `CR` - Cluster-Robust estimators
+      - `CR0`, `CR1`, `CR2`, `CR3`
+    - Specialized estimators: `VARHAC`, `EWC`, `DriscollKraay`, `SmoothedMoments`
+  - `HR` - Heteroskedasticity-Robust estimators (for linear models)
     - `HR0`/`HC0`, `HR1`/`HC1`, `HR2`/`HC2`, `HR3`/`HC3`, `HR4`/`HC4`, `HR5`/`HC5`
-  - `CR` - Cluster-Robust estimators
-    - `CR0`, `CR1`, `CR2`, `CR3`
-  - Specialized estimators: `VARHAC`, `EWC`, `DriscollKraay`, `SmoothedMoments`
 
 # Interface
 
@@ -29,13 +31,50 @@ All subtypes implement the core interface:
 - `vcov(estimator, model)` - compute variance-covariance matrix from fitted model
 - `stderror(estimator, model)` - compute standard errors from fitted model
 """
-abstract type AVarEstimator end
+abstract type AbstractAsymptoticVarianceEstimator end
 
-abstract type HAC{G} <: AVarEstimator end
+"""
+`Uncorrelated`
 
-abstract type CrossSectionEstimator <: AVarEstimator end
-abstract type HR <: AVarEstimator end
-abstract type CR <: AVarEstimator end
+Estimator for uncorrelated moment conditions (iid errors).
+
+Use this estimator when the moment conditions are uncorrelated across observations,
+such as in correctly specified MLE or GMM models with iid errors. This provides
+the appropriate covariance matrix without unnecessary robust corrections.
+
+# Usage
+```julia
+using CovarianceMatrices
+# For MLE or GMM with uncorrelated moments
+se_uncorr = stderror(Uncorrelated(), model)
+vcov_uncorr = vcov(Uncorrelated(), model)
+```
+
+# When to use
+- MLikeModel or GMMLikeModel with iid errors
+- Correctly specified models without heteroskedasticity or serial correlation
+- When you want the efficient (non-robust) covariance estimator
+"""
+struct Uncorrelated <: AbstractAsymptoticVarianceEstimator end
+
+"""
+`Correlated`
+
+Abstract type for estimators that account for various forms of correlation.
+
+This encompasses all estimators that handle:
+- Serial correlation (HAC estimators)
+- Cluster correlation (CR estimators)
+- Spatial and temporal correlation (DriscollKraay)
+- Other specialized correlation patterns (EWC, VARHAC, SmoothedMoments)
+"""
+abstract type Correlated <: AbstractAsymptoticVarianceEstimator end
+
+abstract type HAC{G} <: Correlated end
+
+abstract type CrossSectionEstimator <: AbstractAsymptoticVarianceEstimator end
+abstract type HR <: AbstractAsymptoticVarianceEstimator end
+abstract type CR <: Correlated end
 
 #=========
 HAC Types
@@ -461,7 +500,7 @@ ve = EWC(10)
 Ω = aVar(ve, moment_matrix)
 ```
 """
-struct EWC <: AVarEstimator
+struct EWC <: Correlated
     B::Int
     function EWC(B::Integer)
         B > 0 || throw(ArgumentError("B must be positive"))
@@ -1021,7 +1060,7 @@ ve3 = VARHAC(FixedLags(6))
 ve4 = VARHAC(AICSelector(), AutoLags())
 ```
 """
-mutable struct VARHAC{S <: LagSelector, L <: LagStrategy, T <: Real} <: AVarEstimator
+mutable struct VARHAC{S <: LagSelector, L <: LagStrategy, T <: Real} <: Correlated
     AICs::Union{Array{T}, Nothing}
     BICs::Union{Array{T}, Nothing}
     order_aic::Union{Vector{Int}, Nothing}
@@ -1255,7 +1294,7 @@ ve = DriscollKraay(Bartlett{Andrews}(), tis=time_ids, iis=unit_ids)
 ve = DriscollKraay(Parzen(4), tis=years, iis=countries)
 ```
 """
-mutable struct DriscollKraay{K, D} <: AVarEstimator
+mutable struct DriscollKraay{K, D} <: Correlated
     K::K
     tis::D
     iis::D

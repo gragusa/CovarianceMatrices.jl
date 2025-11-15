@@ -1,11 +1,11 @@
 """
 Asymptotic Variance Estimators
 
-aVar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhite::Bool=false, scale=true)
+aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhite::Bool=false, scale=true)
 
 ## Arguments
 
-    - k::AVarEstimator 
+    - k::AbstractAsymptoticVarianceEstimator 
     - `demean=false`: whether the data should be demeaned.    
     - `dims=1`: the dimension along which the demeaning should be performed.
     - `means=nothing`: the means to be used for demeaning.
@@ -15,10 +15,12 @@ aVar(k::AVarEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, mea
                of freedom correction or in cases where the variance is needed without 
                scaling. 
 """
-aVar(k::AVarEstimator, m::AbstractMatrix; kwargs...) = aVar(k, float.(m), kwargs...)
+function aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix; kwargs...)
+    aVar(k, float.(m), kwargs...)
+end
 
 function aVar(
-        k::AVarEstimator,
+        k::AbstractAsymptoticVarianceEstimator,
         m::AbstractMatrix{T};
         demean::Bool = true,
         dims::Int = 1,

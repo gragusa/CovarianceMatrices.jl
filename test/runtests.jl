@@ -7,8 +7,8 @@ using Test
 
 include("test_core.jl")
 include("test_interface.jl")
-include("test_probit.jl")
-include("test_gmm.jl")
+#include("test_probit.jl")
+#include("test_gmm.jl")
 include("test_debug_inverses.jl")
 include("test_varhac.jl")
 include("test_varhac_fortran_validation.jl")

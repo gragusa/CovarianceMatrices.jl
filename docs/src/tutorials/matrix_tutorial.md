@@ -90,17 +90,17 @@ Smith's smoothed moments method provides automatic positive semi-definiteness:
 
 ```julia
 # Uniform kernel (induces Bartlett HAC)
-sm_uniform = SmoothedMoments(UniformKernel())
+sm_uniform = SmoothedMoments(UniformSmoother())
 Ω_sm_uniform = aVar(sm_uniform, X)
 println("Smoothed Moments (Uniform): trace = $(round(tr(Ω_sm_uniform), digits=3))")
 
 # Triangular kernel (induces Parzen HAC)
-sm_triangular = SmoothedMoments(TriangularKernel())
+sm_triangular = SmoothedMoments(TriangularSmoother())
 Ω_sm_triangular = aVar(sm_triangular, X)
 println("Smoothed Moments (Triangular): trace = $(round(tr(Ω_sm_triangular), digits=3))")
 
 # Fixed bandwidth
-sm_fixed = SmoothedMoments(UniformKernel(), 8.0)
+sm_fixed = SmoothedMoments(UniformSmoother(), 8.0)
 Ω_sm_fixed = aVar(sm_fixed, X)
 println("Smoothed Moments (Fixed): trace = $(round(tr(Ω_sm_fixed), digits=3))")
 ```

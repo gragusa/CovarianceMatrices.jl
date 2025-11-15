@@ -30,7 +30,9 @@ optimalbw
 ## Abstract Types
 
 ```@docs
-AVarEstimator
+AbstractAsymptoticVarianceEstimator
+Uncorrelated
+Correlated
 ```
 
 ## HAC Estimators
@@ -102,8 +104,8 @@ DifferentOwnLags
 
 ```@docs
 SmoothedMoments
-UniformKernel
-TriangularKernel
+UniformSmoother
+TriangularSmoother
 ```
 
 ### Panel Data Estimators

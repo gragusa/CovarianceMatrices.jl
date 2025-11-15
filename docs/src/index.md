@@ -69,10 +69,41 @@ se_hac = stderror(Parzen{Andrews}(), model)
 ## Package Structure
 
 ```@docs
-AVarEstimator
+AbstractAsymptoticVarianceEstimator
+Uncorrelated
+Correlated
 ```
 
-The package is organized around the `AVarEstimator` abstract type, with specific estimators for different types of dependence:
+The package is organized around a clear type hierarchy:
+
+- **`AbstractAsymptoticVarianceEstimator`**: Root type for all covariance estimators
+- **`Uncorrelated`**: For iid errors (use instead of HC0 for MLE/GMM models)
+- **`Correlated`**: For various correlation patterns (HAC, CR, EWC, VARHAC, etc.)
+- **`HR`**: Heteroskedasticity-robust estimators (for linear models with conditional heteroskedasticity)
+
+This semantic organization makes it clear when to use each estimator:
+
+### Usage Guidelines
+
+**For MLE/GMM models with iid errors:**
+```julia
+# Use Uncorrelated() instead of HC0() for semantic clarity
+se_uncorr = stderror(Uncorrelated(), mle_model)
+```
+
+**For linear models with conditional heteroskedasticity:**
+```julia
+# Use HR/HC estimators as before
+se_robust = stderror(HC1(), linear_model)
+```
+
+**For time series or panel data with correlation:**
+```julia
+# All inherit from Correlated
+se_hac = stderror(Bartlett{NeweyWest}(), time_series_model)
+se_cluster = stderror(CR1(cluster_ids), panel_model)
+se_varhac = stderror(VARHAC(), time_series_model)
+```
 
 ### Heteroskedasticity-Robust Estimators
 - [`HC0`](@ref), [`HC1`](@ref), [`HC2`](@ref), [`HC3`](@ref), [`HC4`](@ref), [`HC5`](@ref)

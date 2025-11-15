@@ -34,7 +34,10 @@ include("model_interface.jl")
 include("variance_forms.jl")
 include("stable_computation.jl")
 include("api.jl")
-export Andrews,
+export AbstractAsymptoticVarianceEstimator,
+       Uncorrelated,
+       Correlated,
+       Andrews,
        NeweyWest,
        Bartlett,
        Parzen,
@@ -72,11 +75,9 @@ export Andrews,
 #      residualadjustment,
        vcov,
        stderror,
-       BartlettSmoother,
-       TruncatedSmoother,
        SmoothedMoments,
-       UniformKernel,
-       TriangularKernel,
+       UniformSmoother,
+       TriangularSmoother,
 # VARHAC exports
        VARHAC,
        AICSelector,
@@ -92,7 +93,9 @@ export Andrews,
        VarianceForm,
        MLikeModel,
        GMMLikeModel,
-       score,
-       objective_hessian,
+       momentmatrix,
+       cross_score,
+       jacobian_momentfunction,
+       hessian_objective,
        weight_matrix
 end

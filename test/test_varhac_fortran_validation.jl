@@ -337,7 +337,7 @@ end
 
             # Verify type stability
             @test eltype(result_f32) == Float32
-            @test result_f32 isa Symmetric{Float32, Matrix{Float32}}
+            @test result_f32 isa Matrix{Float32}
 
             # Test different demean options
             result_f32_nodemean = aVar(vh_f32, fortran_data_f32; demean = false, scale = false)
@@ -375,7 +375,7 @@ end
         @test_nowarn result_small = aVar(vh_small, small_data; demean = true, scale = false)
         result_small = aVar(vh_small, small_data; demean = true, scale = false)
         @test size(result_small) == (5, 5)
-        @test issymmetric(result_small)
+        @test result_small ≈ result_small'  # Check numerical symmetry
 
         # Test AutoLags with different sample sizes
         for T_size in [50, 100, 200]
@@ -384,8 +384,9 @@ end
             result_auto = aVar(vh_auto, data_subset; demean = true, scale = false)
 
             @test size(result_auto) == (5, 5)
-            @test issymmetric(result_auto)
-            @test isposdef(result_auto) || isposdef(result_auto + 1e-10*I)
+            @test result_auto ≈ result_auto'  # Check numerical symmetry
+            @test isposdef(Symmetric(result_auto)) ||
+                  isposdef(Symmetric(result_auto + 1e-10*I))
 
             # Check that AutoLags selection follows T^(1/3) rule
             selected_maxlag = CovarianceMatrices.compute_auto_maxlag(T_size, 5)

@@ -34,14 +34,15 @@ function CovarianceMatrices.momentmatrix(p::LinearGMM)
     Z .* (y .- X*coef(p))
 end
 
-function CovarianceMatrices.score(p::LinearGMM)
+function CovarianceMatrices.jacobian_momentfunction(p::LinearGMM)
     y, X, Z = p.data
-    return -(Z' * X) ./ nobs(p)
+    # Jacobian of sum of moment functions: ∂(∑ᵢ Zᵢ(yᵢ - Xᵢβ))/∂β = -Z'X
+    return -(Z' * X)
 end
 
 ## Constructor - We estimate the parameters
 ## using the TSLS initial matrix.
-function LinearGMM(data; v::CovarianceMatrices.AVarEstimator = HR0())
+function LinearGMM(data; v::CovarianceMatrices.AbstractAsymptoticVarianceEstimator = HR0())
     y, X, Z = data
     ## First Step GMM
     W = pinv(Z'Z)
@@ -56,12 +57,11 @@ function LinearGMM(data; v::CovarianceMatrices.AVarEstimator = HR0())
     return gmm
 end
 
-function CovarianceMatrices.objective_hessian(p::LinearGMM)
-    y, X, Z = data
+function CovarianceMatrices.hessian_objective(p::LinearGMM)
+    y, X, Z = p.data
     M = CovarianceMatrices.momentmatrix(p, coef(p))
-    Omega = aVar(p.v, M)
-    n = nobs(p)
-    H = -(X'Z/n)*pinv(Omega)*(Z'X/n)
+    Omega = aVar(p.v, M; scale = false)
+    H = -(X'Z)*pinv(Omega)*(Z'X)
     return H
 end
 
@@ -126,9 +126,9 @@ println("IV estimates: $(round.(model.beta, digits=3))")
 
 V1 = vcov(HR0(), Information(), model)
 V2 = vcov(HR0(), Misspecified(), model)
-@test maximum(abs.(V1 .- V2)) < 0.004
+@test V1 ≈ V2
 
 model = LinearGMM(data; v = Bartlett(5))
-V3 = vcov(Bartlett(3), Information(), model)
-V4 = vcov(Bartlett(3), Misspecified(), model)
-@test maximum(abs.(V3 .- V4)) < 0.004
+V3 = vcov(Bartlett(5), Information(), model)
+V4 = vcov(Bartlett(5), Misspecified(), model)
+@test V3 ≈ V4

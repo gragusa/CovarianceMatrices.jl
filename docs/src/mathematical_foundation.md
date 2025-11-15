@@ -257,10 +257,10 @@ Smoothed moments are asymptotically equivalent to corresponding HAC estimators:
 - **Triangular Kernel** (Smoothed) ≡ **Bartlett Kernel** (HAC)
 
 **Bandwidth Interpretation**:
-Both methods use the same bandwidth parameter $S_T$ with identical interpretations:
+Both methods use the same bandwidth parameter $m_T$ with identical interpretations:
 
-- Controls the maximum lag included: $m = \lfloor S_T \rfloor$
-- Determines kernel argument scaling: $k(j/S_T)$
+- Controls the maximum lag included: $m = \lfloor m_T \rfloor$
+- Determines kernel argument scaling: $k(2j/(2m_T+1)$
 - Same optimal bandwidth rates apply to both approaches
 
 The key difference is computational: smoothed moments first smooths moment conditions then takes outer products, while HAC first computes autocovariances then applies kernel weighting. Both approaches yield identical asymptotic results when using the same bandwidth.
