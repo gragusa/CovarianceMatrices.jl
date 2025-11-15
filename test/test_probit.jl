@@ -152,8 +152,8 @@ For MLE, this equals the Fisher Information matrix (unscaled).
 function CovarianceMatrices.hessian_objective(m::ProbitModel)
     Xβ = m.X * m.β
     qᵢ = 2*m.y .- 1  # +1 for y=1, -1 for y=0
-    Φ = cdf.(Normal(), qᵢ.*Xβ)
-    ϕ = pdf.(Normal(), qᵢ.*Xβ)
+    Φ = cdf.(Normal(), qᵢ .* Xβ)
+    ϕ = pdf.(Normal(), qᵢ .* Xβ)
     λ₁ = qᵢ .* (ϕ ./ Φ)  # Inverse Mills ratio for y=1 and y=0
     w = -(λ₁ .* (λ₁ .+ Xβ))
     -(m.X' * Diagonal(w) * m.X)

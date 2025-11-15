@@ -4,7 +4,6 @@ using CovarianceMatrices, Test, Random, StatsBase, LinearAlgebra, Statistics
 
 const CM = CovarianceMatrices
 
-
 # Simple GMM model for testing
 struct SimpleGMM <: CovarianceMatrices.GMMLikeModel
     data::NamedTuple
@@ -367,16 +366,14 @@ end
         StatsBase.coef(m::TestMLE) = m.β
         StatsBase.nobs(m::TestMLE) = 50
         CovarianceMatrices.momentmatrix(m::TestMLE) = randn(50, length(m.β))
-        
 
         mle = TestMLE([1.0, 2.0])
 
         # Should work with both forms
         V_info = vcov(HC0(), Information(), mle)
-         @test_throws ArgumentError vcov(HC0(), Misspecified(), mle)
+        @test_throws ArgumentError vcov(HC0(), Misspecified(), mle)
 
         @test size(V_info) == (2, 2)
-        
 
         # GMMLikeModel dispatch
         struct TestGMM <: CovarianceMatrices.GMMLikeModel
