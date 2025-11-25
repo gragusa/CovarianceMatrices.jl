@@ -7,9 +7,6 @@ for third-party estimators to obtain asymptotic covariance matrices under
 either correct specification or misspecification.
 """
 
-using LinearAlgebra
-using StatsBase
-
 # ============================================================================
 # MLikeModel Methods
 # ============================================================================
@@ -38,7 +35,7 @@ For MLikeModel + Information:
 # Returns
 - `Matrix{Float64}`: Variance-covariance matrix (Fisher Information inverse)
 """
-function StatsBase.vcov(
+function StatsAPI.vcov(
         ve::AbstractAsymptoticVarianceEstimator,
         form::Information,
         model::MLikeModel;
@@ -93,7 +90,7 @@ Both hessian_objective (H) and cross_score (G) are required.
 # Returns
 - `Matrix{Float64}`: Robust sandwich variance-covariance matrix
 """
-function StatsBase.vcov(
+function StatsAPI.vcov(
         ve::AbstractAsymptoticVarianceEstimator,
         form::Misspecified,
         model::MLikeModel;
@@ -152,7 +149,7 @@ This is the efficient GMM variance formula.
 # Returns
 - `Matrix{Float64}`: Efficient GMM variance-covariance matrix
 """
-function StatsBase.vcov(
+function StatsAPI.vcov(
         ve::AbstractAsymptoticVarianceEstimator,
         form::Information,
         model::GMMLikeModel;
@@ -213,7 +210,7 @@ Requires both hessian_objective (H) and cross_score (G).
 # Returns
 - `Matrix{Float64}`: Robust GMM variance-covariance matrix
 """
-function StatsBase.vcov(
+function StatsAPI.vcov(
         ve::AbstractAsymptoticVarianceEstimator,
         form::Misspecified,
         model::GMMLikeModel;
@@ -259,8 +256,8 @@ end
 
 Compute standard errors from variance-covariance matrix.
 """
-function StatsBase.stderror(ve::AbstractAsymptoticVarianceEstimator, args...; kwargs...)
-    V = StatsBase.vcov(ve, args...; kwargs...)
+function StatsAPI.stderror(ve::AbstractAsymptoticVarianceEstimator, args...; kwargs...)
+    V = StatsAPI.vcov(ve, args...; kwargs...)
     return sqrt.(diag(V))
 end
 
@@ -282,7 +279,7 @@ end
 # VARHAC is inherently robust to serial correlation and provides consistent
 # estimates under both correct specification and misspecification.
 # """
-# function StatsBase.vcov(
+# function StatsAPI.vcov(
 #         ve::VARHAC,
 #         form::VarianceForm,
 #         model;
@@ -294,7 +291,7 @@ end
 #     return vcov(ve, form, Z; kwargs...)
 # end
 
-# function StatsBase.vcov(
+# function StatsAPI.vcov(
 #         ve::VARHAC,
 #         form::VarianceForm,
 #         Z::AbstractMatrix;

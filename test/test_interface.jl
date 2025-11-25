@@ -41,8 +41,8 @@ function _create_linear_gmm(data)
     return SimpleGMM(data, β)
 end
 
-StatsBase.coef(m::SimpleGMM) = m.β
-StatsBase.nobs(m::SimpleGMM) = length(m.data.y)
+StatsAPI.coef(m::SimpleGMM) = m.β
+StatsAPI.nobs(m::SimpleGMM) = length(m.data.y)
 
 function CovarianceMatrices.momentmatrix(m::SimpleGMM)
     y, X, Z = m.data.y, m.data.x, m.data.z
@@ -74,16 +74,16 @@ end
         # Define momentmatrix but not coef
         CovarianceMatrices.momentmatrix(::BadModelNoCoef) = randn(10, 2)
 
-        @test_throws MethodError StatsBase.coef(BadModelNoCoef())
+        @test_throws MethodError StatsAPI.coef(BadModelNoCoef())
         @test_throws ErrorException CovarianceMatrices._check_coef(BadModelNoCoef())
     end
 
     @testset "Missing nobs method" begin
         struct BadModelNoNobs end
         CovarianceMatrices.momentmatrix(::BadModelNoNobs) = randn(10, 2)
-        StatsBase.coef(::BadModelNoNobs) = [1.0, 2.0]
+        StatsAPI.coef(::BadModelNoNobs) = [1.0, 2.0]
 
-        @test_throws MethodError StatsBase.nobs(BadModelNoNobs())
+        @test_throws MethodError StatsAPI.nobs(BadModelNoNobs())
         @test_throws ErrorException CovarianceMatrices._check_nobs(BadModelNoNobs())
     end
 end
@@ -99,8 +99,8 @@ end
             β::Vector{Float64}
         end
 
-        StatsBase.coef(m::UnderidentifiedModel) = m.β
-        StatsBase.nobs(m::UnderidentifiedModel) = size(m.Z, 1)
+        StatsAPI.coef(m::UnderidentifiedModel) = m.β
+        StatsAPI.nobs(m::UnderidentifiedModel) = size(m.Z, 1)
         CovarianceMatrices.momentmatrix(m::UnderidentifiedModel) = m.Z
         CovarianceMatrices.cross_score(m::UnderidentifiedModel) = G
 
@@ -139,8 +139,8 @@ end
 
         @test mle_model isa CovarianceMatrices.MLikeModel
         @test gmm_model isa CovarianceMatrices.GMMLikeModel
-        @test mle_model isa StatsBase.StatisticalModel
-        @test gmm_model isa StatsBase.StatisticalModel
+        @test mle_model isa StatsAPI.StatisticalModel
+        @test gmm_model isa StatsAPI.StatisticalModel
     end
 
     @testset "New Type Hierarchy" begin
@@ -331,8 +331,8 @@ end
             β::Vector{Float64}
         end
 
-        StatsBase.coef(m::MinimalModel) = m.β
-        StatsBase.nobs(m::MinimalModel) = 100
+        StatsAPI.coef(m::MinimalModel) = m.β
+        StatsAPI.nobs(m::MinimalModel) = 100
         CovarianceMatrices.momentmatrix(m::MinimalModel) = randn(100, length(m.β))
 
         minimal = MinimalModel([1.0, 2.0])
@@ -363,8 +363,8 @@ end
             β::Vector{Float64}
         end
 
-        StatsBase.coef(m::TestMLE) = m.β
-        StatsBase.nobs(m::TestMLE) = 50
+        StatsAPI.coef(m::TestMLE) = m.β
+        StatsAPI.nobs(m::TestMLE) = 50
         CovarianceMatrices.momentmatrix(m::TestMLE) = randn(50, length(m.β))
 
         mle = TestMLE([1.0, 2.0])
@@ -380,8 +380,8 @@ end
             β::Vector{Float64}
         end
 
-        StatsBase.coef(m::TestGMM) = m.β
-        StatsBase.nobs(m::TestGMM) = 50
+        StatsAPI.coef(m::TestGMM) = m.β
+        StatsAPI.nobs(m::TestGMM) = 50
         CovarianceMatrices.momentmatrix(m::TestGMM) = randn(50, 4)  # overidentified
         CovarianceMatrices.hessian_objective(m::TestGMM) = randn(length(m.β), length(m.β))
         CovarianceMatrices.jacobian_momentfunction(m::TestGMM) = randn(4, length(m.β))
@@ -560,8 +560,8 @@ end
 
         struct BadDimensionModel <: CovarianceMatrices.MLikeModel end
 
-        StatsBase.coef(::BadDimensionModel) = [1.0, 2.0, 3.0]  # 3 parameters
-        StatsBase.nobs(::BadDimensionModel) = 100
+        StatsAPI.coef(::BadDimensionModel) = [1.0, 2.0, 3.0]  # 3 parameters
+        StatsAPI.nobs(::BadDimensionModel) = 100
         CovarianceMatrices.momentmatrix(::BadDimensionModel) = randn(100, 2)  # 2 moments (underidentified)
 
         bad_model = BadDimensionModel()

@@ -22,17 +22,14 @@ function clusterize_mean(X::Matrix, g::GroupedArray)
     return X2
 end
 
-function avar(
-        k::T,
-        X::Union{Matrix{F}, Vector{F}};
-        kwargs...
-) where {T <: Union{CR0, CR1, CR2, CR3}, F <: AbstractFloat}
+function avar(k::CR, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <: Real}
     f = k.g
     S = zeros(eltype(X), (size(X, 2), size(X, 2)))
     gmin, gmax = minimum(length.(f)), maximum(length.(f))
-    @assert gmin == gmax "All groups must have the same size"
-    @assert gmin > 1 "All groups must have at least 2 observations"
-    @assert size(X, 1) == gmin "X must have the same number of observations the groups"
+    @assert gmin==gmax "All groups must have the same size"
+    @assert gmin>1 "All groups must have at least 2 observations"
+    @assert size(X, 1)==gmin "X must have the same number of observations as the groups"
+
     @inbounds for c in combinations(1:length(f))
         if length(c) == 1
             g = GroupedArray(f[c[1]])
@@ -41,11 +38,40 @@ function avar(
         end
         S += (-1)^(length(c) - 1) * clusterize(parent(X), g)
     end
-    rescale!(k, S)
+    #rescale!(k, S)
     return S
 end
 
+function avar_tuple(k::CR, X; kwargs...)
+    f = k.g
+    map(zip(X, combinations(1:length(f)))) do (Z, c)
+        begin
+            if length(c) == 1
+                g = GroupedArray(f[c[1]])
+
+            else
+                g = GroupedArray((f[i] for i in c)...; sort = nothing)
+            end
+            (-1)^(length(c) - 1) * clusterize(Z, g)
+        end
+    end
+end
+
 nclusters(k::CR) = (map(x -> x.ngroups, k.g))
+
+function total_num_clusters(k::CR)
+    f = k.g
+    map(c -> begin
+            if length(c) == 1
+                g = GroupedArray(f[c[1]])
+            else
+                g = GroupedArray((f[i] for i in c)...; sort = nothing)
+            end
+            length(unique(g))
+        end,
+        combinations(1:length(f)))
+end
+
 rescale!(k::T, S::Matrix) where {T <: CR0} = nothing
 
 function rescale!(k::T, S::AbstractMatrix) where {T <: CR1}

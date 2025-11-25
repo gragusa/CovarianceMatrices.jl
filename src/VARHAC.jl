@@ -1,30 +1,4 @@
 
-"""
-    nancov(X; corrected::Bool = true)
-
-Simple covariance function that handles NaN values by computing covariance
-on the subset of complete observations.
-
-This is a minimal implementation to replace the missing NaNStatistics.nancov
-functionality needed for VARHAC estimation.
-"""
-function nancov(X::AbstractMatrix{T}; corrected::Bool = true) where {T <: Real}
-    # Remove rows with any NaN values
-    complete_rows = .!any(isnan.(X), dims = 2)
-    if !any(complete_rows)
-        # All rows have NaN, return NaN matrix
-        return fill(T(NaN), size(X, 2), size(X, 2))
-    end
-
-    X_clean = X[vec(complete_rows), :]
-    if size(X_clean, 1) <= 1
-        # Not enough observations for covariance
-        return fill(T(NaN), size(X, 2), size(X, 2))
-    end
-
-    return cov(X_clean; corrected = corrected)
-end
-
 function avar(
         k::VARHAC{S, L},
         X::AbstractMatrix{R};

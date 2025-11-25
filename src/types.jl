@@ -13,17 +13,32 @@ This is the root type of the estimator hierarchy in CovarianceMatrices.jl. All r
 
 # Type Hierarchy
 
-- `AbstractAsymptoticVarianceEstimator` (abstract)
-  - `Uncorrelated` - For uncorrelated moments (iid errors)
-  - `Correlated` (abstract) - For various forms of correlation
-    - `HAC{G}` - Heteroskedasticity and Autocorrelation Consistent estimators
-      - `Bartlett`, `Parzen`, `QuadraticSpectral`, `TukeyHanning`, `Truncated`
-    - `CR` - Cluster-Robust estimators
-      - `CR0`, `CR1`, `CR2`, `CR3`
-    - Specialized estimators: `VARHAC`, `EWC`, `DriscollKraay`, `SmoothedMoments`
-  - `HR` - Heteroskedasticity-Robust estimators (for linear models)
-    - `HR0`/`HC0`, `HR1`/`HC1`, `HR2`/`HC2`, `HR3`/`HC3`, `HR4`/`HC4`, `HR5`/`HC5`
-
+AbstractAsymptoticVarianceEstimator (abstract)
+  * Correlated (abstract)
+      - HAC{G} (Heteroskedasticity and Autocorrelation Consistent)
+          . Bartlett
+          . Parzen
+          . QuadraticSpectral
+          . TukeyHanning
+          . Truncated
+      - CR (Cluster-Robust)
+          . CR0
+          . CR1
+          . CR2
+          . CR3
+      - Specialized
+          . VARHAC
+          . EWC
+          . DriscollKraay
+          . SmoothedMoments
+  * Uncorrelated
+      - HR (Heteroskedasticity-Robust)
+          . HR0 / HC0
+          . HR1 / HC1
+          . HR2 / HC2
+          . HR3 / HC3
+          . HR4 / HC4
+          . HR5 / HC5
 # Interface
 
 All subtypes implement the core interface:
@@ -169,15 +184,9 @@ k(x) = \\begin{cases}
 
 This provides equal weighting for all lags within the bandwidth and zero weight beyond.
 
-# Properties
-- Simple rectangular window
-- Sharp cutoff at bandwidth boundary
-- Provides consistent but not necessarily positive semi-definite estimates
-- Computationally efficient
-
 # Constructors
 
-Truncated(x::Int)                # Fixed bandwidth
+Truncated(x::Int)               # Fixed bandwidth
 Truncated{Andrews}()            # Andrews bandwidth selection
 Truncated(Andrews)              # Andrews bandwidth selection (alternative syntax)
 
@@ -186,7 +195,7 @@ Truncated(Andrews)              # Andrews bandwidth selection (alternative synta
   - `Fixed`: fixed bandwidth
   - `Andrews`: bandwidth selection a la Andrews
 
-**Note**: NeweyWest bandwidth selection is not supported for Truncated kernel.
+**Note**: Provides consistent but not necessarily positive semi-definite estimates. `NeweyWest` bandwidth selection is not supported for Truncated kernel.
 """
 struct TruncatedKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
@@ -221,13 +230,6 @@ k(x) = \\begin{cases}
 
 This provides linearly declining weights that reach zero at the bandwidth boundary.
 
-# Properties
-- Triangular weighting scheme
-- Guarantees positive semi-definite covariance matrices
-- Most commonly used kernel in practice
-- Good balance between bias and variance
-- Equivalent to Newey-West estimator
-
 # Constructors
 
 Bartlett(x::Int)               # Fixed bandwidth
@@ -236,10 +238,8 @@ Bartlett{NeweyWest}()          # Newey-West bandwidth selection
 Bartlett(Andrews)              # Andrews bandwidth selection (alternative syntax)
 Bartlett(NeweyWest)            # Newey-West bandwidth selection (alternative syntax)
 
-# Bandwidth Selection
-
-  - `Andrews`: bandwidth selection a la Andrews
-  - `NeweyWest`: bandwidth selection a la Newey-West
+# NotesL
+- Equivalent to Newey-West estimator
 """
 struct BartlettKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
@@ -271,15 +271,6 @@ k(x) = \\begin{cases}
 \\end{cases}
 ```
 
-This provides a smooth, continuous kernel that is more efficient than the Bartlett kernel.
-
-# Properties
-- Smooth cubic spline kernel
-- Guarantees positive semi-definite covariance matrices
-- More efficient than Bartlett kernel (better rate of convergence)
-- Continuous first derivative
-- Good for data with strong persistence
-
 # Constructors
 
 Parzen(x::Int)                 # Fixed bandwidth
@@ -288,10 +279,6 @@ Parzen{NeweyWest}()            # Newey-West bandwidth selection
 Parzen(Andrews)                # Andrews bandwidth selection (alternative syntax)
 Parzen(NeweyWest)              # Newey-West bandwidth selection (alternative syntax)
 
-# Bandwidth Selection
-
-  - `Andrews`: bandwidth selection a la Andrews
-  - `NeweyWest`: bandwidth selection a la Newey-West
 """
 struct ParzenKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
@@ -324,25 +311,14 @@ k(x) = \\begin{cases}
 
 This provides a smooth, bell-shaped weighting scheme based on the cosine function.
 
-# Properties
-- Smooth cosine-based kernel
-- Guarantees positive semi-definite covariance matrices
-- Similar efficiency to Parzen kernel
-- Symmetric bell-shaped weights
-- Good spectral properties
-
 # Constructors
 
 TukeyHanning(x::Int)            # Fixed bandwidth
 TukeyHanning{Andrews}()         # Andrews bandwidth selection
 TukeyHanning(Andrews)           # Andrews bandwidth selection (alternative syntax)
 
-# Bandwidth Selection
-
-  - `Fixed`: fixed bandwidth
-  - `Andrews`: bandwidth selection a la Andrews
-
-**Note**: NeweyWest bandwidth selection is not supported for TukeyHanning kernel.
+# Notes
+`NeweyWest` bandwidth selection is not supported for TukeyHanning kernel.
 """
 struct TukeyHanningKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
@@ -372,13 +348,7 @@ k(x) = \\frac{25}{12\\pi^2 x^2}\\left[\\frac{\\sin(6\\pi x/5)}{6\\pi x/5} - \\co
 
 For x = 0, the kernel value is k(0) = 1 by continuity.
 
-# Properties
-- Spectral kernel with infinite support
-- Theoretically optimal among kernels with infinite support
-- Guarantees positive semi-definite covariance matrices
-- Most efficient kernel (optimal rate of convergence)
-- Data-driven bandwidth selection possible
-- Can handle very persistent data well
+
 
 # Constructors
 
@@ -388,10 +358,6 @@ QuadraticSpectral{NeweyWest}() # Newey-West bandwidth selection
 QuadraticSpectral(Andrews)     # Andrews bandwidth selection (alternative syntax)
 QuadraticSpectral(NeweyWest)   # Newey-West bandwidth selection (alternative syntax)
 
-# Bandwidth Selection
-
-  - `Andrews`: bandwidth selection a la Andrews
-  - `NeweyWest`: bandwidth selection a la Newey-West
 """
 struct QuadraticSpectralKernel{G <: BandwidthType} <: HAC{G}
     bw::Vector{WFLOAT}
@@ -473,22 +439,15 @@ EWC
 Equal Weighted Cosine (EWC) covariance matrix estimator.
 
 The EWC estimator provides a non-parametric approach to robust covariance estimation
-by using cosine similarity weighting. This method is particularly useful for
-financial time series and other applications where traditional HAC estimators
-may be sensitive to the choice of kernel or bandwidth.
-
-# Constructor
-    EWC(B::Integer)
-
-# Arguments
-- `B::Integer`: Number of basis functions (must be positive)
-
-# Mathematical Foundation
+by using cosine similarity weighting. Mathematically, the EWC estimator is defined as:
 The EWC estimator computes the covariance matrix using:
 ```
 Ω̂ = (1/T) Σ_{t=1}^T Σ_{j=1}^B w_j(t) g_t g_t'
 ```
 where w_j(t) are cosine-based weights and g_t are the moment conditions.
+
+# Constructor
+    EWC(B::Integer)
 
 
 # Examples
@@ -524,17 +483,10 @@ Basic heteroskedasticity-robust covariance estimator without finite-sample corre
 
 # Mathematical Formula
 
+Letting `X_i` denote the i-th row of the design matrix `X` and ``\\hat{u}_i`` the residuals, the HC0 estimator is given by:
 ```math
-\\hat{\\Omega}_{HC0} = (X'X)^{-1} X'\\text{diag}(\\hat{u}_i^2) X (X'X)^{-1}
+\\hat{\\Omega}_{HC0} = n\\right(\\sum_{i=1}^n X_i'X_i\\left)^{-1} \\sum_{i=1}^n u_i^2 X'_iX_i \\right(\\sum_{i=1}^n X_i'X_i\\left)^{-1}
 ```
-
-where ``\\hat{u}_i`` are the residuals.
-
-# Properties
-- No small-sample corrections
-- Simplest form of robust standard errors
-- Can be downward biased in small samples
-- Equivalent to White's original heteroskedasticity-robust estimator
 
 # Usage
 ```julia
@@ -558,12 +510,6 @@ Heteroskedasticity-robust estimator with degrees-of-freedom correction.
 
 where ``n`` is sample size and ``k`` is number of parameters.
 
-# Properties
-- Applies degrees-of-freedom correction
-- Better finite-sample properties than HC0
-- Most commonly used in practice
-- Standard choice for most applications
-
 # Usage
 ```julia
 using CovarianceMatrices
@@ -585,12 +531,6 @@ Heteroskedasticity-robust estimator with leverage-based corrections.
 ```
 
 where ``h_i`` are the diagonal elements of the hat matrix ``H = X(X'X)^{-1}X'``.
-
-# Properties
-- Accounts for leverage effects
-- Better performance with influential observations
-- Recommended for moderate sample sizes
-- More robust than HC0/HC1 to outliers
 
 # Usage
 ```julia
@@ -614,11 +554,6 @@ Heteroskedasticity-robust estimator with squared leverage corrections.
 
 where ``h_i`` are the diagonal elements of the hat matrix ``H = X(X'X)^{-1}X'``.
 
-# Properties
-- Stronger leverage correction than HC2
-- Recommended for small samples
-- Most robust to influential observations
-- Conservative standard errors
 
 # Usage
 ```julia
@@ -642,12 +577,6 @@ Heteroskedasticity-robust estimator with alternative leverage correction.
 
 where ``\\delta_i = \\min\\{4, h_i/\\bar{h}\\}`` and ``\\bar{h} = k/n``.
 
-# Properties
-- Adaptive leverage correction
-- Good performance across different leverage patterns
-- Balance between HC2 and HC3
-- Less conservative than HC3
-
 # Usage
 ```julia
 using CovarianceMatrices
@@ -666,10 +595,6 @@ Modified version of HC4 with different leverage cutoff.
 
 Similar to HC4 but with ``\\delta_i = \\min\\{1, h_i/\\bar{h}\\} + \\min\\{1.5, h_i/\\bar{h}\\}``.
 
-# Properties
-- Alternative to standard HC4
-- Different leverage weighting scheme
-- Experimental variant
 
 # Usage
 ```julia
@@ -692,12 +617,6 @@ Heteroskedasticity-robust estimator with maximum leverage correction.
 ```
 
 where ``h_i^* = \\max\\{4h_i/k, h_i\\}``.
-
-# Properties
-- Complex leverage correction
-- Designed for high-leverage situations
-- Most sophisticated HC variant
-- Rarely used in practice
 
 # Usage
 ```julia
@@ -725,11 +644,6 @@ Basic cluster-robust covariance estimator without small-sample adjustments.
 
 where ``\\hat{u}_g = \\sum_{t \\in g} g_t`` is the cluster-level sum of moment conditions.
 
-# Properties
-- No small-sample adjustments
-- Simplest form of cluster-robust inference
-- Can be downward biased in small samples
-- Requires at least 30-50 clusters for good asymptotic properties
 
 # Usage
 ```julia
@@ -755,16 +669,11 @@ Cluster-robust estimator with degrees-of-freedom correction.
 # Mathematical Formula
 
 ```math
-\\hat{\\Omega}_{CR1} = \\frac{G}{G-1} \\cdot \\frac{N-1}{N-K} \\sum_{g=1}^G \\hat{u}_g \\hat{u}_g'
+\\hat{\\Omega}_{CR1} = \\frac{G}{G-1} \\cdot \\frac{N-1}{N-K} \\hat{\\Omega}_{CR0}
 ```
 
 where ``N`` is total sample size, ``K`` is number of parameters, and ``G`` is number of clusters.
 
-# Properties
-- Applies degrees-of-freedom correction for parameters
-- Better finite-sample properties than CR0
-- **Most commonly used in practice**
-- Recommended default for cluster-robust inference
 
 # Usage
 ```julia
@@ -795,11 +704,6 @@ Cluster-robust estimator with leverage-based corrections.
 
 where ``h_g`` represents cluster-level leverage values.
 
-# Properties
-- Accounts for cluster-specific leverage effects
-- More robust to influential clusters
-- Better performance with unbalanced clusters
-- Recommended when clusters have very different sizes
 
 # Usage
 ```julia
@@ -830,11 +734,6 @@ Cluster-robust estimator with squared leverage corrections.
 
 where ``h_g`` represents cluster-level leverage values.
 
-# Properties
-- Stronger leverage correction than CR2
-- Most robust to influential clusters
-- Conservative standard errors
-- Good choice for severely unbalanced clusters
 
 # Usage
 ```julia
@@ -1024,24 +923,28 @@ without requiring bandwidth selection.
 # Constructor
     VARHAC(selector=AICSelector(), strategy=SameLags(8); T::Type{<:Real}=Float64)
 
-# Arguments
+Several convenience constructors are provided:
+
+    - `VARHAC(8)`: Same as `VARHAC(AICSelector(), SameLags(8))`
+    - `VARHAC(:aic)`: Same as `VARHAC(AICSelector(), SameLags(8))`
+    - `VARHAC(:bic)`: Same as `VARHAC(BICSelector(), SameLags(8))`
+    - `VARHAC(FixedLags(5))`: Fixed lag length of 5
+
+## Arguments
+
 - `selector::LagSelector`: Method for selecting optimal lag length
   - `AICSelector()`: Use Akaike Information Criterion (default)
   - `BICSelector()`: Use Bayesian Information Criterion
   - `FixedSelector()`: Use fixed lag length (automatically set with FixedLags)
+
 - `strategy::LagStrategy`: Strategy for lag specification
   - `SameLags(k)`: Same lag length k for all variables (default: k=8)
   - `FixedLags(k)`: Fixed lag length k (forces FixedSelector)
   - `AutoLags()`: Automatic lag selection based on sample size
   - `DifferentOwnLags([k1,k2])`: Different own lag lengths for bivariate case
 
-# Convenience Constructors
-- `VARHAC(8)`: Same as `VARHAC(AICSelector(), SameLags(8))`
-- `VARHAC(:aic)`: Same as `VARHAC(AICSelector(), SameLags(8))`
-- `VARHAC(:bic)`: Same as `VARHAC(BICSelector(), SameLags(8))`
-- `VARHAC(FixedLags(5))`: Fixed lag length of 5
-
 # References
+
 - den Haan, W.J. and Levin, A. (1997). "A Practitioner's Guide to Robust
   Covariance Matrix Estimation". Handbook of Statistics, Vol. 15.
 
@@ -1243,16 +1146,15 @@ end
 
 Driscoll-Kraay estimator for panel data with cross-sectional and temporal dependence.
 
-The Driscoll-Kraay estimator extends HAC estimation to panel data settings,
-accounting for both serial correlation within panels and spatial correlation
-across panels. This estimator is particularly useful for macro panels, regional
-data, and other applications where both dimensions of dependence are relevant.
+It extends HAC estimation to panel data settings, accounting for both serial correlation within panels and spatial correlation
+across panels. This estimator is particularly useful for macro panels, regional data, and other applications where both dimensions of dependence are relevant.
 
 # Constructor
     DriscollKraay(K::HAC; tis=nothing, iis=nothing)
     DriscollKraay(K::HAC, tis::AbstractArray, iis::AbstractArray)
 
-# Arguments
+where
+
 - `K::HAC`: HAC kernel for temporal dependence (Bartlett, Parzen, etc.)
 - `tis`: Time dimension indices (panel identifier for time)
 - `iis`: Cross-section dimension indices (panel identifier for units)
@@ -1271,19 +1173,11 @@ where:
 - Handles both serial correlation (within panels) and spatial correlation (across panels)
 - Consistent for large T and/or large N
 - Automatic positive semi-definiteness (when using appropriate kernels)
-- Particularly suited for macro panels and regional data
 
-# Applications
-- Macro panels with countries/regions and time
-- Firm-level data with industry clustering
-- Regional economic data
-- Social networks with temporal evolution
 
 # References
 - Driscoll, J.C. and Kraay, A.C. (1998). "Consistent Covariance Matrix Estimation
   with Spatially Dependent Panel Data". Review of Economics and Statistics, 80(4), 549-560.
-- Hoechle, D. (2007). "Robust Standard Errors for Panel Regressions with
-  Cross-Sectional Dependence". Stata Journal, 7(3), 281-312.
 
 # Examples
 ```julia

@@ -21,8 +21,8 @@ struct LinearGMM{T, V, K} <: CovarianceMatrices.GMMLikeModel
 end
 
 # Implement CovarianceMatrices.jl interface
-StatsBase.coef(m::LinearGMM) = m.beta
-StatsBase.nobs(m::LinearGMM) = length(m.data.y)
+StatsAPI.coef(m::LinearGMM) = m.beta
+StatsAPI.nobs(m::LinearGMM) = length(m.data.y)
 
 function CovarianceMatrices.momentmatrix(p::LinearGMM, beta)
     y, X, Z = p.data
