@@ -15,7 +15,7 @@ makedocs(
     clean = true,
     pages = [
         "Home" => "index.md",
-        "Mathematical Foundation" => "mathematical_foundation.md",
+        "Introduction & Mathematical Foundation" => "introduction.md",
         "Estimators" => [
             "HAC Estimators" => "estimators/hac.md",
             "Heteroskedasticity-Robust (HC/HR)" => "estimators/hc.md",
@@ -26,8 +26,9 @@ makedocs(
             "EWC" => "estimators/ewc.md"
         ],
         "Tutorials" => [
-            "Matrix Interface Tutorial" => "tutorials/matrix_tutorial.md",
-            "GLM Integration Tutorial" => "tutorials/glm_tutorial.md"
+            "Matrix Interface" => "tutorials/matrix_tutorial.md",
+            "GLM Integration" => "tutorials/glm_tutorial.md",
+            "Package Interface Extension" => "tutorials/interface_tutorial.md"
         ],
         "API Reference" => "api.md",
         "Performance Notes" => "performance.md"

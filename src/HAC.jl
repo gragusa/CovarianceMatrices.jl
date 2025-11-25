@@ -28,10 +28,8 @@ V = avar(k, X; prewhite=true)
 function avar(k::K, X::AbstractMatrix{F}; prewhite = false) where {K <: HAC, F <: Real}
     Z, D = finalize_prewhite(X, Val(prewhite))
     T, p = size(Z)
-    wlock = k.wlock[1]
     setkernelweights!(k, X)
     k.bw .= _optimalbandwidth(k, Z, prewhite)
-    k.wlock .= wlock
     V = zeros(F, p, p)
     Q = similar(V)
     kernelestimator!(k, V, Q, Z)
@@ -245,22 +243,25 @@ Set kernel weights for columns of X, excluding constant columns.
 
 # Arguments
 - `k::HAC`: Kernel estimator with kernel weights field `kw`
-- `X::AbstractMatrix`: Data matrix
+- `X::AbstractMatrix`: the moment matrix
 
 # Details
-- If weights are locked (`k.wlock[1] == true`), validates existing weights
-- Otherwise, sets weights to 1 for varying columns, 0 for constant columns
-- Constant columns don't contribute to variance estimation
+The field `k.kw` is updated in-place with column weights. If weights are locked (`k.wlock[1] == true`), only validates existing weights to make sure they are consistent with the dimension of `X`. Otherwise, sets weights to 1 for varying columns, 0 for constant columns.
 
-# Modifies
-- `k.kw`: Updated in-place with column weights
+
 """
-function setkernelweights!(k::HAC{T}, X) where {T <: Union{Andrews, NeweyWest}}
+
+function setkernelweights!(k::HAC{T}, m::RegressionModel) where {T <:
+                                                                 Union{Andrews, NeweyWest}}
+    setkernelweights!(k, modelmatrix(m))
+end
+
+function setkernelweights!(k::HAC{T}, X::AbstractMatrix) where {T <:
+                                                                Union{Andrews, NeweyWest}}
     if k.wlock[1]
         @assert length(k.kw) == size(X, 2) "The number of columns in X must match the number of kernel weights, got $(length(k.kw)) weights for $(size(X, 2)) columns"
     else
         resize!(k.kw, size(X, 2))
-
         @inbounds for (i, col) in enumerate(eachcol(X))
             k.kw[i] = allequal(col) ? 0.0 : 1.0
         end

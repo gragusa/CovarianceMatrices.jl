@@ -87,8 +87,13 @@ Third-party estimators should implement the following methods:
 
 **Required methods:**
 - `CovarianceMatrices.momentmatrix(model)`: Return the moment matrix or score function contributions (n × k matrix)
+<<<<<<< HEAD
+- `StatsAPI.coef(model)`: Return parameter estimates (k-vector)
+- `StatsAPI.nobs(model)`: Return number of observations
+=======
 - `StatsBase.coef(model)`: Return parameter estimates (k-vector)
 - `StatsBase.nobs(model)`: Return number of observations
+>>>>>>> master
 
 **Optional methods (depending on variance form):**
 
@@ -160,8 +165,8 @@ function SimpleProbit(y::Vector{Int}, X::Matrix{Float64})
 end
 
 # Implement required interface
-StatsBase.coef(m::SimpleProbit) = m.β
-StatsBase.nobs(m::SimpleProbit) = length(m.y)
+StatsAPI.coef(m::SimpleProbit) = m.β
+StatsAPI.nobs(m::SimpleProbit) = length(m.y)
 
 # Score functions (for MLE, this is the gradient of log-likelihood)
 function CovarianceMatrices.momentmatrix(m::SimpleProbit)
@@ -218,8 +223,8 @@ struct LinearGMM{T, V, K} <: CovarianceMatrices.GMMLikeModel
 end
 
 # Implement CovarianceMatrices.jl interface
-StatsBase.coef(m::LinearGMM) = m.beta
-StatsBase.nobs(m::LinearGMM) = length(m.data.y)
+StatsAPI.coef(m::LinearGMM) = m.beta
+StatsAPI.nobs(m::LinearGMM) = length(m.data.y)
 
 # Moment conditions: Z'(y - X*β)
 function CovarianceMatrices.momentmatrix(p::LinearGMM, beta)

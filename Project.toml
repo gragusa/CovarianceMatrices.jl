@@ -1,7 +1,7 @@
 name = "CovarianceMatrices"
 uuid = "60f91f6f-d783-54cb-84f9-544141854719"
-author = "Giuseppe Ragusa <giuseppe.ragusa@gmail.com>"
 version = "0.22.0"
+author = "Giuseppe Ragusa <giuseppe.ragusa@gmail.com>"
 
 [deps]
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
@@ -9,33 +9,38 @@ GroupedArrays = "6407cd72-fade-4a84-8a1e-56e431fc1533"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 NaNStatistics = "b946abbf-3ea7-4610-9019-9858bfdeaf2d"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+StatsAPI = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 StatsFuns = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
+StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
+BlockDiagonals = "0a1fb500-61f7-11e9-3c65-f5ef3456f9f0"
 
 [weakdeps]
-SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [extensions]
+ForwardDiffExt = ["ForwardDiff"]
 GLMExt = ["GLM"]
 SparseArraysExt = ["SparseArrays"]
-ForwardDiffExt = ["ForwardDiff"]
-
 
 [compat]
+BlockDiagonals = "0.2"
 Combinatorics = "1.0"
 DataFrames = "1.0"
 Distributions = "0.25"
 ForwardDiff = "1.2"
-GroupedArrays = "0.3"
 GLM = "1.9"
+GroupedArrays = "0.3"
 NaNStatistics = "0.6"
 SparseArrays = "1.0"
 StableRNGs = "1.0"
 Statistics = "1.0"
+StatsAPI = "1.7.1"
 StatsBase = "0.34"
 StatsFuns = "1.0"
+StatsModels = "0.7"
 julia = "1.11"
 
 [extras]

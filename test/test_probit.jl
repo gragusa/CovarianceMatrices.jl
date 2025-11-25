@@ -128,8 +128,8 @@ end
 # CovarianceMatrices.jl Interface Implementation
 # ============================================================================
 
-StatsBase.nobs(model::ProbitModel) = size(model.X, 1)
-StatsBase.coef(model::ProbitModel) = model.β
+StatsAPI.nobs(model::ProbitModel) = size(model.X, 1)
+StatsAPI.coef(model::ProbitModel) = model.β
 
 """
 Return the moment matrix (score contributions).

@@ -9,6 +9,8 @@ These use cases utilize different parts of this package, make sure you read the 
 
 module CovarianceMatrices
 
+using StatsAPI
+using StatsAPI: vcov, stderror
 using Combinatorics
 using GroupedArrays
 using LinearAlgebra
@@ -16,7 +18,7 @@ using Statistics
 using StatsBase
 using NaNStatistics
 using Base.Threads
-
+using BlockDiagonals
 include("types.jl")
 include("HAC.jl")
 include("CR.jl")
@@ -31,9 +33,12 @@ include("aVar.jl")
 
 # New unified API
 include("model_interface.jl")
-include("variance_forms.jl")
 include("stable_computation.jl")
 include("api.jl")
+
+# RegressionModel protocol and generic estimators
+## include("regression_model_interface.jl")
+include("regression_model_estimators.jl")
 export AbstractAsymptoticVarianceEstimator,
        Uncorrelated,
        Correlated,
@@ -70,11 +75,9 @@ export AbstractAsymptoticVarianceEstimator,
        aVar,
        a𝕍ar,
        optimalbw,
-#      bread,
-#      momentmatrix,
-#      residualadjustment,
        vcov,
        stderror,
+       DriscollKraay,
        SmoothedMoments,
        UniformSmoother,
        TriangularSmoother,

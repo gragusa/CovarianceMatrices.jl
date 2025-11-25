@@ -3,17 +3,18 @@ Asymptotic Variance Estimators
 
 aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhite::Bool=false, scale=true)
 
-## Arguments
+The asymptotic variance is the matrix `Σ` of the asymptotic approximation:
 
-    - k::AbstractAsymptoticVarianceEstimator 
-    - `demean=false`: whether the data should be demeaned.    
-    - `dims=1`: the dimension along which the demeaning should be performed.
-    - `means=nothing`: the means to be used for demeaning.
-    - `prewhite=false`: should the data be prewithened. Relevant for `HAC` estimator.
-    - `scale`: should the variance be scaled by the number of observations. If scle is an 
-               `Int` that value is used to scale the variance. This is convenient for degrees
-               of freedom correction or in cases where the variance is needed without 
-               scaling. 
+```math
+\\sqrt{n}\\Sigma^{-1/2} (\\bar{X} - \\mu) \\xrightarrow{d} N(0, I_p)
+```
+
+where `X̄` is the sample mean of the observations in `m` (averaged along `dims`) and `μ` is the population mean.
+
+## Note
+
+- `prewhite` argument is only relevant for `HAC` estimator in which case the matrix is _prewhitened_ using a VAR(1) model.
+- The `scale` parameter should indicate whether the variance be scaled by the number of observations. If `scale` is an `Int` that value is used to scale the variance. This is convenient for degrees of freedom correction or in cases where the variance is needed without scaling.
 """
 function aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix; kwargs...)
     aVar(k, float.(m), kwargs...)

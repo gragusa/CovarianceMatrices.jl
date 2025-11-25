@@ -1,334 +1,266 @@
 module GLMExt
 
-using CovarianceMatrices, GLM, LinearAlgebra, StatsBase
+using CovarianceMatrices, GLM, LinearAlgebra, StatsBase, StatsModels, StatsAPI,
+      Combinatorics, GroupedArrays
 using Statistics
 
-##=================================================
-## Moment Matrix 
-##=================================================
 const FAM = Union{GLM.Gamma, GLM.Bernoulli, GLM.InverseGaussian}
 const CM = CovarianceMatrices
 
-numobs(r::GLM.RegressionModel) = size(r.model.pp.X, 1)
-numobs(m::GLM.LinPredModel) = size(m.pp.X, 1)
+# Define GLM-specific union types to avoid type piracy on abstract RegressionModel
+const GLMLinearModel = GLM.LinearModel
+const GLMGeneralizedLinearModel = GLM.GeneralizedLinearModel
+const GLMLinPredModel = GLM.LinPredModel
+const GLMTableModel = StatsModels.TableRegressionModel{<:GLM.LinPredModel}
 
-_dispersion(r::GLM.RegressionModel) = _dispersion(r.model)
-_dispersion(m::GLM.LinearModel) = 1
-_dispersion(m::GLM.GeneralizedLinearModel) = _dispersion(m.rr)
+##=================================================
+## numobs: Actual observation count (not sum of weights)
+##=================================================
 
-_dispersion(rr::GLM.GlmResp{T1, T2, T3}) where {T1, T2, T3} = 1
-_dispersion(rr::GLM.LmResp) = 1
+"""
+    CM.numobs(m::GLM.LinPredModel) -> Int
+
+Return the actual number of observations (rows) in the GLM model.
+
+This is different from `nobs(m)` for weighted models:
+- `nobs(m)`: sum of weights (effective sample size)
+- `numobs(m)`: actual row count (for DOF calculations)
+
+Uses internal GLM field `.pp.X` for efficiency.
+"""
+CM.numobs(m::GLMTableModel) = CM.numobs(m.model)
+CM.numobs(m::GLMLinPredModel) = size(modelmatrix(m), 1)
+
+##=================================================
+## Dispersion Parameter (GLM-specific)
+##=================================================
+
+"""
+    _dispersion(m) -> Float64
+
+Compute dispersion parameter for GLM models.
+
+For linear models: always 1.0
+For GLMs: depends on family
+  - Binomial, Poisson: dispersion = 1.0 (fixed)
+  - Gamma, Bernoulli, InverseGaussian: estimated from residuals
+
+Uses internal GLM fields `.rr.wrkwt` and `.rr.wrkresid`.
+"""
+_dispersion(m::GLMLinearModel) = 1.0
+_dispersion(m::GLMGeneralizedLinearModel) = _dispersion(m.rr)
+
+_dispersion(rr::GLM.GlmResp{T1, T2, T3}) where {T1, T2, T3} = 1.0
+_dispersion(rr::GLM.LmResp) = 1.0
 function _dispersion(rr::GLM.GlmResp{T1, T2, T3}) where {T1, T2 <: FAM, T3}
     sum(abs2, rr.wrkwt .* rr.wrkresid) / sum(rr.wrkwt)
 end
 
-bread(r::RegressionModel) = bread(r.model)
-bread(m::GLM.LinearModel) = GLM.invchol(m.pp)
-bread(m::GLM.GeneralizedLinearModel) = GLM.invchol(m.pp) .* _dispersion(m)
+##=================================================
+## bread: Optimized using GLM internals
+##=================================================
 
-GLM.residuals(m::GLM.GeneralizedLinearModel) = m.rr.wrkresid
+"""
+    CM.bread(m::GLM.LinearModel) -> Matrix
 
-mask(r::RegressionModel) = mask(r.model)
-mask(m::GLM.LinearModel) = mask(m.pp)
-mask(m::GLM.GeneralizedLinearModel) = mask(m.pp)
+Compute bread matrix (X'X)^(-1) efficiently using LM
+Compute bread matrix (X'WX)^(-1) * dispersion for GLM.
 
-function mask(pp::GLM.DensePredChol{F, C}) where {F, C <: LinearAlgebra.CholeskyPivoted}
+Uses internal `GLM.invchol(m.pp)` for efficiency instead of recomputing.
+"""
+
+CM.bread(m::GLMTableModel) = CM.bread(m.model)
+CM.hessian_objective(m::GLMTableModel) = CM.hessian_objective(m.model)
+
+CM.bread(m::GLMLinearModel) = GLM.invchol(m.pp)
+CM.bread(m::GLMGeneralizedLinearModel) = GLM.invchol(m.pp) .* _dispersion(m)
+
+CM.hessian_objective(m::GLMLinearModel) = Matrix(m.pp)
+CM.hessian_objective(m::GLMGeneralizedLinearModel) = Matrix(m.pp) ./ _dispersion(m)
+
+##=================================================
+## residuals: Override for working residuals
+##=================================================
+
+function CM._residuals(m::GLMLinearModel)
+    u = GLM.residuals(m)
+    w = m.rr.wts
+    isempty(w) ? u : u .* w
+end
+
+function CM._residuals(m::GLMGeneralizedLinearModel)
+    u = m.rr.wrkresid
+    w = m.rr.wrkwt
+    (u .* w) ./ _dispersion(m)
+end
+
+CM._residuals(m::GLMTableModel) = CM._residuals(m.model)
+##=================================================
+## mask: Rank deficiency detection (GLM-specific)
+##=================================================
+
+"""
+    CM.mask(m) -> Vector{Bool}
+
+Return boolean mask indicating which parameters are estimable.
+
+For rank-deficient designs, uses GLM's pivoted Cholesky decomposition
+to determine which parameters are aliased.
+
+Uses internal fields `.pp.chol.rank` and `.pp.chol.p`.
+"""
+CM.mask(m::GLMLinearModel) = CM.mask(m.pp)
+CM.mask(m::GLMGeneralizedLinearModel) = CM.mask(m.pp)
+CM.mask(m::GLMTableModel) = CM.mask(m.model)
+
+function CM.mask(pp::GLM.DensePredChol{F, C}) where {F, C <: LinearAlgebra.CholeskyPivoted}
     k = size(pp.X, 2)
     rnk = pp.chol.rank
     p = pp.chol.p
-    rnk == k ? mask = ones(Bool, k) : begin
+    if rnk == k
+        return ones(Bool, k)
+    else
         mask = zeros(Bool, k)
         mask[p[1:rnk]] .= true
+        return mask
     end
-    return mask
 end
 
-function mask(pp::GLM.DensePredChol{F, C}) where {F, C <: LinearAlgebra.Cholesky}
+function CM.mask(pp::GLM.DensePredChol{F, C}) where {F, C <: LinearAlgebra.Cholesky}
     k = size(pp.X, 2)
     return ones(Bool, k)
 end
 
-CM.momentmatrix(m::RegressionModel) = momentmatrix(m.model)
-momentmatrix!(M::AbstractMatrix, m::RegressionModel) = momentmatrix!(M, m.model)
+##=================================================
+## momentmatrix: Optimized using GLM internals
+##=================================================
 
-CM.momentmatrix(m::GLM.GeneralizedLinearModel) = momentmatrix!(m.pp.scratchm1, m)
-CM.momentmatrix(m::GLM.LinearModel) = momentmatrix!(m.pp.scratchm1, m)
+"""
+    CM.momentmatrix(m::GLM.LinearModel) -> Matrix
 
-function momentmatrix!(M::AbstractMatrix, m::GLM.GeneralizedLinearModel)
+Compute moment matrix for linear model efficiently.
+
+Returns X .* residuals .* weights (if weighted).
+Uses GLM's internal scratch buffer `.pp.scratchm1` for efficiency.
+"""
+CM.momentmatrix(m::GLMTableModel) = CM.momentmatrix(m.model)
+
+function momentmatrix!(M::AbstractMatrix, m::GLMGeneralizedLinearModel)
     X = modelmatrix(m)
     wrkwt = m.rr.wrkwt
+    wrkrs = m.rr.wrkresid
     d = _dispersion(m)
-    @. M = (X * wrkwt * m.rr.wrkresid)/d
-    M
-end
-
-function momentmatrix!(M::AbstractMatrix, m::GLM.LinearModel)
-    X = modelmatrix(m)
-    wrkwt = m.rr.wts
-    wrkresid = GLM.residuals(m)
-    @. M = X * wrkresid
-    !isempty(wrkwt) && @. M *= wrkwt
-    return M
-end
-scratchm1(m::StatsModels.TableRegressionModel{T}) where {T} = scratchm1(m.model)
-scratchm1(m::GLM.LinPredModel) = m.pp.scratchm1
-scratchm1(m::GLM.GeneralizedLinearModel) = m.pp.scratchm1
-
-function CM.aVar(
-        k::K,
-        m::RegressionModel;
-        demean = false,
-        prewhite = false,
-        scale = true,
-        kwargs...
-) where {K <: CM.AbstractAsymptoticVarianceEstimator}
-    CM.setkernelweights!(k, m)
-    mm = begin
-        u = residualadjustment(k, m)
-        ## Important:
-        ## ---------------------------------------------------------------------------
-        ## This call should come afer `residualadjustment` as the `scratchm1` used to
-        ## store the momentmatrix is also used by `leverage` which is called by
-        ## `residualadjustment`.
-        M = momentmatrix!(scratchm1(m), m)
-        @. M = M * u
-        M
-    end
-    midx = mask(m)
-    Σ = if sum(midx) == size(mm, 2)
-        aVar(k, mm; demean = demean, prewhite = prewhite, scale = scale)
-    else
-        aVar(k, mm[:, midx]; demean = demean, prewhite = prewhite, scale = scale)
-    end
-    return Σ
-end
-
-crmomentmatrix!(M, res, m::RegressionModel) = crmomentmatrix!(M, res, m.model)
-
-function crmomentmatrix!(M::AbstractMatrix, res, m::GLM.GeneralizedLinearModel)
-    X = modelmatrix(m)
-    wrkwt = m.rr.wrkwt
-    d = _dispersion(m)
-    @. M = (X * wrkwt * res)/d
-    M
-end
-
-function crmomentmatrix!(M::AbstractMatrix, res, m::GLM.LinearModel)
-    X = modelmatrix(m)
-    wrkwt = m.rr.wts
-    wrkresid = res
-    @. M = X * wrkresid
-    !isempty(wrkwt) && @. M *= sqrt(wrkwt)
+    @. M = (X * wrkwt * wrkrs) / d
     return M
 end
 
-function CM.aVar(
-        k::K,
-        m::RegressionModel;
-        demean = false,
-        prewhite = false,
-        scale = true,
-        kwargs...
-) where {K <: CM.CR}
-    mm = begin
-        u = residualadjustment(k, m)
-        crmomentmatrix!(scratchm1(m), u, m)
-    end
-    midx = mask(m)
-    Σ = if sum(midx) == size(mm, 2)
-        aVar(k, mm; demean = demean, prewhite = prewhite, scale = scale)
-    else
-        aVar(k, mm[:, midx]; demean = demean, prewhite = prewhite, scale = scale)
-    end
-    return Σ
+function momentmatrix!(M::AbstractMatrix, m::GLMLinearModel)
+    X = modelmatrix(m)
+    wrkresid = CM._residuals(m)
+    @. M = X * wrkresid
+    return M
 end
 
-leverage(r::StatsModels.TableRegressionModel) = leverage(r.model)
+function CM.momentmatrix(m::GLMLinearModel)
+    M = similar(modelmatrix(m))
+    return momentmatrix!(M, m)
+end
 
-function leverage(r::GLM.RegressionModel)
+function CM.momentmatrix(m::GLMGeneralizedLinearModel)
+    M = similar(modelmatrix(m))
+    return momentmatrix!(M, m)
+end
+
+##=================================================
+## leverage: Optimized using GLM internals
+##=================================================
+
+"""
+    CM.leverage(m::GLM.LinearModel) -> Vector
+
+Compute hat matrix diagonals efficiently using GLM's Cholesky decomposition.
+
+For unweighted: h = diag(X * (X'X)^(-1) * X')
+For weighted: h = diag(X * (X'WX)^(-1) * X' * W)
+For GLMs: h = diag(X * (X'WX)^(-1) * X' * W) where W are working weights.
+
+Uses internal fields `.pp.chol` for efficiency and handles rank deficiency
+via pivoted Cholesky.
+"""
+function CM.leverage(r::GLMLinearModel)
     X = modelmatrix(r)
-    @inbounds copy!(r.pp.scratchm1, X)
-    @inbounds if !isempty(r.rr.wts)
-        @. r.pp.scratchm1 *= sqrt(r.rr.wts)
+    scratch = copy(X)
+    if !isempty(r.rr.wts)
+        scratch .*= sqrt.(r.rr.wts)
     end
-    _leverage(r.pp, r.pp.scratchm1)
+    return _leverage(r.pp, scratch)
 end
 
-function leverage(r::GLM.GeneralizedLinearModel)
+function CM.leverage(r::GLMGeneralizedLinearModel)
     X = modelmatrix(r) .* sqrt.(r.rr.wrkwt)
-    @inbounds copy!(r.pp.scratchm1, X)
-    # @inbounds if !isempty(r.rr.wts)
-    #     @. r.pp.scratchm1 *= sqrt(r.rr.wts)
-    # end
-    _leverage(r.pp, r.pp.scratchm1)
+    return _leverage(r.pp, X)
 end
+
+CM.leverage(m::GLMTableModel) = CM.leverage(m.model)
 
 function _leverage(
-        pp::GLM.DensePredChol{
-            F, C}, X) where {F, C <: LinearAlgebra.CholeskyPivoted}
+        pp::GLM.DensePredChol{F, C},
+        X
+) where {F, C <: LinearAlgebra.CholeskyPivoted}
     ch = pp.chol
     rnk = rank(ch)
     p = ch.p
     idx = invperm(p)[1:rnk]
-    sum(abs2, view(X, :, 1:rnk) / view(ch.U, 1:rnk, idx), dims = 2)
+    return vec(sum(abs2, view(X, :, 1:rnk) / view(ch.U, 1:rnk, idx), dims = 2))
 end
 
 function _leverage(pp::GLM.DensePredChol{F, C}, X) where {F, C <: LinearAlgebra.Cholesky}
-    sum(abs2, X / pp.chol.U, dims = 2)
-end
-
-dofresiduals(r::RegressionModel) = numobs(r) - rank(modelmatrix(r))
-
-@noinline residualadjustment(k::CM.HAC, r::Any) = 1.0
-
-@noinline residualadjustment(k::CM.HR0, r::GLM.RegressionModel) = 1.0
-@noinline residualadjustment(k::CM.HR1, r::GLM.RegressionModel) = √numobs(r) /
-                                                                  √dofresiduals(r)
-@noinline residualadjustment(k::CM.HR2, r::GLM.RegressionModel) = 1.0 ./
-                                                                  (1 .- leverage(r)) .^ 0.5
-@noinline residualadjustment(k::CM.HR3, r::GLM.RegressionModel) = 1.0 ./ (1 .- leverage(r))
-
-@noinline function residualadjustment(k::CM.HR4, r::RegressionModel)
-    n = length(response(r))
-    h = leverage(r)
-    p = round(Int, sum(h))
-    @inbounds for j in eachindex(h)
-        delta = min(4.0, n * h[j] / p)
-        h[j] = 1 / (1 - h[j])^(delta / 2)
-    end
-    h
-end
-
-@noinline function residualadjustment(k::CM.HR4m, r::RegressionModel)
-    n = length(response(r))
-    h = leverage(r)
-    p = round(Int, sum(h))
-    @inbounds for j in eachindex(h)
-        delta = min(1, n * h[j] / p) + min(1.5, n * h[j] / p)
-        h[j] = 1 / (1 - h[j])^(delta / 2)
-    end
-    h
-end
-
-@noinline function residualadjustment(k::CM.HR5, r::RegressionModel)
-    n = length(response(r))
-    h = leverage(r)
-    p = round(Int, sum(h))
-    mx = max(n * 0.7 * maximum(h) / p, 4.0)
-    @inbounds for j in eachindex(h)
-        alpha = min(n * h[j] / p, mx)
-        h[j] = 1 / (1 - h[j])^(alpha / 4)
-    end
-    return h
+    return vec(sum(abs2, X / pp.chol.U, dims = 2))
 end
 
 ##=================================================
-## ## RegressionModel - CR
-## ##=================================================
+## weights: Observation weights (not working weights)
+##=================================================
 
-function residualadjustment(k::Union{CM.CR0, CM.CR1}, r::StatsModels.TableRegressionModel)
-    wts = r.model.rr.wts
-    if isempty(wts)
-        GLM.residuals(r)
-    else
-        GLM.residuals(r) .* sqrt.(wts)
-    end
+function StatsBase.weights(m::GLMLinPredModel)
+    m.rr.wts
 end
 
-function residualadjustment(k::CM.CR2, r::StatsModels.TableRegressionModel)
-    wts = r.model.rr.wts
-    @assert length(k.g) == 1
-    g = k.g[1]
-    X = modelmatrix(r)
-    u = copy(GLM.residuals(r))
-    !isempty(wts) && @. u *= sqrt(wts)
-    XX = bread(r)
-    for groups in 1:g.ngroups
-        ind = findall(x -> x .== groups, g)
-        Xg = view(X, ind, :)
-        ug = view(u, ind, :)
-        if isempty(wts)
-            Hᵧᵧ = (Xg * XX * Xg')
-            ldiv!(ug, cholesky!(Symmetric(I - Hᵧᵧ); check = false).L, ug)
-        else
-            Hᵧᵧ = (Xg * XX * Xg') .* view(wts, ind)'
-            ug .= matrixpowbysvd(I - Hᵧᵧ, -0.5)*ug
-        end
-    end
-    return u
-end
+StatsBase.weights(m::GLMTableModel) = StatsBase.weights(m.model)
 
-function matrixpowbysvd(A, p; tol = eps()^(1/1.5))
-    s = svd(A)
-    V = s.S
-    V[V .< tol] .= 0
-    return s.V*diagm(0=>V .^ p)*s.Vt
-end
+##=================================================
+## aVar for CR estimators (uses crmomentmatrix)
+##=================================================
 
-function residualadjustment(k::CM.CR3, r::StatsModels.TableRegressionModel)
-    wts = r.model.rr.wts
-    @assert length(k.g) == 1
-    g = k.g[1]
-    X = modelmatrix(r)
-    u = copy(GLM.residuals(r))
-    !isempty(wts) && @. u *= sqrt(wts)
-    XX = bread(r)
-    for groups in 1:g.ngroups
-        ind = findall(g .== groups)
-        Xg = view(X, ind, :)
-        ug = view(u, ind, :)
-        if isempty(wts)
-            Hᵧᵧ = (Xg * XX * Xg')
-            ldiv!(ug, cholesky!(Symmetric(I - Hᵧᵧ); check = false), ug)
-        else
-            Hᵧᵧ = (Xg * XX * Xg') .* view(wts, ind)'
-            ug .= (I - Hᵧᵧ)^(-1)*ug
-        end
-    end
-    return u
-end
+# """
+#     CM.aVar(k::CR, m::GLMLinPredModel; kwargs...)
 
-function CM.vcov(k::CM.AbstractAsymptoticVarianceEstimator, m::RegressionModel; dofadjust = true, kwargs...)
-    ## dofadjust = true only does something for HAC (EWC?) (VARHAC?) (Driskol?), for other estimators it depends on the type
-    A = aVar(k, m; kwargs...)
-    T = numobs(m)
-    B = bread(m)
-    p = size(B, 2)
-    midx = mask(m)
-    Bm = sum(midx) < p ? Bm = B[midx, midx] : B
-    V = T .* Bm * A * Bm
-    if sum(midx) > 0
-        Vo = similar(A, (p, p))
-        Vo[midx, midx] .= V
-        Vo[.!midx, :] .= NaN
-        Vo[:, .!midx] .= NaN
-    else
-        Vo = V
-    end
-    dofadjust && dofcorrect!(Vo, k, m)
-    return Vo
-end
+# Compute asymptotic variance for cluster-robust estimators on GLM models.
 
-function CM.stderror(k::CM.AbstractAsymptoticVarianceEstimator, m::RegressionModel; kwargs...)
-    sqrt.(diag(CM.vcov(k, m; kwargs...)))
-end
+# Uses cluster-adjusted residuals via residual_adjustment and forms
+# moment matrix via crmomentmatrix.
+# """
+# function CM.aVar(
+#         k::K,
+#         m::Union{GLMLinPredModel, GLMTableModel};
+#         demean = false,
+#         prewhite = false,
+#         scale = true,
+#         kwargs...
+# ) where {K <: CM.CR}
+#     # Get cluster-adjusted residuals
+#     u = CM.residual_adjustment(k, m)
+#     mm = momentmatrix(m)
 
-## Make df correction - only useful for HAC - for other estimator HR CR it depends on the type
-dofcorrect!(V, k::CM.AbstractAsymptoticVarianceEstimator, m) = nothing
+#     # Handle rank deficiency
+#     midx = CM.mask(m)
+#     Σ = if sum(midx) == size(mm, 2)
+#         CM.aVar(k, mm; demean = demean, prewhite = prewhite, scale = scale)
+#     else
+#         CM.aVar(k, mm[:, midx]; demean = demean, prewhite = prewhite, scale = scale)
+#     end
 
-## Add method for Other if needed
-function dofcorrect!(V, k::HAC, m)
-    dof = dofresiduals(m)
-    n = numobs(m)
-    rmul!(V, n/dof)
-end
+#     return Σ
+# end
 
-function CM.setkernelweights!(
-        k::CM.HAC{T},
-        X::RegressionModel
-) where {T <: Union{CM.NeweyWest, CM.Andrews}}
-    CM.setkernelweights!(k, modelmatrix(X))
-    k.wlock .= true
-end
-
-end
+end # module

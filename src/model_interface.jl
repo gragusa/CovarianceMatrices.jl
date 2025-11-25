@@ -13,7 +13,7 @@ Abstract type for Maximum Likelihood-like models.
 Represents models that can be estimated using maximum likelihood methods
 and have associated score functions and Hessian matrices.
 """
-abstract type MLikeModel <: StatsBase.StatisticalModel end
+abstract type MLikeModel <: StatsAPI.StatisticalModel end
 
 """
 `GMMLikeModel`
@@ -23,7 +23,7 @@ Abstract type for Generalized Method of Moments-like models.
 Represents models that can be estimated using GMM methods and have
 associated moment conditions.
 """
-abstract type GMMLikeModel <: StatsBase.StatisticalModel end
+abstract type GMMLikeModel <: StatsAPI.StatisticalModel end
 
 # Forward declarations for variance forms (defined in variance_forms.jl)
 """
@@ -106,8 +106,6 @@ contributions (or equivalently g'g where g is the moment matrix).
 # Returns
 - `AbstractMatrix`: m × m matrix where m is the number of moment conditions.
 
-# Default Implementation
-A default implementation is provided based on the moment matrix:
 ```julia
 function cross_score(model)
     g = momentmatrix(model)
@@ -178,13 +176,10 @@ The returned matrix should be **unscaled**, that is, NOT divided by the number o
 ```
 
 # Note
-For MLE, this is the Hessian of the negative log-likelihood.
+For MLE, this is the negative Hessian of the log-likelihood.
 
 """
-function hessian_objective(x)
-    # Default: not available
-    return nothing
-end
+function hessian_objective(x) end
 
 """
     weight_matrix(model) -> Union{Nothing, AbstractMatrix}
@@ -203,36 +198,33 @@ For efficient GMM, this is typically Ω⁻¹ where Ω is the covariance of momen
 For first-step or suboptimal GMM, this might be the identity or some other matrix.
 The resulting matrix is then different.
 """
-function weight_matrix(x)
-    # Default: not available (will use optimal weight)
-    return nothing
-end
+function weight_matrix(x) end
 
 ## TODO: Model checking should be done on whether the model is MLikeModel GMMLikeModel.
 
-# StatsBase.coef should already be implemented by most statistical models
+# StatsAPI.coef should already be implemented by most statistical models
 # But we can provide a helpful error message if it's missing
 function _check_coef(model)
     try
-        StatsBase.coef(model)
+        StatsAPI.coef(model)
     catch MethodError
         t = typeof(model)
         error(
             "coef not implemented for type $t. " *
-            "Please implement: StatsBase.coef(::$(t)) -> AbstractVector",
+            "Please implement: StatsAPI.coef(::$(t)) -> AbstractVector",
         )
     end
 end
 
-# StatsBase.nobs should be implemented by all statistical models
+# StatsAPI.nobs should be implemented by all statistical models
 function _check_nobs(model)
     try
-        StatsBase.nobs(model)
+        StatsAPI.nobs(model)
     catch MethodError
         t = typeof(model)
         error(
             "nobs not implemented for type $t. " *
-            "Please implement: StatsBase.nobs(::$(t)) -> Integer",
+            "Please implement: StatsAPI.nobs(::$(t)) -> Integer",
         )
     end
 end
@@ -268,7 +260,7 @@ Uses model type hierarchy when available, falls back to dimension checking.
 # Type-based checks for models using the hierarchy
 function _check_dimensions(form::VarianceForm, model::MLikeModel)
     Z = momentmatrix(model)
-    θ = StatsBase.coef(model)
+    θ = StatsAPI.coef(model)
     m, k = size(Z, 2), length(θ)
 
     # For MLE models, we require m = k (exactly identified)
@@ -282,7 +274,7 @@ end
 
 function _check_dimensions(form::VarianceForm, model::GMMLikeModel)
     Z = momentmatrix(model)
-    θ = StatsBase.coef(model)
+    θ = StatsAPI.coef(model)
     m, k = size(Z, 2), length(θ)
 
     # For GMM models, we allow m >= k (at least identified)
@@ -305,7 +297,7 @@ function _check_dimensions(form::VarianceForm, model)
     # For models that don't inherit from MLikeModel or GMMLikeModel,
     # we fall back to dimension checking
     Z = momentmatrix(model)
-    θ = StatsBase.coef(model)
+    θ = StatsAPI.coef(model)
     m, k = size(Z, 2), length(θ)
 
     # cross_score is always available via default implementation

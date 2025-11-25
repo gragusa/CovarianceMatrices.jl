@@ -316,7 +316,7 @@ end # Core Functionality Tests
                         wts = $weighted ? $(df).w : Float64[]
                     )
                     𝒦 = ($k){Andrews}()
-                    tmp = vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
+                    tmp = CM.vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
                     da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
                 end,
                 )
@@ -327,7 +327,7 @@ end # Core Functionality Tests
                     quote
                     𝒦 = ($k){NeweyWest}()
                     ## To get the same results of R, the weights given to the intercept should be 0
-                    tmp = vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
+                    tmp = CM.vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
                     dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
                 end,
                 )
@@ -341,7 +341,7 @@ end # Core Functionality Tests
             eval(quote
                 𝒦 = ($k)()
                 ## To get the same results of R, the weights given to the intercept should be 0
-                tmp = vcov(𝒦, ols; dofadjust = false)
+                tmp = CM.vcov(𝒦, ols; dofadjust = false)
                 hr_glm[String($k)] = Dict{String, Any}("V" => tmp)
             end)
             eval(
@@ -353,7 +353,7 @@ end # Core Functionality Tests
                     wts = $weighted ? $(df).w : Float64[]
                 )
                 ## To get the same results of R, the weights given to the intercept should be 0
-                tmp = vcov(𝒦, ols; dofadjust = false)
+                tmp = CM.vcov(𝒦, ols; dofadjust = false)
                 hr_lm[String($k)] = Dict{String, Any}("V" => tmp)
             end,
             )
@@ -500,8 +500,19 @@ end # Core Functionality Tests
         R3 = [0.0045082022937877244 -6.7280836115793117e-05;
               -6.7280836115793117e-05 0.0025822624320339092]
         @test V0 ≈ R0 rtol=1e-6
-        @test V1 ≈ R1 rtol=1e-6
-        @test V2 ≈ R2 rtol=1e-4
+        @test V1 ≈ R1 atol=1e-3
+        # The reason for this larger tolerance is due to
+        # differences in the degrees of freedom adjustment.
+        # R scales CR2 by (N-1)/(N-K)
+        # instead we use (N - 1) / (N - K)) * (g / (g - 1))
+        # Applying the same scaling gives the same result
+        n = size(df, 1)
+        k = length(coef(m))
+        g = length(unique(df.firm))
+        scale_back = ((n - 1) / (n - k) * (g / (g - 1)))
+        scale_new = (n-1)/(n-k)
+        @test (V1/scale_back)*scale_new ≈ R1 rtol=1e-6
+        @test V2 ≈ R2 rtol=1e-6
         @test V3 ≈ R3 rtol=1e-6
 
         df.w = rand(StableRNG(123), size(df, 1))
@@ -519,7 +530,7 @@ end # Core Functionality Tests
         R3 = [0.0049264936435635398 -9.8773895065056182e-05;
               -9.8773895065056168e-05 0.0030065617267332799]
         @test V0 ≈ R0
-        @test V1 ≈ R1
+        @test V1 ≈ R1 atol=1e-3
         @test V2 ≈ R2 atol=1e-5
         @test V3 ≈ R3 atol=1e-5
     end
