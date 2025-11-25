@@ -218,10 +218,6 @@ function _leverage(pp::GLM.DensePredChol{F, C}, X) where {F, C <: LinearAlgebra.
     return vec(sum(abs2, X / pp.chol.U, dims = 2))
 end
 
-
-
-
-
 ##=================================================
 ## weights: Observation weights (not working weights)
 ##=================================================

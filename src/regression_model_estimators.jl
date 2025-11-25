@@ -6,7 +6,6 @@ with RegressionModel.
 
 """
 
-
 """
     residual_adjustment(estimator, model)
 
@@ -149,13 +148,14 @@ function residual_adjustment(k::CR2, m::RegressionModel)
             else
                 g = GroupedArray((f[i] for i in c)...; sort = nothing)
             end
-            BlockDiagonal(map(gg -> begin
-                ind = findall(x -> x == gg, g)
-                Xg = view(X, ind, :)
-                tmp = (Xg * XX * Xg')
-                !isempty(wts) && (tmp .*= view(wts, ind)')
-                Symmetric(I - tmp)^(-1 / 2)
-            end, unique(g)))
+            BlockDiagonal(map(
+                gg -> begin
+                    ind = findall(x -> x == gg, g)
+                    Xg = view(X, ind, :)
+                    tmp = (Xg * XX * Xg')
+                    !isempty(wts) && (tmp .*= view(wts, ind)')
+                    Symmetric(I - tmp)^(-1 / 2)
+                end, unique(g)))
         end
     end
 end
@@ -173,17 +173,17 @@ function residual_adjustment(k::CR3, m::RegressionModel)
             else
                 g = GroupedArray((f[i] for i in c)...; sort = nothing)
             end
-            BlockDiagonal(map(gg -> begin
-                ind = findall(x -> x == gg, g)
-                Xg = view(X, ind, :)
-                tmp = (Xg * XX * Xg')
-                !isempty(wts) && (tmp .*= view(wts, ind)')
-                inv(Symmetric(I - tmp))
-            end, unique(g)))
+            BlockDiagonal(map(
+                gg -> begin
+                    ind = findall(x -> x == gg, g)
+                    Xg = view(X, ind, :)
+                    tmp = (Xg * XX * Xg')
+                    !isempty(wts) && (tmp .*= view(wts, ind)')
+                    inv(Symmetric(I - tmp))
+                end, unique(g)))
         end
     end
 end
-
 
 """
     aVar(estimator, model::RegressionModel; kwargs...)
@@ -230,11 +230,10 @@ function aVar(
         m::RegressionModel;
         scale = true,
         kwargs...)
-
     H = residual_adjustment(k, m)
     X = modelmatrix(m)
     u = _residuals(m)
-    M = map(h->X.*(h*u), H)
+    M = map(h->X .* (h*u), H)
     V = avar_tuple(k, M)
     Σ = mapreduce(+, zip(combinations(1:length(k.g)), V)) do (c, v)
         (-1)^(length(c) - 1)*v
@@ -242,21 +241,17 @@ function aVar(
     scale ? rdiv!(Σ, numobs(m)) : Σ
 end
 
-
-
-
 unlock_kernel!(k::AbstractAsymptoticVarianceEstimator) = return false
-function unlock_kernel!(k::HAC{T}) where {T<:Union{NeweyWest, Andrews}}
+function unlock_kernel!(k::HAC{T}) where {T <: Union{NeweyWest, Andrews}}
     wlock = k.wlock[1]
     k.wlock .= true
     return wlock
 end
 
 lock_kernel!(k::AbstractAsymptoticVarianceEstimator, wlock) = nothing
-function lock_kernel!(k::HAC{T}, wlock) where {T<:Union{NeweyWest, Andrews}}
+function lock_kernel!(k::HAC{T}, wlock) where {T <: Union{NeweyWest, Andrews}}
     k.wlock .= wlock
 end
-
 
 """
     vcov(estimator, model; dofadjust=true, kwargs...)
