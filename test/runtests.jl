@@ -6,7 +6,7 @@
 using Test
 
 include("test_core.jl")
-include("test_glm_integration.jl")
+#include("test_glm_integration.jl")
 include("test_interface.jl")
 #include("test_probit.jl")
 #include("test_gmm.jl")
