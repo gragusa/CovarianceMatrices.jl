@@ -165,6 +165,29 @@ end
         @test HC1() isa CovarianceMatrices.AbstractAsymptoticVarianceEstimator
         @test !(HC1() isa CovarianceMatrices.Correlated)
     end
+
+    @testset "New Type Hierarchy" begin
+        # Test root type
+        @test Uncorrelated() isa CovarianceMatrices.AbstractAsymptoticVarianceEstimator
+        @test EWC(5) isa CovarianceMatrices.AbstractAsymptoticVarianceEstimator
+        @test HR0() isa CovarianceMatrices.AbstractAsymptoticVarianceEstimator
+
+        # Test semantic organization
+        @test Uncorrelated() isa CovarianceMatrices.AbstractAsymptoticVarianceEstimator
+        @test !(Uncorrelated() isa CovarianceMatrices.Correlated)
+
+        # Test Correlated subtypes
+        @test EWC(5) isa CovarianceMatrices.Correlated
+        @test VARHAC() isa CovarianceMatrices.Correlated
+        @test Bartlett(3) isa CovarianceMatrices.Correlated
+        @test CR0([1, 1, 2, 2]) isa CovarianceMatrices.Correlated
+
+        # Test HR types are separate (for linear models)
+        @test HR0() isa CovarianceMatrices.AbstractAsymptoticVarianceEstimator
+        @test !(HR0() isa CovarianceMatrices.Correlated)
+        @test HC1() isa CovarianceMatrices.AbstractAsymptoticVarianceEstimator
+        @test !(HC1() isa CovarianceMatrices.Correlated)
+    end
 end
 
 @testset "EWC Estimator Coverage ✅" begin
