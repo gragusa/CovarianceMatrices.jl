@@ -25,6 +25,6 @@ using CovarianceMatrices
         undefined_exports = false,  # TODO: Fix undefined exports
         ambiguities = true,
         piracies = true,
-        persistent_tasks = true,
+        persistent_tasks = true
     )
 end
