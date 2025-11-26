@@ -495,27 +495,28 @@ function nancov(X::AbstractMatrix{T}; corrected::Bool = true) where {T <: Real}
         means[j] = μ / nv
     end
     Σ = Matrix{T}(undef, p, p)
-    @inbounds for i = 1:p
-            for j = 1:i
-                vx = view(X,:,i)
-                vy = view(X,:,j)
-                σᵢⱼ = _cov(vx, vy, corrected, means[i], means[j], valid_rows)
-                Σ[i,j] = Σ[j,i] = σᵢⱼ
-            end
+    @inbounds for i in 1:p
+        for j in 1:i
+            vx = view(X, :, i)
+            vy = view(X, :, j)
+            σᵢⱼ = _cov(vx, vy, corrected, means[i], means[j], valid_rows)
+            Σ[i, j] = Σ[j, i] = σᵢⱼ
         end
+    end
     return Σ
 end
 
-function _cov(x::AbstractVector, y::AbstractVector, corrected::Bool, μᵪ::Number, μᵧ::Number, valid_rows::BitVector)
+function _cov(x::AbstractVector, y::AbstractVector, corrected::Bool,
+        μᵪ::Number, μᵧ::Number, valid_rows::BitVector)
     # Calculate covariance
     σᵪᵧ = ∅ = zero(Base.promote_op(*, typeof(μᵪ), typeof(μᵧ)))
-    @inbounds @simd ivdep for i ∈ eachindex(x,y)
-            δᵪ = x[i] - μᵪ
-            δᵧ = y[i] - μᵧ
-            δ² = δᵪ * δᵧ
-            notnan = valid_rows[i]
-            #n += notnan
-            σᵪᵧ += ifelse(notnan, δ², ∅)
+    @inbounds @simd ivdep for i in eachindex(x, y)
+        δᵪ = x[i] - μᵪ
+        δᵧ = y[i] - μᵧ
+        δ² = δᵪ * δᵧ
+        notnan = valid_rows[i]
+        #n += notnan
+        σᵪᵧ += ifelse(notnan, δ², ∅)
     end
     σᵪᵧ = σᵪᵧ / (sum(valid_rows) - corrected)
     return σᵪᵧ

@@ -54,20 +54,20 @@ vcov_cr = vcov(CR1(df.Firm), model)
 vcov_dk = vcov(DriscollKraay(Bartlett(5), tis=df.year, iis=df.firm), model)
 ```
 
-The `vcov` function computes the covariance matrix of the estimated parameters based on the specified estimator.
-
 For **heteroskedasticity-robust variance** estimation, `HC0`, `HC1`, `HC2`, `HC3`, `HC4`, and `HC5` are the standard estimator types commonly used in the econometric literature:
 - `HC0` is the basic White (1980) estimator
 - `HC1` applies a degrees-of-freedom correction: `n/(n-k)`
-- `HC2`, `HC3`, `HC4`, and `HC5` are refined variations that adjust for leverage points and improve small-sample performance
+- `HC2`, `HC3`, `HC4`, and `HC5` are refined variations that adjust for leverage points and improve small-sample performance. These are, however, only defined for (generalized) linear models.
 
-Empirical evidence suggests that `HC3` often performs better in small samples, providing more reliable inference.
 
-For **serially correlated errors**, HAC estimators account for both heteroskedasticity and autocorrelation in the error terms. Common kernel choices include `Bartlett`, `Parzen`, `QuadraticSpectral`, and `Truncated`, each with its own weighting scheme based on lag distance. The bandwidth can be specified directly (e.g., `Parzen(3)` uses a bandwidth of 3), or selected optimally using data-driven methods such as Andrews (1991) or Newey-West (1994).
+
+For **serially correlated errors**, HAC estimators account for both heteroskedasticity and autocorrelation in the error terms. Common kernel choices include `Bartlett`, `Parzen`, `QuadraticSpectral`, and `Truncated`, each with its own weighting scheme based on lag distance. The bandwidth can be specified directly (e.g., `Parzen(3)` uses a bandwidth of 3), or selected optimally using data-driven methods such as Andrews (1991) or Newey-West (1994). Another nonparametric estimator is the `Smoothed` estimator. `VARHAC` is a parametric estimator. If the correlation comes from the presence of clusters, then `CR` methods are provided.   
 
 ## As an Extension for Custom Statistical Models
 
-`CovarianceMatrices.jl` features a unified API that provides a consistent interface for calculating variance estimators in custom models. We distinguish between two broad classes of estimators:
+`CovarianceMatrices.jl` provides a unified API for calculating variance estimators in custom models. 
+
+We distinguish between two broad classes of estimators:
 
 - **M-Estimators**: Models estimated by extremum estimation (e.g., Maximum Likelihood, Quasi-ML)
 - **GMM Estimators**: Models estimated via the Generalized Method of Moments
@@ -87,13 +87,8 @@ Third-party estimators should implement the following methods:
 
 **Required methods:**
 - `CovarianceMatrices.momentmatrix(model)`: Return the moment matrix or score function contributions (n × k matrix)
-<<<<<<< HEAD
 - `StatsAPI.coef(model)`: Return parameter estimates (k-vector)
 - `StatsAPI.nobs(model)`: Return number of observations
-=======
-- `StatsBase.coef(model)`: Return parameter estimates (k-vector)
-- `StatsBase.nobs(model)`: Return number of observations
->>>>>>> master
 
 **Optional methods (depending on variance form):**
 
@@ -303,7 +298,7 @@ V4 = vcov(Bartlett(5), Misspecified(), model_hac)
 
 ## Performance
 
-`CovarianceMatrices.jl` is designed for high performance, which is particularly useful in applications where covariance estimators need to be computed repeatedly, such as in bootstrap-based inference, simulation studies, or iterative estimation procedures.
+`CovarianceMatrices.jl` is designed for high performance, particularly useful in applications where covariance estimators need to be computed repeatedly, such as bootstrap-based inference, simulation studies, or iterative estimation procedures.
 
 To give an idea of the performance, below is a quick comparison with the `sandwich` package in R for computing HAC covariance matrices.
 
