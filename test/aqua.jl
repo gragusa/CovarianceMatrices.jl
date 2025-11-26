@@ -22,7 +22,7 @@ using CovarianceMatrices
         deps_compat = false,        # TODO: Add missing compat entries for all deps
         stale_deps = false,         # TODO: Clean up unused dependencies
         unbound_args = true,
-        undefined_exports = false,  # TODO: Fix undefined exports
+        undefined_exports = true,   # ✅ Fixed - removed undefined Smoothed and SmoothedMoments
         ambiguities = true,
         piracies = true,
         persistent_tasks = true
