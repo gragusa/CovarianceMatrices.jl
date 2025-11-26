@@ -1,4 +1,3 @@
-
 function avar(
         k::VARHAC{S, L},
         X::AbstractMatrix{R};
@@ -8,7 +7,8 @@ function avar(
     Ω, AICs,
     BICs,
     order_aic,
-    order_bic = _var_selection_samelag(X, maxlags(k)...; lagstrategy = lagstrategy, demean = false)
+    order_bic = _var_selection_samelag(
+        X, maxlags(k)...; lagstrategy = lagstrategy, demean = false)
     k.AICs = AICs
     k.BICs = BICs
     k.order_aic = order_aic
@@ -25,7 +25,8 @@ function avar(
     Ω, AICs,
     BICs,
     order_aic,
-    order_bic = _var_selection_ownlag(X, maxlags(k)...; lagstrategy = lagstrategy, demean = false)
+    order_bic = _var_selection_ownlag(
+        X, maxlags(k)...; lagstrategy = lagstrategy, demean = false)
     k.AICs = AICs
     k.BICs = BICs
     k.order_aic = order_aic
@@ -33,11 +34,8 @@ function avar(
     return Ω
 end
 
-function avar(
-        k::VARHAC{S, L},
-        X::AbstractMatrix{R};
-        kwargs...
-) where {S <: LagSelector, L <: FixedLags, R <: Real}
+function avar(k::VARHAC{S, L}, X::AbstractMatrix{R};
+        kwargs...) where {S <: LagSelector, L <: FixedLags, R <: Real}
     lagstrategy = isa(k.selector, AICSelector) ? :aic : :bic
     Ω, AICs, BICs, order_aic, order_bic = _var_fixed(X, maxlags(k)...; demean = false)
     k.AICs = AICs
@@ -227,7 +225,7 @@ function _var_selection_ownlag(
     ## ---------------------------------------------------------
     order_aic = zeros(Int, m, 2)
     order_bic = zeros(Int, m, 2)
-    AICs = Array{R}(undef, m, K+1, Kₓ+1)
+    AICs = Array{R}(undef, m, K + 1, Kₓ + 1)
     BICs = similar(AICs)
     𝕏β = Vector{R}(undef, T - maxK)
     ε = Vector{R}(undef, T - maxK)
@@ -294,7 +292,7 @@ function _var_selection_ownlag(
         ε[1:sum(order[h, :]), h] .= NaN
     end
     maxK = maximum(sum(order, dims = 2))
-    A = zeros(R, m, m*maxK)
+    A = zeros(R, m, m * maxK)
 
     @inbounds for j in axes(Y, 2)
         kk = sum(order[j, :])
@@ -351,7 +349,7 @@ function _var_fixed(X::AbstractMatrix{R}, K; demean::Bool = false) where {R <: R
     ## Containers
     ## ---------------------------------------------------------
     𝕐 = view(Y, (K + 1):T, :)
-    A = Z\𝕐
+    A = Z \ 𝕐
     ε = 𝕐 .- Z * A
     𝔸 = reshape(A', (m, m, K))
     # Use robust pseudo-inverse for numerical stability
@@ -373,7 +371,7 @@ function delag(X::Matrix{R}, K::Int) where {R <: Real}
         throw(ArgumentError("Number of lags K=$K must be positive"))
     end
 
-    Z = Matrix{R}(undef, T-K, n*K)  # Use same type as input for type stability
+    Z = Matrix{R}(undef, T - K, n * K)  # Use same type as input for type stability
     @inbounds for j in 1:n
         for t in (K + 1):T
             for k in 1:K
@@ -431,20 +429,112 @@ function select_lags(
     r = lags_others
     v = lags_own
     (T_K, mK) = size(Z)
-    @assert mK == m * K "The number of columns in Z should be m * K"
-    @assert r <= K && v <= K "r and v should not exceed K"
-    @assert s <= m "s should not exceed m"
+    @assert mK==m * K "The number of columns in Z should be m * K"
+    @assert r <= K&&v <= K "r and v should not exceed K"
+    @assert s<=m "s should not exceed m"
     # Calculate the indices for the r lags of columns 1,2,...,s,s+2,...,m
     r_indices = vcat(
-        [((k-1)*m .+ (1:(s - 1))) for k in 1:r]...,
-        [((k-1)*m .+ ((s + 1):m)) for k in 1:r]...
+        [((k - 1) * m .+ (1:(s - 1))) for k in 1:r]...,
+        [((k - 1) * m .+ ((s + 1):m)) for k in 1:r]...
     )
     # Calculate the indices for the v lags of column s
-    v_indices = [(k-1)*m .+ s for k in 1:v]
+    v_indices = [(k - 1) * m .+ s for k in 1:v]
 
     # Combine all indices
     all_indices = sort!(union(r_indices, v_indices))
 
     # Return the view
     return view(Z, :, all_indices)
+end
+
+"""
+    nancov(X; corrected::Bool = true)
+
+Simple covariance function that handles NaN values by computing covariance
+on the subset of complete observations. Here, "complete observations" are those
+where there are no NaN in any column of the row. This is differnt than the implementation
+of `nancov` in `NaNStatistics.jl`, which computes pairwise covariances using all available data for
+each pair of columns.
+
+"""
+function nancov(X::AbstractMatrix{T}; corrected::Bool = true) where {T <: Real}
+    n, p = size(X)
+
+    valid_rows = trues(n)
+
+    has_valid_data = false
+    valid_count = 0
+    @inbounds for i in 1:n
+        for j in 1:p
+            if isnan(X[i, j])
+                valid_rows[i] = false
+                break # Stop checking this row immediately
+            end
+        end
+        if valid_rows[i]
+            valid_count += 1
+        end
+    end
+    # 3. Handle edge cases based on valid row count
+    if valid_count == 0
+        return fill(T(NaN), p, p)
+    elseif valid_count == 1
+        # Not enough observations for covariance
+        return fill(T(NaN), p, p)
+    end
+    ## Calculate means for valid rows
+    V = Base.promote_op(/, T, Int)
+    ∅ = zero(V)
+    means = Vector{V}(undef, p)
+    nv = sum(valid_rows)
+    @inbounds for j in 1:p
+        μ = ∅
+        @simd ivdep for i in 1:n
+            μ += ifelse(valid_rows[i], X[i, j], 0)
+        end
+        means[j] = μ / nv
+    end
+    Σ = Matrix{T}(undef, p, p)
+    @inbounds for i = 1:p
+            for j = 1:i
+                vx = view(X,:,i)
+                vy = view(X,:,j)
+                σᵢⱼ = _cov(vx, vy, corrected, means[i], means[j], valid_rows)
+                Σ[i,j] = Σ[j,i] = σᵢⱼ
+            end
+        end
+    return Σ
+end
+
+function _cov(x::AbstractVector, y::AbstractVector, corrected::Bool, μᵪ::Number, μᵧ::Number, valid_rows::BitVector)
+    # Calculate covariance
+    σᵪᵧ = ∅ = zero(Base.promote_op(*, typeof(μᵪ), typeof(μᵧ)))
+    @inbounds @simd ivdep for i ∈ eachindex(x,y)
+            δᵪ = x[i] - μᵪ
+            δᵧ = y[i] - μᵧ
+            δ² = δᵪ * δᵧ
+            notnan = valid_rows[i]
+            #n += notnan
+            σᵪᵧ += ifelse(notnan, δ², ∅)
+    end
+    σᵪᵧ = σᵪᵧ / (sum(valid_rows) - corrected)
+    return σᵪᵧ
+end
+
+## Used for testing
+function nancov_slow(X::AbstractMatrix{T}; corrected::Bool = true) where {T <: Real}
+    # Remove rows with any NaN values
+    complete_rows = .!any(isnan.(X), dims = 2)
+    if !any(complete_rows)
+        # All rows have NaN, return NaN matrix
+        return fill(T(NaN), size(X, 2), size(X, 2))
+    end
+
+    X_clean = X[vec(complete_rows), :]
+    if size(X_clean, 1) <= 1
+        # Not enough observations for covariance
+        return fill(T(NaN), size(X, 2), size(X, 2))
+    end
+
+    return cov(X_clean; corrected = corrected)
 end

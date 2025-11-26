@@ -26,19 +26,16 @@ include("HR.jl")
 include("DriscollKraay.jl")
 include("demeaner.jl")
 include("EWC.jl")
-#include("api.jl")
 include("smoothing.jl")
 include("VARHAC.jl")
 include("aVar.jl")
-
 # New unified API
 include("model_interface.jl")
 include("stable_computation.jl")
 include("api.jl")
-
-# RegressionModel protocol and generic estimators
-## include("regression_model_interface.jl")
+# Method generic RegressionModel estimators
 include("regression_model_estimators.jl")
+
 export AbstractAsymptoticVarianceEstimator,
        Uncorrelated,
        Correlated,
