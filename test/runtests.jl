@@ -5,6 +5,7 @@
 
 using Test
 
+include("aqua.jl")
 include("test_core.jl")
 #include("test_glm_integration.jl")
 include("test_interface.jl")
@@ -17,6 +18,7 @@ include("test_smoothed_moments.jl")
 
 println("\n" * "="^70)
 println("✅ All CovarianceMatrices.jl tests completed successfully!")
+println("   ✨ Aqua.jl quality assurance checks passed")
 println("   📊 Core functionality verified")
 println("   🔧 Interface and API coverage complete")
 println("   📈 Example models working correctly")
