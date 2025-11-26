@@ -408,18 +408,18 @@ end
     C1 = CovarianceMatrices.nancov(data)  # Should run without error
     C0 = CovarianceMatrices.nancov_slow(data)
     C2 = cov(data)
-    @test C1 ≈ C0 atol=1e-10 rtol=1e-10
-    @test C1 ≈ C2 atol=1e-10 rtol=1e-10
+    @test C1≈C0 atol=1e-10 rtol=1e-10
+    @test C1≈C2 atol=1e-10 rtol=1e-10
     # Introduce some NaNs
     data[1:10, 1] .= NaN
     data[24:25, 4] .= NaN
     data[98:100, 7:9] .= NaN
     C1_nan = CovarianceMatrices.nancov(data)  # Should run without error
     C0_nan = CovarianceMatrices.nancov_slow(data)
-    @test C1_nan ≈ C0_nan atol=1e-10 rtol=1e-10
+    @test C1_nan≈C0_nan atol=1e-10 rtol=1e-10
     C1_nan = CovarianceMatrices.nancov(data; corrected = false)  # Should run without error
     C0_nan = CovarianceMatrices.nancov_slow(data; corrected = false)
-    @test C1_nan ≈ C0_nan atol=1e-10 rtol=1e-10
+    @test C1_nan≈C0_nan atol=1e-10 rtol=1e-10
 end
 
 println("\n" * "="^70)
