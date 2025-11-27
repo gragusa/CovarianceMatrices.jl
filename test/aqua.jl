@@ -20,7 +20,7 @@ using CovarianceMatrices
         CovarianceMatrices;
         # Skip checks that need broader refactoring
         deps_compat = false,        # TODO: Add missing compat entries for all deps
-        stale_deps = false,         # TODO: Clean up unused dependencies
+        stale_deps = true,          # ✅ Fixed - removed unused StatsFuns and StatsModels
         unbound_args = true,
         undefined_exports = true,   # ✅ Fixed - removed undefined Smoothed and SmoothedMoments
         ambiguities = true,
