@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Fix bug where Julia was restricted to v1.11 instead of v1.10 (lts).
+
 - **Aqua.jl Quality Assurance**: Added comprehensive code quality tests using Aqua.jl, addressing issue requirements for automated detection of undefined exports, stale dependencies, and other common package issues
 
 ## [0.30.0]
