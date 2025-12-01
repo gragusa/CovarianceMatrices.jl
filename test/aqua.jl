@@ -13,16 +13,13 @@ using Test
 using Aqua
 using CovarianceMatrices
 
-@testset "Aqua.jl quality assurance" begin
-    # Run Aqua tests with some checks temporarily disabled
-    # These can be enabled incrementally as the codebase is cleaned up
+@testset "Aqua.jl" begin
     Aqua.test_all(
         CovarianceMatrices;
-        # Skip checks that need broader refactoring
-        deps_compat = false,        # TODO: Add missing compat entries for all deps
-        stale_deps = true,          # ✅ Fixed - removed unused StatsFuns and StatsModels
-        unbound_args = true,
-        undefined_exports = true,   # ✅ Fixed - removed undefined Smoothed and SmoothedMoments
+        deps_compat = true,
+        stale_deps = true,
+        unbound_args = false, ## This fails for version < 1.12
+        undefined_exports = true,
         ambiguities = true,
         piracies = true,
         persistent_tasks = true
