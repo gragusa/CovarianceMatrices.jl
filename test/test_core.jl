@@ -3,6 +3,8 @@ using CovarianceMatrices,
       DataFrames, CSV, Test, Random, StableRNGs, Statistics, LinearAlgebra, GroupedArrays
 using JSON
 using GLM
+using Distributions: Normal, Uniform
+using CategoricalArrays: categorical
 
 const CM = CovarianceMatrices
 
@@ -230,6 +232,217 @@ df.y = Y;
         @test Σ*5/(5-1) ≈ Σ₀*100 rtol = 1e-8
         ## Since a𝕍ar is scaled by (G/n^2), this is equivalent to  dividing by (1/G) to get the
         ## standard error and then multiply by G/(G-1) to apply the correction.
+    end
+
+    @testset "CachedCR - Single Cluster Optimization ✅" begin
+        # Test that CachedCR produces identical results to regular CR0
+        cl = repeat(1:50, inner = 2)
+        X_test = randn(StableRNG(42), 100, 5)
+
+        k = CR0(cl)
+        cached_k = CachedCR(k, size(X_test, 2))
+
+        Σ_regular = aVar(k, X_test)
+        Σ_cached = aVar(cached_k, X_test)
+
+        @test Σ_regular ≈ Σ_cached rtol = 1e-12
+
+        # Test with different moment matrices (simulating wild bootstrap)
+        for _ in 1:10
+            weights = rand(StableRNG(rand(1:10000)), [-1.0, 1.0], 100)
+            X_perturbed = X_test .* weights
+
+            Σ_regular = aVar(k, X_perturbed)
+            Σ_cached = aVar(cached_k, X_perturbed)
+
+            @test Σ_regular ≈ Σ_cached rtol = 1e-12
+        end
+    end
+
+    @testset "CachedCR - Two-way Clustering ✅" begin
+        # Test with two-way clustering (firm and year)
+        n_firms = 10
+        n_years = 10
+        n_obs = n_firms * n_years
+        firm_ids = repeat(1:n_firms, outer = n_years)
+        year_ids = repeat(1:n_years, inner = n_firms)
+
+        X_test = randn(StableRNG(123), n_obs, 4)
+
+        k = CR0((firm_ids, year_ids))
+        cached_k = CachedCR(k, size(X_test, 2))
+
+        Σ_regular = aVar(k, X_test)
+        Σ_cached = aVar(cached_k, X_test)
+
+        @test Σ_regular ≈ Σ_cached rtol = 1e-12
+
+        # Test repeated calls with different data
+        for seed in 1:5
+            X_new = randn(StableRNG(seed * 100), n_obs, 4)
+            Σ_regular = aVar(k, X_new)
+            Σ_cached = aVar(cached_k, X_new)
+            @test Σ_regular ≈ Σ_cached rtol = 1e-12
+        end
+    end
+
+    @testset "CachedCR - CR1/CR2/CR3 variants ✅" begin
+        cl = repeat(1:20, inner = 5)
+        X_test = randn(StableRNG(456), 100, 3)
+
+        # Test CR1
+        k1 = CR1(cl)
+        cached_k1 = CachedCR(k1, size(X_test, 2))
+        @test aVar(k1, X_test) ≈ aVar(cached_k1, X_test) rtol = 1e-12
+
+        # Test CR2
+        k2 = CR2(cl)
+        cached_k2 = CachedCR(k2, size(X_test, 2))
+        @test aVar(k2, X_test) ≈ aVar(cached_k2, X_test) rtol = 1e-12
+
+        # Test CR3
+        k3 = CR3(cl)
+        cached_k3 = CachedCR(k3, size(X_test, 2))
+        @test aVar(k3, X_test) ≈ aVar(cached_k3, X_test) rtol = 1e-12
+    end
+
+    @testset "CachedCR - Cache Dimension Validation ✅" begin
+        cl = repeat(1:10, inner = 10)
+        X_test = randn(StableRNG(789), 100, 5)
+
+        k = CR0(cl)
+        cached_k = CachedCR(k, 5)  # Cache for 5 columns
+
+        # Should work with matching dimensions
+        @test size(aVar(cached_k, X_test)) == (5, 5)
+
+        # Should error with mismatched dimensions
+        X_wrong = randn(100, 3)  # Different number of columns
+        @test_throws AssertionError aVar(cached_k, X_wrong)
+    end
+
+    @testset "Cluster Robust - R sandwich validation ✅" begin
+        # Simulate clustered data with known structure
+        # This function generates unbalanced panel data with cluster-correlated errors
+        function simulate_clustered_data(rng::AbstractRNG;
+            num_clusters = 50,
+            min_obs = 100,
+            max_obs = 1000,
+            β_0 = 2.0,
+            β_1 = 1.5,
+            σ_cluster = 2.0,
+            σ_error = 1.0
+        )
+            cluster_sizes = rand(rng, min_obs:max_obs, num_clusters)
+            total_obs = sum(cluster_sizes)
+            cl = vcat([fill(i, size) for (i, size) in enumerate(cluster_sizes)]...)
+            x = rand(rng, Normal(0, 1), total_obs)
+            u_c_unique = rand(rng, Normal(0, σ_cluster), num_clusters)
+            u_c_vector = u_c_unique[cl]
+            epsilon_ic = rand(rng, Normal(0, σ_error), total_obs)
+            residuals = u_c_vector .+ epsilon_ic
+            y = β_0 .+ (β_1 .* x) .+ residuals
+            DataFrame(
+                cl = categorical(cl),
+                x = x,
+                y = y,
+                weights = rand(rng, Uniform(0.5, 1.5), total_obs)
+            )
+        end
+
+        df = simulate_clustered_data(StableRNG(998877))
+
+        # Reference values from R sandwich package:
+        # library(sandwich)
+        # lm_1 = lm(y ~ x, data = df)
+        # V_0a = vcovCL(lm_1, cluster = df$cl, type = "HC0", cadjust = FALSE)
+        # V_0b = vcovCL(lm_1, cluster = df$cl, type = "HC0", cadjust = TRUE)
+        # V_1 = vcovCL(lm_1, cluster = df$cl, type = "HC1")
+        # V_2 = vcovCL(lm_1, cluster = df$cl, type = "HC2")
+        # V_3 = vcovCL(lm_1, cluster = df$cl, type = "HC3")
+        V_0a = [0.08531443236223397 -0.0012539581272725414;
+                -0.0012539581272725414 0.0001474720536945924]
+        V_0b = [0.08705554322676935 -0.0012795491094617771;
+                -0.001279549109461777 0.00015048168744346158]
+        V_1 = [0.08705853770748022 -0.0012795931225709357;
+               -0.0012795931225709357 0.00015048686361597961]
+        V_2 = [0.08769414286741674 -0.001307347423372834;
+               -0.001307347423372834 0.00015353402844790604]
+        V_3 = [0.09014413753334793 -0.0013629470808218785;
+               -0.0013629470808218785 0.00015987064688585098]
+
+        # Weighted regression reference values
+        Vw_0a = [0.08516941951040422 -0.0010355677798112384;
+                 -0.0010355677798112382 0.00014685781078429842]
+        Vw_0b = [0.08690757092898391 -0.0010567018161339167;
+                 -0.0010567018161339167 0.00014985490896356988]
+        Vw_1 = [0.08691056031983863 -0.0010567381638848842;
+                -0.0010567381638848842 0.0001498600635765639]
+        Vw_2 = [0.08772820788894604 -0.0010781705550907987;
+                -0.0010781705550907987 0.00015271129710912336]
+        Vw_3 = [0.09037994446887648 -0.001122799656231728;
+                -0.001122799656231728 0.00015889465356180393]
+
+        # Unweighted regression
+        lm_1 = lm(@formula(y ~ x), df)
+        V0 = vcov(CR0(df.cl), lm_1)
+        V1 = vcov(CR1(df.cl), lm_1)
+        V2 = vcov(CR2(df.cl), lm_1)
+        V3 = vcov(CR3(df.cl), lm_1)
+
+        n = nrow(df)
+        k = length(coef(lm_1))
+        g = length(levels(df.cl))
+        scale_back = ((n - 1) / (n - k) * (g / (g - 1)))
+        scale_new = (n - 1) / (n - k)
+
+        # CR0: no adjustment, matches V_0a
+        @test V0 ≈ V_0a
+        @test V0 ≈ V_0b / (g / (g - 1))
+
+        # CR1: different scaling convention between R and Julia
+        # R uses (n-1)/(n-k), Julia uses (n-1)/(n-k) * G/(G-1)
+        @test (V1 / scale_back) * scale_new ≈ V_1 rtol = 1e-6
+
+        # CR2 and CR3: leverage-based corrections
+        @test V2 ≈ V_2
+        @test V3 ≈ V_3
+
+        # Weighted regression
+        lmw_1 = lm(@formula(y ~ x), df, wts = df.weights)
+        Vw0 = vcov(CR0(df.cl), lmw_1)
+        Vw1 = vcov(CR1(df.cl), lmw_1)
+        Vw2 = vcov(CR2(df.cl), lmw_1)
+        Vw3 = vcov(CR3(df.cl), lmw_1)
+
+        @test Vw0 ≈ Vw_0a
+        @test Vw0 ≈ Vw_0b / (g / (g - 1))
+        @test (Vw1 / scale_back) * scale_new ≈ Vw_1 rtol = 1e-6
+        @test Vw2 ≈ Vw_2 rtol = 1e-2
+        @test Vw3 ≈ Vw_3 rtol = 1e-2
+
+        # CachedCRModel validation: cached == uncached
+        # Unweighted regression
+        cached_cr0 = CachedCRModel(CR0(df.cl), lm_1)
+        cached_cr1 = CachedCRModel(CR1(df.cl), lm_1)
+        cached_cr2 = CachedCRModel(CR2(df.cl), lm_1)
+        cached_cr3 = CachedCRModel(CR3(df.cl), lm_1)
+
+        @test vcov(cached_cr0, lm_1) ≈ V0
+        @test vcov(cached_cr1, lm_1) ≈ V1
+        @test vcov(cached_cr2, lm_1) ≈ V2
+        @test vcov(cached_cr3, lm_1) ≈ V3
+
+        # Weighted regression
+        cached_crw0 = CachedCRModel(CR0(df.cl), lmw_1)
+        cached_crw1 = CachedCRModel(CR1(df.cl), lmw_1)
+        cached_crw2 = CachedCRModel(CR2(df.cl), lmw_1)
+        cached_crw3 = CachedCRModel(CR3(df.cl), lmw_1)
+
+        @test vcov(cached_crw0, lmw_1) ≈ Vw0
+        @test vcov(cached_crw1, lmw_1) ≈ Vw1
+        @test vcov(cached_crw2, lmw_1) ≈ Vw2
+        @test vcov(cached_crw3, lmw_1) ≈ Vw3
     end
 
     @testset "Driscoll & Kraay ✅" begin
