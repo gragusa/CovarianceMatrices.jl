@@ -22,7 +22,7 @@ Aggregates observations to cluster level and computes X2'X2.
 - `X`: Input moment matrix (nobs × ncols)
 - `g`: GroupedArray defining cluster assignments
 """
-function clusterize!(X2::Matrix{T}, S::Matrix{T}, X::Matrix{T}, g::GroupedArray) where T
+function clusterize!(X2::Matrix{T}, S::Matrix{T}, X::Matrix{T}, g::GroupedArray) where {T}
     # Zero the aggregation buffer
     fill!(X2, zero(T))
 
@@ -38,7 +38,7 @@ function clusterize!(X2::Matrix{T}, S::Matrix{T}, X::Matrix{T}, g::GroupedArray)
     LinearAlgebra.BLAS.syrk!('U', 'T', one(T), X2, one(T), S)
     # Copy upper triangle to lower
     @inbounds for j in axes(S, 2)
-        for i in (j+1):size(S, 1)
+        for i in (j + 1):size(S, 1)
             S[i, j] = S[j, i]
         end
     end
@@ -51,7 +51,8 @@ end
 In-place version that aggregates and adds sign * (X2'X2) to S.
 Used for multi-way clustering with inclusion-exclusion.
 """
-function clusterize_add!(X2::Matrix{T}, S::Matrix{T}, X::Matrix{T}, g::GroupedArray, sign::Int) where T
+function clusterize_add!(
+        X2::Matrix{T}, S::Matrix{T}, X::Matrix{T}, g::GroupedArray, sign::Int) where {T}
     fill!(X2, zero(T))
 
     for j in axes(X, 2)
@@ -63,7 +64,7 @@ function clusterize_add!(X2::Matrix{T}, S::Matrix{T}, X::Matrix{T}, g::GroupedAr
     # S += sign * X2' * X2
     LinearAlgebra.BLAS.syrk!('U', 'T', T(sign), X2, one(T), S)
     @inbounds for j in axes(S, 2)
-        for i in (j+1):size(S, 1)
+        for i in (j + 1):size(S, 1)
             S[i, j] = S[j, i]
         end
     end
@@ -81,7 +82,7 @@ This is ~10x faster than scatter-add for large matrices because it converts
 random writes to sequential reads.
 """
 function clusterize_gather_add!(X2::Matrix{T}, S::Matrix{T}, X::Matrix{T},
-                                 indices::Vector{Vector{Int}}, sign::Int) where T
+        indices::Vector{Vector{Int}}, sign::Int) where {T}
     ngroups = length(indices)
     ncols = size(X, 2)
 
@@ -100,7 +101,7 @@ function clusterize_gather_add!(X2::Matrix{T}, S::Matrix{T}, X::Matrix{T},
     # S += sign * X2' * X2
     LinearAlgebra.BLAS.syrk!('U', 'T', T(sign), X2, one(T), S)
     @inbounds for j in axes(S, 2)
-        for i in (j+1):size(S, 1)
+        for i in (j + 1):size(S, 1)
             S[i, j] = S[j, i]
         end
     end
@@ -161,7 +162,8 @@ function avar(k::CachedCR, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <
     # Use precomputed cluster indices for fast gather-based aggregation
     Xp = parent(X)
     @inbounds for i in eachindex(cache.cluster_indices)
-        clusterize_gather_add!(cache.X2_buffers[i], S, Xp, cache.cluster_indices[i], cache.signs[i])
+        clusterize_gather_add!(
+            cache.X2_buffers[i], S, Xp, cache.cluster_indices[i], cache.signs[i])
     end
 
     return S

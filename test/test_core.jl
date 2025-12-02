@@ -325,13 +325,13 @@ df.y = Y;
         # Simulate clustered data with known structure
         # This function generates unbalanced panel data with cluster-correlated errors
         function simulate_clustered_data(rng::AbstractRNG;
-            num_clusters = 50,
-            min_obs = 100,
-            max_obs = 1000,
-            β_0 = 2.0,
-            β_1 = 1.5,
-            σ_cluster = 2.0,
-            σ_error = 1.0
+                num_clusters = 50,
+                min_obs = 100,
+                max_obs = 1000,
+                β_0 = 2.0,
+                β_1 = 1.5,
+                σ_cluster = 2.0,
+                σ_error = 1.0
         )
             cluster_sizes = rand(rng, min_obs:max_obs, num_clusters)
             total_obs = sum(cluster_sizes)
