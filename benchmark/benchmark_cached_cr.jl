@@ -47,7 +47,7 @@ function benchmark_single_cluster()
     n_clusters = 100
 
     Random.seed!(42)
-    cluster_ids = repeat(1:n_clusters, inner=n_obs ÷ n_clusters)
+    cluster_ids = repeat(1:n_clusters, inner = n_obs ÷ n_clusters)
     X = randn(n_obs, n_cols)
 
     k = CR0(cluster_ids)
@@ -90,8 +90,8 @@ function benchmark_twoway_cluster()
     n_cols = 8
 
     Random.seed!(123)
-    firm_ids = repeat(1:n_firms, outer=n_years)
-    year_ids = repeat(1:n_years, inner=n_firms)
+    firm_ids = repeat(1:n_firms, outer = n_years)
+    year_ids = repeat(1:n_years, inner = n_firms)
     X = randn(n_obs, n_cols)
 
     k = CR0((firm_ids, year_ids))
@@ -137,7 +137,7 @@ function benchmark_varying_sizes()
         n_clusters = n_obs ÷ 10
 
         Random.seed!(42)
-        cluster_ids = repeat(1:n_clusters, inner=10)
+        cluster_ids = repeat(1:n_clusters, inner = 10)
         X = randn(n_obs, n_cols)
 
         k = CR0(cluster_ids)
@@ -170,7 +170,7 @@ function benchmark_cr_variants()
     n_clusters = 50
 
     Random.seed!(42)
-    cluster_ids = repeat(1:n_clusters, inner=n_obs ÷ n_clusters)
+    cluster_ids = repeat(1:n_clusters, inner = n_obs ÷ n_clusters)
     X = randn(n_obs, n_cols)
 
     println("Configuration:")
@@ -203,7 +203,6 @@ function main()
     benchmark_twoway_cluster()
     benchmark_varying_sizes()
     benchmark_cr_variants()
-
 end
 
 # Run benchmarks

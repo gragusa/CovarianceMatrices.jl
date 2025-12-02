@@ -431,7 +431,7 @@ function CachedCRModel(k::CR, m::RegressionModel)
         if length(c) == 1
             g = GroupedArray(f[c[1]])
         else
-            g = GroupedArray((f[i] for i in c)...; sort=nothing)
+            g = GroupedArray((f[i] for i in c)...; sort = nothing)
         end
         push!(grouped_arrays, g)
         push!(signs, (-1)^(length(c) - 1))

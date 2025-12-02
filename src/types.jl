@@ -777,7 +777,7 @@ variance calculations. Used internally by `CachedCR`.
 Using a cache makes the variance calculation non-differentiable with AD.
 For AD compatibility, use the standard non-cached CR estimators.
 """
-struct CRCache{T<:Real}
+struct CRCache{T <: Real}
     X2_buffers::Vector{Matrix{T}}            # One buffer per combination
     S_buffer::Matrix{T}                       # Output buffer (ncols × ncols)
     grouped_arrays::Vector{GroupedArray}      # Precomputed for each combination
@@ -810,7 +810,7 @@ for b in 1:1000
 end
 ```
 """
-function CRCache(k::CR, ncols::Int, ::Type{T}=Float64) where T
+function CRCache(k::CR, ncols::Int, ::Type{T} = Float64) where {T}
     f = k.g
     ncombinations = 2^length(f) - 1  # Number of non-empty subsets
 
@@ -824,7 +824,7 @@ function CRCache(k::CR, ncols::Int, ::Type{T}=Float64) where T
         if length(c) == 1
             g = GroupedArray(f[c[1]])
         else
-            g = GroupedArray((f[i] for i in c)...; sort=nothing)
+            g = GroupedArray((f[i] for i in c)...; sort = nothing)
         end
         push!(grouped_arrays, g)
         push!(signs, (-1)^(length(c) - 1))
@@ -889,7 +889,7 @@ end
 
 See also: [`CR0`](@ref), [`CR1`](@ref), [`CR2`](@ref), [`CR3`](@ref), [`CRCache`](@ref)
 """
-struct CachedCR{K<:CR, C<:CRCache} <: CR
+struct CachedCR{K <: CR, C <: CRCache} <: CR
     estimator::K
     cache::C
 end
@@ -911,7 +911,7 @@ cached_k = CachedCR(k, 5)  # Cache for 5-column moment matrix
 S = aVar(cached_k, X)      # Fast calculation using cache
 ```
 """
-function CachedCR(k::CR, ncols::Int, ::Type{T}=Float64) where T
+function CachedCR(k::CR, ncols::Int, ::Type{T} = Float64) where {T}
     cache = CRCache(k, ncols, T)
     return CachedCR(k, cache)
 end
@@ -920,7 +920,9 @@ end
 nclusters(k::CachedCR) = nclusters(k.estimator)
 
 # Access underlying estimator's grouped arrays
-Base.getproperty(k::CachedCR, s::Symbol) = s === :g ? getfield(k, :estimator).g : getfield(k, s)
+function Base.getproperty(k::CachedCR, s::Symbol)
+    s === :g ? getfield(k, :estimator).g : getfield(k, s)
+end
 
 #=========
 CRModelCache and CachedCRModel - For GLM Extension
@@ -951,7 +953,7 @@ where only residuals change between iterations.
 Using this cache makes the variance calculation non-differentiable with AD.
 For AD compatibility, use the standard non-cached CR estimators.
 """
-struct CRModelCache{T<:Real, H}
+struct CRModelCache{T <: Real, H}
     grouped_arrays::Vector{GroupedArray}
     cluster_indices::Vector{Vector{Vector{Int}}}
     signs::Vector{Int}
@@ -1006,7 +1008,7 @@ end
 
 See also: [`CR2`](@ref), [`CR3`](@ref), [`CRModelCache`](@ref)
 """
-struct CachedCRModel{K<:CR, C<:CRModelCache}
+struct CachedCRModel{K <: CR, C <: CRModelCache}
     estimator::K
     cache::C
 end
@@ -1015,7 +1017,9 @@ end
 nclusters(k::CachedCRModel) = nclusters(k.estimator)
 
 # Access underlying estimator's grouped arrays
-Base.getproperty(k::CachedCRModel, s::Symbol) = s === :g ? getfield(k, :estimator).g : getfield(k, s)
+function Base.getproperty(k::CachedCRModel, s::Symbol)
+    s === :g ? getfield(k, :estimator).g : getfield(k, s)
+end
 
 #=========
 VARHAC
