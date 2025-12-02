@@ -1,6 +1,6 @@
 name = "CovarianceMatrices"
 uuid = "60f91f6f-d783-54cb-84f9-544141854719"
-version = "0.30.0"
+version = "0.30.1"
 author = "Giuseppe Ragusa <giuseppe.ragusa@gmail.com>"
 
 [deps]
