@@ -49,6 +49,7 @@ function _residuals end
 function bread end
 
 @noinline residual_adjustment(k::HAC, r::RegressionModel) = 1.0
+@noinline residual_adjustment(k::EWC, r::RegressionModel) = 1.0
 
 # HC0/HR0: No adjustment
 @noinline residual_adjustment(k::HR0, r::RegressionModel) = 1.0

@@ -3,7 +3,7 @@ function Λ!(L::AbstractVector{F}, j::Integer, m::AbstractMatrix{F}) where {F <:
     fill!(L, zero(F))
 
     inv_T = 1 / T
-    scale = sqrt(2 * inv_T)
+    scale = sqrt(F(2))
 
     @inbounds for t in 1:T
         w = cos(π * j * (t - F(0.5)) * inv_T)
