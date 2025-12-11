@@ -12,7 +12,6 @@ using GLM
 using DataFrames
 
 @testset "EWC Monte Carlo Coverage Tests" begin
-
     @testset "EWC coverage with AR(1) errors" begin
         """
         Monte Carlo simulation to verify EWC produces ~95% coverage.
@@ -29,7 +28,6 @@ using DataFrames
                 B::Int = 10,
                 rho::Float64 = 0.5,
                 seed::Int = 12345)
-
             rng = Random.Xoshiro(seed)
             coverage_count = 0
             true_beta = 2.0  # slope coefficient
@@ -131,5 +129,4 @@ using DataFrames
             @test isposdef(Symmetric(V))
         end
     end
-
 end
