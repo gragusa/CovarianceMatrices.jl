@@ -126,7 +126,9 @@ Compute residual adjustment for basic cluster-robust estimators.
 #residual_adjustment(k::CR, m::GLMTableModel) = residual_adjustment(k, m.model)
 
 function residual_adjustment(k::CR0, m::RegressionModel)
-    [1 for x in combinations(1:length(k.g))]
+    # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
+    combs = Iterators.filter(!isempty, combinations(1:length(k.g)))
+    [1 for x in combs]
 end
 
 function residual_adjustment(k::CR1, m::RegressionModel)
@@ -142,7 +144,9 @@ function residual_adjustment(k::CR2, m::RegressionModel)
     wts = weights(m)
     Hᵧᵧ = Vector{Matrix{eltype(X)}}(undef, 0)
     f = k.g
-    map(combinations(1:length(f))) do c
+    # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
+    combs = Iterators.filter(!isempty, combinations(1:length(f)))
+    map(combs) do c
         begin
             if length(c) == 1
                 g = GroupedArray(f[c[1]])
@@ -167,7 +171,9 @@ function residual_adjustment(k::CR3, m::RegressionModel)
     wts = weights(m)
     Hᵧᵧ = Vector{Matrix{eltype(X)}}(undef, 0)
     f = k.g
-    map(combinations(1:length(f))) do c
+    # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
+    combs = Iterators.filter(!isempty, combinations(1:length(f)))
+    map(combs) do c
         begin
             if length(c) == 1
                 g = GroupedArray(f[c[1]])
@@ -236,7 +242,9 @@ function aVar(
     u = _residuals(m)
     M = map(h->X .* (h*u), H)
     V = avar_tuple(k, M)
-    Σ = mapreduce(+, zip(combinations(1:length(k.g)), V)) do (c, v)
+    # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
+    combs = Iterators.filter(!isempty, combinations(1:length(k.g)))
+    Σ = mapreduce(+, zip(combs, V)) do (c, v)
         (-1)^(length(c) - 1)*v
     end
     scale ? rdiv!(Σ, numobs(m)) : Σ

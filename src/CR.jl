@@ -31,6 +31,7 @@ function avar(k::CR, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <: Real
     @assert size(X, 1)==gmin "X must have the same number of observations as the groups"
 
     @inbounds for c in combinations(1:length(f))
+        isempty(c) && continue  # skip empty combinations (Combinatorics.jl < 1.1 includes empty set)
         if length(c) == 1
             g = GroupedArray(f[c[1]])
         else
@@ -44,11 +45,12 @@ end
 
 function avar_tuple(k::CR, X; kwargs...)
     f = k.g
-    map(zip(X, combinations(1:length(f)))) do (Z, c)
+    # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
+    combs = Iterators.filter(!isempty, combinations(1:length(f)))
+    map(zip(X, combs)) do (Z, c)
         begin
             if length(c) == 1
                 g = GroupedArray(f[c[1]])
-
             else
                 g = GroupedArray((f[i] for i in c)...; sort = nothing)
             end
@@ -61,6 +63,8 @@ nclusters(k::CR) = (map(x -> x.ngroups, k.g))
 
 function total_num_clusters(k::CR)
     f = k.g
+    # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
+    combs = Iterators.filter(!isempty, combinations(1:length(f)))
     map(c -> begin
             if length(c) == 1
                 g = GroupedArray(f[c[1]])
@@ -69,7 +73,7 @@ function total_num_clusters(k::CR)
             end
             length(unique(g))
         end,
-        combinations(1:length(f)))
+        combs)
 end
 
 rescale!(k::T, S::Matrix) where {T <: CR0} = nothing

@@ -208,13 +208,14 @@ end
     @testset "EWC Computation" begin
         X = randn(Random.Xoshiro(123), 100, 2)
 
-        # Test EWC computation - note there appears to be an implementation issue
-        # with symmetric matrix handling in aVar, so we test construction for now
         ewc = EWC(3)
         @test ewc isa EWC
 
-        # Skip actual variance computation due to implementation issue
-        @test_skip "EWC variance computation has symmetric matrix handling issues"
+        # Test variance computation
+        V = aVar(ewc, X)
+        @test size(V) == (2, 2)
+        @test issymmetric(V)
+        @test isposdef(V)
     end
 end
 
@@ -507,8 +508,12 @@ end
         @test_throws ArgumentError EWC(-1)
         @test_throws ArgumentError EWC(0)
 
-        # Skip variance computation tests due to implementation issues
-        @test_skip "EWC aVar computation has symmetric matrix issues"
+        # Test variance computation
+        X = randn(Random.Xoshiro(888), 150, 2)
+        V = aVar(EWC(5), X)
+        @test size(V) == (2, 2)
+        @test issymmetric(V)
+        @test isposdef(V)
     end
 
     @testset "VARHAC Coverage" begin
