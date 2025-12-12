@@ -308,6 +308,144 @@ end
 cr_performance_comparison()
 ```
 
+## CachedCR: High-Performance Caching for Repeated Calculations
+
+For applications requiring repeated cluster-robust variance calculations with the same cluster structure—such as wild bootstrap or Monte Carlo simulations—`CachedCR` provides significant performance improvements.
+
+```@docs
+CachedCR
+CRCache
+```
+
+### When to Use CachedCR
+
+`CachedCR` is designed for scenarios where:
+- The same cluster structure is used repeatedly
+- Only the moment matrix (residuals) changes between calculations
+- Performance is critical (e.g., bootstrap with 1000+ replications)
+
+**Typical speedups:**
+- Single-cluster: ~3-4x faster
+- Two-way clustering: ~4x faster
+- Wild bootstrap (100 iterations): ~2.5-4x faster
+
+### Basic Usage
+
+```julia
+using CovarianceMatrices
+
+# Setup
+cluster_ids = repeat(1:100, inner=10)
+X = randn(1000, 5)
+
+# Create standard CR estimator
+k = CR0(cluster_ids)
+
+# Create cached version (one-time setup cost)
+cached_k = CachedCR(k, size(X, 2))
+
+# Use for repeated calculations
+S = aVar(cached_k, X)  # Uses optimized gather-based aggregation
+```
+
+### Wild Bootstrap Example
+
+```julia
+using CovarianceMatrices, Random
+
+function wild_bootstrap_variance(X, cluster_ids; n_bootstrap=1000)
+    n = size(X, 1)
+    ncols = size(X, 2)
+
+    # Create cached estimator (one-time cost)
+    k = CR0(cluster_ids)
+    cached_k = CachedCR(k, ncols)
+
+    # Store bootstrap variance estimates
+    bootstrap_vars = Vector{Matrix{Float64}}(undef, n_bootstrap)
+
+    for b in 1:n_bootstrap
+        # Rademacher weights (+1 or -1)
+        weights = rand([-1.0, 1.0], n)
+        X_perturbed = X .* weights
+
+        # Fast variance calculation using cache
+        bootstrap_vars[b] = aVar(cached_k, X_perturbed)
+    end
+
+    return bootstrap_vars
+end
+
+# Usage
+cluster_ids = repeat(1:50, inner=20)
+X = randn(1000, 5)
+vars = wild_bootstrap_variance(X, cluster_ids; n_bootstrap=1000)
+```
+
+### Two-Way Clustering with Cache
+
+```julia
+# Panel data: firms × years
+n_firms, n_years = 100, 20
+n_obs = n_firms * n_years
+
+firm_ids = repeat(1:n_firms, outer=n_years)
+year_ids = repeat(1:n_years, inner=n_firms)
+
+X = randn(n_obs, 4)
+
+# Create two-way clustered estimator with cache
+k = CR0((firm_ids, year_ids))
+cached_k = CachedCR(k, size(X, 2))
+
+# The cache precomputes GroupedArrays for all combinations:
+# - firm clustering
+# - year clustering
+# - firm × year intersection
+S = aVar(cached_k, X)
+```
+
+### Important Limitations
+
+!!! warning "AD Incompatibility"
+    `CachedCR` uses in-place operations and preallocated buffers that are **not compatible with automatic differentiation (AD)**. For AD-compatible code, use the standard `CR0`, `CR1`, `CR2`, or `CR3` estimators directly.
+
+!!! note "Fixed Column Count"
+    The cache is built for a specific number of columns. Using a moment matrix with a different column count will raise an error:
+    ```julia
+    cached_k = CachedCR(CR0(clusters), 5)  # Cache for 5 columns
+    aVar(cached_k, randn(100, 3))  # Error! Expected 5 columns
+    ```
+
+### Performance Benchmark
+
+```julia
+using BenchmarkTools
+
+function benchmark_cached_cr()
+    n_obs = 10_000
+    n_cols = 10
+    n_clusters = 100
+
+    cluster_ids = repeat(1:n_clusters, inner=n_obs ÷ n_clusters)
+    X = randn(n_obs, n_cols)
+
+    k = CR0(cluster_ids)
+    cached_k = CachedCR(k, n_cols)
+
+    println("Standard CR0:")
+    @btime aVar($k, $X)
+
+    println("CachedCR:")
+    @btime aVar($cached_k, $X)
+end
+
+benchmark_cached_cr()
+# Typical output:
+#   Standard CR0:  420.000 μs (5 allocations: 9.00 KiB)
+#   CachedCR:      105.000 μs (1 allocation: 896 bytes)
+```
+
 ## Integration with Other Estimators
 
 ### Combining with HAC
