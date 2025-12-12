@@ -658,8 +658,8 @@ se_cr0_multi = stderror(CR0((firm_ids, year_ids)), model)
 struct CR0{G} <: CR
     g::G
     CR0(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
+    CR0(g::G) where {G <: Tuple{Vararg{Symbol}}} = new{G}(g)
     CR0(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
-    CR0(g::G) where {G <: Symbol} = new{Symbol}(g)
 end
 
 """
@@ -689,8 +689,8 @@ se_cr1_multi = stderror(CR1((firm_ids, year_ids)), model)
 struct CR1{G} <: CR
     g::G
     CR1(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
+    CR1(g::G) where {G <: Tuple{Vararg{Symbol}}} = new{G}(g)
     CR1(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
-    CR1(g::G) where {G <: Symbol} = new{Symbol}(g)
 end
 
 """
@@ -720,8 +720,8 @@ se_cr2_multi = stderror(CR2((firm_ids, year_ids)), model)
 struct CR2{G} <: CR
     g::G
     CR2(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
+    CR2(g::G) where {G <: Tuple{Vararg{Symbol}}} = new{G}(g)
     CR2(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
-    CR2(g::G) where {G <: Symbol} = new{Symbol}(g)
 end
 
 """
@@ -751,12 +751,15 @@ se_cr3_multi = stderror(CR3((firm_ids, year_ids)), model)
 struct CR3{G} <: CR
     g::G
     CR3(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
+    CR3(g::G) where {G <: Tuple{Vararg{Symbol}}} = new{G}(g)
     CR3(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
-    CR3(g::G) where {G <: Symbol} = new{Symbol}(g)
 end
 
 for k in [:CR0, :CR1, :CR2, :CR3]
-    @eval $(k)(args...) = $(k)(args)
+    # Single symbol: wrap in tuple for consistent representation
+    @eval $(k)(g::Symbol) = $(k)((g,))
+    # Varargs for 2+ args: multi-way clustering CR0(a, b, ...) -> CR0((a, b, ...))
+    @eval $(k)(g1, g2, gs...) = $(k)((g1, g2, gs...))
 end
 
 #=========

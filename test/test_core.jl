@@ -232,6 +232,45 @@ df.y = Y;
         ## standard error and then multiply by G/(G-1) to apply the correction.
     end
 
+    @testset "CR Symbol Constructors ✅" begin
+        # Single symbol constructor - deferred cluster lookup
+        cr0_sym = CR0(:ClusterID)
+        @test typeof(cr0_sym) == CR0{Tuple{Symbol}}
+        @test cr0_sym.g == (:ClusterID,)
+
+        cr1_sym = CR1(:Firm)
+        @test typeof(cr1_sym) == CR1{Tuple{Symbol}}
+        @test cr1_sym.g == (:Firm,)
+
+        cr2_sym = CR2(:Year)
+        @test typeof(cr2_sym) == CR2{Tuple{Symbol}}
+        @test cr2_sym.g == (:Year,)
+
+        cr3_sym = CR3(:Region)
+        @test typeof(cr3_sym) == CR3{Tuple{Symbol}}
+        @test cr3_sym.g == (:Region,)
+
+        # Multiple symbols constructor - multi-way clustering with deferred lookup
+        cr0_multi = CR0(:Firm, :Year)
+        @test typeof(cr0_multi) == CR0{Tuple{Symbol, Symbol}}
+        @test cr0_multi.g == (:Firm, :Year)
+
+        cr1_multi = CR1(:State, :Industry)
+        @test typeof(cr1_multi) == CR1{Tuple{Symbol, Symbol}}
+        @test cr1_multi.g == (:State, :Industry)
+
+        cr2_multi = CR2(:Country, :Sector, :Year)
+        @test typeof(cr2_multi) == CR2{Tuple{Symbol, Symbol, Symbol}}
+        @test cr2_multi.g == (:Country, :Sector, :Year)
+
+        # Vector constructor still works (existing behavior)
+        cl = [1, 1, 2, 2, 3, 3]
+        cr0_vec = CR0(cl)
+        @test typeof(cr0_vec) == CR0{Tuple}
+        @test length(cr0_vec.g) == 1
+        @test cr0_vec.g[1] isa GroupedArrays.GroupedArray
+    end
+
     @testset "Driscoll & Kraay ✅" begin
         df = CSV.read(joinpath(datadir, "testdata/grunfeld.csv"), DataFrame)
         #df = RDatasets.dataset("Ecdat", "Grunfeld")
