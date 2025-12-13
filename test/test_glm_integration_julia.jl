@@ -14,10 +14,9 @@ using StableRNGs
 using LinearAlgebra
 
 # Helper function for approximate symmetry check
-is_approx_symmetric(V; atol=1e-10) = isapprox(V, V', atol=atol)
+is_approx_symmetric(V; atol = 1e-10) = isapprox(V, V', atol = atol)
 
 @testset "GLM Integration (Pure Julia)" begin
-
     @testset "Linear Model - momentmatrix" begin
         rng = StableRNG(1234)
         df = DataFrame(X1 = randn(rng, 10), X2 = randn(rng, 10), Y = randn(rng, 10))
@@ -100,7 +99,7 @@ is_approx_symmetric(V; atol=1e-10) = isapprox(V, V', atol=atol)
         # Standard Poisson example
         counts = [18, 17, 15, 20, 10, 20, 25, 13, 12]
         outcome = repeat(1:3, 3)
-        treatment = repeat(1:3, inner=3)
+        treatment = repeat(1:3, inner = 3)
         df = DataFrame(
             treatment = categorical(treatment),
             outcome = categorical(outcome),
@@ -126,7 +125,7 @@ is_approx_symmetric(V; atol=1e-10) = isapprox(V, V', atol=atol)
     @testset "Weighted Poisson GLM" begin
         counts = [18, 17, 15, 20, 10, 20, 25, 13, 12]
         outcome = repeat(1:3, 3)
-        treatment = repeat(1:3, inner=3)
+        treatment = repeat(1:3, inner = 3)
         weights = [1.0, 0.5, 1.5, 1.0, 0.8, 1.2, 1.0, 0.9, 1.1]
         df = DataFrame(
             treatment = categorical(treatment),
@@ -205,7 +204,7 @@ is_approx_symmetric(V; atol=1e-10) = isapprox(V, V', atol=atol)
             Y = randn(rng, n),
             X1 = randn(rng, n),
             X2 = randn(rng, n),
-            cl = repeat(1:8, inner=5)
+            cl = repeat(1:8, inner = 5)
         )
         m = lm(@formula(Y ~ X1 + X2), df)
 
@@ -216,5 +215,4 @@ is_approx_symmetric(V; atol=1e-10) = isapprox(V, V', atol=atol)
             @test all(diag(V) .>= 0)
         end
     end
-
 end

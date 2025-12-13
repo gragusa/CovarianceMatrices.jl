@@ -10,7 +10,6 @@ using LinearAlgebra
 using StatsAPI
 
 @testset "API Coverage" begin
-
     @testset "stderror wrapper" begin
         # Create a minimal MLikeModel for testing
         mutable struct StderrTestModel <: MLikeModel
@@ -288,11 +287,10 @@ using StatsAPI
         # Test with Bartlett kernel
         V = vcov(Bartlett(3), Misspecified(), model)
         @test size(V) == (k, k)
-        @test isapprox(V, V', atol=1e-10)
+        @test isapprox(V, V', atol = 1e-10)
 
         # Test with Parzen kernel
         V2 = vcov(Parzen{Andrews}(), Misspecified(), model)
         @test size(V2) == (k, k)
     end
-
 end
