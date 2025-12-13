@@ -137,63 +137,63 @@ using StatsAPI
 
     @testset "Model interface validation" begin
         # Test _check_coef error
-        struct BadModelNoCoef end
-        @test_throws Exception CovarianceMatrices._check_coef(BadModelNoCoef())
+        struct EdgeBadModelNoCoef end
+        @test_throws Exception CovarianceMatrices._check_coef(EdgeBadModelNoCoef())
 
         # Test _check_nobs error
-        struct BadModelNoNobs end
-        @test_throws Exception CovarianceMatrices._check_nobs(BadModelNoNobs())
+        struct EdgeBadModelNoNobs end
+        @test_throws Exception CovarianceMatrices._check_nobs(EdgeBadModelNoNobs())
     end
 
     @testset "Dimension checks for models" begin
         # Create a minimal MLikeModel for testing
-        mutable struct TestMLike <: MLikeModel
+        mutable struct EdgeTestMLike <: MLikeModel
             Z::Matrix{Float64}
             theta::Vector{Float64}
             H::Matrix{Float64}
         end
 
-        StatsAPI.coef(m::TestMLike) = m.theta
-        StatsAPI.nobs(m::TestMLike) = size(m.Z, 1)
-        CovarianceMatrices.momentmatrix(m::TestMLike) = m.Z
-        CovarianceMatrices.hessian_objective(m::TestMLike) = m.H
+        StatsAPI.coef(m::EdgeTestMLike) = m.theta
+        StatsAPI.nobs(m::EdgeTestMLike) = size(m.Z, 1)
+        CovarianceMatrices.momentmatrix(m::EdgeTestMLike) = m.Z
+        CovarianceMatrices.hessian_objective(m::EdgeTestMLike) = m.H
 
         # Correctly identified model (m = k)
-        m1 = TestMLike(randn(10, 3), randn(3), randn(3, 3))
+        m1 = EdgeTestMLike(randn(10, 3), randn(3), randn(3, 3))
         CovarianceMatrices._check_dimensions(Information(), m1)  # Should not throw
 
         # Misidentified model (m != k)
-        m2 = TestMLike(randn(10, 4), randn(3), randn(3, 3))  # 4 moments, 3 params
+        m2 = EdgeTestMLike(randn(10, 4), randn(3), randn(3, 3))  # 4 moments, 3 params
         @test_throws ArgumentError CovarianceMatrices._check_dimensions(Information(), m2)
     end
 
     @testset "GMM dimension checks" begin
         # Create a minimal GMMLikeModel for testing
-        mutable struct TestGMM <: GMMLikeModel
+        mutable struct EdgeTestGMM <: GMMLikeModel
             Z::Matrix{Float64}
             theta::Vector{Float64}
             G::Matrix{Float64}
             H::Union{Nothing, Matrix{Float64}}
         end
 
-        StatsAPI.coef(m::TestGMM) = m.theta
-        StatsAPI.nobs(m::TestGMM) = size(m.Z, 1)
-        CovarianceMatrices.momentmatrix(m::TestGMM) = m.Z
-        CovarianceMatrices.jacobian_momentfunction(m::TestGMM) = m.G
-        CovarianceMatrices.hessian_objective(m::TestGMM) = m.H
+        StatsAPI.coef(m::EdgeTestGMM) = m.theta
+        StatsAPI.nobs(m::EdgeTestGMM) = size(m.Z, 1)
+        CovarianceMatrices.momentmatrix(m::EdgeTestGMM) = m.Z
+        CovarianceMatrices.jacobian_momentfunction(m::EdgeTestGMM) = m.G
+        CovarianceMatrices.hessian_objective(m::EdgeTestGMM) = m.H
 
         # Overidentified GMM (m > k) - should work
         G = randn(4, 3)
-        m1 = TestGMM(randn(10, 4), randn(3), G, randn(3, 3))
+        m1 = EdgeTestGMM(randn(10, 4), randn(3), G, randn(3, 3))
         CovarianceMatrices._check_dimensions(Information(), m1)
 
         # Underidentified GMM (m < k) - should throw
         G2 = randn(2, 3)
-        m2 = TestGMM(randn(10, 2), randn(3), G2, randn(3, 3))
+        m2 = EdgeTestGMM(randn(10, 2), randn(3), G2, randn(3, 3))
         @test_throws ArgumentError CovarianceMatrices._check_dimensions(Information(), m2)
 
         # GMM Misspecified without hessian - should throw
-        m3 = TestGMM(randn(10, 4), randn(3), G, nothing)
+        m3 = EdgeTestGMM(randn(10, 4), randn(3), G, nothing)
         @test_throws ArgumentError CovarianceMatrices._check_dimensions(Misspecified(), m3)
     end
 
