@@ -11,7 +11,6 @@ using LinearAlgebra
 using StatsAPI
 
 @testset "Type System Coverage" begin
-
     @testset "HAC kernel constructors" begin
         # Type parameter syntax - Andrews
         @test Bartlett{Andrews}() isa HAC
@@ -175,5 +174,4 @@ using StatsAPI
         @test BICSelector() isa CovarianceMatrices.LagSelector
         @test FixedSelector() isa CovarianceMatrices.LagSelector
     end
-
 end

@@ -10,7 +10,6 @@ using LinearAlgebra
 using StatsAPI
 
 @testset "Edge Cases and Error Paths" begin
-
     @testset "ipinv edge cases" begin
         # Diagonal matrix path
         D = Diagonal([1.0, 2.0, 3.0])
@@ -42,13 +41,13 @@ using StatsAPI
     @testset "Debug output paths" begin
         # Test with debug=true to hit debug print paths
         A = [1.0 0; 0 1e-16]  # Near-singular
-        result = CovarianceMatrices._compute_mle_information(A; debug=true, warn=false)
+        result = CovarianceMatrices._compute_mle_information(A; debug = true, warn = false)
         @test size(result) == (2, 2)
 
         # Test MLE misspecified with debug
         H = [1.0 0.1; 0.1 1.0]
         Omega = [0.5 0.1; 0.1 0.5]
-        V = CovarianceMatrices._compute_mle_misspecified(H, Omega; debug=true, warn=false)
+        V = CovarianceMatrices._compute_mle_misspecified(H, Omega; debug = true, warn = false)
         @test size(V) == (2, 2)
     end
 
@@ -71,19 +70,19 @@ using StatsAPI
         X = randn(50, 3)
 
         # Test with demeaning
-        Σ1 = aVar(Bartlett(3), X; demean=true)
-        Σ2 = aVar(Bartlett(3), X; demean=false)
+        Σ1 = aVar(Bartlett(3), X; demean = true)
+        Σ2 = aVar(Bartlett(3), X; demean = false)
         @test size(Σ1) == (3, 3)
         @test size(Σ2) == (3, 3)
 
         # Test with scaling
-        Σ3 = aVar(Bartlett(3), X; scale=true)
-        Σ4 = aVar(Bartlett(3), X; scale=false)
+        Σ3 = aVar(Bartlett(3), X; scale = true)
+        Σ4 = aVar(Bartlett(3), X; scale = false)
         @test size(Σ3) == (3, 3)
         @test size(Σ4) == (3, 3)
 
         # Test with prewhitening (for HAC)
-        Σ5 = aVar(Bartlett(3), X; prewhite=true)
+        Σ5 = aVar(Bartlett(3), X; prewhite = true)
         @test size(Σ5) == (3, 3)
     end
 
@@ -93,7 +92,7 @@ using StatsAPI
         for B in [1, 3, 5, 10]
             Σ = aVar(EWC(B), X)
             @test size(Σ) == (2, 2)
-            @test issymmetric(Σ) || isapprox(Σ, Σ', atol=1e-10)
+            @test issymmetric(Σ) || isapprox(Σ, Σ', atol = 1e-10)
         end
     end
 
@@ -196,5 +195,4 @@ using StatsAPI
         m3 = TestGMM(randn(10, 4), randn(3), G, nothing)
         @test_throws ArgumentError CovarianceMatrices._check_dimensions(Misspecified(), m3)
     end
-
 end
