@@ -8,6 +8,7 @@ creating an overidentified system to demonstrate the GMM variance forms.
 using CovarianceMatrices
 using LinearAlgebra
 using Statistics
+using StatsAPI
 using StatsBase
 using Random
 using Test
