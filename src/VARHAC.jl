@@ -112,42 +112,82 @@ function _var_selection_samelag(
     BIC = vec(log.(RSS / T))
     AICs = Array{R}(undef, m, K)
     BICs = similar(AICs)
+
     ## ---------------------------------------------------------
-    ## Preallocate matrices for better performance
+    ## Precompute Gram matrices
     ## ---------------------------------------------------------
+    # Full X'X and X'Y using Z (which contains all K lags)
+    # Z is (T-K) x (m*K)
+    # 𝕐 is (T-K) x m
+    
     max_size = K * m
-    𝕏𝕏 = Matrix{R}(undef, max_size, max_size)
-    𝕏𝕐 = Vector{R}(undef, max_size)
+    𝕏𝕏_full = Matrix{R}(undef, max_size, max_size)
+    𝕏𝕐_full = Matrix{R}(undef, max_size, m)
+    
+    mul!(𝕏𝕏_full, Z', Z)
+    mul!(𝕏𝕐_full, Z', 𝕐)
+    
+    # Buffer for solving linear systems (to avoid destroying 𝕏𝕏_full)
+    # We need a buffer up to size max_size x max_size
+    A_buffer = Matrix{R}(undef, max_size, max_size)
     β = Vector{R}(undef, max_size)
 
     ## ---------------------------------------------------------
     ## Calculate AIC & BIC for each variable at lags 1,2,...,K
     ## ---------------------------------------------------------
     @inbounds for k in 1:K
-        𝕏 = view(Z, :, 1:(k * m))
-        # Resize views of preallocated matrices
-        𝕏𝕏_k = view(𝕏𝕏, 1:(k * m), 1:(k * m))
-        𝕏𝕐_k = view(𝕏𝕐, 1:(k * m))
-        β_k = view(β, 1:(k * m))
+        current_dim = k * m
+        
+        # View of the relevant block of Z for residuals calculation
+        𝕏 = view(Z, :, 1:current_dim)
 
         for j in axes(Y, 2)
-            𝕐 = view(Y, (K + 1):T, j)
-            mul!(𝕏𝕏_k, 𝕏', 𝕏)
-            mul!(𝕏𝕐_k, 𝕏', 𝕐)
+            # 1. Prepare LHS matrix A (copy from precomputed)
+            # We copy the top-left block (current_dim x current_dim)
+            # Only need to copy the upper triangle for Cholesky? 
+            # safe to copy the whole block.
+            
+            # Using loop for copy might be safer for views/buffers or just copyto! if contiguous
+            # A_buffer is contiguous, but we are copying a sub-block of 𝕏𝕏_full which is strided.
+            # Base.copyto! works with strided arrays.
+            
+            # Source view
+            src_block = view(𝕏𝕏_full, 1:current_dim, 1:current_dim)
+            dest_block = view(A_buffer, 1:current_dim, 1:current_dim)
+            copyto!(dest_block, src_block)
+            
+            # 2. Prepare RHS vector b (view from precomputed)
+            # 𝕏𝕐_full column j, first current_dim elements
+            rhs_vec = view(𝕏𝕐_full, 1:current_dim, j)
+            
+            # 3. View for solution
+            β_k = view(β, 1:current_dim)
+            copyto!(β_k, rhs_vec) # Copy RHS to solution vector (ldiv! overwrites B)
+
             ## -----------------------
             ## Perform OLS coefficient
             ## -----------------------
             try
-                ldiv!(β_k, cholesky!(Symmetric(𝕏𝕏_k)), 𝕏𝕐_k)
+                # in-place cholesky on dest_block
+                # ldiv! solves Ax = b. dest_block is A. β_k is b.
+                ldiv!(cholesky!(Symmetric(dest_block)), β_k)
             catch e
                 # Handle near-singular matrices using pseudo-inverse
-                β_k .= pinv(𝕏𝕏_k) * 𝕏𝕐_k
+                # pinv needs the original matrix. dest_block is modified?
+                # cholesky! might have messed up dest_block.
+                # Recopy source
+                copyto!(dest_block, src_block)
+                β_k .= pinv(dest_block) * rhs_vec
             end
+
             ## -----------------------
             ## Calculate the residuals
             ## -----------------------
             mul!(𝕏β, 𝕏, β_k)
-            ε .= 𝕐 .- 𝕏β
+            # residuals for variable j
+            𝕐_j = view(Y, (K + 1):T, j)
+            ε .= 𝕐_j .- 𝕏β
+            
             ## -----------------------
             ## Calculate the AIC&BIC
             ## -----------------------
@@ -177,16 +217,31 @@ function _var_selection_samelag(
     end
     @inbounds for j in axes(Y, 2)
         if order[j] > 0
-            𝕐 = view(Y, (order[j] + 1):T, j)
-            𝕏 = delag(X, order[j])
+            # Re-estimate with optimal lag using the full available sample (T - order[j])
+            # This matches original behavior and ensures dimensions match for residuals
+            
+            kk = order[j]
+            𝕐 = view(Y, (kk + 1):T, j)
+            𝕏 = delag(X, kk)
+            
+            # Solve OLS
             β = cholesky!(Symmetric(𝕏'𝕏)) \ 𝕏'𝕐
+            
+            # Compute residuals
             𝕏β = 𝕏 * β
-            ε[(order[j] + 1):end, j] .= 𝕐 .- 𝕏β
-            A[j, :, 1:order[j]] = β
+            ε[(kk + 1):end, j] .= 𝕐 .- 𝕏β
+            
+            # Store coefficients
+            # β contains [lag1_var1, ..., lag1_varm, lag2_var1...]
+            # Reshape to (m, kk) for A[j, :, 1:kk]
+            dest_A = view(A, j, :, 1:kk)
+            src_beta = reshape(β, m, kk)
+            copyto!(dest_A, src_beta)
         else
             copy!(view(ε, :, j), Y[:, j])
         end
     end
+    
     # Use robust pseudo-inverse for numerical stability
     A_sum = dropdims(sum(A; dims = 3); dims = 3)
     I_minus_A = I - A_sum
@@ -371,12 +426,21 @@ function delag(X::Matrix{R}, K::Int) where {R <: Real}
         throw(ArgumentError("Number of lags K=$K must be positive"))
     end
 
-    Z = Matrix{R}(undef, T - K, n * K)  # Use same type as input for type stability
-    @inbounds for j in 1:n
-        for t in (K + 1):T
-            for k in 1:K
-                Z[t - K, (k - 1) * n + j] = X[t - k, j]
-            end
+    Z = Matrix{R}(undef, T - K, n * K)
+    
+    # Optimize for memory access pattern: fill Z column by column
+    # Z column layout: [lag1_var1, lag1_var2, ..., lag2_var1, ...]
+    
+    @inbounds for k in 1:K
+        for j in 1:n
+            col_idx = (k - 1) * n + j
+            
+            # For lag k, variable j, we take X[(1+K-k):(T-k), j]
+            # Copy column j of X, shifted by k
+            
+            src_col = view(X, (1 + K - k):(T - k), j)
+            dest_col = view(Z, :, col_idx)
+            copyto!(dest_col, src_col)
         end
     end
     return Z

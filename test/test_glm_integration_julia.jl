@@ -215,4 +215,40 @@ is_approx_symmetric(V; atol = 1e-10) = isapprox(V, V', atol = atol)
             @test all(diag(V) .>= 0)
         end
     end
+
+    @testset "Linear Model - QR Decomposition" begin
+        rng = StableRNG(1234)
+        X = randn(rng, 50, 3)
+        y = X * [1.0, -0.5, 0.5] + randn(rng, 50)
+
+        # Construct and properly fit QR model using fit!
+        pp_qr = GLM.DensePredQR(X)
+        rr = GLM.LmResp(y, Vector{Float64}())
+        model_qr = GLM.LinearModel(rr, pp_qr)
+        GLM.fit!(model_qr)
+
+        # Check vcov works
+        V_qr = vcov(HC0(), model_qr)
+        @test size(V_qr) == (3, 3)
+        @test all(diag(V_qr) .>= 0)
+
+        # Compare with Cholesky model (standard lm)
+        model_chol = lm(X, y)
+
+        # Coefficients should match
+        @test coef(model_qr) ≈ coef(model_chol) atol = 1e-10
+
+        # Residuals should match
+        @test CovarianceMatrices._residuals(model_qr) ≈ CovarianceMatrices._residuals(model_chol) atol = 1e-10
+
+        # Bread matrices should match
+        @test CovarianceMatrices.bread(model_qr) ≈ CovarianceMatrices.bread(model_chol) atol = 1e-10
+
+        # Moment matrices should match
+        @test momentmatrix(model_qr) ≈ momentmatrix(model_chol) atol = 1e-10
+
+        # HC variance estimates should match
+        V_chol = vcov(HC0(), model_chol)
+        @test V_qr ≈ V_chol atol = 1e-10
+    end
 end

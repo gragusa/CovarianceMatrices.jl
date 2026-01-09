@@ -1,5 +1,7 @@
 module GLMExt
 
+println("Loading GLMExt extension...")
+
 using CovarianceMatrices, GLM, LinearAlgebra, StatsBase, StatsModels, StatsAPI,
       Combinatorics, GroupedArrays
 using Statistics
@@ -72,11 +74,27 @@ Uses internal `GLM.invchol(m.pp)` for efficiency instead of recomputing.
 CM.bread(m::GLMTableModel) = CM.bread(m.model)
 CM.hessian_objective(m::GLMTableModel) = CM.hessian_objective(m.model)
 
-CM.bread(m::GLMLinearModel) = GLM.invchol(m.pp)
-CM.bread(m::GLMGeneralizedLinearModel) = GLM.invchol(m.pp) .* _dispersion(m)
+# Delegate to predictor
+CM.bread(m::GLMLinearModel) = _bread(m.pp)
+CM.bread(m::GLMGeneralizedLinearModel) = _bread(m.pp) .* _dispersion(m)
 
-CM.hessian_objective(m::GLMLinearModel) = Matrix(m.pp)
-CM.hessian_objective(m::GLMGeneralizedLinearModel) = Matrix(m.pp) ./ _dispersion(m)
+CM.hessian_objective(m::GLMLinearModel) = _hessian(m.pp)
+CM.hessian_objective(m::GLMGeneralizedLinearModel) = _hessian(m.pp) ./ _dispersion(m)
+
+# Implementations for DensePredChol
+_bread(pp::GLM.DensePredChol) = GLM.invchol(pp)
+_hessian(pp::GLM.DensePredChol) = Matrix(pp)
+
+# Implementations for DensePredQR
+function _bread(pp::GLM.DensePredQR)
+    R = pp.qr.R
+    return pinv(R'R)
+end
+
+function _hessian(pp::GLM.DensePredQR)
+    R = pp.qr.R
+    return R'R
+end
 
 ##=================================================
 ## residuals: Override for working residuals
@@ -130,6 +148,27 @@ function CM.mask(pp::GLM.DensePredChol{F, C}) where {F, C <: LinearAlgebra.Chole
     k = size(pp.X, 2)
     return ones(Bool, k)
 end
+
+# QR Support for mask
+function CM.mask(pp::GLM.DensePredQR)
+    # Check if pivoted
+    F = pp.qr
+    if F isa LinearAlgebra.QRPivoted
+        k = size(pp.X, 2)
+        rnk = rank(F)
+        p = F.p
+        if rnk == k
+            return ones(Bool, k)
+        else
+            mask = zeros(Bool, k)
+            mask[p[1:rnk]] .= true
+            return mask
+        end
+    else
+        return ones(Bool, size(pp.X, 2))
+    end
+end
+
 
 ##=================================================
 ## momentmatrix: Optimized using GLM internals
@@ -216,6 +255,14 @@ end
 
 function _leverage(pp::GLM.DensePredChol{F, C}, X) where {F, C <: LinearAlgebra.Cholesky}
     return vec(sum(abs2, X / pp.chol.U, dims = 2))
+end
+
+# QR Support for leverage
+function _leverage(pp::GLM.DensePredQR, X)
+    F = pp.qr
+    rnk = rank(F)
+    Q_thin = F.Q[:, 1:rnk]
+    return vec(sum(abs2, Q_thin, dims = 2))
 end
 
 ##=================================================

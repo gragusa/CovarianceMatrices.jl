@@ -273,6 +273,32 @@ function ipinv(
         problematic = .!(abs.(dA) .> tol)
         return B, problematic, abs.(dA)  # Return diagonal values as "singular values"
     end
+    
+    if issymmetric(A)
+        E = eigen(Symmetric(A))
+        # Singular values are absolute values of eigenvalues for symmetric matrices
+        svals = abs.(E.values)
+        # Sort svals descending to match SVD convention (optional but good for consistency)
+        # But eigen returns values in ascending order usually. SVD in descending.
+        # We don't strictly need to sort for the logic, but return values might expect it.
+        # Let's keep them as is, just abs.
+        
+        tol2 = max(rtol * maximum(svals), atol)
+        Stype = eltype(E.values)
+        
+        # Invert eigenvalues
+        inv_vals = similar(E.values, Stype)
+        index = svals .> tol2
+        inv_vals[index] .= inv.(E.values[index])
+        inv_vals[.!index] .= zero(Stype)
+        
+        problematic = .!index
+        
+        # Reconstruct: U * Diag(inv_vals) * U'
+        # For symmetric A, U = V, so U * Σ⁻¹ * U'
+        return E.vectors * (Diagonal(inv_vals) * E.vectors'), problematic, svals
+    end
+
     SVD = svd(A)
     tol2 = max(rtol * maximum(SVD.S), atol)
     Stype = eltype(SVD.S)
