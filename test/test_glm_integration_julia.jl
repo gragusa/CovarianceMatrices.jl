@@ -239,7 +239,8 @@ is_approx_symmetric(V; atol = 1e-10) = isapprox(V, V', atol = atol)
         @test coef(model_qr) ≈ coef(model_chol) atol = 1e-10
 
         # Residuals should match
-        @test CovarianceMatrices._residuals(model_qr) ≈ CovarianceMatrices._residuals(model_chol) atol = 1e-10
+        @test CovarianceMatrices._residuals(model_qr) ≈
+              CovarianceMatrices._residuals(model_chol) atol = 1e-10
 
         # Bread matrices should match
         @test CovarianceMatrices.bread(model_qr) ≈ CovarianceMatrices.bread(model_chol) atol = 1e-10

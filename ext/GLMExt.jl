@@ -169,7 +169,6 @@ function CM.mask(pp::GLM.DensePredQR)
     end
 end
 
-
 ##=================================================
 ## momentmatrix: Optimized using GLM internals
 ##=================================================
