@@ -173,8 +173,8 @@ end
     _compute_gmm_misspecified(H, G, Ω, W; kwargs...)
 
 Compute robust GMM variance:
-- If W is nothing: V = inv(H) * inv(G' * inv(Ω) * G) * inv(H) (optimal GMM)
-- If W is provided: V = inv(H) * inv(G' * W * inv(Ω) * W * G) * inv(H) (suboptimal GMM)
+- If W is nothing: V = inv(H) * (G' * inv(Ω) * G) * inv(H) (optimal GMM)
+- If W is provided: V = inv(H) * (G' * W * inv(Ω) * W * G) * inv(H) (suboptimal GMM)
 
 For unscaled inputs:
 - H: Hessian (sum, not average)

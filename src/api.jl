@@ -191,8 +191,8 @@ end
 
 Compute robust GMM variance allowing misspecification.
 
-For GMMLikeModel + Misspecified: V = inv(H) * [inv(G' * inv(Ω) * G)] * inv(H)
-Requires both hessian_objective (H) and cross_score (G).
+For GMMLikeModel + Misspecified: V = inv(H) * (G' * inv(Ω) * G) * inv(H)
+Requires both hessian_objective (H) and jacobian_momentfunction (G).
 
 # Arguments
 - `ve::AbstractAsymptoticVarianceEstimator`: Variance estimator
@@ -239,11 +239,11 @@ function StatsAPI.vcov(
 
     # Compute robust GMM variance
     if W === nothing
-        # Formula: V = inv(H) * inv(G' * inv(Ω) * G) * inv(H)
+        # Formula: V = inv(H) * (G' * inv(Ω) * G) * inv(H)
         V = _compute_gmm_misspecified(H, G, Ω, nothing; cond_atol = cond_atol,
             cond_rtol = cond_rtol, debug = debug, warn = warn)
     else
-        # Formula: V = inv(H) * inv(G' * W * inv(Ω) * W * G) * inv(H)
+        # Formula: V = inv(H) * (G' * W * inv(Ω) * W * G) * inv(H)
         V = _compute_gmm_misspecified(H, G, Ω, W; cond_atol = cond_atol,
             cond_rtol = cond_rtol, debug = debug, warn = warn)
     end
