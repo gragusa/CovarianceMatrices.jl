@@ -85,6 +85,15 @@ CR2
 CR3
 ```
 
+### Cached Cluster Estimators
+
+For high-performance repeated calculations (e.g., wild bootstrap):
+
+```@docs
+CachedCR
+CRCache
+```
+
 ## Advanced Estimators
 
 ### VARHAC
