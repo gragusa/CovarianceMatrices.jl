@@ -234,7 +234,7 @@ df.y = Y;
         ## standard error and then multiply by G/(G-1) to apply the correction.
     end
 
-@testset "CachedCR - Single Cluster Optimization ✅" begin
+    @testset "CachedCR - Single Cluster Optimization ✅" begin
         # Test that CachedCR produces identical results to regular CR0
         cl = repeat(1:50, inner = 2)
         X_test = randn(StableRNG(42), 100, 5)
