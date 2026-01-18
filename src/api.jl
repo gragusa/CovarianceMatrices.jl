@@ -106,7 +106,7 @@ function StatsAPI.vcov(
     end
 
     # Get required matrices
-    Z = CovarianceMatrices.momentmatrix(model)
+    Z = momentmatrix(model)
     Ω = aVar(ve, Z; scale = false)
     H = hessian_objective(model)
 
@@ -166,9 +166,9 @@ function StatsAPI.vcov(
     end
 
     # Get required matrices
-    Z = CovarianceMatrices.momentmatrix(model)
+    Z = momentmatrix(model)
     Ω = aVar(ve, Z; scale = false)
-    G = CovarianceMatrices.jacobian_momentfunction(model)
+    G = jacobian_momentfunction(model)
 
     # Get weight matrix (use identity if not provided)
     if W === nothing
@@ -227,7 +227,7 @@ function StatsAPI.vcov(
     end
 
     # Get required matrices
-    Z = CovarianceMatrices.momentmatrix(model)
+    Z = momentmatrix(model)
     Ω = aVar(ve, Z; scale = false)
     G = jacobian_momentfunction(model)
     H = hessian_objective(model)

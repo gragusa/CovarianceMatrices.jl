@@ -9,16 +9,17 @@ These use cases utilize different parts of this package, make sure you read the 
 
 module CovarianceMatrices
 
-using StatsAPI
-using StatsAPI: vcov, stderror
-using Combinatorics
-using GroupedArrays
-using LinearAlgebra
-using Statistics
-using StatsBase
-using NaNStatistics
+using BlockDiagonals: BlockDiagonals, BlockDiagonal
+using Combinatorics: Combinatorics, combinations
+using GroupedArrays: GroupedArrays, GroupedArray
+using LinearAlgebra: LinearAlgebra, BLAS, Diagonal, I, Symmetric,
+                     UniformScaling, cholesky, cholesky!, diag, dot, isdiag,
+                     ldiv!, lmul!, mul!, pinv, rdiv!, rmul!, svd
+using NaNStatistics: NaNStatistics
+using Statistics: Statistics
+using StatsAPI: StatsAPI, vcov, stderror
+using StatsBase: StatsBase, RegressionModel, coef, cov, mean, modelmatrix, weights
 using Base.Threads
-using BlockDiagonals
 include("types.jl")
 include("HAC.jl")
 include("CR.jl")
