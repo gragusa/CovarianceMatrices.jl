@@ -1,6 +1,9 @@
 module SparseArraysExt
 
-using CovarianceMatrices, LinearAlgebra, GroupedArrays, SparseArrays
+using CovarianceMatrices
+using GroupedArrays: GroupedArrays, GroupedArray
+using LinearAlgebra: LinearAlgebra, Symmetric, qr!
+using SparseArrays: SparseArrays, AbstractSparseMatrix, nonzeros, nzrange, rowvals
 
 function CovarianceMatrices.clusterize(X::AbstractSparseMatrix, g::GroupedArray)
     m, n = size(X)

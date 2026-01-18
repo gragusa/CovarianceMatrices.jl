@@ -190,7 +190,7 @@ function _var_selection_samelag(
     # Use robust pseudo-inverse for numerical stability
     A_sum = dropdims(sum(A; dims = 3); dims = 3)
     I_minus_A = I - A_sum
-    Γ, _, _ = CovarianceMatrices.ipinv(I_minus_A)
+    Γ, _, _ = ipinv(I_minus_A)
     B = nancov(ε; corrected = false)
     # Ensure symmetry: S(0) = Γ * B * Γ'
     S0 = Γ * B * Γ'
@@ -312,7 +312,7 @@ function _var_selection_ownlag(
     # Use robust pseudo-inverse for numerical stability
     A_sum = dropdims(sum(𝔸; dims = 3); dims = 3)
     I_minus_A = I - A_sum
-    Γ, _, _ = CovarianceMatrices.ipinv(I_minus_A)
+    Γ, _, _ = ipinv(I_minus_A)
     B = nancov(ε; corrected = false)
     # Ensure symmetry: S(0) = Γ * B * Γ'
     S0 = Γ * B * Γ'
@@ -355,7 +355,7 @@ function _var_fixed(X::AbstractMatrix{R}, K; demean::Bool = false) where {R <: R
     # Use robust pseudo-inverse for numerical stability
     A_sum = dropdims(sum(𝔸; dims = 3); dims = 3)
     I_minus_A = I - A_sum
-    Γ, _, _ = CovarianceMatrices.ipinv(I_minus_A)
+    Γ, _, _ = ipinv(I_minus_A)
     B = nancov(ε; corrected = false)
     # Ensure symmetry: S(0) = Γ * B * Γ'
     S0 = Γ * B * Γ'
@@ -483,7 +483,7 @@ function nancov(X::AbstractMatrix{T}; corrected::Bool = true) where {T <: Real}
         return fill(T(NaN), p, p)
     end
     ## Calculate means for valid rows
-    V = Base.promote_op(/, T, Int)
+    V = typeof(zero(T) / oneunit(Int))
     ∅ = zero(V)
     means = Vector{V}(undef, p)
     nv = sum(valid_rows)
@@ -509,7 +509,7 @@ end
 function _cov(x::AbstractVector, y::AbstractVector, corrected::Bool,
         μᵪ::Number, μᵧ::Number, valid_rows::BitVector)
     # Calculate covariance
-    σᵪᵧ = ∅ = zero(Base.promote_op(*, typeof(μᵪ), typeof(μᵧ)))
+    σᵪᵧ = ∅ = zero(typeof(μᵪ * μᵧ))
     @inbounds @simd ivdep for i in eachindex(x, y)
         δᵪ = x[i] - μᵪ
         δᵧ = y[i] - μᵧ
