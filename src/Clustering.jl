@@ -83,11 +83,12 @@ cl = Clustering(firm_ids, year_ids)
 cl.ngroups # 4 (one for each firm-year combination)
 ```
 """
-function Clustering(v1::AbstractVector, vs::AbstractVector...; sort=nothing)
+function Clustering(v1::AbstractVector, vs::AbstractVector...; sort = nothing)
     n = length(v1)
     # Verify all vectors have the same length
     for v in vs
-        length(v) == n || throw(DimensionMismatch("All clustering vectors must have the same length"))
+        length(v) == n ||
+            throw(DimensionMismatch("All clustering vectors must have the same length"))
     end
 
     groups = Vector{Int}(undef, n)
@@ -112,7 +113,7 @@ function Clustering(v1::AbstractVector, vs::AbstractVector...; sort=nothing)
 end
 
 # Pass-through constructor: if already a Clustering, return as-is
-Clustering(c::Clustering; sort=nothing) = c
+Clustering(c::Clustering; sort = nothing) = c
 
 """
     Clustering(c1::Clustering, cs::Clustering...; sort=nothing)
@@ -130,11 +131,12 @@ cl = Clustering(firms, years)
 cl.ngroups # 4 (one for each firm-year combination)
 ```
 """
-function Clustering(c1::Clustering, cs::Clustering...; sort=nothing)
+function Clustering(c1::Clustering, cs::Clustering...; sort = nothing)
     n = length(c1.groups)
     # Verify all Clustering objects have the same length
     for c in cs
-        length(c.groups) == n || throw(DimensionMismatch("All Clustering objects must have the same length"))
+        length(c.groups) == n ||
+            throw(DimensionMismatch("All Clustering objects must have the same length"))
     end
 
     groups = Vector{Int}(undef, n)

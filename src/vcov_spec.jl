@@ -27,7 +27,9 @@ struct VcovSpec{T}
 end
 
 Base.show(io::IO, v::VcovSpec) = print(io, "VcovSpec(", v.source, ")")
-Base.show(io::IO, ::MIME"text/plain", v::VcovSpec) = print(io, "VcovSpec wrapping: ", v.source)
+function Base.show(io::IO, ::MIME"text/plain", v::VcovSpec)
+    print(io, "VcovSpec wrapping: ", v.source)
+end
 
 """
     vcov(estimator::AbstractAsymptoticVarianceEstimator) -> VcovSpec

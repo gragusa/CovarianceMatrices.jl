@@ -123,7 +123,8 @@ end
 # Helper to get lengths from tuple of Clustering in type-stable way
 @inline _get_lengths(f::Tuple{Clustering}) = (length(f[1]),)
 @inline _get_lengths(f::Tuple{Clustering, Clustering}) = (length(f[1]), length(f[2]))
-@inline _get_lengths(f::Tuple{Clustering, Clustering, Clustering}) = (length(f[1]), length(f[2]), length(f[3]))
+@inline _get_lengths(f::Tuple{
+    Clustering, Clustering, Clustering}) = (length(f[1]), length(f[2]), length(f[3]))
 @inline _get_lengths(f::NTuple{N, Clustering}) where {N} = ntuple(i -> length(f[i]), Val(N))
 
 # Single-cluster fast path (most common case) - fully type-stable
@@ -133,7 +134,8 @@ function avar(k::CR, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <: Real
 end
 
 # Dispatch on tuple length for type stability
-@inline function _avar_impl(f::Tuple{Clustering}, X::Union{Matrix{F}, Vector{F}}) where {F <: Real}
+@inline function _avar_impl(f::Tuple{Clustering}, X::Union{
+        Matrix{F}, Vector{F}}) where {F <: Real}
     n = length(f[1])
     @assert n > 1 "All groups must have at least 2 observations"
     @assert size(X, 1) == n "X must have the same number of observations as the groups"
@@ -141,7 +143,8 @@ end
 end
 
 # Two-way clustering - type-stable
-@inline function _avar_impl(f::Tuple{Clustering, Clustering}, X::Union{Matrix{F}, Vector{F}}) where {F <: Real}
+@inline function _avar_impl(f::Tuple{Clustering, Clustering}, X::Union{
+        Matrix{F}, Vector{F}}) where {F <: Real}
     n1, n2 = length(f[1]), length(f[2])
     @assert n1 == n2 "All groups must have the same size"
     @assert n1 > 1 "All groups must have at least 2 observations"
@@ -157,7 +160,8 @@ end
 end
 
 # General N-way clustering fallback
-function _avar_impl(f::NTuple{N, Clustering}, X::Union{Matrix{F}, Vector{F}}) where {N, F <: Real}
+function _avar_impl(f::NTuple{N, Clustering}, X::Union{
+        Matrix{F}, Vector{F}}) where {N, F <: Real}
     lens = _get_lengths(f)
     gmin, gmax = minimum(lens), maximum(lens)
     @assert gmin == gmax "All groups must have the same size"
@@ -247,7 +251,8 @@ end
 nclusters(k::CR) = _nclusters(k.g)
 @inline _nclusters(f::Tuple{Clustering}) = (f[1].ngroups,)
 @inline _nclusters(f::Tuple{Clustering, Clustering}) = (f[1].ngroups, f[2].ngroups)
-@inline _nclusters(f::Tuple{Clustering, Clustering, Clustering}) = (f[1].ngroups, f[2].ngroups, f[3].ngroups)
+@inline _nclusters(f::Tuple{
+    Clustering, Clustering, Clustering}) = (f[1].ngroups, f[2].ngroups, f[3].ngroups)
 @inline _nclusters(f::NTuple{N, Clustering}) where {N} = ntuple(i -> f[i].ngroups, Val(N))
 
 # Type-stable total_num_clusters
