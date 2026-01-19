@@ -1,7 +1,6 @@
 module GLMExt
 
-using CovarianceMatrices, GLM, LinearAlgebra, StatsBase, StatsModels, StatsAPI,
-      Combinatorics, GroupedArrays
+using CovarianceMatrices, GLM, LinearAlgebra, StatsBase, StatsModels, StatsAPI
 using Statistics
 
 const FAM = Union{GLM.Gamma, GLM.Bernoulli, GLM.InverseGaussian}
