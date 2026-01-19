@@ -657,9 +657,15 @@ se_cr0_multi = stderror(CR0((firm_ids, year_ids)), model)
 """
 struct CR0{G} <: CR
     g::G
-    CR0(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
+    function CR0(g::G) where {G <: AbstractVector}
+        t = (Clustering(g),)
+        new{typeof(t)}(t)
+    end
     CR0(g::G) where {G <: Tuple{Vararg{Symbol}}} = new{G}(g)
-    CR0(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
+    function CR0(g::G) where {G <: Tuple}
+        t = map(Clustering, g)
+        new{typeof(t)}(t)
+    end
 end
 
 """
@@ -688,9 +694,15 @@ se_cr1_multi = stderror(CR1((firm_ids, year_ids)), model)
 """
 struct CR1{G} <: CR
     g::G
-    CR1(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
+    function CR1(g::G) where {G <: AbstractVector}
+        t = (Clustering(g),)
+        new{typeof(t)}(t)
+    end
     CR1(g::G) where {G <: Tuple{Vararg{Symbol}}} = new{G}(g)
-    CR1(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
+    function CR1(g::G) where {G <: Tuple}
+        t = map(Clustering, g)
+        new{typeof(t)}(t)
+    end
 end
 
 """
@@ -719,9 +731,15 @@ se_cr2_multi = stderror(CR2((firm_ids, year_ids)), model)
 """
 struct CR2{G} <: CR
     g::G
-    CR2(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
+    function CR2(g::G) where {G <: AbstractVector}
+        t = (Clustering(g),)
+        new{typeof(t)}(t)
+    end
     CR2(g::G) where {G <: Tuple{Vararg{Symbol}}} = new{G}(g)
-    CR2(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
+    function CR2(g::G) where {G <: Tuple}
+        t = map(Clustering, g)
+        new{typeof(t)}(t)
+    end
 end
 
 """
@@ -750,9 +768,15 @@ se_cr3_multi = stderror(CR3((firm_ids, year_ids)), model)
 """
 struct CR3{G} <: CR
     g::G
-    CR3(g::G) where {G <: AbstractVector} = new{Tuple}(map(x -> GroupedArray(x), (g,)))
+    function CR3(g::G) where {G <: AbstractVector}
+        t = (Clustering(g),)
+        new{typeof(t)}(t)
+    end
     CR3(g::G) where {G <: Tuple{Vararg{Symbol}}} = new{G}(g)
-    CR3(g::G) where {G <: Tuple} = new{Tuple}(map(x -> GroupedArray(x), g))
+    function CR3(g::G) where {G <: Tuple}
+        t = map(Clustering, g)
+        new{typeof(t)}(t)
+    end
 end
 
 for k in [:CR0, :CR1, :CR2, :CR3]
@@ -775,7 +799,7 @@ variance calculations. Used internally by `CachedCR`.
 # Fields
 - `X2_buffers`: Tuple of preallocated matrices (ngroups × ncols) for cluster aggregation
 - `S_buffer`: Preallocated output matrix (ncols × ncols)
-- `grouped_arrays`: Precomputed GroupedArrays for each combination (for multi-way clustering)
+- `grouped_arrays`: Precomputed Clusterings for each combination (for multi-way clustering)
 - `cluster_indices`: Precomputed observation indices for each cluster (enables fast gather)
 - `signs`: Precomputed signs for inclusion-exclusion (-1)^(length(c)-1)
 - `ncols`: Number of columns the cache was built for
@@ -787,7 +811,7 @@ For AD compatibility, use the standard non-cached CR estimators.
 struct CRCache{T <: Real}
     X2_buffers::Vector{Matrix{T}}            # One buffer per combination
     S_buffer::Matrix{T}                       # Output buffer (ncols × ncols)
-    grouped_arrays::Vector{GroupedArray}      # Precomputed for each combination
+    grouped_arrays::Vector{Clustering}      # Precomputed for each combination
     cluster_indices::Vector{Vector{Vector{Int}}}  # [combination][cluster] -> obs indices
     signs::Vector{Int}                        # (-1)^(length(c)-1) for each combination
     ncols::Int                                # Number of columns
@@ -821,8 +845,8 @@ function CRCache(k::CR, ncols::Int, ::Type{T} = Float64) where {T}
     f = k.g
     ncombinations = 2^length(f) - 1  # Number of non-empty subsets
 
-    # Precompute GroupedArrays, signs, and cluster indices for each combination
-    grouped_arrays = GroupedArray[]
+    # Precompute Clusterings, signs, and cluster indices for each combination
+    grouped_arrays = Clustering[]
     cluster_indices = Vector{Vector{Int}}[]
     signs = Int[]
     ngroups_list = Int[]
@@ -831,9 +855,9 @@ function CRCache(k::CR, ncols::Int, ::Type{T} = Float64) where {T}
     combs = Iterators.filter(!isempty, combinations(1:length(f)))
     for c in combs
         if length(c) == 1
-            g = GroupedArray(f[c[1]])
+            g = Clustering(f[c[1]])
         else
-            g = GroupedArray((f[i] for i in c)...; sort = nothing)
+            g = Clustering((f[i] for i in c)...; sort = nothing)
         end
         push!(grouped_arrays, g)
         push!(signs, (-1)^(length(c) - 1))
@@ -950,7 +974,7 @@ where only residuals change between iterations.
 - `H`: Type of leverage adjustments (Vector of BlockDiagonal for CR2/CR3, Vector of scalars for CR0/CR1)
 
 # Fields
-- `grouped_arrays`: Precomputed GroupedArrays for each clustering combination
+- `grouped_arrays`: Precomputed Clusterings for each clustering combination
 - `cluster_indices`: Precomputed observation indices [combination][cluster] -> obs indices
 - `signs`: Precomputed signs for inclusion-exclusion formula
 - `bread_matrix`: Cached (X'X)^-1 matrix
@@ -963,7 +987,7 @@ Using this cache makes the variance calculation non-differentiable with AD.
 For AD compatibility, use the standard non-cached CR estimators.
 """
 struct CRModelCache{T <: Real, H}
-    grouped_arrays::Vector{GroupedArray}
+    grouped_arrays::Vector{Clustering}
     cluster_indices::Vector{Vector{Vector{Int}}}
     signs::Vector{Int}
     bread_matrix::Matrix{T}
@@ -1470,14 +1494,14 @@ mutable struct DriscollKraay{K, D} <: Correlated
 end
 
 function DriscollKraay(K::HAC; tis = nothing, iis = nothing)
-    return DriscollKraay(K, GroupedArray(tis), GroupedArray(iis))
+    return DriscollKraay(K, Clustering(tis), Clustering(iis))
 end
 function DriscollKraay(
         K::HAC,
         tis::AbstractArray{T},
         iis::AbstractArray{T}
 ) where {T <: AbstractFloat}
-    return DriscollKraay(K, GroupedArray(tis), GroupedArray(iis))
+    return DriscollKraay(K, Clustering(tis), Clustering(iis))
 end
 
 """

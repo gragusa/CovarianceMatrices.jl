@@ -126,14 +126,14 @@ Compute residual adjustment for basic cluster-robust estimators.
 #residual_adjustment(k::CR, m::GLMTableModel) = residual_adjustment(k, m.model)
 
 """
-    precompute_cluster_indices(g::GroupedArray)
+    precompute_cluster_indices(g::Clustering)
 
 Compute observation indices for each cluster in a single O(n) pass.
 Returns `Vector{Vector{Int}}` where `result[cluster_id]` contains all row indices for that cluster.
 
 This is much faster than repeated `findall()` calls which would be O(n*G).
 """
-function precompute_cluster_indices(g::GroupedArray)
+function precompute_cluster_indices(g::Clustering)
     indices = [Int[] for _ in 1:g.ngroups]
     @inbounds for i in eachindex(g.groups)
         push!(indices[g.groups[i]], i)
@@ -162,7 +162,7 @@ function residual_adjustment(k::CR2, m::RegressionModel)
 
     # Fast path: single cluster variable
     if length(f) == 1
-        g = f[1]  # Already a GroupedArray
+        g = f[1]  # Already a Clustering
         cluster_indices = precompute_cluster_indices(g)
         blocks = Vector{Matrix{eltype(X)}}(undef, g.ngroups)
         @inbounds for gc in 1:g.ngroups
@@ -181,9 +181,9 @@ function residual_adjustment(k::CR2, m::RegressionModel)
     map(combs) do c
         begin
             if length(c) == 1
-                g = GroupedArray(f[c[1]])
+                g = Clustering(f[c[1]])
             else
-                g = GroupedArray((f[i] for i in c)...; sort = nothing)
+                g = Clustering((f[i] for i in c)...; sort = nothing)
             end
             cluster_indices = precompute_cluster_indices(g)
             blocks = Vector{Matrix{eltype(X)}}(undef, g.ngroups)
@@ -207,7 +207,7 @@ function residual_adjustment(k::CR3, m::RegressionModel)
 
     # Fast path: single cluster variable
     if length(f) == 1
-        g = f[1]  # Already a GroupedArray
+        g = f[1]  # Already a Clustering
         cluster_indices = precompute_cluster_indices(g)
         blocks = Vector{Matrix{eltype(X)}}(undef, g.ngroups)
         @inbounds for gc in 1:g.ngroups
@@ -226,9 +226,9 @@ function residual_adjustment(k::CR3, m::RegressionModel)
     map(combs) do c
         begin
             if length(c) == 1
-                g = GroupedArray(f[c[1]])
+                g = Clustering(f[c[1]])
             else
-                g = GroupedArray((f[i] for i in c)...; sort = nothing)
+                g = Clustering((f[i] for i in c)...; sort = nothing)
             end
             cluster_indices = precompute_cluster_indices(g)
             blocks = Vector{Matrix{eltype(X)}}(undef, g.ngroups)
@@ -431,8 +431,8 @@ function CachedCRModel(k::CR, m::RegressionModel)
     n = numobs(m)
     p = size(X, 2)
 
-    # Precompute GroupedArrays, cluster indices, and signs
-    grouped_arrays = GroupedArray[]
+    # Precompute Clusterings, cluster indices, and signs
+    grouped_arrays = Clustering[]
     cluster_indices = Vector{Vector{Int}}[]
     signs = Int[]
 
@@ -440,9 +440,9 @@ function CachedCRModel(k::CR, m::RegressionModel)
     combs = Iterators.filter(!isempty, combinations(1:length(f)))
     for c in combs
         if length(c) == 1
-            g = GroupedArray(f[c[1]])
+            g = Clustering(f[c[1]])
         else
-            g = GroupedArray((f[i] for i in c)...; sort = nothing)
+            g = Clustering((f[i] for i in c)...; sort = nothing)
         end
         push!(grouped_arrays, g)
         push!(signs, (-1)^(length(c) - 1))

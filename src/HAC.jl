@@ -259,7 +259,7 @@ end
 function setkernelweights!(k::HAC{T}, X::AbstractMatrix) where {T <:
                                                                 Union{Andrews, NeweyWest}}
     if k.wlock[1]
-        @assert length(k.kw) == size(X, 2) "The number of columns in X must match the number of kernel weights, got $(length(k.kw)) weights for $(size(X, 2)) columns"
+        length(k.kw) == size(X, 2) || throw(DimensionMismatch("The number of columns in X must match the number of kernel weights, got $(length(k.kw)) weights for $(size(X, 2)) columns"))
     else
         resize!(k.kw, size(X, 2))
         @inbounds for (i, col) in enumerate(eachcol(X))

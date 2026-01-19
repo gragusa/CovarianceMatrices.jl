@@ -1,6 +1,7 @@
 ## Core functionality tests for CovarianceMatrices.jl
 using CovarianceMatrices,
-      DataFrames, CSV, Test, Random, StableRNGs, Statistics, LinearAlgebra, GroupedArrays
+      DataFrames, CSV, Test, Random, StableRNGs, Statistics, LinearAlgebra
+using CovarianceMatrices: Clustering
 using JSON
 using GLM
 using Distributions: Normal, Uniform
@@ -121,7 +122,7 @@ df.y = Y;
 
     @testset "Cluster Sum Operations ✅" begin
         f = repeat(1:20, inner = 5);
-        M = CovarianceMatrices.clusterize(X, GroupedArray(f))
+        M = CovarianceMatrices.clusterize(X, Clustering(f))
         M₀ = [134.8844 120.9909 123.9828
               120.9909 124.3984 120.7009
               123.9828 120.7009 127.6566]
@@ -130,7 +131,7 @@ df.y = Y;
         shuffler = shuffle(StableRNG(123), 1:size(X, 1))
         Xo = X[shuffler, :]
         fo = f[shuffler]
-        Mo = CovarianceMatrices.clusterize(Xo, GroupedArray(fo))
+        Mo = CovarianceMatrices.clusterize(Xo, Clustering(fo))
         @test Mo ≈ M
     end
 
@@ -479,9 +480,9 @@ df.y = Y;
         # Vector constructor still works (existing behavior)
         cl = [1, 1, 2, 2, 3, 3]
         cr0_vec = CR0(cl)
-        @test typeof(cr0_vec) == CR0{Tuple}
+        @test typeof(cr0_vec) == CR0{Tuple{Clustering}}
         @test length(cr0_vec.g) == 1
-        @test cr0_vec.g[1] isa GroupedArrays.GroupedArray
+        @test cr0_vec.g[1] isa Clustering
     end
 
     @testset "Driscoll & Kraay ✅" begin

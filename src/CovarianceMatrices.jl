@@ -11,7 +11,6 @@ module CovarianceMatrices
 
 using BlockDiagonals: BlockDiagonals, BlockDiagonal
 using Combinatorics: Combinatorics, combinations
-using GroupedArrays: GroupedArrays, GroupedArray
 using LinearAlgebra: LinearAlgebra, BLAS, Diagonal, I, Symmetric,
                      UniformScaling, cholesky, cholesky!, diag, dot, isdiag,
                      ldiv!, lmul!, mul!, pinv, rdiv!, rmul!, svd
@@ -20,6 +19,7 @@ using Statistics: Statistics
 using StatsAPI: StatsAPI, vcov, stderror
 using StatsBase: StatsBase, RegressionModel, coef, cov, mean, modelmatrix, weights
 using Base.Threads
+include("Clustering.jl")
 include("types.jl")
 include("HAC.jl")
 include("CR.jl")
@@ -36,6 +36,8 @@ include("stable_computation.jl")
 include("api.jl")
 # Method generic RegressionModel estimators
 include("regression_model_estimators.jl")
+# VcovSpec wrapper for model + vcov() syntax
+include("vcov_spec.jl")
 
 export AbstractAsymptoticVarianceEstimator,
        Uncorrelated,
@@ -101,5 +103,7 @@ export AbstractAsymptoticVarianceEstimator,
        cross_score,
        jacobian_momentfunction,
        hessian_objective,
-       weight_matrix
+       weight_matrix,
+# VcovSpec
+       VcovSpec
 end
