@@ -7,14 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.30.4]
 
-- Improve test coverage. 
+### Added
+
+- VcovSpec Wrapper (#78): New VcovSpec{T} type enabling model + vcov(estimator) syntax for robust standard errors (e.g., `model + vcov(HC3())` or `model + vcov(CR1(:firm)))`.
+- Cached Cluster-Robust Estimators (#72): New CachedCR and CRCache types for fast repeated cluster-robust variance calculations with preallocated buffers and precomputed cluster indices.
+- `CachedCR(k, ncols)` — For general moment matrices
+- `CachedCRModel(k, model)` — For RegressionModel/GLM with precomputed leverage adjustments
+- Internal Clustering Implementation (#72): Lightweight `Clustering` struct replacing `GroupedArrays.jl` dependency.
+
+  Changed
+
+  - CR estimators (`CR0`, `CR1`, `CR2`, `CR3`) now use internal Clustering type instead of GroupedArray.
+
+  Fixed
+
+  - Implicit Imports (#77): Fixed implicit import issues for cleaner namespace management.
+
+  Tests
+
+  - Improved test coverage (#76).
 
 
 ## [0.30.3]
 
 ### Added
 
-- Add more tests for EWC
+- Add more tests for `EWC`
 
 - Added symbol constructor for `CR` type variance. E.g., `CR0(:state)` which gives a type `CR0{Tuple{Symbol}}`. Useful for specifying cluster variables using symbols, allowing models that support it to materialize the actual type later. 
 
