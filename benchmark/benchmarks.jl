@@ -28,7 +28,7 @@ frm = @formula(y ~ x1 + x2 + x3 + x4 + x5)
 lm1 = glm(frm, df, Normal(), IdentityLink())
 lm2 = glm(frm, df2, Normal(), IdentityLink())
 
-SUITE = BenchmarkGroup()
+const SUITE = BenchmarkGroup()
 SUITE["HAC Andrews"] = BenchmarkGroup()
 SUITE["HAC Newey"] = BenchmarkGroup()
 SUITE["HAC Fixed(10)"] = BenchmarkGroup()
