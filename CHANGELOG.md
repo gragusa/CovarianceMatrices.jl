@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.30.5] (Unreleased)
+
+### Source Code Changes
+
+- Improves smoothing functions
+- Changed `order_aic` and `order_bic` fields from `Vector{Int}` to `Array{Int}` to support both `SameLags` (Vector) and `DifferentOwnLags` (Matrix) strategies
+- VARHAC optimization - Moved `delag(X, kk)` call inside the kk > 0 condition in `_var_selection_ownlag`
+
+###  CI/Infrastructure
+
+- Added CompatHelper, TagBot, and benchmark GitHub workflows
+- Updated CI workflow configuration
+- Added .pre-commit-config.yaml
+- Added benchmark infrastructure 
+
+### Tests
+
+- Added more tests for smoothed moments
+- Added VARHAC tests
+
 ## [0.30.4]
 
 ### Added
