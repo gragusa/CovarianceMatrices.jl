@@ -306,4 +306,425 @@ using Random
             ## Using G̃triangular from previous test for which we know the smoothing
         end
     end
+
+    @testset "Smoothed Moments Mathematical Correctness" begin
+        # These tests verify the mathematical correctness of the smoothing computation
+        # by manually computing expected values following the formulas
+
+        @testset "Uniform Smoothing - Manual Verification" begin
+            # For uniform smoothing with bandwidth m_T:
+            # G_smooth[t] = sum of G[i] for i in [max(1, t-m_T), min(T, t+m_T)]
+
+            # Simple 5-element vector, m_T = 1
+            G = reshape([1.0, 2.0, 3.0, 4.0, 5.0], 5, 1)
+            m_T = 1
+
+            # Manual calculation:
+            # t=1: window [max(1,0), min(5,2)] = [1,2], sum = 1+2 = 3
+            # t=2: window [max(1,1), min(5,3)] = [1,3], sum = 1+2+3 = 6
+            # t=3: window [max(1,2), min(5,4)] = [2,4], sum = 2+3+4 = 9
+            # t=4: window [max(1,3), min(5,5)] = [3,5], sum = 3+4+5 = 12
+            # t=5: window [max(1,4), min(5,6)] = [4,5], sum = 4+5 = 9
+            expected = reshape([3.0, 6.0, 9.0, 12.0, 9.0], 5, 1)
+
+            k_uniform = CovarianceMatrices.UniformSmoother(m_T)
+            result = CovarianceMatrices.smooth_moments(G, k_uniform)
+            @test result ≈ expected
+
+            # Test with m_T = 2
+            m_T = 2
+            # t=1: window [1, min(5,3)] = [1,3], sum = 1+2+3 = 6
+            # t=2: window [1, min(5,4)] = [1,4], sum = 1+2+3+4 = 10
+            # t=3: window [1, 5], sum = 1+2+3+4+5 = 15
+            # t=4: window [max(1,2), 5] = [2,5], sum = 2+3+4+5 = 14
+            # t=5: window [max(1,3), 5] = [3,5], sum = 3+4+5 = 12
+            expected_m2 = reshape([6.0, 10.0, 15.0, 14.0, 12.0], 5, 1)
+
+            k_uniform_2 = CovarianceMatrices.UniformSmoother(m_T)
+            result_m2 = CovarianceMatrices.smooth_moments(G, k_uniform_2)
+            @test result_m2 ≈ expected_m2
+        end
+
+        @testset "Triangular Smoothing - Manual Verification" begin
+            # For triangular smoothing with bandwidth m_T:
+            # G_smooth[t] = sum of w(i,t) * G[i] for i in window
+            # where w(i,t) = 1 - 2*|t-i|/(2*m_T+1)
+
+            # Simple 5-element vector, m_T = 1
+            # scale = 2/(2*1+1) = 2/3
+            G = reshape([1.0, 2.0, 3.0, 4.0, 5.0], 5, 1)
+            m_T = 1
+            scale = 2.0 / (2 * m_T + 1)  # = 2/3
+
+            # Manual calculation (using the actual implementation logic):
+            # For each t, weight for index i is: 1 - scale*|t-i|
+            # t=1: window [1,2]
+            #   i=1: weight = 1 - (2/3)*0 = 1.0, contrib = 1.0 * 1 = 1.0
+            #   i=2: weight = 1 - (2/3)*1 = 1/3, contrib = (1/3) * 2 = 2/3
+            #   total = 1.0 + 2/3 = 5/3
+            # t=2: window [1,3]
+            #   i=1: weight = 1 - (2/3)*1 = 1/3, contrib = (1/3) * 1 = 1/3
+            #   i=2: weight = 1 - (2/3)*0 = 1.0, contrib = 1.0 * 2 = 2.0
+            #   i=3: weight = 1 - (2/3)*1 = 1/3, contrib = (1/3) * 3 = 1.0
+            #   total = 1/3 + 2.0 + 1.0 = 10/3
+            # t=3: window [2,4]
+            #   i=2: weight = 1/3, contrib = (1/3) * 2 = 2/3
+            #   i=3: weight = 1.0, contrib = 1.0 * 3 = 3.0
+            #   i=4: weight = 1/3, contrib = (1/3) * 4 = 4/3
+            #   total = 2/3 + 3.0 + 4/3 = 5.0
+            # t=4: window [3,5]
+            #   i=3: weight = 1/3, contrib = (1/3) * 3 = 1.0
+            #   i=4: weight = 1.0, contrib = 1.0 * 4 = 4.0
+            #   i=5: weight = 1/3, contrib = (1/3) * 5 = 5/3
+            #   total = 1.0 + 4.0 + 5/3 = 20/3
+            # t=5: window [4,5]
+            #   i=4: weight = 1/3, contrib = (1/3) * 4 = 4/3
+            #   i=5: weight = 1.0, contrib = 1.0 * 5 = 5.0
+            #   total = 4/3 + 5.0 = 19/3
+            expected = reshape([5/3, 10/3, 5.0, 20/3, 19/3], 5, 1)
+
+            k_triangular = CovarianceMatrices.TriangularSmoother(m_T)
+            result = CovarianceMatrices.smooth_moments(G, k_triangular)
+            @test result ≈ expected rtol=1e-10
+        end
+
+        @testset "Uniform Smoothing - Multi-column Matrix" begin
+            # Test with a 2-column matrix to verify column-wise operation
+            G = [1.0 10.0;
+                 2.0 20.0;
+                 3.0 30.0;
+                 4.0 40.0;
+                 5.0 50.0]
+            m_T = 1
+
+            # Each column should be smoothed independently
+            # Column 1: [3, 6, 9, 12, 9] (from previous test)
+            # Column 2: [30, 60, 90, 120, 90] (10x column 1)
+            expected = [3.0 30.0;
+                        6.0 60.0;
+                        9.0 90.0;
+                        12.0 120.0;
+                        9.0 90.0]
+
+            k_uniform = CovarianceMatrices.UniformSmoother(m_T)
+            result = CovarianceMatrices.smooth_moments(G, k_uniform)
+            @test result ≈ expected
+        end
+
+        @testset "Triangular Smoothing - Multi-column Matrix" begin
+            # Test with a 2-column matrix
+            G = [1.0 10.0;
+                 2.0 20.0;
+                 3.0 30.0;
+                 4.0 40.0;
+                 5.0 50.0]
+            m_T = 1
+
+            # Each column should be smoothed independently
+            # Column 2 is 10x column 1, so result should be 10x as well
+            expected_col1 = [5/3, 10/3, 5.0, 20/3, 19/3]
+            expected = hcat(expected_col1, 10.0 .* expected_col1)
+
+            k_triangular = CovarianceMatrices.TriangularSmoother(m_T)
+            result = CovarianceMatrices.smooth_moments(G, k_triangular)
+            @test result ≈ expected rtol=1e-10
+        end
+
+        @testset "Smoothing Preserves Sum (Uniform)" begin
+            # For uniform smoothing, the sum of all smoothed values should equal
+            # the sum of original values times the average window size
+            # This is a useful sanity check
+            G = randn(StableRNG(42), 20, 3)
+            m_T = 3
+
+            k_uniform = CovarianceMatrices.UniformSmoother(m_T)
+            G_smooth = CovarianceMatrices.smooth_moments(G, k_uniform)
+
+            # Each element contributes to multiple windows
+            # Interior elements (with full windows) contribute to 2*m_T+1 sums
+            # Boundary elements contribute to fewer
+            # Verify the computation is consistent
+            for j in 1:size(G, 2)
+                # Manually compute expected sum
+                T = size(G, 1)
+                expected_sum = 0.0
+                for t in 1:T
+                    a = max(1, t - m_T)
+                    b = min(T, t + m_T)
+                    expected_sum += sum(G[a:b, j])
+                end
+                @test sum(G_smooth[:, j]) ≈ expected_sum rtol=1e-10
+            end
+        end
+
+        @testset "Smoothing with m_T = 0 Returns Original" begin
+            # With m_T = 0, window is just the element itself
+            G = randn(StableRNG(123), 10, 4)
+
+            k_uniform_0 = CovarianceMatrices.UniformSmoother(0)
+            k_triangular_0 = CovarianceMatrices.TriangularSmoother(0)
+
+            G_uniform_0 = CovarianceMatrices.smooth_moments(G, k_uniform_0)
+            G_triangular_0 = CovarianceMatrices.smooth_moments(G, k_triangular_0)
+
+            @test G_uniform_0 ≈ G
+            @test G_triangular_0 ≈ G
+        end
+
+        @testset "Boundary Behavior Verification" begin
+            # Verify boundary elements are handled correctly
+            G = reshape(collect(1.0:10.0), 10, 1)
+            m_T = 5  # Large bandwidth relative to data
+
+            k_uniform = CovarianceMatrices.UniformSmoother(m_T)
+            result = CovarianceMatrices.smooth_moments(G, k_uniform)
+
+            # t=1: window [1, min(10, 6)] = [1,6], sum = 1+2+3+4+5+6 = 21
+            @test result[1] ≈ 21.0
+
+            # t=5: window [max(1,0), min(10,10)] = [1,10], sum = 55
+            @test result[5] ≈ 55.0
+
+            # t=6: window [max(1,1), min(10,11)] = [1,10], sum = 55
+            @test result[6] ≈ 55.0
+
+            # t=10: window [max(1,5), 10] = [5,10], sum = 5+6+7+8+9+10 = 45
+            @test result[10] ≈ 45.0
+        end
+
+        @testset "Triangular Weights Sum to Expected Value" begin
+            # For triangular kernel, verify the weights computation
+            m_T = 2
+            scale = 2.0 / (2 * m_T + 1)  # = 2/5 = 0.4
+
+            # With all 1s input, output should equal sum of weights in window
+            G = ones(7, 1)
+
+            k_triangular = CovarianceMatrices.TriangularSmoother(m_T)
+            result = CovarianceMatrices.smooth_moments(G, k_triangular)
+
+            # t=3 (middle, full window [1,5]):
+            # weights: 1-0.4*2, 1-0.4*1, 1-0.4*0, 1-0.4*1, 1-0.4*2
+            #        = 0.2, 0.6, 1.0, 0.6, 0.2
+            # sum = 2.6
+            @test result[3] ≈ 2.6 rtol=1e-10
+
+            # t=4 (middle, full window [2,6]):
+            # Same weights, sum = 2.6
+            @test result[4] ≈ 2.6 rtol=1e-10
+
+            # t=1 (boundary, window [1,3]):
+            # weights: 1.0, 0.6, 0.2
+            # sum = 1.8
+            @test result[1] ≈ 1.8 rtol=1e-10
+        end
+
+        @testset "Verify Against Naive Loop Implementation" begin
+            # Compare against a simple naive loop implementation
+            function naive_uniform_smooth(G, m_T)
+                T, k = size(G)
+                result = zeros(T, k)
+                for t in 1:T
+                    for j in 1:k
+                        for i in max(1, t - m_T):min(T, t + m_T)
+                            result[t, j] += G[i, j]
+                        end
+                    end
+                end
+                return result
+            end
+
+            function naive_triangular_smooth(G, m_T)
+                T, k = size(G)
+                scale = 2.0 / (2 * m_T + 1)
+                result = zeros(T, k)
+                for t in 1:T
+                    for j in 1:k
+                        for i in max(1, t - m_T):min(T, t + m_T)
+                            weight = 1.0 - scale * abs(t - i)
+                            result[t, j] += weight * G[i, j]
+                        end
+                    end
+                end
+                return result
+            end
+
+            # Test with various configurations
+            for (T, k, m_T) in [(10, 2, 2), (20, 3, 5), (50, 1, 10), (100, 4, 3)]
+                G = randn(StableRNG(T * k * m_T), T, k)
+
+                k_uniform = CovarianceMatrices.UniformSmoother(m_T)
+                k_triangular = CovarianceMatrices.TriangularSmoother(m_T)
+
+                result_uniform = CovarianceMatrices.smooth_moments(G, k_uniform)
+                result_triangular = CovarianceMatrices.smooth_moments(G, k_triangular)
+
+                expected_uniform = naive_uniform_smooth(G, m_T)
+                expected_triangular = naive_triangular_smooth(G, m_T)
+
+                @test result_uniform ≈ expected_uniform rtol=1e-10
+                @test result_triangular ≈ expected_triangular rtol=1e-10
+            end
+        end
+    end
+
+    @testset "Integer Input Dispatch" begin
+        # Test that Int matrices are properly converted to Float and processed correctly
+        # These tests cover the Int dispatch wrappers: uniform_sum!, uniform_sum,
+        # triangular_sum!, triangular_sum with Int input
+
+        @testset "uniform_sum with Int input" begin
+            # Create an Int matrix
+            G_int = [1 11; 2 12; 3 13; 4 14; 5 15; 6 16; 7 17; 8 18; 9 19; 10 20]
+            G_float = Float64.(G_int)
+            m_T = 3
+
+            # Test out-of-place version
+            result_int = CovarianceMatrices.uniform_sum(G_int, m_T)
+            result_float = CovarianceMatrices.uniform_sum(G_float, m_T)
+            @test result_int ≈ result_float
+            @test eltype(result_int) <: AbstractFloat
+
+            # Test in-place version
+            dest_from_int = zeros(Float64, size(G_int))
+            dest_from_float = zeros(Float64, size(G_float))
+            CovarianceMatrices.uniform_sum!(dest_from_int, G_int, m_T)
+            CovarianceMatrices.uniform_sum!(dest_from_float, G_float, m_T)
+            @test dest_from_int ≈ dest_from_float
+        end
+
+        @testset "triangular_sum with Int input" begin
+            # Create an Int matrix
+            G_int = [1 11; 2 12; 3 13; 4 14; 5 15; 6 16; 7 17; 8 18; 9 19; 10 20]
+            G_float = Float64.(G_int)
+            m_T = 3
+
+            # Test out-of-place version
+            result_int = CovarianceMatrices.triangular_sum(G_int, m_T)
+            result_float = CovarianceMatrices.triangular_sum(G_float, m_T)
+            @test result_int ≈ result_float
+            @test eltype(result_int) <: AbstractFloat
+
+            # Test in-place version
+            dest_from_int = zeros(Float64, size(G_int))
+            dest_from_float = zeros(Float64, size(G_float))
+            CovarianceMatrices.triangular_sum!(dest_from_int, G_int, m_T)
+            CovarianceMatrices.triangular_sum!(dest_from_float, G_float, m_T)
+            @test dest_from_int ≈ dest_from_float
+        end
+
+        @testset "smooth_moments with Int input via smoother API" begin
+            G_int = [1 2 3; 4 5 6; 7 8 9; 10 11 12; 13 14 15]
+            G_float = Float64.(G_int)
+            m_T = 2
+
+            # Test UniformSmoother with Int input
+            k_uniform = CovarianceMatrices.UniformSmoother(m_T)
+            result_uniform_int = CovarianceMatrices.smooth_moments(G_int, k_uniform)
+            result_uniform_float = CovarianceMatrices.smooth_moments(G_float, k_uniform)
+            @test result_uniform_int ≈ result_uniform_float
+
+            # Test TriangularSmoother with Int input
+            k_triangular = CovarianceMatrices.TriangularSmoother(m_T)
+            result_triangular_int = CovarianceMatrices.smooth_moments(G_int, k_triangular)
+            result_triangular_float = CovarianceMatrices.smooth_moments(G_float, k_triangular)
+            @test result_triangular_int ≈ result_triangular_float
+        end
+    end
+
+    @testset "Kernel Statistics Functions" begin
+        # Test k1hat, k2hat, k3hat for correctness
+
+        @testset "k2hat" begin
+            # k2hat is used in avar, verify it computes sum of squared kernel values
+            k_uniform = CovarianceMatrices.UniformSmoother(2)
+            k_triangular = CovarianceMatrices.TriangularSmoother(2)
+
+            # For uniform kernel with m_T=2: kernel is 1 for |s| <= 2, so k2hat = sum of 1^2 for s=-2,-1,0,1,2 = 5
+            @test CovarianceMatrices.k2hat(k_uniform) == 5.0
+
+            # For triangular kernel: sum of (1 - |s|/S_T)^2 for s in [-m_T, m_T]
+            # S_T = (2*2+1)/2 = 2.5
+            # s=-2: (1 - 2/2.5)^2 = (0.2)^2 = 0.04
+            # s=-1: (1 - 1/2.5)^2 = (0.6)^2 = 0.36
+            # s=0:  (1 - 0)^2 = 1.0
+            # s=1:  (1 - 1/2.5)^2 = (0.6)^2 = 0.36
+            # s=2:  (1 - 2/2.5)^2 = (0.2)^2 = 0.04
+            # Total = 0.04 + 0.36 + 1.0 + 0.36 + 0.04 = 1.8
+            @test CovarianceMatrices.k2hat(k_triangular) ≈ 1.8
+        end
+
+        @testset "k1hat" begin
+            # k1hat returns kernel function values over extended range [-m_T-2, m_T+2]
+            k_uniform = CovarianceMatrices.UniformSmoother(2)
+            k_triangular = CovarianceMatrices.TriangularSmoother(2)
+
+            k1_uniform = CovarianceMatrices.k1hat(k_uniform)
+            k1_triangular = CovarianceMatrices.k1hat(k_triangular)
+
+            # For uniform with m_T=2, S_T=2.5, kernel is 1 for |s/S_T| <= 1
+            # Range is s in [-4, 4], so 9 values
+            @test length(k1_uniform) == 9  # -4,-3,-2,-1,0,1,2,3,4
+
+            # Kernel is 1 for |s| <= S_T = 2.5, i.e., s in {-2,-1,0,1,2}
+            # Expected: [0,0,1,1,1,1,1,0,0] for s=-4,-3,-2,-1,0,1,2,3,4
+            @test k1_uniform == [0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0]
+
+            # For triangular, similar range check
+            @test length(k1_triangular) == 9
+            # Kernel is (1 - |s|/S_T) for |s| <= S_T, 0 otherwise
+            # At s=0: 1.0, s=±1: 0.6, s=±2: 0.2, s=±3,±4: 0.0
+            @test k1_triangular[5] ≈ 1.0  # s=0
+            @test k1_triangular[4] ≈ 0.6  # s=-1
+            @test k1_triangular[6] ≈ 0.6  # s=1
+            @test k1_triangular[3] ≈ 0.2  # s=-2
+            @test k1_triangular[7] ≈ 0.2  # s=2
+            @test k1_triangular[1] == 0.0  # s=-4
+            @test k1_triangular[9] == 0.0  # s=4
+        end
+
+        @testset "k3hat" begin
+            # k3hat computes sum of cubed kernel values over extended range
+            k_uniform = CovarianceMatrices.UniformSmoother(2)
+            k_triangular = CovarianceMatrices.TriangularSmoother(2)
+
+            # For uniform kernel, k(s)^3 = 1 where kernel is 1, so same as counting
+            # s in [-4,4], kernel is 1 for s in [-2,2], so 5 values
+            @test CovarianceMatrices.k3hat(k_uniform) == 5.0
+
+            # For triangular: sum of (1 - |s|/S_T)^3 for s in [-4, 4] where kernel > 0
+            # Only s in [-2,2] contribute since |s|/S_T <= 1 means |s| <= 2.5
+            # s=-2: 0.2^3 = 0.008
+            # s=-1: 0.6^3 = 0.216
+            # s=0:  1.0^3 = 1.0
+            # s=1:  0.6^3 = 0.216
+            # s=2:  0.2^3 = 0.008
+            # Total = 0.008 + 0.216 + 1.0 + 0.216 + 0.008 = 1.448
+            @test CovarianceMatrices.k3hat(k_triangular) ≈ 1.448
+        end
+    end
+
+    @testset "Optimal Bandwidth Functions" begin
+        # Test optimal_bandwidth for both kernel types
+
+        @testset "UniformSmoother optimal_bandwidth" begin
+            # Formula: 2.0 * T^(1/3)
+            @test CovarianceMatrices.optimal_bandwidth(CovarianceMatrices.UniformSmoother(0), 100) ≈
+                  2.0 * 100^(1/3)
+            @test CovarianceMatrices.optimal_bandwidth(CovarianceMatrices.UniformSmoother(0), 1000) ≈
+                  2.0 * 1000^(1/3)
+            @test CovarianceMatrices.optimal_bandwidth(CovarianceMatrices.UniformSmoother(5), 500) ≈
+                  2.0 * 500^(1/3)
+        end
+
+        @testset "TriangularSmoother optimal_bandwidth" begin
+            # Formula: 1.5 * T^(1/5)
+            @test CovarianceMatrices.optimal_bandwidth(CovarianceMatrices.TriangularSmoother(0), 100) ≈
+                  1.5 * 100^(1/5)
+            @test CovarianceMatrices.optimal_bandwidth(CovarianceMatrices.TriangularSmoother(0), 1000) ≈
+                  1.5 * 1000^(1/5)
+            @test CovarianceMatrices.optimal_bandwidth(CovarianceMatrices.TriangularSmoother(5), 500) ≈
+                  1.5 * 500^(1/5)
+        end
+    end
 end
