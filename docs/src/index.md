@@ -44,7 +44,8 @@ varhac_est = VARHAC()
 Ω_varhac = aVar(varhac_est, X)
 
 # Smoothed moments (automatic positive semi-definiteness)
-smooth_est = SmoothedMoments()
+m_T = round(Int, 2.0 * size(X, 1)^(1/3))  # Optimal bandwidth
+smooth_est = UniformSmoother(m_T)
 Ω_smooth = aVar(smooth_est, X)
 ```
 
@@ -119,7 +120,7 @@ se_varhac = stderror(VARHAC(), time_series_model)
 
 ### Advanced Estimators
 - [`VARHAC`](@ref): VAR-based HAC estimation without bandwidth selection
-- [`SmoothedMoments`](@ref): Smith's smoothed moments with automatic PSD
+- [`UniformSmoother`](@ref), [`TriangularSmoother`](@ref): Smith's smoothed moments with automatic PSD
 - [`DriscollKraay`](@ref): Panel data with spatial and temporal correlation
 - [`EWC`](@ref): Equal Weighted Cosine estimation
 

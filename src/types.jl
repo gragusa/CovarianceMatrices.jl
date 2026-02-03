@@ -1265,8 +1265,8 @@ ve4 = VARHAC(AICSelector(), AutoLags())
 mutable struct VARHAC{S <: LagSelector, L <: LagStrategy, T <: Real} <: Correlated
     AICs::Union{Array{T}, Nothing}
     BICs::Union{Array{T}, Nothing}
-    order_aic::Union{Vector{Int}, Nothing}
-    order_bic::Union{Vector{Int}, Nothing}
+    order_aic::Union{Array{Int}, Nothing}  # Vector for SameLags, Matrix for DifferentOwnLags
+    order_bic::Union{Array{Int}, Nothing}  # Vector for SameLags, Matrix for DifferentOwnLags
     selector::S
     strategy::L
 end

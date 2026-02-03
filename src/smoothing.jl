@@ -16,7 +16,7 @@ abstract type MomentSmoother <: AbstractAsymptoticVarianceEstimator end
 """
     UniformSmoother(m_T::Integer)
 
-Uniform (box) kernel smoother for Smith's smoothed moments HAC estimation.
+Uniform kernel smoother for Smith's smoothed moments HAC estimation.
 
 The uniform kernel is defined as k(x) = 1 if |x| ≤ 1, and 0 otherwise.
 This induces a Bartlett HAC kernel in the final variance estimator.
@@ -24,31 +24,6 @@ This induces a Bartlett HAC kernel in the final variance estimator.
 # Arguments
 - `m_T::Integer`: Bandwidth parameter (must be a non-negative integer).
   The smoothing window size is 2m_T + 1.
-
-# Optimal Bandwidth
-The optimal bandwidth scales as S_T ∝ T^(1/3) where T is the sample size.
-Use `optimal_bandwidth(UniformSmoother(0), T)` to compute the optimal value.
-
-# Examples
-```julia
-using CovarianceMatrices
-
-# Create a uniform smoother with bandwidth parameter m_T = 5
-smoother = UniformSmoother(5)
-
-# Generate some moment data (T × k matrix)
-G = randn(100, 3)
-
-# Smooth the moments
-G_smooth = smooth_moments(G, smoother)
-
-# Compute HAC variance estimate
-Ω = aVar(smoother, G)
-```
-
-# References
-Smith, R. J. (2005). "Automatic Positive Semidefinite HAC Covariance Matrix and GMM Estimation."
-Econometric Theory, 21, 158-170.
 """
 struct UniformSmoother <: MomentSmoother
     m_T::Int
@@ -74,31 +49,6 @@ This induces a Parzen HAC kernel in the final variance estimator.
 # Arguments
 - `m_T::Integer`: Bandwidth parameter (must be a non-negative integer).
   The smoothing window size is 2m_T + 1.
-
-# Optimal Bandwidth
-The optimal bandwidth scales as S_T ∝ T^(1/5) where T is the sample size.
-Use `optimal_bandwidth(TriangularSmoother(0), T)` to compute the optimal value.
-
-# Examples
-```julia
-using CovarianceMatrices
-
-# Create a triangular smoother with bandwidth parameter m_T = 5
-smoother = TriangularSmoother(5)
-
-# Generate some moment data (T × k matrix)
-G = randn(100, 3)
-
-# Smooth the moments
-G_smooth = smooth_moments(G, smoother)
-
-# Compute HAC variance estimate
-Ω = aVar(smoother, G)
-```
-
-# References
-Smith, R. J. (2005). "Automatic Positive Semidefinite HAC Covariance Matrix and GMM Estimation."
-Econometric Theory, 21, 158-170.
 """
 struct TriangularSmoother <: MomentSmoother
     m_T::Int
@@ -183,7 +133,7 @@ a smoothed moment matrix that automatically yields positive semi-definite varian
 # Returns
 - Smoothed moment matrix of the same size as G
 
-# Performance
+# Note
 The implementation uses prefix sums for O(T) complexity per column, making it efficient
 even for large sample sizes. For very large matrices, consider using the in-place version
 `smooth_moments!` to reduce allocations.
@@ -204,13 +154,8 @@ G_smooth_u = smooth_moments(G, smoother_u)
 smoother_t = TriangularSmoother(5)
 G_smooth_t = smooth_moments(G, smoother_t)
 ```
-
-# References
-Smith, R. J. (2011). "GEL Criteria for Moment Condition Models."
-Econometric Theory, 27(6), 1192-1235.
 """
-function smooth_moments(
-        G::AbstractMatrix, kernel::T; threaded::Bool = false) where {T <: UniformSmoother}
+function smooth_moments(G::AbstractMatrix, kernel::T) where {T <: UniformSmoother}
     return uniform_sum(G, kernel.m_T)
 end
 
@@ -228,9 +173,6 @@ allocations.
 - `G::AbstractMatrix`: T × k matrix of moment conditions to be smoothed
 - `kernel::MomentSmoother`: Smoother object with bandwidth parameter m_T
 
-# Returns
-- The destination matrix `dest` containing smoothed moments
-
 # Examples
 ```julia
 using CovarianceMatrices
@@ -238,31 +180,26 @@ using CovarianceMatrices
 # Generate moment data
 T, k = 100, 3
 G = randn(T, k)
-
 # Pre-allocate destination
 G_smooth = similar(G)
-
 # In-place smoothing
 smoother = UniformSmoother(5)
 smooth_moments!(G_smooth, G, smoother)
 ```
 """
-function smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::T;
-        threaded::Bool = false) where {T <: UniformSmoother}
+function smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::T) where {T <:
+                                                                                    UniformSmoother}
     return uniform_sum!(dest, G, kernel.m_T)
 end
 
-function smooth_moments(G::AbstractMatrix, kernel::T;
-        threaded::Bool = false) where {T <: TriangularSmoother}
+function smooth_moments(G::AbstractMatrix, kernel::T) where {T <: TriangularSmoother}
     return triangular_sum(G, kernel.m_T)
 end
 
-function smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::T;
-        threaded::Bool = false) where {T <: TriangularSmoother}
+function smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::T) where {T <:
+                                                                                    TriangularSmoother}
     return triangular_sum!(dest, G, kernel.m_T)
 end
-
-using Base.Threads
 
 # ================
 # UNIFORM WINDOW
@@ -325,7 +262,7 @@ end
 # with D = 2m_T + 1. No outer factor 2/D is applied here.
 
 """
-    triangular_sum(G::AbstractMatrix, m_T::Integer; threaded::Bool = true) -> AbstractMatrix
+    triangular_sum(G::AbstractMatrix, m_T::Integer) -> AbstractMatrix
 
 Computes triangular kernel smoothing using prefix sums for O(T) per column.
 """
@@ -516,96 +453,7 @@ function avar(
 end
 
 """
-    smooth_uniform_plain(G, m_T)
-
-Smooth a T×k matrix G using uniform kernel weights.
-
-The smoothing formula is:
-G_smooth[t,j] = Σ_{s=t-T}^{t-1} k(2s/(2m_T+1)) * G[t-s,j]
-
-where k(x) = 1 if |x| ≤ 1, and 0 otherwise (uniform kernel).
-
-Arguments:
-- G: T×k matrix to be smoothed
-- m_T: positive integer controlling the smoothing window size
-
-Returns:
-- G_smooth: smoothed matrix with uniform kernel weights
-"""
-function smooth_uniform_plain(G::Matrix{Float64}, m_T::Int)
-    T, k = size(G)
-    G_smooth = zeros(T, k)
-
-    for t in 1:T
-        for j in 1:k
-            # Sum from s = t-T to s = t-1
-            for s in (t - T):(t - 1)
-                idx = t - s  # Index in original matrix (must be in 1:T)
-
-                # Check if index is valid
-                if 1 <= idx <= T
-                    # Compute kernel argument
-                    x = 2 * s / (2 * m_T + 1)
-
-                    # Uniform kernel: k(x) = 1 if |x| <= 1, else 0
-                    if abs(x) <= 1.0
-                        G_smooth[t, j] += G[idx, j]
-                    end
-                end
-            end
-        end
-    end
-
-    return G_smooth
-end
-
-"""
-    smooth_triangular_plain(G, m_T)
-
-Smooth a T×k matrix G using triangular kernel weights.
-
-The smoothing formula is:
-G_smooth[t,j] = Σ_{s=t-T}^{t-1} k(2s/(2m_T+1)) * G[t-s,j]
-
-where k(x) = 1-|x| if |x| ≤ 1, and 0 otherwise (triangular kernel).
-
-Arguments:
-- G: T×k matrix to be smoothed
-- m_T: positive integer controlling the smoothing window size
-
-Returns:
-- G_smooth: smoothed matrix with triangular kernel weights
-"""
-function smooth_triangular_plain(G::Matrix{Float64}, m_T::Int)
-    T, k = size(G)
-    G_smooth = zeros(T, k)
-
-    for t in 1:T
-        for j in 1:k
-            # Sum from s = t-T to s = t-1
-            for s in (t - T):(t - 1)
-                idx = t - s  # Index in original matrix (must be in 1:T)
-
-                # Check if index is valid
-                if 1 <= idx <= T
-                    # Compute kernel argument
-                    x = 2 * s / (2 * m_T + 1)
-
-                    # Triangular kernel: k(x) = 1-|x| if |x| <= 1, else 0
-                    if abs(x) <= 1.0
-                        weight = 1.0 - abs(x)
-                        G_smooth[t, j] += weight * G[idx, j]
-                    end
-                end
-            end
-        end
-    end
-
-    return G_smooth
-end
-
-"""
-    smooth_uniform_plain2(G, m_T)
+    smooth_uniform(G, m_T)
 
 Smooth a T×k matrix G using uniform kernel weights.
 
@@ -616,7 +464,7 @@ Arguments:
 Returns:
 - G_smooth: smoothed matrix with uniform kernel weights
 """
-function smooth_uniform_plain2(G::Matrix{Float64}, m_T::Int)
+function smooth_uniform(G::Matrix{Float64}, m_T::Int)
     T, k = size(G)
     G_smooth = zeros(T, k)
 
@@ -638,7 +486,7 @@ function smooth_uniform_plain2(G::Matrix{Float64}, m_T::Int)
 end
 
 """
-    smooth_triangular_plain2(G, m_T)
+    smooth_triangular(G, m_T)
 
 Smooth a T×k matrix G using triangular kernel weights.
 
@@ -649,7 +497,7 @@ Arguments:
 Returns:
 - G_smooth: smoothed matrix with triangular kernel weights
 """
-function smooth_triangular_plain2(G::Matrix{Float64}, m_T::Int)
+function smooth_triangular(G::Matrix{Float64}, m_T::Int)
     T, k = size(G)
     G_smooth = zeros(T, k)
 

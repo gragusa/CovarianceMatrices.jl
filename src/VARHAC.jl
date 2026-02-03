@@ -296,8 +296,8 @@ function _var_selection_ownlag(
 
     @inbounds for j in axes(Y, 2)
         kk = sum(order[j, :])
-        ℤ = delag(X, kk)
         if kk > 0
+            ℤ = delag(X, kk)
             𝕐 = view(Y, (kk + 1):T, j)
             𝕏 = select_lags(ℤ, m, kk, j, order[j, :]...)
             β = cholesky!(Symmetric(𝕏'𝕏)) \ 𝕏'𝕐

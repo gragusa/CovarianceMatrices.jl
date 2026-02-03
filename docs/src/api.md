@@ -112,7 +112,6 @@ DifferentOwnLags
 ### Smoothed Moments
 
 ```@docs
-SmoothedMoments
 UniformSmoother
 TriangularSmoother
 ```
@@ -182,7 +181,7 @@ BartlettSmoother
 TruncatedSmoother
 ```
 
-Note: These are deprecated in favor of `SmoothedMoments` with appropriate kernels.
+Note: These are deprecated in favor of `UniformSmoother` and `TriangularSmoother`.
 
 ## Internal Types and Functions
 
@@ -205,7 +204,6 @@ The following functions are primarily for internal use but may be useful for adv
 ### Internal Smoothing Functions
 
 - `smooth_moments!`: In-place moment smoothing (kernel-based)
-- `smooth_moments_threaded!`: Multi-threaded smoothing
 - `compute_weights`: Compute smoothing weights (fallback)
 - `compute_normalization`: Normalization constants
 

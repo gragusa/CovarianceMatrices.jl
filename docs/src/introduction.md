@@ -309,11 +309,16 @@ Smoothed moments are asymptotically equivalent to corresponding HAC estimators:
 
 **Example:**
 ```julia
+# Compute optimal bandwidths for sample size T
+T = size(X, 1)
+m_T_uniform = round(Int, 2.0 * T^(1/3))
+m_T_triangular = round(Int, 1.5 * T^(1/5))
+
 # Uniform smoothing (≡ Bartlett HAC asymptotically)
-Σ_smooth_uniform = aVar(SmoothedMoments(UniformSmoother()), X)
+Σ_smooth_uniform = aVar(UniformSmoother(m_T_uniform), X)
 
 # Triangular smoothing (≡ Parzen HAC asymptotically)
-Σ_smooth_triangular = aVar(SmoothedMoments(TriangularSmoother()), X)
+Σ_smooth_triangular = aVar(TriangularSmoother(m_T_triangular), X)
 ```
 
 **Reference:**
@@ -421,7 +426,7 @@ Under appropriate regularity conditions:
 | IID data | `Uncorrelated()` | — |
 | Cross-section with heteroskedasticity | `HC3()` | `HC2()`, `HC1()` |
 | Time series | `VARHAC()` | `Bartlett{Andrews}()` |
-| Time series (guaranteed PSD) | `SmoothedMoments()` | `VARHAC()` |
+| Time series (guaranteed PSD) | `UniformSmoother(m_T)` | `VARHAC()` |
 | Clustered data | `CR1(cluster)` | `CR2(cluster)` |
 | Panel data | `DriscollKraay()` | Two-way `CR1()` |
 | Financial time series | `EWC()` | `VARHAC()` |

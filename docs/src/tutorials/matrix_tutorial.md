@@ -89,18 +89,23 @@ println("BIC selected lags: ", order(varhac_bic))
 Smith's smoothed moments method provides automatic positive semi-definiteness:
 
 ```julia
+# Compute optimal bandwidths
+T = size(X, 1)
+m_T_uniform = round(Int, 2.0 * T^(1/3))
+m_T_triangular = round(Int, 1.5 * T^(1/5))
+
 # Uniform kernel (induces Bartlett HAC)
-sm_uniform = SmoothedMoments(UniformSmoother())
+sm_uniform = UniformSmoother(m_T_uniform)
 Ω_sm_uniform = aVar(sm_uniform, X)
 println("Smoothed Moments (Uniform): trace = $(round(tr(Ω_sm_uniform), digits=3))")
 
 # Triangular kernel (induces Parzen HAC)
-sm_triangular = SmoothedMoments(TriangularSmoother())
+sm_triangular = TriangularSmoother(m_T_triangular)
 Ω_sm_triangular = aVar(sm_triangular, X)
 println("Smoothed Moments (Triangular): trace = $(round(tr(Ω_sm_triangular), digits=3))")
 
 # Fixed bandwidth
-sm_fixed = SmoothedMoments(UniformSmoother(), 8.0)
+sm_fixed = UniformSmoother(8)
 Ω_sm_fixed = aVar(sm_fixed, X)
 println("Smoothed Moments (Fixed): trace = $(round(tr(Ω_sm_fixed), digits=3))")
 ```
@@ -244,7 +249,7 @@ println("Performance comparison on $(size(X)) matrix:")
 
 # Medium complexity
 @btime aVar(Bartlett(5), $X)
-@btime aVar(SmoothedMoments(), $X)
+@btime aVar(UniformSmoother(10), $X)
 
 # More computationally intensive
 @btime aVar(Parzen{Andrews}(), $X)
@@ -265,9 +270,9 @@ println("Performance comparison on $(size(X)) matrix:")
 ### Performance Tips
 
 1. **For large datasets**: Use `HC3()` or `VARHAC()` for best performance
-2. **For automatic approaches**: Use `VARHAC()` or `SmoothedMoments()`
+2. **For automatic approaches**: Use `VARHAC()` or `UniformSmoother(10)`
 3. **For maximum compatibility**: Use `Bartlett{Andrews}()` or `Parzen{NeweyWest}()`
-4. **For guaranteed PSD**: Use `VARHAC()`, `SmoothedMoments()`, or `EWC()`
+4. **For guaranteed PSD**: Use `VARHAC()`, `UniformSmoother(10)`, or `EWC()`
 
 ### Common Pitfalls
 

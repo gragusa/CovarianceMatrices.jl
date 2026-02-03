@@ -420,7 +420,7 @@ end
 other_estimators = [
     ("Bartlett-Andrews", Bartlett{Andrews}()),
     ("Parzen-NeweyWest", Parzen{NeweyWest}()),
-    ("Smoothed Moments", SmoothedMoments())
+    ("Smoothed Moments", UniformSmoother(10))
 ]
 
 compare_with_varhac(X, other_estimators)

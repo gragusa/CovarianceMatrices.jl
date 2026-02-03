@@ -1,0 +1,16 @@
+[deps]
+AirspeedVelocity = "1c8270ee-6884-45cc-9545-60fa71ec23e4"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+[sources]
+CovarianceMatrices = {path = ".."}
+
+[compat]
+AirspeedVelocity = "0.6"
+BenchmarkTools = "1"
+DataFrames = "1"
+GLM = "1"

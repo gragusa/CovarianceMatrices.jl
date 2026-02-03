@@ -137,8 +137,10 @@ se_qs = stderror(QuadraticSpectral{Andrews}(), model_ts)
 # VARHAC (automatic, no bandwidth selection)
 se_varhac = stderror(VARHAC(), model_ts)
 
-# Smoothed Moments
-se_smoothed = stderror(SmoothedMoments(), model_ts)
+# Smoothed Moments (with optimal bandwidth)
+T = nobs(model_ts)
+m_T = round(Int, 2.0 * T^(1/3))
+se_smoothed = stderror(UniformSmoother(m_T), model_ts)
 
 # Results comparison
 results_ts = DataFrame(
@@ -408,7 +410,7 @@ end
 1. **Cross-sectional data**: Use `HC3()` as default robust estimator
 2. **Time series data**: Use `VARHAC()` for automatic approach, `Bartlett{Andrews}()` for traditional HAC
 3. **Panel data**: Use `CR1()` for one-way clustering, `CR1((cluster1, cluster2))` for two-way
-4. **Mixed cases**: Start with `VARHAC()` or `SmoothedMoments()` for guaranteed positive definiteness
+4. **Mixed cases**: Start with `VARHAC()` or `UniformSmoother(m_T)` for guaranteed positive definiteness
 
 ### Performance Considerations:
 
