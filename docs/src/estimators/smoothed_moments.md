@@ -35,7 +35,6 @@ where $k(\cdot)$ is the kernel function and $S_T$ is the bandwidth.
 ## Core Types
 
 ```@docs
-SmoothedMoments
 UniformSmoother
 TriangularSmoother
 ```
@@ -64,11 +63,16 @@ k(x) = \begin{cases}
 ```julia
 using CovarianceMatrices
 
-# Automatic bandwidth (T^(1/3) scaling)
-sm_uniform = SmoothedMoments(UniformSmoother())
+# Fixed bandwidth (m_T parameter)
+smoother_uniform = UniformSmoother(5)
 
-# Fixed bandwidth
-sm_uniform_fixed = SmoothedMoments(UniformSmoother(), 8.0)
+# Compute optimal bandwidth for sample size T
+T = 300
+m_T_optimal = round(Int, 2.0 * T^(1/3))  # ≈ 13 for T=300
+smoother_uniform_optimal = UniformSmoother(m_T_optimal)
+
+# Use with aVar
+Ω = aVar(smoother_uniform, X)
 ```
 
 ### Triangular Kernel
@@ -91,11 +95,16 @@ k(x) = \begin{cases}
 **Usage:**
 
 ```julia
-# Automatic bandwidth (T^(1/5) scaling)
-sm_triangular = SmoothedMoments(TriangularSmoother())
+# Fixed bandwidth (m_T parameter)
+smoother_triangular = TriangularSmoother(5)
 
-# Fixed bandwidth
-sm_triangular_fixed = SmoothedMoments(TriangularSmoother(), 12.0)
+# Compute optimal bandwidth for sample size T
+T = 300
+m_T_optimal = round(Int, 1.5 * T^(1/5))  # ≈ 5 for T=300
+smoother_triangular_optimal = TriangularSmoother(m_T_optimal)
+
+# Use with aVar
+Ω = aVar(smoother_triangular, X)
 ```
 
 ## Automatic Bandwidth Selection
@@ -121,7 +130,7 @@ These rates are theoretically optimal for the respective kernels.
 ### Usage Examples
 
 ```julia
-using CovarianceMatrices, Random
+using CovarianceMatrices, Random, LinearAlgebra
 Random.seed!(123)
 
 # Generate AR(1) time series
@@ -132,12 +141,16 @@ for t in 2:T
     X[t, :] = ρ * X[t-1, :] + randn(3)
 end
 
-# Automatic bandwidth selection
-sm_auto_uniform = SmoothedMoments(UniformSmoother())
-sm_auto_triangular = SmoothedMoments(TriangularSmoother())
+# Compute optimal bandwidths
+m_T_uniform = round(Int, 2.0 * T^(1/3))      # Uniform: T^(1/3) scaling
+m_T_triangular = round(Int, 1.5 * T^(1/5))   # Triangular: T^(1/5) scaling
 
-Ω_uniform = aVar(sm_auto_uniform, X)
-Ω_triangular = aVar(sm_auto_triangular, X)
+# Create smoothers with optimal bandwidths
+smoother_uniform = UniformSmoother(m_T_uniform)
+smoother_triangular = TriangularSmoother(m_T_triangular)
+
+Ω_uniform = aVar(smoother_uniform, X)
+Ω_triangular = aVar(smoother_triangular, X)
 
 println("Uniform kernel trace: $(round(tr(Ω_uniform), digits=3))")
 println("Triangular kernel trace: $(round(tr(Ω_triangular), digits=3))")
@@ -147,24 +160,7 @@ println("Uniform min eigenvalue: $(round(minimum(eigvals(Ω_uniform)), digits=6)
 println("Triangular min eigenvalue: $(round(minimum(eigvals(Ω_triangular)), digits=6))")
 ```
 
-## Threading and Performance
-
-### Automatic Threading
-
-The implementation includes intelligent threading that activates based on sample size:
-
-```julia
-# Default: automatic threading for T > 800
-sm_default = SmoothedMoments()
-
-# Force single-threaded
-sm_single = SmoothedMoments(threaded=false)
-
-# Force multi-threaded
-sm_multi = SmoothedMoments(threaded=true)
-```
-
-### Performance Characteristics
+## Performance
 
 The kernel-based implementation provides excellent performance:
 
@@ -177,8 +173,9 @@ T_sizes = [100, 500, 1000, 5000]
 for T in T_sizes
     X = randn(T, 4)
 
-    # Smoothed moments
-    sm = SmoothedMoments()
+    # Smoothed moments with optimal bandwidth
+    m_T = round(Int, 2.0 * T^(1/3))
+    sm = UniformSmoother(m_T)
     t_sm = @belapsed aVar($sm, $X)
 
     # Compare with HAC
@@ -195,19 +192,23 @@ end
 
 Smoothed moments estimators are asymptotically equivalent to their HAC counterparts:
 
-- `SmoothedMoments(UniformSmoother())` ≡ `Bartlett{Andrews}()` (asymptotically)
-- `SmoothedMoments(TriangularSmoother())` ≡ `Parzen{Andrews}()` (asymptotically)
+- `UniformSmoother(m_T)` ≡ `Bartlett{Andrews}()` (asymptotically)
+- `TriangularSmoother(m_T)` ≡ `Parzen{Andrews}()` (asymptotically)
 
 ### Empirical Comparison
 
 ```julia
+using LinearAlgebra
+
 # Generate strongly autocorrelated data
 T = 500
 X_persistent = cumsum(randn(T, 3), dims=1)  # Random walk
 
-# Smoothed moments
-sm_uniform = SmoothedMoments(UniformSmoother())
-sm_triangular = SmoothedMoments(TriangularSmoother())
+# Smoothed moments with optimal bandwidths
+m_T_uniform = round(Int, 2.0 * T^(1/3))
+m_T_triangular = round(Int, 1.5 * T^(1/5))
+sm_uniform = UniformSmoother(m_T_uniform)
+sm_triangular = TriangularSmoother(m_T_triangular)
 
 # Corresponding HAC estimators
 hac_bartlett = Bartlett{Andrews}()
@@ -224,11 +225,11 @@ estimators = [
 println("Estimator\t\tTrace\tMin Eigenvalue\tCondition Number")
 for (name, est) in estimators
     Ω = aVar(est, X_persistent)
-    eigenvals = eigvals(Ω)
+    eig_vals = eigvals(Ω)
 
     trace_val = tr(Ω)
-    min_eig = minimum(eigenvals)
-    cond_num = maximum(eigenvals) / min_eig
+    min_eig = minimum(eig_vals)
+    cond_num = maximum(eig_vals) / min_eig
 
     println("$(rpad(name, 20))\t$(round(trace_val, digits=2))\t$(round(min_eig, digits=5))\t\t$(round(cond_num, digits=1))")
 end
@@ -239,14 +240,16 @@ end
 ### Custom Bandwidth Selection
 
 ```julia
+using LinearAlgebra
+
 # Bandwidth sensitivity analysis
-bandwidths = [5.0, 10.0, 15.0, 20.0]
+bandwidths = [5, 10, 15, 20]
 
 println("Bandwidth\tTrace\tCondition Number")
-for bw in bandwidths
-    sm = SmoothedMoments(UniformSmoother(), bw)
+for m_T in bandwidths
+    sm = UniformSmoother(m_T)
     Ω = aVar(sm, X)
-    println("$bw\t\t$(round(tr(Ω), digits=3))\t$(round(cond(Ω), digits=1))")
+    println("$m_T\t\t$(round(tr(Ω), digits=3))\t$(round(cond(Ω), digits=1))")
 end
 ```
 
@@ -295,10 +298,14 @@ y = 2.0 .+ 1.5 * x1 .- 0.8 * x2 .+ ε
 df = DataFrame(y=y, x1=x1, x2=x2)
 model = lm(@formula(y ~ x1 + x2), df)
 
+# Compute optimal bandwidths
+m_T_uniform = round(Int, 2.0 * T^(1/3))
+m_T_triangular = round(Int, 1.5 * T^(1/5))
+
 # Compare standard errors
 se_classical = stderror(model)
-se_smoothed_uniform = stderror(SmoothedMoments(UniformSmoother()), model)
-se_smoothed_triangular = stderror(SmoothedMoments(TriangularSmoother()), model)
+se_smoothed_uniform = stderror(UniformSmoother(m_T_uniform), model)
+se_smoothed_triangular = stderror(TriangularSmoother(m_T_triangular), model)
 se_hac_bartlett = stderror(Bartlett{Andrews}(), model)
 
 results = DataFrame(
@@ -338,12 +345,18 @@ println("Uniform/Bartlett: ", round.(se_smoothed_uniform ./ se_hac_bartlett, dig
 ### Kernel Choice Guidelines
 
 ```julia
+using LinearAlgebra
+
 # Decision framework
 function choose_kernel(X, criterion="trace_stability")
     T, k = size(X)
 
-    sm_uniform = SmoothedMoments(UniformSmoother())
-    sm_triangular = SmoothedMoments(TriangularSmoother())
+    # Compute optimal bandwidths
+    m_T_uniform = round(Int, 2.0 * T^(1/3))
+    m_T_triangular = round(Int, 1.5 * T^(1/5))
+
+    sm_uniform = UniformSmoother(m_T_uniform)
+    sm_triangular = TriangularSmoother(m_T_triangular)
 
     Ω_uniform = aVar(sm_uniform, X)
     Ω_triangular = aVar(sm_triangular, X)
@@ -386,10 +399,10 @@ println("Recommended kernel: $choice")
 # Sample size guidelines
 function sample_size_recommendations()
     recommendations = [
-        (50, "Consider using fixed bandwidth"),
-        (100, "Automatic bandwidth usually works well"),
+        (50, "Consider using smaller bandwidth"),
+        (100, "Optimal bandwidth formulas work well"),
         (300, "Both kernels typically perform well"),
-        (1000, "Threading becomes beneficial"),
+        (1000, "Excellent performance"),
         (5000, "Excellent performance with either kernel")
     ]
 
@@ -407,11 +420,15 @@ sample_size_recommendations()
 **Issue: Results differ significantly from HAC**
 
 ```julia
+using LinearAlgebra
+
 # Check if bandwidth scaling is appropriate
 function bandwidth_diagnostic(X)
     T, k = size(X)
 
-    sm_uniform = SmoothedMoments(UniformSmoother())
+    # Smoothed moments with optimal bandwidth
+    m_T_sm = round(Int, 2.0 * T^(1/3))
+    sm_uniform = UniformSmoother(m_T_sm)
     Ω_sm = aVar(sm_uniform, X)
 
     hac_bartlett = Bartlett{Andrews}()
@@ -420,19 +437,18 @@ function bandwidth_diagnostic(X)
     # Get optimal bandwidth for HAC
     _, _, bw_hac = workingoptimalbw(hac_bartlett, X)
 
-    # Compare with automatic smoothed moments bandwidth
-    bw_sm_auto = 2.0 * T^(1/3)
-
+    # Compare bandwidths
     println("HAC bandwidth: $(round(bw_hac, digits=2))")
-    println("SM auto bandwidth: $(round(bw_sm_auto, digits=2))")
-    println("Ratio: $(round(bw_sm_auto / bw_hac, digits=2))")
+    println("SM bandwidth (m_T): $m_T_sm")
+    println("Ratio: $(round(m_T_sm / bw_hac, digits=2))")
 
     # Try matching bandwidth
-    sm_matched = SmoothedMoments(UniformSmoother(), bw_hac)
+    m_T_matched = round(Int, bw_hac)
+    sm_matched = UniformSmoother(m_T_matched)
     Ω_matched = aVar(sm_matched, X)
 
     println("\nTrace comparison:")
-    println("SM (auto): $(round(tr(Ω_sm), digits=3))")
+    println("SM (optimal): $(round(tr(Ω_sm), digits=3))")
     println("HAC: $(round(tr(Ω_hac), digits=3))")
     println("SM (matched): $(round(tr(Ω_matched), digits=3))")
 end
@@ -469,7 +485,7 @@ function smooth_moments_conceptual(G, kernel::UniformSmoother, bandwidth, T)
     return result
 end
 
-# The actual implementation is optimized with threading and memory efficiency
+# The actual implementation is optimized with prefix sums for O(T) complexity
 ```
 
 ### Memory Optimization

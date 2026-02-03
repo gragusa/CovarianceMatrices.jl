@@ -379,7 +379,7 @@ function compare_robust_estimators(X, model=nothing)
         ("EWC(10)", EWC(10)),
         ("Bartlett-Andrews", Bartlett{Andrews}()),
         ("VARHAC", VARHAC()),
-        ("Smoothed Moments", SmoothedMoments())
+        ("Smoothed Moments", UniformSmoother(10))
     ]
 
     results = Dict()

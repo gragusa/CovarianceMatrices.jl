@@ -237,13 +237,13 @@ using Random
                 # Test UniformSmoother
                 k_uniform = CovarianceMatrices.UniformSmoother(params.m_T)
                 G_fast_uniform = CovarianceMatrices.smooth_moments(G, k_uniform)
-                G_plain_uniform = CovarianceMatrices.smooth_uniform_plain2(G, params.m_T)
+                G_plain_uniform = CovarianceMatrices.smooth_uniform(G, params.m_T)
                 @test G_fast_uniform ≈ G_plain_uniform rtol = 1e-10
 
                 # Test TriangularSmoother
                 k_triangular = CovarianceMatrices.TriangularSmoother(params.m_T)
                 G_fast_triangular = CovarianceMatrices.smooth_moments(G, k_triangular)
-                G_plain_triangular = CovarianceMatrices.smooth_triangular_plain2(
+                G_plain_triangular = CovarianceMatrices.smooth_triangular(
                     G, params.m_T)
                 @test G_fast_triangular ≈ G_plain_triangular rtol = 1e-10
             end

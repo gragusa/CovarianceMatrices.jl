@@ -57,7 +57,7 @@ X = randn(T, k)
 
 # Advanced estimators
 @benchmark aVar(VARHAC(), $X)                 # ~800μs (VAR fitting)
-@benchmark aVar(SmoothedMoments(), $X)        # ~180μs (kernel-based)
+@benchmark aVar(UniformSmoother(10), $X)      # ~180μs (kernel-based)
 @benchmark aVar(EWC(10), $X)                  # ~300μs
 ```
 
@@ -76,7 +76,7 @@ function scaling_analysis()
         # Fast estimators
         results["HC3_$T"] = @belapsed aVar(HC3(), $X)
         results["VARHAC_$T"] = @belapsed aVar(VARHAC(), $X)
-        results["SmoothedMoments_$T"] = @belapsed aVar(SmoothedMoments(), $X)
+        results["UniformSmoother_$T"] = @belapsed aVar(UniformSmoother(round(Int, 2*T^(1/3))), $X)
 
         # Slower estimators
         results["BartlettAndrews_$T"] = @belapsed aVar(Bartlett{Andrews}(), $X)
@@ -225,7 +225,7 @@ hac_auto = VARHAC()
 
 ```julia
 # For large datasets, prefer estimators with O(Tk) memory:
-memory_efficient = [HC3(), VARHAC(), SmoothedMoments()]
+memory_efficient = [HC3(), VARHAC(), UniformSmoother(10)]
 
 # Avoid for very large T:
 memory_intensive = [QuadraticSpectral{Andrews}()]  # Can need O(T²) temporarily
@@ -363,7 +363,7 @@ end
 ## Recommendations by Use Case
 
 ### High-Frequency Financial Data
-- **Primary**: `VARHAC()` or `SmoothedMoments()`
+- **Primary**: `VARHAC()` or `UniformSmoother(10)`
 - **Rationale**: Automatic, robust, good performance
 - **Avoid**: Andrews bandwidth selection (too slow)
 
@@ -383,7 +383,7 @@ end
 - **Optimization**: Ensure efficient cluster grouping
 
 ### Bootstrap/Simulation Studies
-- **Primary**: `VARHAC()` or `SmoothedMoments()`
+- **Primary**: `VARHAC()` or `UniformSmoother(10)`
 - **Rationale**: Guaranteed PSD across all bootstrap samples
 - **Avoid**: Estimators that can produce non-PSD matrices
 

@@ -18,7 +18,6 @@ using NaNStatistics: NaNStatistics
 using Statistics: Statistics
 using StatsAPI: StatsAPI, vcov, stderror
 using StatsBase: StatsBase, RegressionModel, coef, cov, mean, modelmatrix, weights
-using Base.Threads
 include("Clustering.jl")
 include("types.jl")
 include("HAC.jl")
