@@ -231,7 +231,7 @@ end
 # Type-stable implementation for two-way clustering
 function _avar_tuple_impl(f::Tuple{Clustering, Clustering}, X)
     g12 = Clustering(f[1], f[2])
-    return (clusterize(X[1], f[1]), clusterize(X[2], f[2]), -clusterize(X[3], g12))
+    return (clusterize(X[1], f[1]), clusterize(X[2], f[2]), clusterize(X[3], g12))
 end
 
 # Fallback for N-way
@@ -243,7 +243,7 @@ function _avar_tuple_impl(f::NTuple{N, Clustering}, X) where {N}
         else
             g = _merge_clusterings(f, c)
         end
-        (-1)^(length(c) - 1) * clusterize(Z, g)
+        clusterize(Z, g)
     end
 end
 
