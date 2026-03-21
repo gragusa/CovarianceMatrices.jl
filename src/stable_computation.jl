@@ -127,14 +127,18 @@ end
 """
     _compute_gmm_information_weighted(G, Ω, W; kwargs...)
 
-Compute GMM variance with arbitrary weight matrix: V = inv(G' * W * inv(Ω) * W * G)
+Compute GMM variance with suboptimal weight matrix: V = inv(G'WG) * G'WΩWG * inv(G'WG)
+
+This is the standard sandwich formula for GMM with arbitrary weight matrix W.
+When W ≠ inv(Ω), the variance is not simply inv(G'WG) — the full sandwich is needed
+even under correct specification.
 
 For unscaled inputs:
 - G: Jacobian matrix (sum, not average)
 - Ω: Long-run covariance (sum, not average)
 - W: Weight matrix (m × m)
 
-The formula is: V = inv(G' * W * inv(Ω) * W * G)
+The formula is: V = inv(G'WG) * (G'WΩWG) * inv(G'WG)
 """
 function _compute_gmm_information_weighted(
         G::AbstractMatrix,
@@ -153,34 +157,30 @@ function _compute_gmm_information_weighted(
     # Force warn=true when debug=true
     warn = debug || warn
 
-    # Invert Ω
-    Ωinv, flag_omega, svals_omega = ipinv(Ω; atol = atol, rtol = rtol_val)
-    _debug_report_inversion("Omega", flag_omega, svals_omega, "$(size(Ω))", debug, warn)
+    # Compute and invert G'WG (the "bread")
+    GWG = G' * W * G
+    GWGinv, flag_gwg, svals_gwg = ipinv(GWG; atol = atol, rtol = rtol_val)
+    _debug_report_inversion("G'WG", flag_gwg, svals_gwg, "$(size(GWG))", debug, warn)
 
-    # Compute G' * W * Ωinv * W * G
-    WΩinvW = W * Ωinv * W
-    G_WOmegaW_G = G' * WΩinvW * G
+    # Compute the "meat": G'WΩWG
+    meat = G' * (W * Ω * W) * G
 
-    # Invert to get variance
-    V, flag_v, svals_v = ipinv(G_WOmegaW_G; atol = atol, rtol = rtol_val)
-    _debug_report_inversion("G'W*Omega^(-1)*W*G", flag_v, svals_v, "$(size(G_WOmegaW_G))",
-        debug, warn)
-
-    return V
+    # Sandwich: V = inv(G'WG) * G'WΩWG * inv(G'WG)
+    return GWGinv' * meat * GWGinv
 end
 
 """
     _compute_gmm_misspecified(H, G, Ω, W; kwargs...)
 
 Compute robust GMM variance:
-- If W is nothing: V = inv(H) * inv(G' * inv(Ω) * G) * inv(H) (optimal GMM)
-- If W is provided: V = inv(H) * inv(G' * W * inv(Ω) * W * G) * inv(H) (suboptimal GMM)
+- If W is nothing: V = inv(H) * (G' * inv(Ω) * G) * inv(H) (efficient GMM)
+- If W is provided: V = inv(H) * (G' * W * Ω * W * G) * inv(H) (suboptimal GMM)
 
 For unscaled inputs:
 - H: Hessian (sum, not average)
 - G: Jacobian matrix (sum, not average)
 - Ω: Long-run covariance (sum, not average)
-- W: Optional weight matrix (if nothing, uses optimal weight inv(Ω))
+- W: Optional weight matrix (if nothing, uses efficient weight inv(Ω))
 """
 function _compute_gmm_misspecified(
         H::AbstractMatrix,
@@ -200,24 +200,15 @@ function _compute_gmm_misspecified(
     # Force warn=true when debug=true
     warn = debug || warn
 
-    # Invert Ω
-    Ωinv, flag_omega, svals_omega = ipinv(Ω; atol = atol, rtol = rtol_val)
-    _debug_report_inversion("Ω", flag_omega, svals_omega, "$(size(Ω))", debug, warn)
-
-    # Compute B = inv(G' * W * inv(Ω) * W * G) or inv(G' * inv(Ω) * G)
+    # Compute the "meat" B of the sandwich
     if W === nothing
-        # Optimal weight: B = inv(G' * inv(Ω) * G)
+        # Efficient GMM (W = inv(Ω)): B = G'W Ω W G = G' inv(Ω) G
+        Ωinv, flag_omega, svals_omega = ipinv(Ω; atol = atol, rtol = rtol_val)
+        _debug_report_inversion("Ω", flag_omega, svals_omega, "$(size(Ω))", debug, warn)
         B = G' * Ωinv * G
-        # B, flag_gomega, svals_gomega = ipinv(G_omega_G; atol = atol, rtol = rtol_val)
-        # _debug_report_inversion("G'Omega^(-1)G", flag_gomega, svals_gomega,
-        #     "$(size(G_omega_G))", debug, warn)
     else
-        # Suboptimal weight: B = inv(G' * W * inv(Ω) * W * G)
-        WΩinvW = W * Ωinv * W
-        B = G' * WΩinvW * G
-        # B, flag_gomega, svals_gomega = ipinv(G_WOmegaW_G; atol = atol, rtol = rtol_val)
-        # _debug_report_inversion("G'W*Omega^(-1)*W*G", flag_gomega, svals_gomega,
-        #     "$(size(G_WOmegaW_G))", debug, warn)
+        # Suboptimal weight: B = G' * W * Ω * W * G
+        B = G' * (W * Ω * W) * G
     end
 
     # Invert H
