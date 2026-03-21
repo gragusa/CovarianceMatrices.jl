@@ -843,8 +843,6 @@ end
 """
 function CRCache(k::CR, ncols::Int, ::Type{T} = Float64) where {T}
     f = k.g
-    ncombinations = 2^length(f) - 1  # Number of non-empty subsets
-
     # Precompute Clusterings, signs, and cluster indices for each combination
     grouped_arrays = Clustering[]
     cluster_indices = Vector{Vector{Int}}[]

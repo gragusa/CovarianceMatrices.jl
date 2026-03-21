@@ -84,32 +84,11 @@ cl.ngroups # 4 (one for each firm-year combination)
 ```
 """
 function Clustering(v1::AbstractVector, vs::AbstractVector...; sort = nothing)
-    n = length(v1)
-    # Verify all vectors have the same length
-    for v in vs
-        length(v) == n ||
-            throw(DimensionMismatch("All clustering vectors must have the same length"))
-    end
-
-    groups = Vector{Int}(undef, n)
-    # Use a tuple as the key type for type stability
-    nvecs = length(vs) + 1
-    KeyType = NTuple{nvecs, Any}
-    groupmap = Dict{KeyType, Int}()
-    ngroups = 0
-
-    @inbounds for i in eachindex(v1)
-        # Build tuple key from all vectors
-        key = (v1[i], ntuple(j -> vs[j][i], length(vs))...)::KeyType
-        gid = get(groupmap, key, 0)
-        if gid == 0
-            ngroups += 1
-            groupmap[key] = ngroups
-            gid = ngroups
-        end
-        groups[i] = gid
-    end
-    return Clustering(groups, ngroups)
+    # Delegate to single-vector constructors and merge for type stability
+    # This avoids NTuple{N, Any} keys in the Dict
+    c1 = Clustering(v1)
+    cs = map(Clustering, vs)
+    return Clustering(c1, cs...)
 end
 
 # Pass-through constructor: if already a Clustering, return as-is
