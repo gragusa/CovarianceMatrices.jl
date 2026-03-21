@@ -133,3 +133,62 @@ model = LinearGMM(data; v = Bartlett(5))
 V3 = vcov(Bartlett(5), Information(), model)
 V4 = vcov(Bartlett(5), Misspecified(), model)
 @test V3 ≈ V4
+
+# ============================================================================
+# Test GMM formulas with known matrices (analytical verification)
+# ============================================================================
+
+# Small deterministic matrices to verify formulas exactly
+k = 3  # parameters
+m = 5  # moments
+
+Random.seed!(42)
+G_test = randn(m, k)
+# Make Ω positive definite symmetric
+A_tmp = randn(m, m)
+Ω_test = A_tmp' * A_tmp + I(m)
+# Arbitrary weight matrix (positive definite, NOT equal to inv(Ω))
+B_tmp = randn(m, m)
+W_test = B_tmp' * B_tmp + I(m)
+# Hessian (positive definite)
+H_test = G_test' * W_test * G_test + 0.1 * I(k)
+
+# --- Test _compute_gmm_information (efficient, no W) ---
+V_info = CovarianceMatrices._compute_gmm_information(G_test, Ω_test)
+V_info_manual = inv(G_test' * inv(Ω_test) * G_test)
+@test V_info ≈ V_info_manual
+
+# --- Test _compute_gmm_information_weighted (suboptimal W) ---
+# Standard sandwich: V = inv(G'WG) * G'WΩWG * inv(G'WG)
+V_info_w = CovarianceMatrices._compute_gmm_information_weighted(G_test, Ω_test, W_test)
+GWG = G_test' * W_test * G_test
+GWG_inv = inv(GWG)
+meat_info = G_test' * (W_test * Ω_test * W_test) * G_test
+V_info_w_manual = GWG_inv * meat_info * GWG_inv
+@test V_info_w ≈ V_info_w_manual
+
+# --- Test _compute_gmm_misspecified (efficient, W=nothing) ---
+V_mis = CovarianceMatrices._compute_gmm_misspecified(H_test, G_test, Ω_test, nothing)
+Hinv = inv(H_test)
+B_eff = G_test' * inv(Ω_test) * G_test
+V_mis_manual = Hinv * B_eff * Hinv
+@test V_mis ≈ V_mis_manual
+
+# --- Test _compute_gmm_misspecified (suboptimal W) ---
+# V = inv(H) * G'WΩWG * inv(H)
+V_mis_w = CovarianceMatrices._compute_gmm_misspecified(H_test, G_test, Ω_test, W_test)
+meat_mis = G_test' * (W_test * Ω_test * W_test) * G_test
+V_mis_w_manual = Hinv * meat_mis * Hinv
+@test V_mis_w ≈ V_mis_w_manual
+
+# --- Verify: with efficient weight (W = inv(Ω)), Information = Misspecified ---
+# When H = G'Ω⁻¹G and W = Ω⁻¹, both should give inv(G'Ω⁻¹G)
+Ωinv_test = inv(Ω_test)
+H_eff = G_test' * Ωinv_test * G_test
+V_mis_eff = CovarianceMatrices._compute_gmm_misspecified(H_eff, G_test, Ω_test, nothing)
+@test V_mis_eff ≈ V_info atol = 1e-10
+
+# --- Verify: weighted Information ≠ simple inv(G'WΩ⁻¹WG) ---
+# The old (buggy) formula was inv(G'WΩ⁻¹WG). Verify we do NOT match that.
+V_old_buggy = inv(G_test' * W_test * inv(Ω_test) * W_test * G_test)
+@test !(V_info_w ≈ V_old_buggy)
