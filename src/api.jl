@@ -170,16 +170,19 @@ function StatsAPI.vcov(
     Ω = aVar(ve, Z; scale = false)
     G = jacobian_momentfunction(model)
 
+    # Resolve weight matrix: explicit keyword overrides model method
+    W_eff = W === nothing ? weight_matrix(model) : W
+
     # Get weight matrix (use identity if not provided)
-    if W === nothing
+    if W_eff === nothing
         # Optimal GMM: W = inv(Ω)
         # Formula: V = inv(G' * inv(Ω) * G)
         V = _compute_gmm_information(G, Ω; cond_atol = cond_atol,
             cond_rtol = cond_rtol, debug = debug, warn = warn)
     else
         # Suboptimal GMM with provided weight matrix
-        # Formula: V = inv(G' * W * inv(Ω) * W * G)
-        V = _compute_gmm_information_weighted(G, Ω, W; cond_atol = cond_atol,
+        # Formula: V = inv(G'WG) * G'WΩWG * inv(G'WG)
+        V = _compute_gmm_information_weighted(G, Ω, W_eff; cond_atol = cond_atol,
             cond_rtol = cond_rtol, debug = debug, warn = warn)
     end
 
@@ -191,7 +194,8 @@ end
 
 Compute robust GMM variance allowing misspecification.
 
-For GMMLikeModel + Misspecified: V = inv(H) * [inv(G' * inv(Ω) * G)] * inv(H)
+For GMMLikeModel + Misspecified: V = inv(H) * B * inv(H)
+where B = G'inv(Ω)G (efficient) or G'WΩWG (suboptimal)
 Requires both hessian_objective (H) and cross_score (G).
 
 # Arguments
@@ -237,16 +241,12 @@ function StatsAPI.vcov(
         throw(ArgumentError("Misspecified form for GMMLikeModel requires hessian_objective to be implemented"))
     end
 
+    # Resolve weight matrix: explicit keyword overrides model method
+    W_eff = W === nothing ? weight_matrix(model) : W
+
     # Compute robust GMM variance
-    if W === nothing
-        # Formula: V = inv(H) * inv(G' * inv(Ω) * G) * inv(H)
-        V = _compute_gmm_misspecified(H, G, Ω, nothing; cond_atol = cond_atol,
-            cond_rtol = cond_rtol, debug = debug, warn = warn)
-    else
-        # Formula: V = inv(H) * inv(G' * W * inv(Ω) * W * G) * inv(H)
-        V = _compute_gmm_misspecified(H, G, Ω, W; cond_atol = cond_atol,
-            cond_rtol = cond_rtol, debug = debug, warn = warn)
-    end
+    V = _compute_gmm_misspecified(H, G, Ω, W_eff; cond_atol = cond_atol,
+        cond_rtol = cond_rtol, debug = debug, warn = warn)
 
     return V
 end
