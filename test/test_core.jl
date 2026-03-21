@@ -446,6 +446,37 @@ df.y = Y;
         @test vcov(cached_crw3, lmw_1) ≈ Vw3
     end
 
+    @testset "Two-way CR via RegressionModel path ✅" begin
+        # Regression test for double-sign bug in _avar_tuple_impl + aVar(CR, RegressionModel)
+        # The model path must agree with the non-model (matrix) path
+        rng_tw = StableRNG(42)
+        n_firms_tw = 5
+        n_years_tw = 4
+        n_obs_tw = n_firms_tw * n_years_tw
+        firm_ids = repeat(1:n_firms_tw, outer = n_years_tw)
+        year_ids = repeat(1:n_years_tw, inner = n_firms_tw)
+        x_tw = randn(rng_tw, n_obs_tw)
+        y_tw = 1.0 .+ 2.0 .* x_tw .+ randn(rng_tw, n_obs_tw)
+        df_tw = DataFrame(y = y_tw, x = x_tw, firm = firm_ids, year = year_ids)
+        m_tw = lm(@formula(y ~ x), df_tw)
+
+        # Non-model path (known-correct inclusion-exclusion)
+        Xm_tw = modelmatrix(m_tw)
+        u_tw = residuals(m_tw)
+        M_tw = Xm_tw .* u_tw
+        k_tw = CR0((df_tw.firm, df_tw.year))
+        # aVar already divides by n internally
+        Σ_nonmodel = CM.aVar(k_tw, M_tw)
+        n_tw = Int(nobs(m_tw))
+        B_tw = CM.bread(m_tw)
+        V_nonmodel = n_tw .* B_tw * Σ_nonmodel * B_tw
+
+        # Model path
+        V_model = vcov(CR0((df_tw.firm, df_tw.year)), m_tw)
+
+        @test V_model ≈ V_nonmodel rtol=1e-10
+    end
+
     @testset "CR Symbol Constructors ✅" begin
         # Single symbol constructor - deferred cluster lookup
         cr0_sym = CR0(:ClusterID)
