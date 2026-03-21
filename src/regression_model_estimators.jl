@@ -154,7 +154,11 @@ function residual_adjustment(k::CR1, m::RegressionModel)
     map(g -> sqrt.((N - 1) / (N - K)) * (g / (g - 1)), G)
 end
 
-function residual_adjustment(k::CR2, m::RegressionModel)
+# Leverage transform dispatch for CR2/CR3
+_leverage_transform(::CR2, M) = Symmetric(M)^(-1 / 2)
+_leverage_transform(::CR3, M) = inv(Symmetric(M))
+
+function _residual_adjustment_cr(k::Union{CR2, CR3}, m::RegressionModel)
     X = modelmatrix(m)
     XX = bread(m)
     wts = weights(m)
@@ -170,7 +174,7 @@ function residual_adjustment(k::CR2, m::RegressionModel)
             Xg = view(X, ind, :)
             tmp = Xg * XX * Xg'
             !isempty(wts) && (tmp .*= view(wts, ind)')
-            blocks[gc] = Symmetric(I - tmp)^(-1 / 2)
+            blocks[gc] = _leverage_transform(k, I - tmp)
         end
         return [BlockDiagonal(blocks)]
     end
@@ -192,57 +196,15 @@ function residual_adjustment(k::CR2, m::RegressionModel)
                 Xg = view(X, ind, :)
                 tmp = Xg * XX * Xg'
                 !isempty(wts) && (tmp .*= view(wts, ind)')
-                blocks[gc] = Symmetric(I - tmp)^(-1 / 2)
+                blocks[gc] = _leverage_transform(k, I - tmp)
             end
             BlockDiagonal(blocks)
         end
     end
 end
 
-function residual_adjustment(k::CR3, m::RegressionModel)
-    X = modelmatrix(m)
-    XX = bread(m)
-    wts = weights(m)
-    f = k.g
-
-    # Fast path: single cluster variable
-    if length(f) == 1
-        g = f[1]  # Already a Clustering
-        cluster_indices = precompute_cluster_indices(g)
-        blocks = Vector{Matrix{eltype(X)}}(undef, g.ngroups)
-        @inbounds for gc in 1:g.ngroups
-            ind = cluster_indices[gc]
-            Xg = view(X, ind, :)
-            tmp = Xg * XX * Xg'
-            !isempty(wts) && (tmp .*= view(wts, ind)')
-            blocks[gc] = inv(Symmetric(I - tmp))
-        end
-        return [BlockDiagonal(blocks)]
-    end
-
-    # Multi-way clustering: use inclusion-exclusion
-    # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
-    combs = Iterators.filter(!isempty, combinations(1:length(f)))
-    map(combs) do c
-        begin
-            if length(c) == 1
-                g = Clustering(f[c[1]])
-            else
-                g = Clustering((f[i] for i in c)...; sort = nothing)
-            end
-            cluster_indices = precompute_cluster_indices(g)
-            blocks = Vector{Matrix{eltype(X)}}(undef, g.ngroups)
-            @inbounds for gc in 1:g.ngroups
-                ind = cluster_indices[gc]
-                Xg = view(X, ind, :)
-                tmp = Xg * XX * Xg'
-                !isempty(wts) && (tmp .*= view(wts, ind)')
-                blocks[gc] = inv(Symmetric(I - tmp))
-            end
-            BlockDiagonal(blocks)
-        end
-    end
-end
+residual_adjustment(k::CR2, m::RegressionModel) = _residual_adjustment_cr(k, m)
+residual_adjustment(k::CR3, m::RegressionModel) = _residual_adjustment_cr(k, m)
 
 """
     aVar(estimator, model::RegressionModel; kwargs...)
@@ -471,8 +433,9 @@ function _compute_leverage_adjustments(k::CR1, X, XX, wts, grouped_arrays, clust
     map(g -> sqrt((N - 1) / (N - K)) * (g.ngroups / (g.ngroups - 1)), grouped_arrays)
 end
 
-function _compute_leverage_adjustments(k::CR2, X, XX, wts, grouped_arrays, cluster_indices)
-    # CR2: Precompute BlockDiagonal leverage adjustments
+function _compute_leverage_adjustments(
+        k::Union{CR2, CR3}, X, XX, wts, grouped_arrays, cluster_indices)
+    # Precompute BlockDiagonal leverage adjustments using type-dispatched transform
     T = eltype(X)
     map(zip(grouped_arrays, cluster_indices)) do (g, indices)
         blocks = Vector{Matrix{T}}(undef, g.ngroups)
@@ -481,23 +444,7 @@ function _compute_leverage_adjustments(k::CR2, X, XX, wts, grouped_arrays, clust
             Xg = view(X, ind, :)
             tmp = Xg * XX * Xg'
             !isempty(wts) && (tmp .*= view(wts, ind)')
-            blocks[gc] = Symmetric(I - tmp)^(-1 / 2)
-        end
-        BlockDiagonal(blocks)
-    end
-end
-
-function _compute_leverage_adjustments(k::CR3, X, XX, wts, grouped_arrays, cluster_indices)
-    # CR3: Precompute BlockDiagonal leverage adjustments (inverse instead of sqrt)
-    T = eltype(X)
-    map(zip(grouped_arrays, cluster_indices)) do (g, indices)
-        blocks = Vector{Matrix{T}}(undef, g.ngroups)
-        @inbounds for gc in 1:g.ngroups
-            ind = indices[gc]
-            Xg = view(X, ind, :)
-            tmp = Xg * XX * Xg'
-            !isempty(wts) && (tmp .*= view(wts, ind)')
-            blocks[gc] = inv(Symmetric(I - tmp))
+            blocks[gc] = _leverage_transform(k, I - tmp)
         end
         BlockDiagonal(blocks)
     end
