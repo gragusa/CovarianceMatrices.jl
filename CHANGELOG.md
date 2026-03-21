@@ -7,21 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.30.5] (Unreleased)
 
-### Source Code Changes
+### Bug Fixes
 
+- GMM variance formulas for suboptimal weight matrix:
+  - `_compute_gmm_information_weighted` was computing `inv(G'WΩ⁻¹WG)` instead of the correct sandwich `(G'WG)⁻¹ G'WΩWG (G'WG)⁻¹`. 
+  - `_compute_gmm_misspecified` with explicit W used `Ω⁻¹` in the meat instead of `Ω`. The efficient GMM paths (W=nothing) were already correct.
+- Sign handling in multi-way cluster variance 
+  - Removed incorrect `(-1)^(len-1)` sign factors from `_avar_tuple_impl` in `CR.jl`
+
+### Changed
+
+- GMM API 
+  - Weight matrix is now resolved via `weight_matrix(model)` before dispatching to compute functions; simplified Misspecified GMM path
+- CR2/CR3 leverage adjustments 
+  - Deduplicated code via `_leverage_transform` dispatch, unifying `residual_adjustment` and `_compute_leverage_adjustments` for CR2/CR3
+- Multi-vector Clustering constructor 
+  - Delegates to single-vector constructors and merge, avoiding `NTuple{N, Any}` dict keys
+- Removed unused `ncombinations` variable from `CRCache`
 - Improves smoothing functions
 - Changed `order_aic` and `order_bic` fields from `Vector{Int}` to `Array{Int}` to support both `SameLags` (Vector) and `DifferentOwnLags` (Matrix) strategies
 - VARHAC optimization - Moved `delag(X, kk)` call inside the kk > 0 condition in `_var_selection_ownlag`
+
+### Documentation
+
+- Simplified documentation index page
+- Expanded asymptotic variance theory in introduction 
+- Updated GMM docstrings to reflect corrected formulas
 
 ###  CI/Infrastructure
 
 - Added CompatHelper, TagBot, and benchmark GitHub workflows
 - Updated CI workflow configuration
 - Added .pre-commit-config.yaml
-- Added benchmark infrastructure 
+- Added benchmark infrastructure
 
 ### Tests
 
+- Added analytical tests for all four GMM variance formulas
+- Added two-way cluster variance regression test 
 - Added more tests for smoothed moments
 - Added VARHAC tests
 
@@ -67,7 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added Monte Carlo coverage tests to validate EWC estimator produces correct confidence interval coverage (~91% with AR(1) errors)
+- Added Monte Carlo coverage tests to validate EWC estimator produces correct confidence interval coverage
 
 ## [0.30.1]
 
