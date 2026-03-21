@@ -16,9 +16,76 @@ $$
 \sqrt{T}\Sigma_T^{-1/2}(\bar{X}_T - \mu_T) \xrightarrow{d} N(0, I_k)
 $$
 
-where $\Sigma_T$ is the asymptotic variance-covariance matrix and $I_k$ is the $k$-dimensional identity matrix. The fundamental estimation problem is: **how do we estimate $\Sigma_T$?**
+where 
+$$
+\begin{align*}
+\Sigma_{T}=\mathrm{a}\mathbb{V}\mathrm{ar}\left(\frac{1}{\sqrt{T}}\sum_{t=1}^{T}X_{t}\right) & =\frac{1}{T}\sum_{t=1}^{T}\mathbb{E}\left(X_{t}-\mu\right)\left(X_{t}-\mu\right)'\\
+ & +T^{-1}\sum_{\tau=1}^{T-1}\sum_{t=\tau+1}^{T}\left[\mathbb{E}\left(X_{t}-\mu\right)\left(X_{t-\tau}-\mu\right)'+\mathbb{E}\left(X_{t-\tau}-\mu\right)\left(X_{t}-\mu\right)'\right].
+\
+\end{align*}
+$$
+The asymptotic variance is the average of the variances of $X_t$ plus a term that involves the covarianfes between $X_t$ and $X_{t-\tau}$. 
 
-The answer depends critically on the correlation structure of the sequence $\{X_t\}$.
+There are several special cases. 
+
+_Case 1:_ When $\{X_t\}$ is uncorrelated, so that 
+$$
+\mathbb{E}\left(X_{t}-\mu\right)\left(X_{t-\tau}-\mu\right)' = \mathbb{E}\left(X_{t-\tau}-\mu\right)\left(X_{t}-\mu\right)' = 0,
+$$
+for all $t\neq\tau$, and thus
+$$
+\Sigma_{T}=\mathrm{a}\mathbb{V}\mathrm{ar}\left(\frac{1}{\sqrt{T}}\sum_{t=1}^{T}X_{t}\right) & =\frac{1}{T}\sum_{t=1}^{T}\mathbb{E}\left(X_{t}-\mu\right)\left(X_{t}-\mu\right)'.
+$$
+
+_Case 2_ When $\{X_t\}$ is finitely correlated, that is, 
+$$
+\mathbb{E}\left(X_{t}-\mu\right)\left(X_{t-\tau}-\mu\right)' = \mathbb{E}\left(X_{t-\tau}-\mu\right)\left(X_{t}-\mu\right)' = 0,
+$$
+for all $\tau > m$, for some $m \in\mathbb{N}$. In this situation, the variance reduces to 
+$$
+\begin{aligned}
+\Sigma_{T}= & =\frac{1}{T}\sum_{t=1}^{T}\mathbb{E}\left(X_{t}-\mu\right)\left(X_{t}-\mu\right)'\\
+ & +T^{-1}\sum_{\tau=1}^{m}\sum_{t=\tau+1}^{T}\left[\mathbb{E}\left(X_{t}-\mu\right)\left(X_{t-\tau}-\mu\right)'+\mathbb{E}\left(X_{t-\tau}-\mu\right)\left(X_{t}-\mu\right)'\right].
+\end{aligned}
+$$
+An example of this case arises when $X_t$ is VMA($m+1$) $X_t = \mu +  \varepsilon_t + \Theta \varepsilon_{t-1}$.  
+
+## Asymptotic uncorrelatedness
+
+This is the case of mixing. 
+
+## Cluster structure
+
+A related, yet distinct case, arises when $X_t$ is correlated within blocks, but blocks are indeopendent. In this case
+
+$$
+\begin{align*}
+\Sigma_{T}=\mathrm{a}\mathbb{V}\mathrm{ar}\left(\frac{1}{\sqrt{T}}\sum_{t=1}^{T}X_{t}\right) & =\frac{1}{T}\sum_{t=1}^{T}\mathbb{E}\left(X_{t}-\mu\right)\left(X_{t}-\mu\right)'\\
+ & +T^{-1}\sum_{\tau=1}^{T-1}\sum_{t=\tau+1}\left[\mathbb{E}\left(X_{t}-\mu\right)\left(X_{t-\tau}-\mu\right)'+\mathbb{E}\left(X_{t-\tau}-\mu\right)\left(X_{t}-\mu\right)'\right].
+\end{align*}
+$$
+
+### Independent block
+
+
+### Dependent block
+
+
+
+## Asymptotically 
+
+is uncorrelated, then the autocovariances, $\Gamma_t$, are zero. In this case the estimation of the asymptotic variance reduces to 
+$$
+\hat{S}_T = \frac{1}{T}\sum_{i=1}^T (X_t - \bar{X}_T)(X_t - \bar{X}_T)'.
+$$
+
+
+
+Without making assumptions on the correlation structure of $\{X_t\}$, the asymtotic variance expands as
+$$
+  S_t = \frac{1}{T}\sum_{t=1}^{T} E(X_tX_t') = 
+$$
+Estimators of $\Sigma_T$ are basically depends on the correlation structure of the sequence $\{X_t\}$.
 
 ## General Framework for Statistical Models
 
