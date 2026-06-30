@@ -91,7 +91,7 @@ using Random
             (UniformSmoother(5), UniformSmoother(5)),
             (Bartlett(2), Bartlett(2)),
             (Bartlett{Andrews}(), Bartlett{Andrews}()),
-            (VARHAC(), VARHAC()),
+            (VARHAC(), VARHAC())
         ]
         for (a, b) in pairs
             @test a == b
@@ -105,7 +105,8 @@ using Random
         @test d[CR0([1, 1, 2, 2])] == 2
         @test d[Bartlett(2)] == 3
 
-        @test length(unique([Bartlett(2), Bartlett(2), Bartlett(3), Bartlett{Andrews}()])) == 3
+        @test length(unique([
+            Bartlett(2), Bartlett(2), Bartlett(3), Bartlett{Andrews}()])) == 3
         @test length(unique([VARHAC(), VARHAC(), VARHAC(:bic)])) == 2
         @test length(unique([CR0([1, 1, 2, 2]), CR0([1, 1, 2, 2]), CR1([1, 1, 2, 2])])) == 2
     end

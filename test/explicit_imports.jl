@@ -17,6 +17,6 @@ using CovarianceMatrices
     test_explicit_imports(
         CovarianceMatrices;
         all_explicit_imports_are_public = false,
-        all_qualified_accesses_are_public = false,
+        all_qualified_accesses_are_public = false
     )
 end
