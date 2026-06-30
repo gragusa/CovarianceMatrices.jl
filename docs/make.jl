@@ -31,7 +31,7 @@ makedocs(
             "Package Interface Extension" => "tutorials/interface_tutorial.md"
         ],
         "API Reference" => "api.md",
-        "Performance Notes" => "performance.md"
+        "Performance" => "performance.md"
     ]
 )
 
