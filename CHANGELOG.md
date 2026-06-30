@@ -19,8 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Value-based `Base.==` and matching `Base.hash` for estimator types, so equal
   specifications compare equal and work as `Dict` keys / `unique` elements.
   Equality reflects the estimator specification, not transient fit state.
+- `vcov(::DriscollKraay, model)` accepts a `type` argument (`:HC0`, `:HC1`,
+  `:sss`) for the finite-sample corrections of R's `plm::vcovSCC`.
 
 ### Bug Fixes
+
+- `vcov(::DriscollKraay, model)` now works for regression models and reproduces
+  `plm::vcovSCC`. It previously threw a `MethodError`, and the underlying
+  sandwich scaled by the observation count `n` rather than the number of time
+  periods `T`.
 
 - GMM variance formulas for suboptimal weight matrix:
   - `_compute_gmm_information_weighted` was computing `inv(G'WΩ⁻¹WG)` instead of the correct sandwich `(G'WG)⁻¹ G'WΩWG (G'WG)⁻¹`. 

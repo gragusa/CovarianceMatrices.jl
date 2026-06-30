@@ -320,16 +320,48 @@ function StatsAPI.vcov(
     return Vo
 end
 
-# Driscoll-Kraay aggregates the n observation-level moments into T period sums,
-# so the sandwich scales by the number of time periods T, not by n. With bread
-# B = (X'X)^-1 and aVar(k, M; scale=false) = (1/T) Σ_t ĝ_t ĝ_t', this gives
-# V = B (Σ_t ĝ_t ĝ_t') B = T · B · aVar(k, M; scale=false) · B, matching
-# plm::vcovSCC for a pooling model. Equivalent in value to F * a𝕍ar(k, m) * F
-# for the matrix path with the same moment matrix.
+# Finite-sample correction factor for Driscoll-Kraay, matching the scalar
+# `type` options of plm::vcovSCC. `n` is the number of observations, `k` the
+# number of estimated coefficients, `T` the number of time periods (the cluster
+# dimension). The leverage-based HC2/HC3/HC4 corrections are not supported.
+function _dk_correction(type::Symbol, n::Int, k::Int, T::Int)
+    if type === :HC0
+        return 1.0
+    elseif type === :HC1
+        return n / (n - k)
+    elseif type === :sss
+        return (n - 1) / (n - k) * T / (T - 1)
+    else
+        throw(ArgumentError("unsupported Driscoll-Kraay correction `type = :$type`; use :HC0, :HC1, or :sss"))
+    end
+end
+
+"""
+    vcov(k::DriscollKraay, model; type::Symbol = :HC0)
+
+Driscoll-Kraay variance-covariance matrix for a `RegressionModel`.
+
+Driscoll-Kraay aggregates the `n` observation-level moments into `T` period
+sums, so the sandwich scales by the number of time periods `T`, not by `n`.
+With bread `B = (X'X)^-1` and `aVar(k, m; scale=false) = (1/T) Σ_t ĝ_t ĝ_t'`,
+this gives `V = c · T · B · aVar(k, m; scale=false) · B`, where `c` is the
+finite-sample factor selected by `type`.
+
+`type` reproduces the scalar `type` options of `plm::vcovSCC` (`k` = number of
+coefficients):
+
+- `:HC0` (default): `c = 1`, no correction.
+- `:HC1`: `c = n / (n - k)`.
+- `:sss`: `c = (n - 1) / (n - k) · T / (T - 1)`, the Stata-style small-sample
+  correction.
+
+The leverage-based `:HC2`/`:HC3`/`:HC4` options of `plm::vcovSCC` are not
+supported.
+"""
 function StatsAPI.vcov(
         k::DriscollKraay,
         m::RegressionModel;
-        dofadjust = false,
+        type::Symbol = :HC0,
         kwargs...
 )
     T = k.tis.ngroups
@@ -340,7 +372,8 @@ function StatsAPI.vcov(
     midx = mask(m)
     Bm = sum(midx) < p ? B[midx, midx] : B
 
-    V = T .* Bm * A * Bm
+    c = _dk_correction(type, numobs(m), size(Bm, 2), T)
+    V = (c * T) .* Bm * A * Bm
 
     if sum(midx) < p
         Vo = similar(A, (p, p))
@@ -350,8 +383,6 @@ function StatsAPI.vcov(
     else
         Vo = V
     end
-
-    dofadjust && dofcorrect!(Vo, k, m)
 
     return Vo
 end

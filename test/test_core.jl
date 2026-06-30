@@ -542,10 +542,26 @@ df.y = Y;
                  -0.32394796987915825 -0.00035661048571690066 0.0024312798435615107]
         @test Σ₀ ≈ Σ_ssc rtol=1e-6
 
-        # Regression-model path: vcov(DriscollKraay, model) must reproduce the
-        # same plm::vcovSCC reference as the matrix computation above.
+        # Regression-model path: vcov(DriscollKraay, model) must reproduce
+        # plm::vcovSCC, including its scalar finite-sample `type` corrections.
+        # References from plm 2.6.7, vcovSCC(zz, maxlag = 4, type = ...) on the
+        # pooling model Inv ~ Value + Capital.
         model = lm(@formula(Inv ~ Value + Capital), df)
+        # type = :HC0 is the no-correction reference Σ_ssc above.
         @test vcov(𝒦, model) ≈ Σ_ssc rtol=1e-6
+        @test vcov(𝒦, model; type = :HC0) ≈ Σ_ssc rtol=1e-6
+
+        Σ_hc1 = [150.867608050409103 -0.068307218768127939 -0.32888118769457686;
+                 -0.068307218768128 0.000183275684885632 -0.00036204110225066;
+                 -0.328881187694577 -0.000362041102250660 0.00246830440970711]
+        @test vcov(𝒦, model; type = :HC1) ≈ Σ_hc1 rtol=1e-6
+
+        Σ_sss = [158.0139684317442459 -0.071542823867670829 -0.344459770269582910;
+                 -0.0715428238676709 0.000191957164696004 -0.000379190417620428;
+                 -0.3444597702695831 -0.000379190417620428 0.002585224092272187]
+        @test vcov(𝒦, model; type = :sss) ≈ Σ_sss rtol=1e-6
+
+        @test_throws "unsupported Driscoll-Kraay correction" vcov(𝒦, model; type = :HC3)
     end
 
     @testset "Smoothed HAC ✅" begin

@@ -31,6 +31,29 @@ where:
 DriscollKraay
 ```
 
+## Finite-Sample Corrections
+
+For a `RegressionModel`, `vcov(::DriscollKraay, model)` accepts a `type`
+argument that selects a finite-sample correction, reproducing the scalar
+`type` options of R's `plm::vcovSCC`. With `n` observations, `k` coefficients,
+and `T` time periods:
+
+| `type` | Factor | Description |
+|--------|--------|-------------|
+| `:HC0` (default) | `1` | No correction |
+| `:HC1` | `n / (n - k)` | Degrees-of-freedom correction |
+| `:sss` | `(n - 1) / (n - k) · T / (T - 1)` | Stata-style small-sample correction |
+
+```julia
+vcov(DriscollKraay(Bartlett(5), tis=df.Year, iis=df.Firm), model)              # :HC0
+vcov(DriscollKraay(Bartlett(5), tis=df.Year, iis=df.Firm), model; type=:HC1)
+vcov(DriscollKraay(Bartlett(5), tis=df.Year, iis=df.Firm), model; type=:sss)
+```
+
+A bandwidth of `Bartlett(b)` corresponds to `plm::vcovSCC(..., maxlag = b - 1)`.
+The leverage-based `:HC2`/`:HC3`/`:HC4` options of `plm::vcovSCC` are not
+supported.
+
 ## Usage Examples
 
 ### Basic Panel Data
