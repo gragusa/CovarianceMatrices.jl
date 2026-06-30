@@ -13,6 +13,31 @@ CovarianceMatrices.jl uses a **duck-typing** approach: any model that implements
 3. **Flexible design**: Choose between Information and Misspecified variance forms
 4. **Type-safe**: Optional abstract types provide compile-time guarantees
 
+## Three Ways to Obtain a Variance
+
+The package exposes the same estimators through three layered entry points, from
+lowest to highest level:
+
+1. **Matrix core — `aVar(estimator, Z; scale=false)`.** Takes a raw `T × m` moment
+   or score matrix and returns the long-run covariance `Ω`. This is the computational
+   core; every higher-level path ultimately calls it. Use it directly when you already
+   hold the moment matrix and want to assemble a variance yourself (see
+   [Advanced: Manual Variance Computation](#Advanced:-Manual-Variance-Computation)).
+
+2. **Model protocol — `vcov(estimator, model)` / `vcov(estimator, form, model)` /
+   `stderror(...)`.** The extension interface documented in this tutorial. A model
+   that implements `momentmatrix`, `coef`, and `nobs` (plus `hessian_objective` /
+   `jacobian_momentfunction` as its variance form requires) gets the full sandwich
+   assembled for it. This is the surface most users implement against.
+
+3. **Specification wrapper — `model + vcov(estimator)`.** `vcov(estimator)` with a
+   single argument returns a [`VcovSpec`](@ref) that simply packages the estimator.
+   The `+` operator that consumes it is defined by downstream modeling packages
+   (e.g. Regress.jl), not by CovarianceMatrices.jl; this package only provides the
+   wrapper so those packages can offer the `model + vcov(...)` idiom.
+
+The rest of this tutorial concerns surface 2, the model protocol.
+
 ## The Core Interface
 
 ### Required Methods
@@ -26,9 +51,9 @@ Every model must implement:
 ### Optional Methods (for advanced features)
 
 4. **`cross_score(model)`**: Return $G = \sum_i g_i g_i'$ (has default implementation)
-5. **`hessian_objective(model)`**: Required for Misspecified form
-6. **`jacobian_momentfunction(model)`**: Required for GMM models
-7. **`weight_matrix(model)`**: For inefficient GMM
+5. **`hessian_objective(model)`**: Required for the Misspecified form (`vcov` throws if missing)
+6. **`jacobian_momentfunction(model)`**: Required for `GMMLikeModel` (`vcov` throws if missing)
+7. **`weight_matrix(model)`**: Optional for GMM; omit (defaults to optimal `inv(Ω)`)
 
 ## Example 1: Simple M-Estimator
 

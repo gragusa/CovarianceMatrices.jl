@@ -42,6 +42,32 @@ This formula comes from the Wold representation of the VAR process and represent
 VARHAC
 ```
 
+### Construction Forms
+
+The recommended form names a selector and a lag strategy explicitly:
+
+```julia
+VARHAC(selector, strategy)        # e.g. VARHAC(BICSelector(), AutoLags())
+VARHAC()                          # headline form: AICSelector(), SameLags(8)
+```
+
+`VARHAC()` covers routine use; spell out both arguments when you need control
+over the criterion or the lag search. The remaining forms are convenience
+aliases that expand to this explicit form:
+
+| Alias | Expands to |
+|-------|-----------|
+| `VARHAC(8)` | `VARHAC(AICSelector(), SameLags(8))` |
+| `VARHAC(:aic)` | `VARHAC(AICSelector(), SameLags(8))` |
+| `VARHAC(:bic)` | `VARHAC(BICSelector(), SameLags(8))` |
+| `VARHAC(:fixed)` | `VARHAC(FixedSelector(), SameLags(8))` |
+| `VARHAC(FixedLags(5))` | `VARHAC(FixedSelector(), FixedLags(5))` |
+| `VARHAC(Val(:auto))` | `VARHAC(AICSelector(), AutoLags())` |
+
+For sample-size-driven lag selection, prefer the explicit
+`VARHAC(AICSelector(), AutoLags())` over `VARHAC(Val(:auto))`: it reads more
+clearly and lets you pick the selector.
+
 ## Lag Selection Methods
 
 ### Information Criteria

@@ -87,7 +87,6 @@ abstract type Correlated <: AbstractAsymptoticVarianceEstimator end
 
 abstract type HAC{G} <: Correlated end
 
-abstract type CrossSectionEstimator <: AbstractAsymptoticVarianceEstimator end
 abstract type HR <: AbstractAsymptoticVarianceEstimator end
 abstract type CR <: Correlated end
 
@@ -165,6 +164,29 @@ se_parzen_alt = stderror(Parzen(Andrews), model)
 """
 struct Andrews <: BandwidthType end
 
+"""
+`Fixed`
+
+Fixed (user-supplied) bandwidth for HAC estimators.
+
+A HAC kernel constructed with a numeric bandwidth — e.g. `Bartlett(4)` — has
+bandwidth type `Fixed`: the bandwidth is taken as given rather than selected from
+the data. Use the type parameter to dispatch on fixed-bandwidth kernels via
+`HAC{Fixed}`.
+
+# Usage
+```julia
+using CovarianceMatrices
+k = Bartlett(4)              # Bartlett kernel, fixed bandwidth 4
+k isa HAC{Fixed}            # true
+
+# Dispatch on fixed-bandwidth kernels
+describe(::HAC{Fixed}) = "fixed bandwidth"
+describe(::HAC) = "data-driven bandwidth"
+```
+
+See also [`Andrews`](@ref) and [`NeweyWest`](@ref) for data-driven bandwidth selection.
+"""
 struct Fixed <: BandwidthType end
 
 """
@@ -1217,15 +1239,28 @@ the spectral density at frequency zero as the covariance estimator. This approac
 automatically accounts for serial correlation and cross-correlation patterns
 without requiring bandwidth selection.
 
-# Constructor
+# Construction
+
+The recommended form supplies a selector and a lag strategy explicitly:
+
     VARHAC(selector=AICSelector(), strategy=SameLags(8); T::Type{<:Real}=Float64)
 
-Several convenience constructors are provided:
+`VARHAC()` uses the defaults (AIC, `SameLags(8)`) and is the headline form for
+routine use. Spell out both arguments — `VARHAC(BICSelector(), AutoLags())` —
+when you need full control.
 
-    - `VARHAC(8)`: Same as `VARHAC(AICSelector(), SameLags(8))`
-    - `VARHAC(:aic)`: Same as `VARHAC(AICSelector(), SameLags(8))`
-    - `VARHAC(:bic)`: Same as `VARHAC(BICSelector(), SameLags(8))`
-    - `VARHAC(FixedLags(5))`: Fixed lag length of 5
+The following convenience aliases expand to that explicit form:
+
+    - `VARHAC(8)`           => `VARHAC(AICSelector(), SameLags(8))`
+    - `VARHAC(:aic)`        => `VARHAC(AICSelector(), SameLags(8))`
+    - `VARHAC(:bic)`        => `VARHAC(BICSelector(), SameLags(8))`
+    - `VARHAC(:fixed)`      => `VARHAC(FixedSelector(), SameLags(8))`
+    - `VARHAC(FixedLags(5))`=> `VARHAC(FixedSelector(), FixedLags(5))`
+    - `VARHAC(Val(:auto))`  => `VARHAC(AICSelector(), AutoLags())`
+
+For sample-size-driven lag selection, prefer the explicit
+`VARHAC(AICSelector(), AutoLags())` over the `Val(:auto)` alias — it reads more
+clearly and lets you choose the selector.
 
 ## Arguments
 
@@ -1247,17 +1282,21 @@ Several convenience constructors are provided:
 
 # Examples
 ```julia
-# Basic usage with AIC selection
+# Headline form: defaults (AIC, SameLags(8))
 ve1 = VARHAC()
 
-# BIC selection with specific max lags
-ve2 = VARHAC(:bic, SameLags(12))
+# BIC selection with a larger lag search
+ve2 = VARHAC(BICSelector(), SameLags(12))
 
-# Fixed lag length
+# Fixed lag length, no selection
 ve3 = VARHAC(FixedLags(6))
 
 # Automatic lag selection based on sample size
 ve4 = VARHAC(AICSelector(), AutoLags())
+
+# Convenience aliases
+ve5 = VARHAC(:bic)   # BICSelector(), SameLags(8)
+ve6 = VARHAC(12)     # AICSelector(), SameLags(12)
 ```
 """
 mutable struct VARHAC{S <: LagSelector, L <: LagStrategy, T <: Real} <: Correlated
@@ -1265,8 +1304,8 @@ mutable struct VARHAC{S <: LagSelector, L <: LagStrategy, T <: Real} <: Correlat
     BICs::Union{Array{T}, Nothing}
     order_aic::Union{Array{Int}, Nothing}  # Vector for SameLags, Matrix for DifferentOwnLags
     order_bic::Union{Array{Int}, Nothing}  # Vector for SameLags, Matrix for DifferentOwnLags
-    selector::S
-    strategy::L
+    const selector::S
+    const strategy::L
 end
 
 function VARHAC(selector = AICSelector(), strategy = SameLags(8); T::Type{<:Real} = Float64)
@@ -1485,7 +1524,7 @@ ve = DriscollKraay(Bartlett{Andrews}(), tis=time_ids, iis=unit_ids)
 ve = DriscollKraay(Parzen(4), tis=years, iis=countries)
 ```
 """
-mutable struct DriscollKraay{K, D} <: Correlated
+struct DriscollKraay{K, D} <: Correlated
     K::K
     tis::D
     iis::D

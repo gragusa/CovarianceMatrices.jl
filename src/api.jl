@@ -170,6 +170,11 @@ function StatsAPI.vcov(
     Ω = aVar(ve, Z; scale = false)
     G = jacobian_momentfunction(model)
 
+    # jacobian_momentfunction is required for GMM variance
+    if G === nothing
+        throw(ArgumentError("vcov for GMMLikeModel requires jacobian_momentfunction(model) to return an m×k matrix; the default returns nothing"))
+    end
+
     # Resolve weight matrix: explicit keyword overrides model method
     W_eff = W === nothing ? weight_matrix(model) : W
 
@@ -235,6 +240,11 @@ function StatsAPI.vcov(
     Ω = aVar(ve, Z; scale = false)
     G = jacobian_momentfunction(model)
     H = hessian_objective(model)
+
+    # jacobian_momentfunction is required for GMM variance
+    if G === nothing
+        throw(ArgumentError("vcov for GMMLikeModel requires jacobian_momentfunction(model) to return an m×k matrix; the default returns nothing"))
+    end
 
     # hessian_objective is required for GMM Misspecified
     if H === nothing

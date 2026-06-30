@@ -95,26 +95,28 @@ using Random
 
     @testset "Bandwidth Validation" begin
         @testset "UniformSmoother" begin
-            # Test that non-integer m_T throws ArgumentError
-            @test_throws ArgumentError CovarianceMatrices.UniformSmoother(2.5)
-            @test_throws ArgumentError CovarianceMatrices.UniformSmoother(3.7)
-            @test_throws ArgumentError CovarianceMatrices.UniformSmoother(-1)
-            @test_throws ArgumentError CovarianceMatrices.UniformSmoother(-2.5)
+            # Non-integer m_T is rejected as not an integer
+            @test_throws "m_T must be an integer" CovarianceMatrices.UniformSmoother(2.5)
+            @test_throws "m_T must be an integer" CovarianceMatrices.UniformSmoother(3.7)
+            # Negative m_T is rejected as not non-negative
+            @test_throws "m_T must be non-negative" CovarianceMatrices.UniformSmoother(-1)
+            @test_throws "m_T must be non-negative" CovarianceMatrices.UniformSmoother(-2.5)
 
-            # Test that integer m_T works
+            # Test that integer m_T works, including m_T == 0
             @test CovarianceMatrices.UniformSmoother(2).m_T == 2
             @test CovarianceMatrices.UniformSmoother(5).m_T == 5
             @test CovarianceMatrices.UniformSmoother(0).m_T == 0
         end
 
         @testset "TriangularSmoother" begin
-            # Test that non-integer m_T throws ArgumentError
-            @test_throws ArgumentError CovarianceMatrices.TriangularSmoother(2.5)
-            @test_throws ArgumentError CovarianceMatrices.TriangularSmoother(3.7)
-            @test_throws ArgumentError CovarianceMatrices.TriangularSmoother(-1)
-            @test_throws ArgumentError CovarianceMatrices.TriangularSmoother(-2.5)
+            # Non-integer m_T is rejected as not an integer
+            @test_throws "m_T must be an integer" CovarianceMatrices.TriangularSmoother(2.5)
+            @test_throws "m_T must be an integer" CovarianceMatrices.TriangularSmoother(3.7)
+            # Negative m_T is rejected as not non-negative
+            @test_throws "m_T must be non-negative" CovarianceMatrices.TriangularSmoother(-1)
+            @test_throws "m_T must be non-negative" CovarianceMatrices.TriangularSmoother(-2.5)
 
-            # Test that integer m_T works
+            # Test that integer m_T works, including m_T == 0
             @test CovarianceMatrices.TriangularSmoother(2).m_T == 2
             @test CovarianceMatrices.TriangularSmoother(5).m_T == 5
             @test CovarianceMatrices.TriangularSmoother(0).m_T == 0
