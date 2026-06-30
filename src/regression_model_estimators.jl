@@ -320,6 +320,42 @@ function StatsAPI.vcov(
     return Vo
 end
 
+# Driscoll-Kraay aggregates the n observation-level moments into T period sums,
+# so the sandwich scales by the number of time periods T, not by n. With bread
+# B = (X'X)^-1 and aVar(k, M; scale=false) = (1/T) Σ_t ĝ_t ĝ_t', this gives
+# V = B (Σ_t ĝ_t ĝ_t') B = T · B · aVar(k, M; scale=false) · B, matching
+# plm::vcovSCC for a pooling model. Equivalent in value to F * a𝕍ar(k, m) * F
+# for the matrix path with the same moment matrix.
+function StatsAPI.vcov(
+        k::DriscollKraay,
+        m::RegressionModel;
+        dofadjust = false,
+        kwargs...
+)
+    T = k.tis.ngroups
+    A = aVar(k, m; scale = false, kwargs...)
+
+    B = bread(m)
+    p = size(B, 2)
+    midx = mask(m)
+    Bm = sum(midx) < p ? B[midx, midx] : B
+
+    V = T .* Bm * A * Bm
+
+    if sum(midx) < p
+        Vo = similar(A, (p, p))
+        Vo[midx, midx] .= V
+        Vo[.!midx, :] .= NaN
+        Vo[:, .!midx] .= NaN
+    else
+        Vo = V
+    end
+
+    dofadjust && dofcorrect!(Vo, k, m)
+
+    return Vo
+end
+
 """
     stderror(estimator, model; kwargs...)
 

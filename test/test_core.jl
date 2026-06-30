@@ -542,12 +542,10 @@ df.y = Y;
                  -0.32394796987915825 -0.00035661048571690066 0.0024312798435615107]
         @test Σ₀ ≈ Σ_ssc rtol=1e-6
 
-        # Regression-model path: vcov(DriscollKraay, model) must agree with the
-        # matrix computation. The model's moment matrix equals `m` above and its
-        # bread equals F, so vcov(𝒦, model) = F * aVar(𝒦, m) * F.
+        # Regression-model path: vcov(DriscollKraay, model) must reproduce the
+        # same plm::vcovSCC reference as the matrix computation above.
         model = lm(@formula(Inv ~ Value + Capital), df)
-        Σ_matrix = F * a𝕍ar(𝒦, m; scale = false) * F
-        @test vcov(𝒦, model) ≈ Σ_matrix rtol=1e-8
+        @test vcov(𝒦, model) ≈ Σ_ssc rtol=1e-6
     end
 
     @testset "Smoothed HAC ✅" begin
