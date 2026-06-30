@@ -20,11 +20,9 @@ Pkg.add("CovarianceMatrices")
 
 ## Main Functions
 
-```@docs
-aVar
-vcov
-stderror
-```
+The three entry points are [`aVar`](@ref), [`vcov`](@ref StatsBase.vcov), and
+[`stderror`](@ref StatsBase.stderror); see the [API Reference](@ref) for full
+documentation.
 
 
 ## Citation

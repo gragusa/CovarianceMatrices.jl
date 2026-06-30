@@ -28,6 +28,7 @@ where:
 
 ```@docs
 Bartlett
+CovarianceMatrices.BartlettKernel
 ```
 
 The Bartlett kernel is defined as:
@@ -59,6 +60,7 @@ bart_nw = Bartlett{NeweyWest}()
 
 ```@docs
 Parzen
+CovarianceMatrices.ParzenKernel
 ```
 
 The Parzen kernel uses a more complex weighting scheme:
@@ -88,6 +90,7 @@ parzen_fixed = Parzen(8)
 
 ```@docs
 QuadraticSpectral
+CovarianceMatrices.QuadraticSpectralKernel
 ```
 
 The Quadratic Spectral kernel is unbounded:
@@ -113,6 +116,7 @@ qs_fixed = QuadraticSpectral(10)
 
 ```@docs
 Truncated
+CovarianceMatrices.TruncatedKernel
 ```
 
 The truncated kernel provides simple equal weighting:
@@ -132,6 +136,7 @@ k(x) = \begin{cases}
 
 ```@docs
 TukeyHanning
+CovarianceMatrices.TukeyHanningKernel
 ```
 
 The Tukey-Hanning kernel uses cosine weighting:
