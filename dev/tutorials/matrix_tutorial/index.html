@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Matrix Interface · CovarianceMatrices.jl</title><meta name="title" content="Matrix Interface · CovarianceMatrices.jl"/><meta property="og:title" content="Matrix Interface · CovarianceMatrices.jl"/><meta property="twitter:title" content="Matrix Interface · CovarianceMatrices.jl"/><meta name="description" content="Documentation for CovarianceMatrices.jl."/><meta property="og:description" content="Documentation for CovarianceMatrices.jl."/><meta property="twitter:description" content="Documentation for CovarianceMatrices.jl."/><meta property="og:url" content="https://gragusa.github.io/CovarianceMatrices.jl/stable/tutorials/matrix_tutorial/"/><meta property="twitter:url" content="https://gragusa.github.io/CovarianceMatrices.jl/stable/tutorials/matrix_tutorial/"/><link rel="canonical" href="https://gragusa.github.io/CovarianceMatrices.jl/stable/tutorials/matrix_tutorial/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../introduction/">Introduction &amp; Mathematical Foundation</a></li><li><span class="tocitem">Estimators</span><ul><li><a class="tocitem" href="../../estimators/hac/">HAC Estimators</a></li><li><a class="tocitem" href="../../estimators/hc/">Heteroskedasticity-Robust (HC/HR)</a></li><li><a class="tocitem" href="../../estimators/cr/">Clustered Standard Errors (CR)</a></li><li><a class="tocitem" href="../../estimators/varhac/">VARHAC</a></li><li><a class="tocitem" href="../../estimators/smoothed_moments/">Smoothed Moments</a></li><li><a class="tocitem" href="../../estimators/driscoll_kraay/">Driscoll-Kraay</a></li><li><a class="tocitem" href="../../estimators/ewc/">EWC</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li class="is-active"><a class="tocitem" href>Matrix Interface</a><ul class="internal"><li><a class="tocitem" href="#Basic-Workflow"><span>Basic Workflow</span></a></li><li><a class="tocitem" href="#Example-1:-Time-Series-with-Serial-Correlation"><span>Example 1: Time Series with Serial Correlation</span></a></li><li><a class="tocitem" href="#Example-2:-Cross-Sectional-Data-with-Heteroskedasticity"><span>Example 2: Cross-Sectional Data with Heteroskedasticity</span></a></li><li><a class="tocitem" href="#Example-3:-Clustered-Data"><span>Example 3: Clustered Data</span></a></li><li><a class="tocitem" href="#Example-4:-Panel-Data-with-Driscoll-Kraay"><span>Example 4: Panel Data with Driscoll-Kraay</span></a></li><li><a class="tocitem" href="#Example-5:-EWC-Estimation"><span>Example 5: EWC Estimation</span></a></li><li><a class="tocitem" href="#Advanced-Usage:-Custom-Options-and-Diagnostics"><span>Advanced Usage: Custom Options and Diagnostics</span></a></li><li><a class="tocitem" href="#Summary-of-Recommendations"><span>Summary of Recommendations</span></a></li></ul></li><li><a class="tocitem" href="../glm_tutorial/">GLM Integration</a></li><li><a class="tocitem" href="../interface_tutorial/">Package Interface Extension</a></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../../performance/">Performance</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Matrix Interface</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Matrix Interface</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/gragusa/CovarianceMatrices.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/master/docs/src/tutorials/matrix_tutorial.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Matrix-Interface-Tutorial"><a class="docs-heading-anchor" href="#Matrix-Interface-Tutorial">Matrix Interface Tutorial</a><a id="Matrix-Interface-Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Matrix-Interface-Tutorial" title="Permalink"></a></h1><p>This tutorial demonstrates how to use CovarianceMatrices.jl with the matrix interface for direct covariance matrix estimation. This approach is ideal when you have moment conditions or residuals and need to compute robust covariance matrices directly.</p><h2 id="Basic-Workflow"><a class="docs-heading-anchor" href="#Basic-Workflow">Basic Workflow</a><a id="Basic-Workflow-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-Workflow" title="Permalink"></a></h2><p>The matrix interface follows this general pattern:</p><ol><li>Prepare your data matrix (moment conditions, residuals, etc.)</li><li>Choose an appropriate estimator</li><li>Compute the covariance matrix using <code>aVar()</code></li><li>Extract standard errors if needed</li></ol><pre><code class="language-julia hljs">using CovarianceMatrices, LinearAlgebra, Random
+Random.seed!(123)  # For reproducibility</code></pre><h2 id="Example-1:-Time-Series-with-Serial-Correlation"><a class="docs-heading-anchor" href="#Example-1:-Time-Series-with-Serial-Correlation">Example 1: Time Series with Serial Correlation</a><a id="Example-1:-Time-Series-with-Serial-Correlation-1"></a><a class="docs-heading-anchor-permalink" href="#Example-1:-Time-Series-with-Serial-Correlation" title="Permalink"></a></h2><p>Let&#39;s start with simulated time series data that exhibits serial correlation:</p><pre><code class="language-julia hljs"># Generate AR(1) time series with multiple variables
+T = 500
+ρ = 0.6
+k = 3
+
+# Initialize
+X = zeros(T, k)
+ε = randn(T, k)
+
+# Generate AR(1) process: X_t = ρ * X_{t-1} + ε_t
+for t in 2:T
+    X[t, :] = ρ * X[t-1, :] + ε[t, :]
+end
+
+println(&quot;Generated $(T)×$(k) time series with AR(1) coefficient ρ = $ρ&quot;)</code></pre><h3 id="HAC-Estimation"><a class="docs-heading-anchor" href="#HAC-Estimation">HAC Estimation</a><a id="HAC-Estimation-1"></a><a class="docs-heading-anchor-permalink" href="#HAC-Estimation" title="Permalink"></a></h3><p>For time series data, HAC estimators account for both heteroskedasticity and autocorrelation:</p><pre><code class="language-julia hljs"># 1. Bartlett kernel with Andrews bandwidth selection
+bart_andrews = Bartlett{Andrews}()
+Ω_bart_andrews = aVar(bart_andrews, X)
+println(&quot;Bartlett (Andrews): trace = $(round(tr(Ω_bart_andrews), digits=3))&quot;)
+
+# 2. Bartlett kernel with fixed bandwidth
+bart_fixed = Bartlett(5)  # bandwidth = 5
+Ω_bart_fixed = aVar(bart_fixed, X)
+println(&quot;Bartlett (fixed): trace = $(round(tr(Ω_bart_fixed), digits=3))&quot;)
+
+# 3. Parzen kernel with Newey-West bandwidth
+parzen_nw = Parzen{NeweyWest}()
+Ω_parzen_nw = aVar(parzen_nw, X)
+println(&quot;Parzen (Newey-West): trace = $(round(tr(Ω_parzen_nw), digits=3))&quot;)
+
+# 4. Quadratic Spectral kernel
+qs_andrews = QuadraticSpectral{Andrews}()
+Ω_qs_andrews = aVar(qs_andrews, X)
+println(&quot;Quadratic Spectral: trace = $(round(tr(Ω_qs_andrews), digits=3))&quot;)</code></pre><h3 id="VARHAC-Estimation-(Recommended-for-Automatic-Approach)"><a class="docs-heading-anchor" href="#VARHAC-Estimation-(Recommended-for-Automatic-Approach)">VARHAC Estimation (Recommended for Automatic Approach)</a><a id="VARHAC-Estimation-(Recommended-for-Automatic-Approach)-1"></a><a class="docs-heading-anchor-permalink" href="#VARHAC-Estimation-(Recommended-for-Automatic-Approach)" title="Permalink"></a></h3><p>VARHAC eliminates the need for bandwidth selection by fitting a VAR model:</p><pre><code class="language-julia hljs"># Basic VARHAC with AIC selection
+varhac_aic = VARHAC()  # Defaults: AIC, SameLags(8)
+Ω_varhac_aic = aVar(varhac_aic, X)
+println(&quot;VARHAC (AIC): trace = $(round(tr(Ω_varhac_aic), digits=3))&quot;)
+
+# VARHAC with BIC selection
+varhac_bic = VARHAC(:bic)
+Ω_varhac_bic = aVar(varhac_bic, X)
+println(&quot;VARHAC (BIC): trace = $(round(tr(Ω_varhac_bic), digits=3))&quot;)
+
+# Check selected lag orders
+println(&quot;AIC selected lags: &quot;, order(varhac_aic))
+println(&quot;BIC selected lags: &quot;, order(varhac_bic))</code></pre><h3 id="Smoothed-Moments-Estimation"><a class="docs-heading-anchor" href="#Smoothed-Moments-Estimation">Smoothed Moments Estimation</a><a id="Smoothed-Moments-Estimation-1"></a><a class="docs-heading-anchor-permalink" href="#Smoothed-Moments-Estimation" title="Permalink"></a></h3><p>Smith&#39;s smoothed moments method provides automatic positive semi-definiteness:</p><pre><code class="language-julia hljs"># Compute optimal bandwidths
+T = size(X, 1)
+m_T_uniform = round(Int, 2.0 * T^(1/3))
+m_T_triangular = round(Int, 1.5 * T^(1/5))
+
+# Uniform kernel (induces Bartlett HAC)
+sm_uniform = UniformSmoother(m_T_uniform)
+Ω_sm_uniform = aVar(sm_uniform, X)
+println(&quot;Smoothed Moments (Uniform): trace = $(round(tr(Ω_sm_uniform), digits=3))&quot;)
+
+# Triangular kernel (induces Parzen HAC)
+sm_triangular = TriangularSmoother(m_T_triangular)
+Ω_sm_triangular = aVar(sm_triangular, X)
+println(&quot;Smoothed Moments (Triangular): trace = $(round(tr(Ω_sm_triangular), digits=3))&quot;)
+
+# Fixed bandwidth
+sm_fixed = UniformSmoother(8)
+Ω_sm_fixed = aVar(sm_fixed, X)
+println(&quot;Smoothed Moments (Fixed): trace = $(round(tr(Ω_sm_fixed), digits=3))&quot;)</code></pre><h2 id="Example-2:-Cross-Sectional-Data-with-Heteroskedasticity"><a class="docs-heading-anchor" href="#Example-2:-Cross-Sectional-Data-with-Heteroskedasticity">Example 2: Cross-Sectional Data with Heteroskedasticity</a><a id="Example-2:-Cross-Sectional-Data-with-Heteroskedasticity-1"></a><a class="docs-heading-anchor-permalink" href="#Example-2:-Cross-Sectional-Data-with-Heteroskedasticity" title="Permalink"></a></h2><p>For cross-sectional data without serial correlation, use HC/HR estimators:</p><pre><code class="language-julia hljs"># Generate cross-sectional data with heteroskedasticity
+N = 200
+x = randn(N, 2)
+β = [1.0, -0.5]
+# Heteroskedastic errors: variance depends on x
+σ² = exp.(0.5 * x[:, 1])
+ε = σ² .* randn(N)
+y = x * β + ε
+
+# Compute residuals (this would be your moment conditions)
+residuals = reshape(y - x * β, N, 1)
+
+# HC estimators
+hc_estimators = [HC0(), HC1(), HC2(), HC3(), HC4(), HC5()]
+for (i, hc) in enumerate(hc_estimators)
+    Ω_hc = aVar(hc, residuals)
+    println(&quot;HC$(i-1): σ̂² = $(round(Ω_hc[1,1], digits=4))&quot;)
+end</code></pre><h2 id="Example-3:-Clustered-Data"><a class="docs-heading-anchor" href="#Example-3:-Clustered-Data">Example 3: Clustered Data</a><a id="Example-3:-Clustered-Data-1"></a><a class="docs-heading-anchor-permalink" href="#Example-3:-Clustered-Data" title="Permalink"></a></h2><p>For data with cluster correlation, use CR estimators:</p><pre><code class="language-julia hljs"># Generate clustered data
+G = 20  # Number of clusters
+n_per_cluster = 10
+N = G * n_per_cluster
+
+# Cluster indicators
+clusters = repeat(1:G, inner=n_per_cluster)
+
+# Generate clustered data
+cluster_effects = randn(G)
+individual_effects = randn(N)
+y_clustered = cluster_effects[clusters] + 0.5 * individual_effects
+
+# Residuals from some model
+residuals_clustered = reshape(y_clustered .- mean(y_clustered), N, 1)
+
+# CR estimators
+cr_estimators = [CR0(clusters), CR1(clusters), CR2(clusters), CR3(clusters)]
+for (i, cr) in enumerate(cr_estimators)
+    Ω_cr = aVar(cr, residuals_clustered)
+    println(&quot;CR$(i-1): σ̂² = $(round(Ω_cr[1,1], digits=4))&quot;)
+end</code></pre><h2 id="Example-4:-Panel-Data-with-Driscoll-Kraay"><a class="docs-heading-anchor" href="#Example-4:-Panel-Data-with-Driscoll-Kraay">Example 4: Panel Data with Driscoll-Kraay</a><a id="Example-4:-Panel-Data-with-Driscoll-Kraay-1"></a><a class="docs-heading-anchor-permalink" href="#Example-4:-Panel-Data-with-Driscoll-Kraay" title="Permalink"></a></h2><p>For panel data with both cross-sectional and time dependence:</p><pre><code class="language-julia hljs"># Panel dimensions
+T_panel = 50
+N_panel = 30
+total_obs = T_panel * N_panel
+
+# Create panel identifiers
+time_ids = repeat(1:T_panel, outer=N_panel)
+unit_ids = repeat(1:N_panel, inner=T_panel)
+
+# Generate panel data with both dimensions of dependence
+# Time effects
+time_effects = cumsum(randn(T_panel))[time_ids] * 0.5
+# Unit effects
+unit_effects = randn(N_panel)[unit_ids] * 0.3
+# Individual noise
+noise = randn(total_obs) * 0.2
+
+panel_data = time_effects + unit_effects + noise
+residuals_panel = reshape(panel_data .- mean(panel_data), total_obs, 1)
+
+# Driscoll-Kraay estimator
+dk_estimator = DriscollKraay(Bartlett{Andrews}(), tis=time_ids, iis=unit_ids)
+Ω_dk = aVar(dk_estimator, residuals_panel)
+println(&quot;Driscoll-Kraay: σ̂² = $(round(Ω_dk[1,1], digits=4))&quot;)</code></pre><h2 id="Example-5:-EWC-Estimation"><a class="docs-heading-anchor" href="#Example-5:-EWC-Estimation">Example 5: EWC Estimation</a><a id="Example-5:-EWC-Estimation-1"></a><a class="docs-heading-anchor-permalink" href="#Example-5:-EWC-Estimation" title="Permalink"></a></h2><p>The Equal Weighted Cosine estimator provides a non-parametric alternative:</p><pre><code class="language-julia hljs"># EWC with different numbers of basis functions
+for B in [5, 10, 15]
+    ewc_est = EWC(B)
+    Ω_ewc = aVar(ewc_est, X)  # Using AR(1) data from Example 1
+    println(&quot;EWC (B=$B): trace = $(round(tr(Ω_ewc), digits=3))&quot;)
+end</code></pre><h2 id="Advanced-Usage:-Custom-Options-and-Diagnostics"><a class="docs-heading-anchor" href="#Advanced-Usage:-Custom-Options-and-Diagnostics">Advanced Usage: Custom Options and Diagnostics</a><a id="Advanced-Usage:-Custom-Options-and-Diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Advanced-Usage:-Custom-Options-and-Diagnostics" title="Permalink"></a></h2><h3 id="Prewhitening-for-HAC-Estimators"><a class="docs-heading-anchor" href="#Prewhitening-for-HAC-Estimators">Prewhitening for HAC Estimators</a><a id="Prewhitening-for-HAC-Estimators-1"></a><a class="docs-heading-anchor-permalink" href="#Prewhitening-for-HAC-Estimators" title="Permalink"></a></h3><p>Prewhitening can improve finite-sample performance of HAC estimators:</p><pre><code class="language-julia hljs"># HAC with prewhitening
+Ω_prewhite = aVar(bart_andrews, X; prewhite=true)
+Ω_no_prewhite = aVar(bart_andrews, X; prewhite=false)
+
+println(&quot;Bartlett without prewhitening: $(round(tr(Ω_no_prewhite), digits=3))&quot;)
+println(&quot;Bartlett with prewhitening: $(round(tr(Ω_prewhite), digits=3))&quot;)</code></pre><h3 id="Bandwidth-Diagnosis-for-HAC"><a class="docs-heading-anchor" href="#Bandwidth-Diagnosis-for-HAC">Bandwidth Diagnosis for HAC</a><a id="Bandwidth-Diagnosis-for-HAC-1"></a><a class="docs-heading-anchor-permalink" href="#Bandwidth-Diagnosis-for-HAC" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Extract optimal bandwidth
+_, _, bw = workingoptimalbw(bart_andrews, X)
+println(&quot;Optimal Andrews bandwidth: $(round(bw, digits=2))&quot;)
+
+# Compare with rule-of-thumb
+bw_newey_west = 4 * (T/100)^(2/9)
+println(&quot;Newey-West rule-of-thumb: $(round(bw_newey_west, digits=2))&quot;)</code></pre><h3 id="Memory-and-Performance-Considerations"><a class="docs-heading-anchor" href="#Memory-and-Performance-Considerations">Memory and Performance Considerations</a><a id="Memory-and-Performance-Considerations-1"></a><a class="docs-heading-anchor-permalink" href="#Memory-and-Performance-Considerations" title="Permalink"></a></h3><pre><code class="language-julia hljs">using BenchmarkTools
+
+# Compare performance of different estimators
+println(&quot;Performance comparison on $(size(X)) matrix:&quot;)
+
+# Fast estimators
+@btime aVar(HC3(), $X)
+@btime aVar(VARHAC(), $X)
+
+# Medium complexity
+@btime aVar(Bartlett(5), $X)
+@btime aVar(UniformSmoother(10), $X)
+
+# More computationally intensive
+@btime aVar(Parzen{Andrews}(), $X)</code></pre><h2 id="Summary-of-Recommendations"><a class="docs-heading-anchor" href="#Summary-of-Recommendations">Summary of Recommendations</a><a id="Summary-of-Recommendations-1"></a><a class="docs-heading-anchor-permalink" href="#Summary-of-Recommendations" title="Permalink"></a></h2><h3 id="When-to-Use-Each-Estimator"><a class="docs-heading-anchor" href="#When-to-Use-Each-Estimator">When to Use Each Estimator</a><a id="When-to-Use-Each-Estimator-1"></a><a class="docs-heading-anchor-permalink" href="#When-to-Use-Each-Estimator" title="Permalink"></a></h3><ol><li><strong>HC/HR (HC0-HC5)</strong>: Cross-sectional data with heteroskedasticity only</li><li><strong>HAC (Bartlett, Parzen, etc.)</strong>: Time series with both heteroskedasticity and autocorrelation</li><li><strong>VARHAC</strong>: Time series when you want automatic bandwidth selection and guaranteed PSD</li><li><strong>Smoothed Moments</strong>: Time series when you want automatic PSD with traditional HAC-like results</li><li><strong>CR (CR0-CR3)</strong>: Data with cluster correlation</li><li><strong>Driscoll-Kraay</strong>: Panel data with spatial and temporal correlation</li><li><strong>EWC</strong>: Financial time series or when other methods are sensitive to specification</li></ol><h3 id="Performance-Tips"><a class="docs-heading-anchor" href="#Performance-Tips">Performance Tips</a><a id="Performance-Tips-1"></a><a class="docs-heading-anchor-permalink" href="#Performance-Tips" title="Permalink"></a></h3><ol><li><strong>For large datasets</strong>: Use <code>HC3()</code> or <code>VARHAC()</code> for best performance</li><li><strong>For automatic approaches</strong>: Use <code>VARHAC()</code> or <code>UniformSmoother(10)</code></li><li><strong>For maximum compatibility</strong>: Use <code>Bartlett{Andrews}()</code> or <code>Parzen{NeweyWest}()</code></li><li><strong>For guaranteed PSD</strong>: Use <code>VARHAC()</code>, <code>UniformSmoother(10)</code>, or <code>EWC()</code></li></ol><h3 id="Common-Pitfalls"><a class="docs-heading-anchor" href="#Common-Pitfalls">Common Pitfalls</a><a id="Common-Pitfalls-1"></a><a class="docs-heading-anchor-permalink" href="#Common-Pitfalls" title="Permalink"></a></h3><ol><li><strong>Wrong estimator choice</strong>: Using HC for time series data or HAC for cross-sectional data</li><li><strong>Bandwidth sensitivity</strong>: HAC results can be sensitive to bandwidth choice</li><li><strong>Small sample bias</strong>: Consider HC2/HC3 over HC0/HC1 for small samples</li><li><strong>Cluster size</strong>: CR estimators require sufficient cluster size for good properties</li></ol><p>This tutorial covers the essential usage patterns for the matrix interface. The next tutorial will show how to integrate these estimators with GLM.jl for econometric modeling.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../estimators/ewc/">« EWC</a><a class="docs-footer-nextpage" href="../glm_tutorial/">GLM Integration »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Tuesday 30 June 2026 11:22">Tuesday 30 June 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
