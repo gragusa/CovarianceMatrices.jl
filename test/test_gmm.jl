@@ -192,3 +192,29 @@ V_mis_eff = CovarianceMatrices._compute_gmm_misspecified(H_eff, G_test, Ω_test,
 # The old (buggy) formula was inv(G'WΩ⁻¹WG). Verify we do NOT match that.
 V_old_buggy = inv(G_test' * W_test * inv(Ω_test) * W_test * G_test)
 @test !(V_info_w ≈ V_old_buggy)
+
+# ============================================================================
+# Fail-fast: GMM model missing jacobian_momentfunction
+# ============================================================================
+
+# Overidentified GMM model that omits jacobian_momentfunction (falls back to nothing).
+# It supplies hessian_objective so the Misspecified path also reaches the
+# jacobian_momentfunction guard rather than tripping the hessian check first.
+struct NoJacobianGMM <: CovarianceMatrices.GMMLikeModel
+    Z::Matrix{Float64}
+    beta::Vector{Float64}
+    H::Matrix{Float64}
+end
+
+CovarianceMatrices.momentmatrix(p::NoJacobianGMM) = p.Z
+CovarianceMatrices.hessian_objective(p::NoJacobianGMM) = p.H
+StatsAPI.coef(p::NoJacobianGMM) = p.beta
+StatsAPI.nobs(p::NoJacobianGMM) = size(p.Z, 1)
+
+# m = 4 moments, k = 2 parameters: overidentified, so dimension checks pass and
+# control reaches the jacobian_momentfunction guard.
+nojac = NoJacobianGMM(randn(50, 4), zeros(2), Matrix{Float64}(I, 2, 2))
+
+@test_throws "jacobian_momentfunction" vcov(HR0(), Information(), nojac)
+@test_throws "jacobian_momentfunction" vcov(HR0(), Misspecified(), nojac)
+@test_throws ArgumentError vcov(HR0(), Information(), nojac)

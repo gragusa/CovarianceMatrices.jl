@@ -1,6 +1,6 @@
 # CovarianceMatrices.jl
 
-[![CI](https://github.com/gragusa/CovarianceMatrices.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/gragusa/CovarianceMatrices.jl/actions/workflows/ci.yml) [![codecov.io](http://codecov.io/github/gragusa/CovarianceMatrices.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/CovarianceMatrices.jl?branch=master) [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl) ![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://gragusa.github.io/CovarianceMatrices.jl/stable/) [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://gragusa.github.io/CovarianceMatrices.jl/dev/) [![CI](https://github.com/gragusa/CovarianceMatrices.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/gragusa/CovarianceMatrices.jl/actions/workflows/ci.yml) [![Documentation](https://github.com/gragusa/CovarianceMatrices.jl/actions/workflows/Documentation.yml/badge.svg)](https://github.com/gragusa/CovarianceMatrices.jl/actions/workflows/Documentation.yml) [![codecov.io](http://codecov.io/github/gragusa/CovarianceMatrices.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/CovarianceMatrices.jl?branch=master) [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl) ![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)
 
 
 `CovarianceMatrices.jl` is a Julia package for robust covariance matrix estimation. It provides consistent estimates of the long-run covariance matrix of random processes, which is crucial for conducting valid statistical inference about the parameters of econometric and statistical models.
@@ -25,9 +25,9 @@ Pkg.add("CovarianceMatrices")
 
 ## As a GLM.jl Extension
 
-`CovarianceMatrices.jl` seamlessly extends methods from `StatsBase.jl` and `GLM.jl`, enabling robust standard error calculations for generalized linear models.
+`CovarianceMatrices.jl` extends methods from `StatsBase.jl` and `GLM.jl`, so robust standard errors are available directly for generalized linear models.
 
-Here are some basic examples demonstrating how to use `CovarianceMatrices.jl` to obtain robust standard errors with `GLM.jl` models:
+The examples below obtain robust standard errors for a `GLM.jl` model:
 
 ```julia
 using RDatasets
@@ -52,7 +52,7 @@ vcov_cr = vcov(CR1(df.Firm), model)
 
 # Calculate Driscoll-Kraay standard errors for panel data
 # (accounts for cross-sectional dependence and heteroskedasticity)
-vcov_dk = vcov(DriscollKraay(Bartlett(5), tis=df.year, iis=df.firm), model)
+vcov_dk = vcov(DriscollKraay(Bartlett(5), tis=df.Year, iis=df.Firm), model)
 ```
 
 For **heteroskedasticity-robust variance** estimation, `HC0`, `HC1`, `HC2`, `HC3`, `HC4`, and `HC5` are the standard estimator types commonly used in the econometric literature:
@@ -93,8 +93,8 @@ Third-party estimators should implement the following methods:
 
 **Optional methods (depending on variance form):**
 
-- `CovarianceMatrices.hessian_objective(model)`: Return the objective Hessian (k × k matrix) - required for Misspecified form with GMM
-- `CovarianceMatrices.jacobian_momentfuns(model)`: Return the jecobian of the momentfuns (m × m matrix) - required for GMM
+- `CovarianceMatrices.hessian_objective(model)`: Return the objective Hessian (k × k matrix) - required for the Misspecified form with GMM
+- `CovarianceMatrices.jacobian_momentfunction(model)`: Return the Jacobian of the moment function (m × k matrix) - required for GMM
 
 ### Important: Scaling Convention
 
@@ -111,7 +111,10 @@ using CovarianceMatrices
 using Distributions
 using LinearAlgebra
 using Statistics
+using StatsAPI
 using StatsBase
+using StableRNGs
+using ForwardDiff
 using Optimization
 using OptimizationOptimJL
 
@@ -206,6 +209,7 @@ This code demonstrates the use of the `CovarianceMatrices.jl` package to perform
 using CovarianceMatrices
 using LinearAlgebra
 using Statistics
+using StatsAPI
 using StatsBase
 using Random
 using Test

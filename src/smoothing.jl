@@ -29,10 +29,10 @@ struct UniformSmoother <: MomentSmoother
     m_T::Int
     function UniformSmoother(m_T::Real)
         if !(m_T ≥ 0)
-            throw(ArgumentError("m_T must be positive"))
+            throw(ArgumentError("m_T must be non-negative"))
         end
         if !isinteger(m_T)
-            throw(ArgumentError("m_T must be a positive integer"))
+            throw(ArgumentError("m_T must be an integer"))
         end
         return new(Int(m_T))
     end
@@ -54,10 +54,10 @@ struct TriangularSmoother <: MomentSmoother
     m_T::Int
     function TriangularSmoother(m_T::Real)
         if !(m_T ≥ 0)
-            throw(ArgumentError("m_T must be positive"))
+            throw(ArgumentError("m_T must be non-negative"))
         end
         if !isinteger(m_T)
-            throw(ArgumentError("m_T must be a positive integer"))
+            throw(ArgumentError("m_T must be an integer"))
         end
         return new(Int(m_T))
     end

@@ -5,15 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.30.5] (Unreleased)
+## [0.31.0]
+
+### Breaking
+
+- `CRCache` and `CRModelCache` are no longer exported. Construct caches via the
+  exported `CachedCR(k, ncols)` / `CachedCRModel(k, model)` instead.
+
+### Added
+
+- Exported the `Fixed` bandwidth marker so `HAC{Fixed}` kernels can be dispatched
+  on directly (e.g. `Bartlett(4) isa HAC{Fixed}`).
+- Value-based `Base.==` and matching `Base.hash` for estimator types, so equal
+  specifications compare equal and work as `Dict` keys / `unique` elements.
+  Equality reflects the estimator specification, not transient fit state.
+- `vcov(::DriscollKraay, model)` accepts a `type` argument (`:HC0`, `:HC1`,
+  `:sss`) for the finite-sample corrections of R's `plm::vcovSCC`.
 
 ### Bug Fixes
+
+- `vcov(::DriscollKraay, model)` now works for regression models and reproduces
+  `plm::vcovSCC`. It previously threw a `MethodError`, and the underlying
+  sandwich scaled by the observation count `n` rather than the number of time
+  periods `T`.
 
 - GMM variance formulas for suboptimal weight matrix:
   - `_compute_gmm_information_weighted` was computing `inv(G'WΩ⁻¹WG)` instead of the correct sandwich `(G'WG)⁻¹ G'WΩWG (G'WG)⁻¹`. 
   - `_compute_gmm_misspecified` with explicit W used `Ω⁻¹` in the meat instead of `Ω`. The efficient GMM paths (W=nothing) were already correct.
 - Sign handling in multi-way cluster variance 
   - Removed incorrect `(-1)^(len-1)` sign factors from `_avar_tuple_impl` in `CR.jl`
+- Corrected the `UniformSmoother`/`TriangularSmoother` bandwidth validation
+  messages: negative `m_T` now reports "must be non-negative" (the contract is
+  `m_T ≥ 0`), and the non-integer check reports "must be an integer"
 
 ### Changed
 
@@ -25,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Delegates to single-vector constructors and merge, avoiding `NTuple{N, Any}` dict keys
 - Removed unused `ncombinations` variable from `CRCache`
 - Improves smoothing functions
+- Removed the duplicate `HR` export and the unused `CrossSectionEstimator`
+  abstract type
+- `vcov` now throws a clear `ArgumentError` naming `jacobian_momentfunction` when
+  that required GMM hook is missing, instead of a low-level `MethodError`
 - Changed `order_aic` and `order_bic` fields from `Vector{Int}` to `Array{Int}` to support both `SameLags` (Vector) and `DifferentOwnLags` (Matrix) strategies
 - VARHAC optimization - Moved `delag(X, kk)` call inside the kk > 0 condition in `_var_selection_ownlag`
 
@@ -33,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified documentation index page
 - Expanded asymptotic variance theory in introduction 
 - Updated GMM docstrings to reflect corrected formulas
+- Documented the layered API: the `aVar(k, matrix)` matrix core, the
+  `vcov(k, model)` model protocol, and the `model + vcov(estimator)` wrapper
+- Documented the recommended VARHAC construction form and its convenience aliases
 
 ###  CI/Infrastructure
 

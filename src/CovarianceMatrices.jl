@@ -12,7 +12,7 @@ module CovarianceMatrices
 using BlockDiagonals: BlockDiagonals, BlockDiagonal
 using Combinatorics: Combinatorics, combinations
 using LinearAlgebra: LinearAlgebra, BLAS, Diagonal, I, Symmetric,
-                     UniformScaling, cholesky, cholesky!, diag, dot, isdiag,
+                     UniformScaling, axpy!, cholesky, cholesky!, diag, dot, isdiag,
                      ldiv!, lmul!, mul!, pinv, rdiv!, rmul!, svd
 using NaNStatistics: NaNStatistics
 using Statistics: Statistics
@@ -20,6 +20,7 @@ using StatsAPI: StatsAPI, vcov, stderror
 using StatsBase: StatsBase, RegressionModel, coef, cov, mean, modelmatrix, weights
 include("Clustering.jl")
 include("types.jl")
+include("equality.jl")
 include("HAC.jl")
 include("CR.jl")
 include("HR.jl")
@@ -43,6 +44,7 @@ export AbstractAsymptoticVarianceEstimator,
        Correlated,
        Andrews,
        NeweyWest,
+       Fixed,
        Bartlett,
        Parzen,
        QuadraticSpectral,
@@ -53,9 +55,7 @@ export AbstractAsymptoticVarianceEstimator,
        CR2,
        CR3,
        CachedCR,
-       CRCache,
        CachedCRModel,
-       CRModelCache,
        HR,
        HR0,
        HR1,
@@ -64,7 +64,6 @@ export AbstractAsymptoticVarianceEstimator,
        HR4,
        HR4m,
        HR5,
-       HR,
        HC0,
        HC1,
        HC2,

@@ -26,26 +26,26 @@ using Random
         S_T = (2 * m_T + 1) / 2
         G = hcat(collect(1.0:10), collect(11.0:20))  # 10×2 matrix
         G̃uniform = [10 50;
-                     15 65;
-                     21 81;
-                     28 98;
-                     35 105;
-                     42 112;
-                     49 119;
-                     45 105;
-                     40 90;
-                     34 74]
+                    15 65;
+                    21 81;
+                    28 98;
+                    35 105;
+                    42 112;
+                    49 119;
+                    45 105;
+                    40 90;
+                    34 74]
 
         G̃triangular = [4.28571 27.1429;
-                        7.28571 37.2857;
-                        10.7143 45.0;
-                        14.2857 50.0;
-                        17.8571 53.5714;
-                        21.4286 57.1429;
-                        25.0 60.7143;
-                        27.0 61.2857;
-                        25.7143 55.7143;
-                        20.8571 43.7143];
+                       7.28571 37.2857;
+                       10.7143 45.0;
+                       14.2857 50.0;
+                       17.8571 53.5714;
+                       21.4286 57.1429;
+                       25.0 60.7143;
+                       27.0 61.2857;
+                       25.7143 55.7143;
+                       20.8571 43.7143];
 
         k = CovarianceMatrices.UniformSmoother(m_T)
         @test k.m_T == m_T
@@ -59,26 +59,26 @@ using Random
         m_T = 4
         S_T = (2m_T + 1) / 2
         G̃uniform = [15 65;
-                     21 81;
-                     28 98;
-                     36 116;
-                     45 135;
-                     54 144;
-                     52 132;
-                     49 119;
-                     45 105;
-                     40 90]
+                    21 81;
+                    28 98;
+                    36 116;
+                    45 135;
+                    54 144;
+                    52 132;
+                    49 119;
+                    45 105;
+                    40 90]
 
         G̃triangular = [6.11111 33.8889;
-                        9.66667 45.2222;
-                        13.7778 54.8889;
-                        18.2222 62.6667;
-                        22.7778 68.3333;
-                        27.3333 72.8889;
-                        30.6667 75.1111;
-                        31.4444 72.5556;
-                        29.4444 65.0;
-                        24.4444 52.2222]
+                       9.66667 45.2222;
+                       13.7778 54.8889;
+                       18.2222 62.6667;
+                       22.7778 68.3333;
+                       27.3333 72.8889;
+                       30.6667 75.1111;
+                       31.4444 72.5556;
+                       29.4444 65.0;
+                       24.4444 52.2222]
 
         k = CovarianceMatrices.UniformSmoother(m_T)
         @test k.m_T == (2S_T - 1) / 2
@@ -95,26 +95,28 @@ using Random
 
     @testset "Bandwidth Validation" begin
         @testset "UniformSmoother" begin
-            # Test that non-integer m_T throws ArgumentError
-            @test_throws ArgumentError CovarianceMatrices.UniformSmoother(2.5)
-            @test_throws ArgumentError CovarianceMatrices.UniformSmoother(3.7)
-            @test_throws ArgumentError CovarianceMatrices.UniformSmoother(-1)
-            @test_throws ArgumentError CovarianceMatrices.UniformSmoother(-2.5)
+            # Non-integer m_T is rejected as not an integer
+            @test_throws "m_T must be an integer" CovarianceMatrices.UniformSmoother(2.5)
+            @test_throws "m_T must be an integer" CovarianceMatrices.UniformSmoother(3.7)
+            # Negative m_T is rejected as not non-negative
+            @test_throws "m_T must be non-negative" CovarianceMatrices.UniformSmoother(-1)
+            @test_throws "m_T must be non-negative" CovarianceMatrices.UniformSmoother(-2.5)
 
-            # Test that integer m_T works
+            # Test that integer m_T works, including m_T == 0
             @test CovarianceMatrices.UniformSmoother(2).m_T == 2
             @test CovarianceMatrices.UniformSmoother(5).m_T == 5
             @test CovarianceMatrices.UniformSmoother(0).m_T == 0
         end
 
         @testset "TriangularSmoother" begin
-            # Test that non-integer m_T throws ArgumentError
-            @test_throws ArgumentError CovarianceMatrices.TriangularSmoother(2.5)
-            @test_throws ArgumentError CovarianceMatrices.TriangularSmoother(3.7)
-            @test_throws ArgumentError CovarianceMatrices.TriangularSmoother(-1)
-            @test_throws ArgumentError CovarianceMatrices.TriangularSmoother(-2.5)
+            # Non-integer m_T is rejected as not an integer
+            @test_throws "m_T must be an integer" CovarianceMatrices.TriangularSmoother(2.5)
+            @test_throws "m_T must be an integer" CovarianceMatrices.TriangularSmoother(3.7)
+            # Negative m_T is rejected as not non-negative
+            @test_throws "m_T must be non-negative" CovarianceMatrices.TriangularSmoother(-1)
+            @test_throws "m_T must be non-negative" CovarianceMatrices.TriangularSmoother(-2.5)
 
-            # Test that integer m_T works
+            # Test that integer m_T works, including m_T == 0
             @test CovarianceMatrices.TriangularSmoother(2).m_T == 2
             @test CovarianceMatrices.TriangularSmoother(5).m_T == 5
             @test CovarianceMatrices.TriangularSmoother(0).m_T == 0

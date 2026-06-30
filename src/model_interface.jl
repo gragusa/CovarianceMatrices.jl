@@ -150,11 +150,14 @@ The returned matrix should be **unscaled** - the derivative of the sum of moment
 not the average.
 
 # Note
-For GMM models, this is required for variance computation.
-For MLE models, this may equal the negative cross_score matrix.
+Required for `vcov` on a [`GMMLikeModel`](@ref): both the Information and Misspecified
+forms use this Jacobian as the `G` matrix. The fallback returns `nothing`, and `vcov`
+throws an `ArgumentError` when a GMM model leaves it unimplemented rather than
+proceeding with a meaningless result. For MLE models it is unused and may be left at
+the default.
 """
 function jacobian_momentfunction(model)
-    # Default: not available
+    # GMM variance requires this; vcov fails fast when it is left unimplemented.
     return nothing
 end
 

@@ -314,7 +314,6 @@ For applications requiring repeated cluster-robust variance calculations with th
 
 ```@docs
 CachedCR
-CRCache
 ```
 
 ### When to Use CachedCR

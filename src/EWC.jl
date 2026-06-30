@@ -7,9 +7,8 @@ function Λ!(L::AbstractVector{F}, j::Integer, m::AbstractMatrix{F}) where {F <:
 
     @inbounds for t in 1:T
         w = cos(π * j * (t - F(0.5)) * inv_T)
-        # Use BLAS axpy: L = L + w * m[t, :]
-        #L .= L + w * view(m, t, :)
-        BLAS.axpy!(w, view(m, t, :), L)
+        # L = L + w * m[t, :]
+        axpy!(w, view(m, t, :), L)
     end
     # Scale in-place
     lmul!(scale, L)

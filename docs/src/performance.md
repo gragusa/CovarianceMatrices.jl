@@ -1,390 +1,178 @@
-# Performance Notes
+# Performance
 
-This section provides guidance on computational performance aspects of CovarianceMatrices.jl estimators, including timing comparisons, memory usage, and optimization strategies.
+`CovarianceMatrices.jl` is built for speed: robust variance estimation is often
+the inner loop of bootstrap inference, simulation studies, and iterative
+estimators, where the covariance is computed thousands of times. This page
+compares it against R's [`sandwich`](https://cran.r-project.org/package=sandwich)
+package on identical data and estimators, and describes how to reproduce and
+extend the measurements.
 
-## Performance Overview
+## Comparison with R's `sandwich`
 
-The estimators in CovarianceMatrices.jl vary significantly in computational complexity:
+The tables below report **median** wall-clock time over 50 evaluations. Julia
+times use `BenchmarkTools.@benchmark`; R times use `microbenchmark`. Both run the
+same estimator on the same data.
 
-### Computational Complexity
+!!! note "Measurement environment"
+    Apple M3 Max, macOS 26.5, single-threaded. Julia 1.12 with
+    CovarianceMatrices.jl 0.31; R 4.6 with sandwich 3.1.1. Absolute numbers are
+    machine-dependent; the *ratios* are the portable takeaway. Run the scripts
+    below to get figures for your own hardware.
 
-| Estimator Category | Time Complexity | Memory Usage | Main Bottleneck |
-|-------------------|-----------------|--------------|-----------------|
-| HC/HR | O(T·k²) | O(T·k) | Matrix operations |
-| CR | O(T·k² + G·k²) | O(T·k) | Grouping operations |
-| HAC (fixed bandwidth) | O(T·k²·q) | O(T·k) | Autocovariance computation |
-| HAC (automatic bandwidth) | O(T·k²·q + T·k³) | O(T·k) | Bandwidth selection |
-| VARHAC | O(T·k²·p + k³·p³) | O(T·k) | VAR estimation |
-| Smoothed Moments | O(T·k²·q) | O(T·k) | Kernel smoothing |
-| Driscoll-Kraay | O(T·N·k²·q) | O(T·N·k) | Panel structure |
-| EWC | O(T·k²·B) | O(T·k) | Basis function computation |
+### HAC (long-run variance, Andrews bandwidth)
 
-Where:
-- T = sample size
-- k = number of variables/parameters
-- q = bandwidth/truncation lag
-- p = VAR lag length
-- G = number of clusters
-- N = number of cross-sectional units (panels)
-- B = number of basis functions (EWC)
+A `T × k` matrix of moment contributions, Andrews automatic bandwidth, no
+prewhitening (`aVar(Bartlett{Andrews}(), Z; prewhite = false)` against
+`sandwich::lrvar(Z, type = "Andrews", kernel = "Bartlett", adjust = FALSE)`).
 
-## Benchmarking Results
+| Kernel | T | k | CovarianceMatrices.jl | sandwich | Speedup |
+|--------|---|---|----------------------:|---------:|--------:|
+| Bartlett           | 1000  | 10 | 0.032 ms  | 8.62 ms   | ~270× |
+| Parzen             | 1000  | 10 | 0.049 ms  | 8.65 ms   | ~175× |
+| Quadratic Spectral | 1000  | 10 | 4.37 ms   | 67.5 ms   | ~15×  |
+| Bartlett           | 10000 | 10 | 0.314 ms  | 66.2 ms   | ~210× |
+| Parzen             | 10000 | 10 | 0.495 ms  | 66.6 ms   | ~135× |
+| Quadratic Spectral | 10000 | 10 | 470.8 ms  | 761.9 ms  | ~1.6× |
 
-### Cross-Sectional Estimators (T=1000, k=5)
+The compactly supported kernels (Bartlett, Parzen) are two orders of magnitude
+faster. The Quadratic Spectral kernel has unbounded support, so it sums over all
+lags; its advantage over `sandwich` narrows as `T` grows.
+
+### Heteroskedasticity-robust (HC) standard errors
+
+A linear model with `n = 5000`, `k = 6` coefficients
+(`vcov(HC0(), fit)` against `sandwich::vcovHC(fit, type = "HC0")`).
+
+| Type | CovarianceMatrices.jl | sandwich | Speedup |
+|------|----------------------:|---------:|--------:|
+| HC0 | 0.035 ms | 4.07 ms | ~115× |
+| HC1 | 0.035 ms | 4.08 ms | ~115× |
+| HC2 | 0.121 ms | 4.05 ms | ~33×  |
+| HC3 | 0.099 ms | 3.94 ms | ~40×  |
+
+HC2 and HC3 cost more than HC0/HC1 because they need the hat-matrix diagonal
+(leverages).
+
+## Reproducing the comparison
+
+Julia side:
 
 ```julia
-using BenchmarkTools, CovarianceMatrices, Random
+using CovarianceMatrices, BenchmarkTools, Random
 Random.seed!(123)
 
-T, k = 1000, 5
-X = randn(T, k)
-
-# HC estimators
-@benchmark aVar(HC0(), $X)     # ~50μs
-@benchmark aVar(HC1(), $X)     # ~55μs
-@benchmark aVar(HC2(), $X)     # ~80μs (needs leverage computation)
-@benchmark aVar(HC3(), $X)     # ~85μs
-@benchmark aVar(HC4(), $X)     # ~120μs (complex leverage adjustments)
+Z = randn(10000, 10)
+@benchmark aVar(Bartlett{Andrews}(), $Z; prewhite = false)
 ```
 
-### Time Series Estimators
+R side:
 
-```julia
-# HAC estimators (T=1000, k=5)
-@benchmark aVar(Bartlett(5), $X)              # ~150μs (fixed bandwidth)
-@benchmark aVar(Bartlett{NeweyWest}(), $X)    # ~200μs (simple rule)
-@benchmark aVar(Bartlett{Andrews}(), $X)      # ~2ms (bandwidth selection)
-
-# Advanced estimators
-@benchmark aVar(VARHAC(), $X)                 # ~800μs (VAR fitting)
-@benchmark aVar(UniformSmoother(10), $X)      # ~180μs (kernel-based)
-@benchmark aVar(EWC(10), $X)                  # ~300μs
+```r
+library(sandwich); library(microbenchmark)
+set.seed(123)
+Z <- matrix(rnorm(10000 * 10), 10000, 10)
+microbenchmark(lrvar(Z, type = "Andrews", kernel = "Bartlett", adjust = FALSE),
+               times = 50)
 ```
 
-### Scaling with Sample Size
+`sandwich::lrvar` returns the long-run variance of the column means, which is
+`aVar(k, Z) / T`; the scalar does not affect timing.
 
-```julia
-function scaling_analysis()
-    sizes = [100, 500, 1000, 2000, 5000]
-    k = 4
+## The benchmark suite
 
-    results = Dict()
+The repository ships an [AirspeedVelocity.jl](https://github.com/MilesCranmer/AirspeedVelocity.jl)
+suite at `benchmark/benchmarks.jl` covering HAC (Andrews, Newey-West, fixed
+bandwidth), cluster-robust, and smoothed-moment estimators. The runner script
+`benchmark/run_asv.jl` benchmarks a baseline revision against a candidate and
+writes a markdown summary table:
 
-    for T in sizes
-        X = randn(T, k)
-
-        # Fast estimators
-        results["HC3_$T"] = @belapsed aVar(HC3(), $X)
-        results["VARHAC_$T"] = @belapsed aVar(VARHAC(), $X)
-        results["UniformSmoother_$T"] = @belapsed aVar(UniformSmoother(round(Int, 2*T^(1/3))), $X)
-
-        # Slower estimators
-        results["BartlettAndrews_$T"] = @belapsed aVar(Bartlett{Andrews}(), $X)
-    end
-
-    return results
-end
+```sh
+# from a clone of the repository; compares HEAD against the working tree
+julia benchmark/run_asv.jl
 ```
 
-Expected scaling (approximate):
+Set `ASV_BASELINE` / `ASV_CANDIDATE` to compare specific revisions; the table is
+written under `benchmark/results/`.
 
-| T | HC3 | VARHAC | Smoothed Moments | Bartlett-Andrews |
-|---|-----|--------|------------------|------------------|
-| 100 | 5μs | 80μs | 20μs | 200μs |
-| 500 | 25μs | 200μs | 90μs | 800μs |
-| 1000 | 50μs | 400μs | 180μs | 2ms |
-| 2000 | 100μs | 800μs | 360μs | 8ms |
-| 5000 | 250μs | 2ms | 900μs | 50ms |
+The `Benchmark` GitHub workflow runs the same suite on every pull request and
+posts a table comparing the PR against the base branch, so performance
+regressions are caught in review. The suite is the source of truth for the
+relative performance of the package's own estimators; extend
+`benchmark/benchmarks.jl` when adding new ones.
 
-## Memory Usage Patterns
+## Choosing a fast estimator
 
-### Memory Efficiency Improvements
+Statistical appropriateness comes first; among valid choices, these are the
+fast paths:
 
-The package includes several memory optimizations:
-
-#### 1. Kernel-Based Smoothing (Smoothed Moments)
-
-**Old approach** (weight-based):
 ```julia
-# Would need 2T-1 weight storage
-memory_old = (2*T - 1) * sizeof(Float64)  # ~16KB for T=1000
+# Cross-sectional, no leverage correction needed → HC0/HC1
+ve = HC1()
+
+# Time series, automatic and kernel-free → VARHAC (no bandwidth search)
+ve = VARHAC()
+
+# Time series, traditional kernel, fastest → fixed bandwidth
+ve = Bartlett(b)
+
+# Time series, data-driven bandwidth → Newey-West rule before Andrews
+ve = Bartlett{NeweyWest}()   # cheaper than Bartlett{Andrews}()
+
+# Panel with cross-sectional dependence → Driscoll-Kraay
+ve = DriscollKraay(Bartlett(b), tis = time_ids, iis = unit_ids)
+
+# Many clusters → CR1
+ve = CR1(cluster_ids)
 ```
 
-**New approach** (kernel-based):
-```julia
-# Only needs temporary column buffer
-memory_new = T * sizeof(Float64)  # ~8KB for T=1000
-# Memory reduction: ~50% for typical cases, up to 90% for large T
-```
+Two patterns dominate the cost of HAC estimation:
 
-#### 2. In-Place Operations
+- **Bandwidth selection.** A fixed bandwidth (`Bartlett(b)`) skips selection
+  entirely. The Newey-West rule is a closed-form formula; the Andrews rule fits
+  a VAR(1) per series and is the most expensive. `VARHAC()` avoids kernel
+  bandwidths altogether.
+- **Kernel support.** Compactly supported kernels (Bartlett, Parzen, Truncated,
+  Tukey-Hanning) only sum lags up to the bandwidth. The Quadratic Spectral
+  kernel sums all lags and is the slowest, especially for large `T`.
 
-```julia
-# Efficient: modifies matrix in-place
-aVar!(Ω, estimator, X)  # Uses pre-allocated Ω
+## Numerical stability
 
-# Less efficient: allocates new matrix
-Ω = aVar(estimator, X)
-```
-
-#### 3. Threading Memory Overhead
-
-Threading adds minimal memory overhead:
-```julia
-# Single-threaded
-memory_single = T * k * sizeof(Float64)
-
-# Multi-threaded (k columns processed in parallel)
-memory_threaded = T * k * sizeof(Float64) + n_threads * small_overhead
-```
-
-## Threading Performance
-
-### Automatic Threading Decisions
-
-Smoothed Moments uses intelligent threading:
+Some estimators (notably `QuadraticSpectral`) are not guaranteed positive
+semidefinite in finite samples. Check the result when it matters:
 
 ```julia
-# Threading activated based on problem size
-function should_use_threading(T, threaded_param)
-    if threaded_param === true
-        return true
-    elseif threaded_param === false
-        return false
-    else
-        return T > 800  # Automatic threshold
-    end
-end
-```
-
-### Threading Effectiveness
-
-Based on benchmark results (Apple M3 Max, 10 cores):
-
-| T | Single-threaded | 4 threads | 8 threads | Speedup (8t) |
-|---|----------------|-----------|-----------|--------------|
-| 100 | 2.1μs | 23.2μs | 40.1μs | 0.05x (overhead dominates) |
-| 500 | 9.7μs | 30.9μs | 42.4μs | 0.23x (still overhead-bound) |
-| 1000 | 19.0μs | 41.3μs | 46.6μs | 0.41x (break-even approaching) |
-| 10000 | 190.2μs | 148.4μs | 124.4μs | 1.53x (good speedup) |
-
-**Threading Recommendations:**
-- T < 800: Use single-threaded (automatic default)
-- T > 800: Threading beneficial (automatic activation)
-- T > 5000: Excellent threading performance
-
-## Optimization Strategies
-
-### 1. Choose the Right Estimator for Your Use Case
-
-```julia
-# Fast choices by data type:
-
-# Cross-sectional → HC3 (fastest robust choice)
-ve_cross = HC3()
-
-# Time series, want automatic → VARHAC (no bandwidth selection)
-ve_ts_auto = VARHAC()
-
-# Time series, want traditional → Fixed bandwidth HAC
-ve_ts_trad = Bartlett(round(Int, 0.75 * T^(1/3)))
-
-# Panel data → CR1 (efficient clustering)
-ve_panel = CR1(cluster_ids)
-```
-
-### 2. Pre-allocate When Possible
-
-```julia
-# For repeated computations
-Ω_buffer = Matrix{Float64}(undef, k, k)
-
-for dataset in datasets
-    aVar!(Ω_buffer, HC3(), dataset)  # Re-uses buffer
-    # Process Ω_buffer...
-end
-```
-
-### 3. Bandwidth Strategies for HAC
-
-```julia
-# Fastest: Fixed bandwidth (no selection overhead)
-hac_fast = Bartlett(6)
-
-# Medium: NeweyWest rule (simple formula)
-hac_medium = Bartlett{NeweyWest}()
-
-# Slower: Andrews optimal (requires VAR estimation)
-hac_slow = Bartlett{Andrews}()
-
-# Alternative: VARHAC (automatic, often faster than Andrews)
-hac_auto = VARHAC()
-```
-
-### 4. Memory-Conscious Choices
-
-```julia
-# For large datasets, prefer estimators with O(Tk) memory:
-memory_efficient = [HC3(), VARHAC(), UniformSmoother(10)]
-
-# Avoid for very large T:
-memory_intensive = [QuadraticSpectral{Andrews}()]  # Can need O(T²) temporarily
-```
-
-### 5. Parallel Processing Multiple Datasets
-
-```julia
-using Base.Threads
-
-function parallel_covariance_estimation(datasets, estimator)
-    results = Vector{Matrix{Float64}}(undef, length(datasets))
-
-    @threads for i in eachindex(datasets)
-        results[i] = aVar(estimator, datasets[i])
-    end
-
-    return results
+function stability_check(Ω; tolerance = 1e12)
+    κ = cond(Ω)
+    κ > tolerance && @warn "Ill-conditioned covariance matrix (κ = $κ)"
+    min_eig = minimum(eigvals(Symmetric(Ω)))
+    min_eig < -1e-10 && @warn "Negative eigenvalue: $min_eig"
+    return κ ≤ tolerance && min_eig ≥ -1e-10
 end
 
-# Usage
-datasets = [randn(1000, 4) for _ in 1:100]
-results = parallel_covariance_estimation(datasets, VARHAC())
+Ω = aVar(QuadraticSpectral{Andrews}(), X)
+stability_check(Ω)
 ```
 
-## Performance Profiling Tools
+For guaranteed positive semidefinite results, prefer `VARHAC()`, the smoothed
+moment estimators (`UniformSmoother`, `TriangularSmoother`), or `EWC`.
 
-### Built-in Diagnostics
+## Profiling
+
+To see where time goes in a single estimate:
 
 ```julia
-# Check computational bottlenecks
 using Profile
-
-@profile for i in 1:100
-    aVar(Bartlett{Andrews}(), X)
-end
-
+X = randn(10000, 10)
+@profile for _ in 1:100; aVar(Bartlett{Andrews}(), X); end
 Profile.print()
 ```
 
-### Custom Timing Utilities
+For HAC with automatic bandwidth, the selected bandwidth is stored on the kernel
+after an estimate and can be read back with the (unexported) `bandwidth`
+accessor, which returns it as a one-element vector:
 
 ```julia
-function time_estimator_components(estimator, X)
-    if isa(estimator, HAC) && !isa(estimator, HAC{Fixed})
-        # Time bandwidth selection separately
-        @time begin
-            _, _, bw = workingoptimalbw(estimator, X)
-            println("Bandwidth selection: computed bw = $bw")
-        end
-
-        # Time covariance computation with fixed bandwidth
-        fixed_estimator = typeof(estimator){Fixed}([bw], [], [false])
-        @time Ω_fixed = aVar(fixed_estimator, X)
-    else
-        @time Ω = aVar(estimator, X)
-    end
-end
-
-# Usage
-time_estimator_components(Bartlett{Andrews}(), X)
+k = Bartlett{Andrews}()
+Ω = aVar(k, X)
+CovarianceMatrices.bandwidth(k)   # e.g. [2.32], the Andrews-selected bandwidth
 ```
-
-## Numerical Stability Considerations
-
-### Condition Number Monitoring
-
-```julia
-function stability_check(Ω, tolerance=1e12)
-    κ = cond(Ω)
-
-    if κ > tolerance
-        @warn "Ill-conditioned covariance matrix (κ = $κ)"
-        return false
-    end
-
-    eigenvals = eigvals(Ω)
-    min_eig = minimum(eigenvals)
-
-    if min_eig < -1e-10
-        @warn "Negative eigenvalue detected: $min_eig"
-        return false
-    end
-
-    return true
-end
-
-# Usage
-Ω = aVar(QuadraticSpectral{Andrews}(), X)
-is_stable = stability_check(Ω)
-```
-
-### Regularization for Ill-Conditioned Cases
-
-```julia
-function regularized_covariance(estimator, X, λ=1e-8)
-    Ω = aVar(estimator, X)
-
-    if cond(Ω) > 1e10
-        # Add ridge regularization
-        k = size(Ω, 1)
-        Ω_reg = Ω + λ * I(k)
-        @info "Applied regularization λ = $λ"
-        return Ω_reg
-    end
-
-    return Ω
-end
-```
-
-## Platform-Specific Performance Notes
-
-### Threading Performance Varies by System
-
-- **Apple Silicon (M1/M2/M3)**: Excellent performance/efficiency cores balance
-- **Intel multicore**: Traditional symmetric threading
-- **AMD Threadripper**: May benefit from larger thread counts
-
-### Memory Bandwidth Considerations
-
-```julia
-# For systems with limited memory bandwidth:
-function memory_conscious_estimation(estimator, X)
-    # Process in chunks if X is very large
-    T, k = size(X)
-
-    if T * k * sizeof(eltype(X)) > 1e9  # 1GB threshold
-        @info "Large dataset detected, consider chunked processing"
-    end
-
-    return aVar(estimator, X)
-end
-```
-
-## Recommendations by Use Case
-
-### High-Frequency Financial Data
-- **Primary**: `VARHAC()` or `UniformSmoother(10)`
-- **Rationale**: Automatic, robust, good performance
-- **Avoid**: Andrews bandwidth selection (too slow)
-
-### Large Cross-Sectional Studies (n > 10,000)
-- **Primary**: `HC3()` or `HC1()`
-- **Secondary**: `VARHAC()` if time series structure suspected
-- **Memory**: Consider chunked processing
-
-### Real-Time Applications
-- **Primary**: Fixed bandwidth HAC: `Bartlett(bw)`
-- **Secondary**: `HC3()` for cross-sectional
-- **Key**: Pre-compute bandwidth offline
-
-### Panel Data with Many Groups
-- **Primary**: `CR1(clusters)`
-- **Secondary**: `DriscollKraay()` if spatial correlation
-- **Optimization**: Ensure efficient cluster grouping
-
-### Bootstrap/Simulation Studies
-- **Primary**: `VARHAC()` or `UniformSmoother(10)`
-- **Rationale**: Guaranteed PSD across all bootstrap samples
-- **Avoid**: Estimators that can produce non-PSD matrices
-
-The choice of estimator should balance statistical appropriateness with computational requirements for your specific application.

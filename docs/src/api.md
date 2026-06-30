@@ -35,98 +35,68 @@ Uncorrelated
 Correlated
 ```
 
-## HAC Estimators
+## HAC Estimator Reference
 
-### Kernel Types
+### Kernel Type Reference
+
+The kernel types are documented on the [HAC Estimators](estimators/hac.md) page:
+[`Bartlett`](@ref), [`Parzen`](@ref), [`QuadraticSpectral`](@ref),
+[`Truncated`](@ref), and [`TukeyHanning`](@ref).
+
+### Bandwidth Selection Type Reference
+
+The data-driven bandwidth selectors [`Andrews`](@ref) and [`NeweyWest`](@ref) are
+documented on the [HAC Estimators](estimators/hac.md) page.
 
 ```@docs
-Bartlett
-Parzen
-QuadraticSpectral
-Truncated
-TukeyHanning
+Fixed
 ```
 
-### Bandwidth Selection Types
+## Heteroskedasticity-Robust Reference
+
+The HC estimators [`HC0`](@ref), [`HC1`](@ref), [`HC2`](@ref), [`HC3`](@ref),
+[`HC4`](@ref), and [`HC5`](@ref), and their `HR` aliases [`HR0`](@ref),
+[`HR1`](@ref), [`HR2`](@ref), [`HR3`](@ref), [`HR4`](@ref), and [`HR5`](@ref),
+are documented on the [Heteroskedasticity-Robust (HC/HR) Estimators](@ref) page.
 
 ```@docs
-Andrews
-NeweyWest
+HC4m
+HR4m
 ```
 
-## Heteroskedasticity-Robust Estimators
+## Clustered Standard Errors Reference
+
+The cluster-robust estimators [`CR0`](@ref), [`CR1`](@ref), [`CR2`](@ref), and
+[`CR3`](@ref), and the cached estimator [`CachedCR`](@ref), are documented on the
+[Clustered Robust (CR) Estimators](@ref) page.
 
 ```@docs
-HC0
-HC1
-HC2
-HC3
-HC4
-HC5
-```
-
-### Alternative Names
-
-```@docs
-HR0
-HR1
-HR2
-HR3
-HR4
-HR5
-```
-
-## Clustered Standard Errors
-
-```@docs
-CR0
-CR1
-CR2
-CR3
-```
-
-### Cached Cluster Estimators
-
-For high-performance repeated calculations (e.g., wild bootstrap):
-
-```@docs
-CachedCR
+CachedCRModel
 CRCache
+CRModelCache
 ```
 
-## Advanced Estimators
+## Advanced Estimator Reference
 
 ### VARHAC
 
-```@docs
-VARHAC
-AICSelector
-BICSelector
-FixedSelector
-SameLags
-FixedLags
-AutoLags
-DifferentOwnLags
-```
+[`VARHAC`](@ref) and its lag selectors and strategies ([`AICSelector`](@ref),
+[`BICSelector`](@ref), [`FixedSelector`](@ref), [`SameLags`](@ref),
+[`FixedLags`](@ref), [`AutoLags`](@ref), [`DifferentOwnLags`](@ref)) are
+documented on the [VARHAC: Vector Autoregression HAC Estimation](@ref) page.
 
 ### Smoothed Moments
 
-```@docs
-UniformSmoother
-TriangularSmoother
-```
+[`UniformSmoother`](@ref) and [`TriangularSmoother`](@ref) are documented on the
+[Smoothed Moments Estimation](estimators/smoothed_moments.md) page.
 
 ### Panel Data Estimators
 
-```@docs
-DriscollKraay
-```
+[`DriscollKraay`](@ref) is documented on the [Driscoll-Kraay Estimator](@ref) page.
 
 ### Non-parametric Estimators
 
-```@docs
-EWC
-```
+[`EWC`](@ref) is documented on the [Equal Weighted Cosine (EWC) Estimator](@ref) page.
 
 ## Utility Functions
 
@@ -167,21 +137,18 @@ GMMLikeModel
 ### Model Interface Functions
 
 ```@docs
-score
-objective_hessian
+momentmatrix
+cross_score
+hessian_objective
+jacobian_momentfunction
 weight_matrix
 ```
 
-## Legacy Support
-
-### Deprecated Smoothers
+### Variance Specification Wrapper
 
 ```@docs
-BartlettSmoother
-TruncatedSmoother
+VcovSpec
 ```
-
-Note: These are deprecated in favor of `UniformSmoother` and `TriangularSmoother`.
 
 ## Internal Types and Functions
 

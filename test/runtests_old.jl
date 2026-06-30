@@ -110,7 +110,8 @@ end
           0.001770544248266405 0.07693448665125002]
     @test V ≈ Vr
 end
-@testset "HAC - Asymptotic Covariance (Newey).............." begin end
+@testset "HAC - Asymptotic Covariance (Newey).............." begin
+end
 @testset "HC  - Asymptotic Covariance......................" begin
     X = CSV.File("testdata/X20x2.csv") |> DataFrame |> Matrix
     v = X .- mean(X, dims = 1)
