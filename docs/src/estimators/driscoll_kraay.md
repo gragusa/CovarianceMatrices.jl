@@ -13,17 +13,15 @@ For panel data with $N$ cross-sectional units observed over $T$ time periods, th
 ```
 
 where:
+
 - $h$ indexes time lags
+
 - $s$ indexes cross-sectional lags
+
 - $k_1(\cdot)$ and $k_2(\cdot)$ are kernel functions for time and cross-sectional dimensions
+
 - $\Gamma_{h,s}$ are the cross-sectional and temporal autocovariances
 
-### Key Features
-
-1. **Dual Kernel Structure**: Uses separate kernels for time and spatial dimensions
-2. **Non-parametric**: No assumptions about the specific correlation structure
-3. **Asymptotic Consistency**: Consistent as both $N$ and $T$ grow large
-4. **Automatic PSD**: Choice of kernels ensures positive semi-definiteness
 
 ## Core Type
 
@@ -164,7 +162,7 @@ println("Driscoll-Kraay covariance matrix:")
 println(round.(Ω_dk, digits=6))
 ```
 
-## When to Use Driscoll-Kraay
+<!-- ## When to Use Driscoll-Kraay
 
 ### ✅ Recommended for:
 
@@ -425,4 +423,4 @@ println("\\nRecommendation: $recommendation")
 - Vogelsang, T.J. (2012). "Heteroskedasticity, autocorrelation, and spatial correlation robust inference in linear panel models with fixed-effects". *Journal of Econometrics*, 166(2), 303-319.
 
 **Applications:**
-- Beck, N. and Katz, J.N. (1995). "What to do (and not to do) with time-series cross-section data". *American Political Science Review*, 89(3), 634-647.
+- Beck, N. and Katz, J.N. (1995). "What to do (and not to do) with time-series cross-section data". *American Political Science Review*, 89(3), 634-647. -->
