@@ -22,10 +22,15 @@ where $\hat{\Gamma}_j = \frac{1}{T} \sum_{t=j+1}^T g_t g_{t-j}'$ are the sample 
 
 ```@docs
 Bartlett
+CovarianceMatrices.BartlettKernel
 Parzen
+CovarianceMatrices.ParzenKernel
 QuadraticSpectral
+CovarianceMatrices.QuadraticSpectralKernel
 Truncated
+CovarianceMatrices.TruncatedKernel
 TukeyHanning
+CovarianceMatrices.TukeyHanningKernel
 ```
 
 ### Bartlett (Triangular)

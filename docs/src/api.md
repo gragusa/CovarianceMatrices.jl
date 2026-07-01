@@ -55,14 +55,10 @@ Fixed
 ## Heteroskedasticity-Robust Reference
 
 The HC estimators [`HC0`](@ref), [`HC1`](@ref), [`HC2`](@ref), [`HC3`](@ref),
-[`HC4`](@ref), and [`HC5`](@ref), and their `HR` aliases [`HR0`](@ref),
-[`HR1`](@ref), [`HR2`](@ref), [`HR3`](@ref), [`HR4`](@ref), and [`HR5`](@ref),
-are documented on the [Heteroskedasticity-Robust (HC/HR) Estimators](@ref) page.
-
-```@docs
-HC4m
-HR4m
-```
+[`HC4`](@ref), [`HC4m`](@ref), and [`HC5`](@ref), and their `HR` aliases
+[`HR0`](@ref), [`HR1`](@ref), [`HR2`](@ref), [`HR3`](@ref), [`HR4`](@ref),
+[`HR4m`](@ref), and [`HR5`](@ref), are documented on the
+[Heteroskedasticity-Robust (HC/HR) Estimators](@ref) page.
 
 ## Clustered Standard Errors Reference
 
