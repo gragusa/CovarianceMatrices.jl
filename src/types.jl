@@ -460,13 +460,18 @@ EWC
 
 Equal Weighted Cosine (EWC) covariance matrix estimator.
 
-The EWC estimator provides a non-parametric approach to robust covariance estimation
-by using cosine similarity weighting. Mathematically, the EWC estimator is defined as:
-The EWC estimator computes the covariance matrix using:
+The EWC estimator projects the moment conditions ``g_1, \\dots, g_T`` onto ``B``
+cosine basis functions and averages the outer products of the projections:
+
+```math
+\\hat{\\Omega} = \\frac{1}{B} \\sum_{j=1}^{B} \\Lambda_j \\Lambda_j',
+\\qquad
+\\Lambda_j = \\sqrt{2} \\sum_{t=1}^{T} \\cos\\!\\left(\\frac{\\pi j (t - 1/2)}{T}\\right) g_t.
 ```
-Ω̂ = (1/T) Σ_{t=1}^T Σ_{j=1}^B w_j(t) g_t g_t'
-```
-where w_j(t) are cosine-based weights and g_t are the moment conditions.
+
+The number of basis functions ``B`` is the single tuning parameter; it plays the
+role the bandwidth plays in a HAC estimator. Because the estimate is a sum of
+outer products, it is positive semi-definite by construction.
 
 # Constructor
     EWC(B::Integer)
