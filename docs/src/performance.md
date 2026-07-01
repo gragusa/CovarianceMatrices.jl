@@ -53,7 +53,7 @@ A linear model with `n = 5000`, `k = 6` coefficients
 HC2 and HC3 cost more than HC0/HC1 because they need the hat-matrix diagonal
 (leverages).
 
-## Reproducing the comparison
+<!-- ## Reproducing the comparison
 
 Julia side:
 
@@ -175,4 +175,4 @@ accessor, which returns it as a one-element vector:
 k = Bartlett{Andrews}()
 Ω = aVar(k, X)
 CovarianceMatrices.bandwidth(k)   # e.g. [2.32], the Andrews-selected bandwidth
-```
+``` -->
