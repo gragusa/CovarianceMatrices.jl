@@ -37,20 +37,20 @@ using CovarianceMatrices
 df = dataset("plm", "Grunfeld")
 model = glm(@formula(Inv ~ Value + Capital), df, Normal(), IdentityLink())
 
-# Calculate HAC standard errors using Bartlett kernel with optimal bandwidth
+# HAC standard errors using Bartlett kernel with optimal bandwidth
 # Andrews bandwidth selection
 vcov_hac_andrews = vcov(Bartlett{Andrews}(), model)
 
 # Newey-West bandwidth selection
 vcov_hac_nw = vcov(Bartlett{NeweyWest}(), model)
 
-# Calculate heteroskedasticity-robust (HC) standard errors
+# Heteroskedasticity-robust (HC) standard errors
 vcov_hc = vcov(HC1(), model)
 
-# Calculate cluster-robust standard errors (clustered by firm)
+# Cluster-robust standard errors (clustered by firm)
 vcov_cr = vcov(CR1(df.Firm), model)
 
-# Calculate Driscoll-Kraay standard errors for panel data
+# Driscoll-Kraay standard errors for panel data
 # (accounts for cross-sectional dependence and heteroskedasticity)
 vcov_dk = vcov(DriscollKraay(Bartlett(5), tis=df.Year, iis=df.Firm), model)
 ```
@@ -59,7 +59,6 @@ For **heteroskedasticity-robust variance** estimation, `HC0`, `HC1`, `HC2`, `HC3
 - `HC0` is the basic White (1980) estimator
 - `HC1` applies a degrees-of-freedom correction: `n/(n-k)`
 - `HC2`, `HC3`, `HC4`, and `HC5` are refined variations that adjust for leverage points and improve small-sample performance. These are, however, only defined for (generalized) linear models.
-
 
 
 For **serially correlated errors**, HAC estimators account for both heteroskedasticity and autocorrelation in the error terms. Common kernel choices include `Bartlett`, `Parzen`, `QuadraticSpectral`, and `Truncated`, each with its own weighting scheme based on lag distance. The bandwidth can be specified directly (e.g., `Parzen(3)` uses a bandwidth of 3), or selected optimally using data-driven methods such as Andrews (1991) or Newey-West (1994). Another nonparametric estimator is the `Smoothed` estimator. `VARHAC` is a parametric estimator. If the correlation comes from the presence of clusters, then `CR` methods are provided.   
