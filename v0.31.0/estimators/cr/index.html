@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Clustered Standard Errors (CR) · CovarianceMatrices.jl</title><meta name="title" content="Clustered Standard Errors (CR) · CovarianceMatrices.jl"/><meta property="og:title" content="Clustered Standard Errors (CR) · CovarianceMatrices.jl"/><meta property="twitter:title" content="Clustered Standard Errors (CR) · CovarianceMatrices.jl"/><meta name="description" content="Documentation for CovarianceMatrices.jl."/><meta property="og:description" content="Documentation for CovarianceMatrices.jl."/><meta property="twitter:description" content="Documentation for CovarianceMatrices.jl."/><meta property="og:url" content="https://gragusa.github.io/CovarianceMatrices.jl/stable/estimators/cr/"/><meta property="twitter:url" content="https://gragusa.github.io/CovarianceMatrices.jl/stable/estimators/cr/"/><link rel="canonical" href="https://gragusa.github.io/CovarianceMatrices.jl/stable/estimators/cr/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../introduction/">Introduction &amp; Mathematical Foundation</a></li><li><span class="tocitem">Estimators</span><ul><li><a class="tocitem" href="../hac/">HAC Estimators</a></li><li><a class="tocitem" href="../hc/">Heteroskedasticity-Robust (HC/HR)</a></li><li class="is-active"><a class="tocitem" href>Clustered Standard Errors (CR)</a><ul class="internal"><li><a class="tocitem" href="#Mathematical-Foundation"><span>Mathematical Foundation</span></a></li><li><a class="tocitem" href="#Available-Estimators"><span>Available Estimators</span></a></li><li><a class="tocitem" href="#Multi-Way-Clustering"><span>Multi-Way Clustering</span></a></li><li><a class="tocitem" href="#Practical-Usage-Examples"><span>Practical Usage Examples</span></a></li><li><a class="tocitem" href="#Selection-Guidelines"><span>Selection Guidelines</span></a></li><li><a class="tocitem" href="#Advanced-Features"><span>Advanced Features</span></a></li><li><a class="tocitem" href="#CachedCR:-High-Performance-Caching-for-Repeated-Calculations"><span>CachedCR: High-Performance Caching for Repeated Calculations</span></a></li><li><a class="tocitem" href="#Integration-with-Other-Estimators"><span>Integration with Other Estimators</span></a></li><li><a class="tocitem" href="#Best-Practices-Summary"><span>Best Practices Summary</span></a></li><li><a class="tocitem" href="#References"><span>References</span></a></li></ul></li><li><a class="tocitem" href="../varhac/">VARHAC</a></li><li><a class="tocitem" href="../smoothed_moments/">Smoothed Moments</a></li><li><a class="tocitem" href="../driscoll_kraay/">Driscoll-Kraay</a></li><li><a class="tocitem" href="../ewc/">EWC</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/matrix_tutorial/">Matrix Interface</a></li><li><a class="tocitem" href="../../tutorials/glm_tutorial/">GLM Integration</a></li><li><a class="tocitem" href="../../tutorials/interface_tutorial/">Package Interface Extension</a></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../../performance/">Performance</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Estimators</a></li><li class="is-active"><a href>Clustered Standard Errors (CR)</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Clustered Standard Errors (CR)</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/gragusa/CovarianceMatrices.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/master/docs/src/estimators/cr.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Clustered-Robust-(CR)-Estimators"><a class="docs-heading-anchor" href="#Clustered-Robust-(CR)-Estimators">Clustered Robust (CR) Estimators</a><a id="Clustered-Robust-(CR)-Estimators-1"></a><a class="docs-heading-anchor-permalink" href="#Clustered-Robust-(CR)-Estimators" title="Permalink"></a></h1><p>Clustered robust estimators provide consistent covariance estimates when observations are correlated within clusters but independent across clusters. This is particularly important in panel data, multi-level data, and situations with natural grouping structures.</p><h2 id="Mathematical-Foundation"><a class="docs-heading-anchor" href="#Mathematical-Foundation">Mathematical Foundation</a><a id="Mathematical-Foundation-1"></a><a class="docs-heading-anchor-permalink" href="#Mathematical-Foundation" title="Permalink"></a></h2><h3 id="The-Clustering-Problem"><a class="docs-heading-anchor" href="#The-Clustering-Problem">The Clustering Problem</a><a id="The-Clustering-Problem-1"></a><a class="docs-heading-anchor-permalink" href="#The-Clustering-Problem" title="Permalink"></a></h3><p>When observations are correlated within clusters, the standard independence assumption breaks down. For data clustered by groups <span>$g \in \{1, \ldots, G\}$</span>, the long-run covariance matrix becomes:</p><p class="math-container">\[\Omega = \sum_{g=1}^G \mathbb{E}\left[\left(\sum_{t \in g} g(z_t, \theta_0)\right)\left(\sum_{t \in g} g(z_t, \theta_0)\right)&#39;\right]\]</p><p>This captures the fact that within-cluster correlations can be arbitrary, while between-cluster correlations are assumed to be zero.</p><h3 id="CR-Estimator-Family"><a class="docs-heading-anchor" href="#CR-Estimator-Family">CR Estimator Family</a><a id="CR-Estimator-Family-1"></a><a class="docs-heading-anchor-permalink" href="#CR-Estimator-Family" title="Permalink"></a></h3><p>The general form of CR estimators is:</p><p class="math-container">\[\hat{\Omega}_{CR_j} = \frac{G}{G-1} \sum_{g=1}^G \phi_j(g) \hat{u}_g \hat{u}_g&#39;\]</p><p>where:</p><ul><li><p class="math-container">\[\hat{u}_g = \sum_{t \in g} g_t\]</p>is the cluster-level sum of moment conditions</li><li><p class="math-container">\[\phi_j(g)\]</p>are small-sample adjustment factors</li><li><p class="math-container">\[\frac{G}{G-1}\]</p>is a degrees-of-freedom correction</li></ul><h2 id="Available-Estimators"><a class="docs-heading-anchor" href="#Available-Estimators">Available Estimators</a><a id="Available-Estimators-1"></a><a class="docs-heading-anchor-permalink" href="#Available-Estimators" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="CovarianceMatrices.CR0"><a class="docstring-binding" href="#CovarianceMatrices.CR0"><code>CovarianceMatrices.CR0</code></a> — <span class="docstring-category">Type</span></summary><section><div><p><code>CR0</code></p><p>Basic cluster-robust covariance estimator without small-sample adjustments.</p><p><strong>Mathematical Formula</strong></p><p class="math-container">\[\hat{\Omega}_{CR0} = \frac{G}{G-1} \sum_{g=1}^G \hat{u}_g \hat{u}_g&#39;\]</p><p>where <span>$\hat{u}_g = \sum_{t \in g} g_t$</span> is the cluster-level sum of moment conditions.</p><p><strong>Usage</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+cluster_ids = [1, 1, 2, 2, 3, 3, 4, 4]
+se_cr0 = stderror(CR0(cluster_ids), model)
+
+# Multi-way clustering
+se_cr0_multi = stderror(CR0((firm_ids, year_ids)), model)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L661-L684">source</a></section></details></article><article><details class="docstring" open="true"><summary id="CovarianceMatrices.CR1"><a class="docstring-binding" href="#CovarianceMatrices.CR1"><code>CovarianceMatrices.CR1</code></a> — <span class="docstring-category">Type</span></summary><section><div><p><code>CR1</code></p><p>Cluster-robust estimator with degrees-of-freedom correction.</p><p><strong>Mathematical Formula</strong></p><p class="math-container">\[\hat{\Omega}_{CR1} = \frac{G}{G-1} \cdot \frac{N-1}{N-K} \hat{\Omega}_{CR0}\]</p><p>where <span>$N$</span> is total sample size, <span>$K$</span> is number of parameters, and <span>$G$</span> is number of clusters.</p><p><strong>Usage</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+cluster_ids = [1, 1, 2, 2, 3, 3, 4, 4]
+se_cr1 = stderror(CR1(cluster_ids), model)
+
+# Multi-way clustering
+se_cr1_multi = stderror(CR1((firm_ids, year_ids)), model)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L698-L721">source</a></section></details></article><article><details class="docstring" open="true"><summary id="CovarianceMatrices.CR2"><a class="docstring-binding" href="#CovarianceMatrices.CR2"><code>CovarianceMatrices.CR2</code></a> — <span class="docstring-category">Type</span></summary><section><div><p><code>CR2</code></p><p>Cluster-robust estimator with leverage-based corrections.</p><p><strong>Mathematical Formula</strong></p><p class="math-container">\[\hat{\Omega}_{CR2} = \frac{G}{G-1} \sum_{g=1}^G \frac{1}{1-h_g} \hat{u}_g \hat{u}_g&#39;\]</p><p>where <span>$h_g$</span> represents cluster-level leverage values.</p><p><strong>Usage</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+cluster_ids = [1, 1, 2, 2, 3, 3, 4, 4]
+se_cr2 = stderror(CR2(cluster_ids), model)
+
+# Multi-way clustering
+se_cr2_multi = stderror(CR2((firm_ids, year_ids)), model)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L735-L758">source</a></section></details></article><article><details class="docstring" open="true"><summary id="CovarianceMatrices.CR3"><a class="docstring-binding" href="#CovarianceMatrices.CR3"><code>CovarianceMatrices.CR3</code></a> — <span class="docstring-category">Type</span></summary><section><div><p><code>CR3</code></p><p>Cluster-robust estimator with squared leverage corrections.</p><p><strong>Mathematical Formula</strong></p><p class="math-container">\[\hat{\Omega}_{CR3} = \frac{G}{G-1} \sum_{g=1}^G \frac{1}{(1-h_g)^2} \hat{u}_g \hat{u}_g&#39;\]</p><p>where <span>$h_g$</span> represents cluster-level leverage values.</p><p><strong>Usage</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+cluster_ids = [1, 1, 2, 2, 3, 3, 4, 4]
+se_cr3 = stderror(CR3(cluster_ids), model)
+
+# Multi-way clustering
+se_cr3_multi = stderror(CR3((firm_ids, year_ids)), model)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L772-L795">source</a></section></details></article><h3 id="CR0:-Basic-Cluster-Estimator"><a class="docs-heading-anchor" href="#CR0:-Basic-Cluster-Estimator">CR0: Basic Cluster Estimator</a><a id="CR0:-Basic-Cluster-Estimator-1"></a><a class="docs-heading-anchor-permalink" href="#CR0:-Basic-Cluster-Estimator" title="Permalink"></a></h3><p class="math-container">\[\phi_0(g) = 1\]</p><p><strong>Properties:</strong></p><ul><li>No small-sample adjustments</li><li>Simplest form of cluster-robust inference</li><li>Can be downward biased in small samples</li></ul><p><strong>Usage:</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+
+# Single cluster variable
+cluster_ids = [1, 1, 2, 2, 3, 3, 4, 4]
+cr0 = CR0(cluster_ids)
+Ω = aVar(cr0, residuals)</code></pre><h3 id="CR1:-Degrees-of-Freedom-Correction"><a class="docs-heading-anchor" href="#CR1:-Degrees-of-Freedom-Correction">CR1: Degrees-of-Freedom Correction</a><a id="CR1:-Degrees-of-Freedom-Correction-1"></a><a class="docs-heading-anchor-permalink" href="#CR1:-Degrees-of-Freedom-Correction" title="Permalink"></a></h3><p class="math-container">\[\phi_1(g) = \frac{G}{G-1} \cdot \frac{N-1}{N-K}\]</p><p><strong>Properties:</strong></p><ul><li>Applies degrees-of-freedom correction for parameters</li><li>Better finite sample properties than CR0</li><li><strong>Most commonly used in practice</strong></li></ul><p><strong>Usage:</strong></p><pre><code class="language-julia hljs"># CR1 with single clustering dimension
+cr1 = CR1(cluster_ids)
+Ω = aVar(cr1, residuals)</code></pre><h3 id="CR2-and-CR3:-Leverage-Based-Corrections"><a class="docs-heading-anchor" href="#CR2-and-CR3:-Leverage-Based-Corrections">CR2 and CR3: Leverage-Based Corrections</a><a id="CR2-and-CR3:-Leverage-Based-Corrections-1"></a><a class="docs-heading-anchor-permalink" href="#CR2-and-CR3:-Leverage-Based-Corrections" title="Permalink"></a></h3><p><strong>CR2:</strong></p><p class="math-container">\[\phi_2(g) = \frac{1}{1-h_g}\]</p><p><strong>CR3:</strong></p><p class="math-container">\[\phi_3(g) = \frac{1}{(1-h_g)^2}\]</p><p>where <span>$h_g$</span> represents cluster-level leverage values.</p><p><strong>Properties:</strong></p><ul><li>Account for cluster-specific leverage effects</li><li>More robust to influential clusters</li><li>Better performance with unbalanced clusters</li></ul><h2 id="Multi-Way-Clustering"><a class="docs-heading-anchor" href="#Multi-Way-Clustering">Multi-Way Clustering</a><a id="Multi-Way-Clustering-1"></a><a class="docs-heading-anchor-permalink" href="#Multi-Way-Clustering" title="Permalink"></a></h2><p>The package supports multi-way clustering with intersection corrections:</p><pre><code class="language-julia hljs"># Two-way clustering
+firm_ids = [1, 1, 2, 2, 3, 3, 4, 4]
+year_ids = [2001, 2002, 2001, 2002, 2001, 2002, 2001, 2002]
+
+# Multi-way clustering
+cr_multi = CR1((firm_ids, year_ids))
+Ω = aVar(cr_multi, residuals)</code></pre><p>The estimator automatically applies the inclusion-exclusion principle:</p><p class="math-container">\[\hat{\Omega}_{multi} = \hat{\Omega}_{firm} + \hat{\Omega}_{year} - \hat{\Omega}_{firm \cap year}\]</p><h2 id="Practical-Usage-Examples"><a class="docs-heading-anchor" href="#Practical-Usage-Examples">Practical Usage Examples</a><a id="Practical-Usage-Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Practical-Usage-Examples" title="Permalink"></a></h2><h3 id="Panel-Data-Example"><a class="docs-heading-anchor" href="#Panel-Data-Example">Panel Data Example</a><a id="Panel-Data-Example-1"></a><a class="docs-heading-anchor-permalink" href="#Panel-Data-Example" title="Permalink"></a></h3><pre><code class="language-julia hljs">using CovarianceMatrices, DataFrames, GLM, Random
+Random.seed!(123)
+
+# Generate panel data
+N_firms = 50
+N_years = 10
+N = N_firms * N_years
+
+# Create panel structure
+firm_ids = repeat(1:N_firms, N_years)
+year_ids = repeat(1:N_years, inner=N_firms)
+
+# Generate data with firm and time effects
+firm_effects = randn(N_firms)[firm_ids]
+time_effects = randn(N_years)[year_ids]
+X = randn(N, 2)
+ε = firm_effects + time_effects + randn(N) * 0.5
+
+y = 1.0 .+ 0.5 * X[:, 1] - 0.3 * X[:, 2] + ε
+
+df = DataFrame(
+    y = y,
+    x1 = X[:, 1],
+    x2 = X[:, 2],
+    firm_id = firm_ids,
+    year_id = year_ids
+)
+
+# Fit model
+model = lm(@formula(y ~ x1 + x2), df)
+
+# Compare different clustering approaches
+se_classical = stderror(model)
+se_firm = stderror(CR1(df.firm_id), model)
+se_year = stderror(CR1(df.year_id), model)
+se_twoway = stderror(CR1((df.firm_id, df.year_id)), model)
+
+results = DataFrame(
+    Variable = [&quot;Intercept&quot;, &quot;x1&quot;, &quot;x2&quot;],
+    Classical = round.(se_classical, digits=4),
+    Firm_Cluster = round.(se_firm, digits=4),
+    Year_Cluster = round.(se_year, digits=4),
+    TwoWay_Cluster = round.(se_twoway, digits=4)
+)
+
+println(results)</code></pre><h3 id="Comparing-CR-Variants"><a class="docs-heading-anchor" href="#Comparing-CR-Variants">Comparing CR Variants</a><a id="Comparing-CR-Variants-1"></a><a class="docs-heading-anchor-permalink" href="#Comparing-CR-Variants" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Compare all CR estimators
+cr_estimators = [CR0(firm_ids), CR1(firm_ids), CR2(firm_ids), CR3(firm_ids)]
+cr_names = [&quot;CR0&quot;, &quot;CR1&quot;, &quot;CR2&quot;, &quot;CR3&quot;]
+
+println(&quot;Estimator\\tStd Errors (x1, x2)&quot;)
+for (est, name) in zip(cr_estimators, cr_names)
+    se = stderror(est, model)
+    println(&quot;$name\\t\\t$(round.(se[2:3], digits=4))&quot;)
+end</code></pre><h3 id="Cluster-Diagnostics"><a class="docs-heading-anchor" href="#Cluster-Diagnostics">Cluster Diagnostics</a><a id="Cluster-Diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Cluster-Diagnostics" title="Permalink"></a></h3><pre><code class="language-julia hljs">function cluster_diagnostics(cluster_var)
+    n_clusters = length(unique(cluster_var))
+    cluster_sizes = [sum(cluster_var .== g) for g in unique(cluster_var)]
+
+    println(&quot;Cluster Diagnostics:&quot;)
+    println(&quot;Number of clusters: $n_clusters&quot;)
+    println(&quot;Average cluster size: $(round(mean(cluster_sizes), digits=1))&quot;)
+    println(&quot;Min cluster size: $(minimum(cluster_sizes))&quot;)
+    println(&quot;Max cluster size: $(maximum(cluster_sizes))&quot;)
+
+    # Rule of thumb: need at least 30-50 clusters for asymptotic theory
+    if n_clusters &lt; 30
+        println(&quot;⚠️  Warning: Few clusters detected. Consider bootstrap inference.&quot;)
+    end
+
+    return n_clusters, cluster_sizes
+end
+
+n_clusters, sizes = cluster_diagnostics(firm_ids)</code></pre><h2 id="Selection-Guidelines"><a class="docs-heading-anchor" href="#Selection-Guidelines">Selection Guidelines</a><a id="Selection-Guidelines-1"></a><a class="docs-heading-anchor-permalink" href="#Selection-Guidelines" title="Permalink"></a></h2><h3 id="When-to-Use-Clustered-Standard-Errors"><a class="docs-heading-anchor" href="#When-to-Use-Clustered-Standard-Errors">When to Use Clustered Standard Errors</a><a id="When-to-Use-Clustered-Standard-Errors-1"></a><a class="docs-heading-anchor-permalink" href="#When-to-Use-Clustered-Standard-Errors" title="Permalink"></a></h3><p>✅ <strong>Use CR estimators for:</strong></p><ul><li>Panel data with repeated observations per unit</li><li>Multi-level data (students within schools, firms within industries)</li><li>Spatial data with geographic clustering</li><li>Survey data with complex sampling designs</li><li>Any situation with natural grouping structures</li></ul><h3 id="CR-Variant-Selection"><a class="docs-heading-anchor" href="#CR-Variant-Selection">CR Variant Selection</a><a id="CR-Variant-Selection-1"></a><a class="docs-heading-anchor-permalink" href="#CR-Variant-Selection" title="Permalink"></a></h3><pre><code class="language-julia hljs">function choose_cr_estimator(n_clusters, cluster_balance=&quot;balanced&quot;)
+    if n_clusters &lt; 30
+        println(&quot;Recommendation: Use CR1 with bootstrap inference&quot;)
+        return &quot;CR1 + Bootstrap&quot;
+    elseif n_clusters &lt; 50
+        println(&quot;Recommendation: Use CR1 (conservative)&quot;)
+        return &quot;CR1&quot;
+    elseif cluster_balance == &quot;unbalanced&quot;
+        println(&quot;Recommendation: Use CR2 or CR3 (leverage corrections)&quot;)
+        return &quot;CR2&quot;
+    else
+        println(&quot;Recommendation: CR1 is adequate&quot;)
+        return &quot;CR1&quot;
+    end
+end
+
+# Apply to our example
+recommendation = choose_cr_estimator(length(unique(firm_ids)))</code></pre><h3 id="Multi-Way-Clustering-Decision"><a class="docs-heading-anchor" href="#Multi-Way-Clustering-Decision">Multi-Way Clustering Decision</a><a id="Multi-Way-Clustering-Decision-1"></a><a class="docs-heading-anchor-permalink" href="#Multi-Way-Clustering-Decision" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Test if two-way clustering is necessary
+function test_clustering_necessity(model, cluster1, cluster2)
+    # Single-way clustering
+    se1 = stderror(CR1(cluster1), model)
+    se2 = stderror(CR1(cluster2), model)
+
+    # Two-way clustering
+    se_2way = stderror(CR1((cluster1, cluster2)), model)
+
+    # Compare max single-way vs two-way
+    se_max_single = max.(se1, se2)
+
+    println(&quot;Two-way vs Max Single-way Comparison:&quot;)
+    for i in 1:length(se1)
+        ratio = se_2way[i] / se_max_single[i]
+        println(&quot;Coef $i: $(round(ratio, digits=3))&quot;)
+        if ratio &gt; 1.1
+            println(&quot;  → Two-way clustering provides additional correction&quot;)
+        end
+    end
+end
+
+test_clustering_necessity(model, df.firm_id, df.year_id)</code></pre><h2 id="Advanced-Features"><a class="docs-heading-anchor" href="#Advanced-Features">Advanced Features</a><a id="Advanced-Features-1"></a><a class="docs-heading-anchor-permalink" href="#Advanced-Features" title="Permalink"></a></h2><h3 id="Unbalanced-Clustering"><a class="docs-heading-anchor" href="#Unbalanced-Clustering">Unbalanced Clustering</a><a id="Unbalanced-Clustering-1"></a><a class="docs-heading-anchor-permalink" href="#Unbalanced-Clustering" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Handle unbalanced clusters automatically
+unbalanced_clusters = vcat(fill(1, 100), fill(2, 10), fill(3, 5))
+cr_unbalanced = CR2(unbalanced_clusters)  # Use leverage corrections</code></pre><h3 id="Nested-Clustering"><a class="docs-heading-anchor" href="#Nested-Clustering">Nested Clustering</a><a id="Nested-Clustering-1"></a><a class="docs-heading-anchor-permalink" href="#Nested-Clustering" title="Permalink"></a></h3><pre><code class="language-julia hljs"># For hierarchical structures (students in classes in schools)
+school_ids = [1, 1, 1, 2, 2, 2, 3, 3, 3]
+class_ids = [1, 1, 2, 3, 3, 4, 5, 5, 6]
+
+# Cluster at the highest level (schools)
+cr_nested = CR1(school_ids)</code></pre><h3 id="Performance-Considerations"><a class="docs-heading-anchor" href="#Performance-Considerations">Performance Considerations</a><a id="Performance-Considerations-1"></a><a class="docs-heading-anchor-permalink" href="#Performance-Considerations" title="Permalink"></a></h3><pre><code class="language-julia hljs">using BenchmarkTools
+
+function cr_performance_comparison()
+    N = 10000
+    clusters = repeat(1:100, inner=100)
+    residuals_perf = randn(N, 3)
+
+    println(&quot;Performance Comparison:&quot;)
+
+    for (name, estimator) in [(&quot;CR0&quot;, CR0(clusters)), (&quot;CR1&quot;, CR1(clusters))]
+        time = @belapsed aVar($estimator, $residuals_perf)
+        println(&quot;$name: $(round(time * 1000, digits=2))ms&quot;)
+    end
+end
+
+cr_performance_comparison()</code></pre><h2 id="CachedCR:-High-Performance-Caching-for-Repeated-Calculations"><a class="docs-heading-anchor" href="#CachedCR:-High-Performance-Caching-for-Repeated-Calculations">CachedCR: High-Performance Caching for Repeated Calculations</a><a id="CachedCR:-High-Performance-Caching-for-Repeated-Calculations-1"></a><a class="docs-heading-anchor-permalink" href="#CachedCR:-High-Performance-Caching-for-Repeated-Calculations" title="Permalink"></a></h2><p>For applications requiring repeated cluster-robust variance calculations with the same cluster structure—such as wild bootstrap or Monte Carlo simulations—<code>CachedCR</code> provides significant performance improvements.</p><article><details class="docstring" open="true"><summary id="CovarianceMatrices.CachedCR"><a class="docstring-binding" href="#CovarianceMatrices.CachedCR"><code>CovarianceMatrices.CachedCR</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">CachedCR{K&lt;:CR, C&lt;:CRCache}</code></pre><p>Wrapper around a cluster-robust estimator with preallocated cache for fast repeated variance calculations.</p><p>This is designed for use cases like wild bootstrap where the same cluster structure is used many times with different moment matrices (perturbed residuals).</p><p><strong>Type Parameters</strong></p><ul><li><code>K</code>: The underlying CR estimator type (CR0, CR1, CR2, or CR3)</li><li><code>C</code>: The cache type</li></ul><p><strong>Fields</strong></p><ul><li><code>estimator</code>: The underlying CR estimator</li><li><code>cache</code>: Preallocated buffers and precomputed data</li></ul><p><strong>Warning</strong></p><p>Using <code>CachedCR</code> makes the variance calculation non-differentiable with automatic differentiation (AD). For AD compatibility, use the standard non-cached CR estimators directly.</p><p><strong>Example</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+
+# Setup
+cluster_ids = repeat(1:100, inner=10)
+X = randn(1000, 5)
+k = CR0(cluster_ids)
+
+# Create cached version for repeated use
+cached_k = CachedCR(k, size(X, 2))
+
+# Wild bootstrap - same cluster structure, different moment matrices
+for b in 1:1000
+    weights = rand([-1, 1], 1000)
+    X_perturbed = X .* weights
+    S = aVar(cached_k, X_perturbed)  # Uses cached buffers
+end</code></pre><p>See also: <a href="#CovarianceMatrices.CR0"><code>CR0</code></a>, <a href="#CovarianceMatrices.CR1"><code>CR1</code></a>, <a href="#CovarianceMatrices.CR2"><code>CR2</code></a>, <a href="#CovarianceMatrices.CR3"><code>CR3</code></a>, <a href="../../api/#CovarianceMatrices.CRCache"><code>CRCache</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L906-L949">source</a></section></details></article><h3 id="When-to-Use-CachedCR"><a class="docs-heading-anchor" href="#When-to-Use-CachedCR">When to Use CachedCR</a><a id="When-to-Use-CachedCR-1"></a><a class="docs-heading-anchor-permalink" href="#When-to-Use-CachedCR" title="Permalink"></a></h3><p><code>CachedCR</code> is designed for scenarios where:</p><ul><li>The same cluster structure is used repeatedly</li><li>Only the moment matrix (residuals) changes between calculations</li><li>Performance is critical (e.g., bootstrap with 1000+ replications)</li></ul><p><strong>Typical speedups:</strong></p><ul><li>Single-cluster: ~3-4x faster</li><li>Two-way clustering: ~4x faster</li><li>Wild bootstrap (100 iterations): ~2.5-4x faster</li></ul><h3 id="Basic-Usage"><a class="docs-heading-anchor" href="#Basic-Usage">Basic Usage</a><a id="Basic-Usage-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-Usage" title="Permalink"></a></h3><pre><code class="language-julia hljs">using CovarianceMatrices
+
+# Setup
+cluster_ids = repeat(1:100, inner=10)
+X = randn(1000, 5)
+
+# Create standard CR estimator
+k = CR0(cluster_ids)
+
+# Create cached version (one-time setup cost)
+cached_k = CachedCR(k, size(X, 2))
+
+# Use for repeated calculations
+S = aVar(cached_k, X)  # Uses optimized gather-based aggregation</code></pre><h3 id="Wild-Bootstrap-Example"><a class="docs-heading-anchor" href="#Wild-Bootstrap-Example">Wild Bootstrap Example</a><a id="Wild-Bootstrap-Example-1"></a><a class="docs-heading-anchor-permalink" href="#Wild-Bootstrap-Example" title="Permalink"></a></h3><pre><code class="language-julia hljs">using CovarianceMatrices, Random
+
+function wild_bootstrap_variance(X, cluster_ids; n_bootstrap=1000)
+    n = size(X, 1)
+    ncols = size(X, 2)
+
+    # Create cached estimator (one-time cost)
+    k = CR0(cluster_ids)
+    cached_k = CachedCR(k, ncols)
+
+    # Store bootstrap variance estimates
+    bootstrap_vars = Vector{Matrix{Float64}}(undef, n_bootstrap)
+
+    for b in 1:n_bootstrap
+        # Rademacher weights (+1 or -1)
+        weights = rand([-1.0, 1.0], n)
+        X_perturbed = X .* weights
+
+        # Fast variance calculation using cache
+        bootstrap_vars[b] = aVar(cached_k, X_perturbed)
+    end
+
+    return bootstrap_vars
+end
+
+# Usage
+cluster_ids = repeat(1:50, inner=20)
+X = randn(1000, 5)
+vars = wild_bootstrap_variance(X, cluster_ids; n_bootstrap=1000)</code></pre><h3 id="Two-Way-Clustering-with-Cache"><a class="docs-heading-anchor" href="#Two-Way-Clustering-with-Cache">Two-Way Clustering with Cache</a><a id="Two-Way-Clustering-with-Cache-1"></a><a class="docs-heading-anchor-permalink" href="#Two-Way-Clustering-with-Cache" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Panel data: firms × years
+n_firms, n_years = 100, 20
+n_obs = n_firms * n_years
+
+firm_ids = repeat(1:n_firms, outer=n_years)
+year_ids = repeat(1:n_years, inner=n_firms)
+
+X = randn(n_obs, 4)
+
+# Create two-way clustered estimator with cache
+k = CR0((firm_ids, year_ids))
+cached_k = CachedCR(k, size(X, 2))
+
+# The cache precomputes GroupedArrays for all combinations:
+# - firm clustering
+# - year clustering
+# - firm × year intersection
+S = aVar(cached_k, X)</code></pre><h3 id="Important-Limitations"><a class="docs-heading-anchor" href="#Important-Limitations">Important Limitations</a><a id="Important-Limitations-1"></a><a class="docs-heading-anchor-permalink" href="#Important-Limitations" title="Permalink"></a></h3><div class="admonition is-warning" id="AD-Incompatibility-50983999bff2c7da"><header class="admonition-header">AD Incompatibility<a class="admonition-anchor" href="#AD-Incompatibility-50983999bff2c7da" title="Permalink"></a></header><div class="admonition-body"><p><code>CachedCR</code> uses in-place operations and preallocated buffers that are <strong>not compatible with automatic differentiation (AD)</strong>. For AD-compatible code, use the standard <code>CR0</code>, <code>CR1</code>, <code>CR2</code>, or <code>CR3</code> estimators directly.</p></div></div><div class="admonition is-info" id="Fixed-Column-Count-4f1790acefea0026"><header class="admonition-header">Fixed Column Count<a class="admonition-anchor" href="#Fixed-Column-Count-4f1790acefea0026" title="Permalink"></a></header><div class="admonition-body"><p>The cache is built for a specific number of columns. Using a moment matrix with a different column count will raise an error:</p><pre><code class="language-julia hljs">cached_k = CachedCR(CR0(clusters), 5)  # Cache for 5 columns
+aVar(cached_k, randn(100, 3))  # Error! Expected 5 columns</code></pre></div></div><h3 id="Performance-Benchmark"><a class="docs-heading-anchor" href="#Performance-Benchmark">Performance Benchmark</a><a id="Performance-Benchmark-1"></a><a class="docs-heading-anchor-permalink" href="#Performance-Benchmark" title="Permalink"></a></h3><pre><code class="language-julia hljs">using BenchmarkTools
+
+function benchmark_cached_cr()
+    n_obs = 10_000
+    n_cols = 10
+    n_clusters = 100
+
+    cluster_ids = repeat(1:n_clusters, inner=n_obs ÷ n_clusters)
+    X = randn(n_obs, n_cols)
+
+    k = CR0(cluster_ids)
+    cached_k = CachedCR(k, n_cols)
+
+    println(&quot;Standard CR0:&quot;)
+    @btime aVar($k, $X)
+
+    println(&quot;CachedCR:&quot;)
+    @btime aVar($cached_k, $X)
+end
+
+benchmark_cached_cr()
+# Typical output:
+#   Standard CR0:  420.000 μs (5 allocations: 9.00 KiB)
+#   CachedCR:      105.000 μs (1 allocation: 896 bytes)</code></pre><h2 id="Integration-with-Other-Estimators"><a class="docs-heading-anchor" href="#Integration-with-Other-Estimators">Integration with Other Estimators</a><a id="Integration-with-Other-Estimators-1"></a><a class="docs-heading-anchor-permalink" href="#Integration-with-Other-Estimators" title="Permalink"></a></h2><h3 id="Combining-with-HAC"><a class="docs-heading-anchor" href="#Combining-with-HAC">Combining with HAC</a><a id="Combining-with-HAC-1"></a><a class="docs-heading-anchor-permalink" href="#Combining-with-HAC" title="Permalink"></a></h3><p>For panel data with both clustering and serial correlation:</p><pre><code class="language-julia hljs"># First handle clustering, then serial correlation within clusters
+# (This requires specialized estimators not covered by basic CR)
+println(&quot;Note: For panel data with both clustering and time dependence,&quot;)
+println(&quot;consider specialized panel-robust estimators like Driscoll-Kraay.&quot;)</code></pre><h3 id="Bootstrap-Inference"><a class="docs-heading-anchor" href="#Bootstrap-Inference">Bootstrap Inference</a><a id="Bootstrap-Inference-1"></a><a class="docs-heading-anchor-permalink" href="#Bootstrap-Inference" title="Permalink"></a></h3><pre><code class="language-julia hljs">function bootstrap_cluster_inference(model, clusters, n_bootstrap=1000)
+    # Simple cluster bootstrap (resample clusters)
+    unique_clusters = unique(clusters)
+    n_clusters = length(unique_clusters)
+
+    bootstrap_coefs = []
+
+    for b in 1:n_bootstrap
+        # Resample clusters with replacement
+        boot_clusters = sample(unique_clusters, n_clusters, replace=true)
+
+        # Create bootstrap sample
+        boot_indices = Int[]
+        for cluster in boot_clusters
+            append!(boot_indices, findall(clusters .== cluster))
+        end
+
+        # Re-estimate (simplified - would need actual re-estimation)
+        # This is a conceptual example
+        push!(bootstrap_coefs, randn(3))  # Placeholder
+    end
+
+    println(&quot;Bootstrap inference recommended for &lt; 30 clusters&quot;)
+    return bootstrap_coefs
+end</code></pre><h2 id="Best-Practices-Summary"><a class="docs-heading-anchor" href="#Best-Practices-Summary">Best Practices Summary</a><a id="Best-Practices-Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Best-Practices-Summary" title="Permalink"></a></h2><h3 id="Default-Recommendations"><a class="docs-heading-anchor" href="#Default-Recommendations">Default Recommendations</a><a id="Default-Recommendations-1"></a><a class="docs-heading-anchor-permalink" href="#Default-Recommendations" title="Permalink"></a></h3><ol><li><strong>Standard choice</strong>: Use <code>CR1()</code> for most applications</li><li><strong>Few clusters (&lt; 30)</strong>: Consider bootstrap inference</li><li><strong>Unbalanced clusters</strong>: Use <code>CR2()</code> or <code>CR3()</code></li><li><strong>Multi-way clustering</strong>: Test necessity before applying</li><li><strong>Panel data</strong>: Consider Driscoll-Kraay for serial correlation</li></ol><h3 id="Common-Pitfalls"><a class="docs-heading-anchor" href="#Common-Pitfalls">Common Pitfalls</a><a id="Common-Pitfalls-1"></a><a class="docs-heading-anchor-permalink" href="#Common-Pitfalls" title="Permalink"></a></h3><p>❌ <strong>Avoid:</strong></p><ul><li>Using CR with too few clusters (&lt; 30)</li><li>Ignoring cluster balance issues</li><li>Over-clustering (more cluster dimensions than necessary)</li><li>Using CR when independence assumption holds</li></ul><p>✅ <strong>Do:</strong></p><ul><li>Examine cluster structure and balance</li><li>Test clustering necessity</li><li>Consider bootstrap for small cluster samples</li><li>Document clustering rationale</li></ul><h2 id="References"><a class="docs-heading-anchor" href="#References">References</a><a id="References-1"></a><a class="docs-heading-anchor-permalink" href="#References" title="Permalink"></a></h2><p><strong>Foundational Papers:</strong></p><ul><li>Liang, K.Y. and Zeger, S.L. (1986). &quot;Longitudinal data analysis using generalized linear models&quot;. <em>Biometrika</em>, 73(1), 13-22.</li><li>White, H. (1984). &quot;Asymptotic Theory for Econometricians&quot;. Academic Press.</li></ul><p><strong>Methodological Extensions:</strong></p><ul><li>Cameron, A.C., Gelbach, J.B., and Miller, D.L. (2011). &quot;Robust inference with multiway clustering&quot;. <em>Journal of Business &amp; Economic Statistics</em>, 29(2), 238-249.</li><li>Petersen, M.A. (2009). &quot;Estimating standard errors in finance panel data sets: Comparing approaches&quot;. <em>Review of Financial Studies</em>, 22(1), 435-480.</li></ul><p><strong>Small Sample Properties:</strong></p><ul><li>Cameron, A.C. and Miller, D.L. (2015). &quot;A practitioner&#39;s guide to cluster-robust inference&quot;. <em>Journal of Human Resources</em>, 50(2), 317-372.</li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../hc/">« Heteroskedasticity-Robust (HC/HR)</a><a class="docs-footer-nextpage" href="../varhac/">VARHAC »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Saturday 4 July 2026 17:07">Saturday 4 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

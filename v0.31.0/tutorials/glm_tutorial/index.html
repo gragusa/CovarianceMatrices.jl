@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>GLM Integration · CovarianceMatrices.jl</title><meta name="title" content="GLM Integration · CovarianceMatrices.jl"/><meta property="og:title" content="GLM Integration · CovarianceMatrices.jl"/><meta property="twitter:title" content="GLM Integration · CovarianceMatrices.jl"/><meta name="description" content="Documentation for CovarianceMatrices.jl."/><meta property="og:description" content="Documentation for CovarianceMatrices.jl."/><meta property="twitter:description" content="Documentation for CovarianceMatrices.jl."/><meta property="og:url" content="https://gragusa.github.io/CovarianceMatrices.jl/stable/tutorials/glm_tutorial/"/><meta property="twitter:url" content="https://gragusa.github.io/CovarianceMatrices.jl/stable/tutorials/glm_tutorial/"/><link rel="canonical" href="https://gragusa.github.io/CovarianceMatrices.jl/stable/tutorials/glm_tutorial/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../introduction/">Introduction &amp; Mathematical Foundation</a></li><li><span class="tocitem">Estimators</span><ul><li><a class="tocitem" href="../../estimators/hac/">HAC Estimators</a></li><li><a class="tocitem" href="../../estimators/hc/">Heteroskedasticity-Robust (HC/HR)</a></li><li><a class="tocitem" href="../../estimators/cr/">Clustered Standard Errors (CR)</a></li><li><a class="tocitem" href="../../estimators/varhac/">VARHAC</a></li><li><a class="tocitem" href="../../estimators/smoothed_moments/">Smoothed Moments</a></li><li><a class="tocitem" href="../../estimators/driscoll_kraay/">Driscoll-Kraay</a></li><li><a class="tocitem" href="../../estimators/ewc/">EWC</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../matrix_tutorial/">Matrix Interface</a></li><li class="is-active"><a class="tocitem" href>GLM Integration</a><ul class="internal"><li><a class="tocitem" href="#Overview"><span>Overview</span></a></li><li><a class="tocitem" href="#Example-1:-Linear-Regression-with-Heteroskedasticity"><span>Example 1: Linear Regression with Heteroskedasticity</span></a></li><li><a class="tocitem" href="#Example-2:-Time-Series-Regression-with-Autocorrelation"><span>Example 2: Time Series Regression with Autocorrelation</span></a></li><li><a class="tocitem" href="#Example-3:-Panel-Data-and-Clustered-Standard-Errors"><span>Example 3: Panel Data and Clustered Standard Errors</span></a></li><li><a class="tocitem" href="#Example-4:-Logistic-Regression"><span>Example 4: Logistic Regression</span></a></li><li><a class="tocitem" href="#Example-5:-Advanced-Usage-with-New-API"><span>Example 5: Advanced Usage with New API</span></a></li><li><a class="tocitem" href="#Practical-Guidelines"><span>Practical Guidelines</span></a></li><li><a class="tocitem" href="#Summary-and-Best-Practices"><span>Summary and Best Practices</span></a></li></ul></li><li><a class="tocitem" href="../interface_tutorial/">Package Interface Extension</a></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../../performance/">Performance</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>GLM Integration</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>GLM Integration</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/gragusa/CovarianceMatrices.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/master/docs/src/tutorials/glm_tutorial.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="GLM-Integration-Tutorial"><a class="docs-heading-anchor" href="#GLM-Integration-Tutorial">GLM Integration Tutorial</a><a id="GLM-Integration-Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#GLM-Integration-Tutorial" title="Permalink"></a></h1><p>This tutorial demonstrates how to use CovarianceMatrices.jl with GLM.jl for robust inference in regression models. The integration provides seamless robust standard errors for linear and generalized linear models.</p><h2 id="Overview"><a class="docs-heading-anchor" href="#Overview">Overview</a><a id="Overview-1"></a><a class="docs-heading-anchor-permalink" href="#Overview" title="Permalink"></a></h2><p>CovarianceMatrices.jl extends GLM.jl&#39;s <code>vcov()</code> and <code>stderror()</code> functions with robust covariance estimators. The general workflow is:</p><ol><li>Fit your model using GLM.jl (<code>lm()</code>, <code>glm()</code>, etc.)</li><li>Compute robust covariance matrix using <code>vcov(estimator, model)</code></li><li>Extract robust standard errors using <code>stderror(estimator, model)</code></li><li>Perform inference using robust statistics</li></ol><pre><code class="language-julia hljs">using GLM, CovarianceMatrices, DataFrames, Random, Statistics
+using LinearAlgebra, StatsBase, Distributions
+Random.seed!(123)</code></pre><h2 id="Example-1:-Linear-Regression-with-Heteroskedasticity"><a class="docs-heading-anchor" href="#Example-1:-Linear-Regression-with-Heteroskedasticity">Example 1: Linear Regression with Heteroskedasticity</a><a id="Example-1:-Linear-Regression-with-Heteroskedasticity-1"></a><a class="docs-heading-anchor-permalink" href="#Example-1:-Linear-Regression-with-Heteroskedasticity" title="Permalink"></a></h2><p>Let&#39;s start with a simple linear regression that exhibits heteroskedasticity:</p><pre><code class="language-julia hljs"># Generate data with heteroskedasticity
+n = 200
+x1 = randn(n)
+x2 = randn(n)
+x3 = randn(n)
+
+# Heteroskedastic error variance depends on x1
+σ² = exp.(0.5 .+ 0.8 * abs.(x1))
+ε = sqrt.(σ²) .* randn(n)
+
+# True coefficients
+β = [2.0, 1.5, -1.0, 0.5]
+y = β[1] .+ β[2] * x1 .+ β[3] * x2 .+ β[4] * x3 .+ ε
+
+# Create DataFrame
+df = DataFrame(y=y, x1=x1, x2=x2, x3=x3)
+
+# Fit OLS model
+model = lm(@formula(y ~ x1 + x2 + x3), df)
+println(&quot;R² = $(round(r2(model), digits=3))&quot;)
+println(&quot;True coefficients: $β&quot;)
+println(&quot;OLS estimates: $(round.(coef(model), digits=3))&quot;)</code></pre><h3 id="Comparing-Standard-Errors"><a class="docs-heading-anchor" href="#Comparing-Standard-Errors">Comparing Standard Errors</a><a id="Comparing-Standard-Errors-1"></a><a class="docs-heading-anchor-permalink" href="#Comparing-Standard-Errors" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Classical standard errors (assume homoskedasticity)
+se_classical = stderror(model)
+
+# Robust standard errors (HC estimators)
+se_hc0 = stderror(HC0(), model)
+se_hc1 = stderror(HC1(), model)
+se_hc2 = stderror(HC2(), model)
+se_hc3 = stderror(HC3(), model)  # Most common choice
+
+# Display results
+results_df = DataFrame(
+    Variable = [&quot;Intercept&quot;, &quot;x1&quot;, &quot;x2&quot;, &quot;x3&quot;],
+    Coefficient = round.(coef(model), digits=3),
+    SE_Classical = round.(se_classical, digits=3),
+    SE_HC0 = round.(se_hc0, digits=3),
+    SE_HC1 = round.(se_hc1, digits=3),
+    SE_HC2 = round.(se_hc2, digits=3),
+    SE_HC3 = round.(se_hc3, digits=3)
+)
+
+println(&quot;\nStandard Error Comparison:&quot;)
+println(results_df)</code></pre><h3 id="Variance-Covariance-Matrices"><a class="docs-heading-anchor" href="#Variance-Covariance-Matrices">Variance-Covariance Matrices</a><a id="Variance-Covariance-Matrices-1"></a><a class="docs-heading-anchor-permalink" href="#Variance-Covariance-Matrices" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Compare covariance matrices
+vcov_classical = vcov(model)
+vcov_hc3 = vcov(HC3(), model)
+
+println(&quot;\nDiagonal ratio (HC3/Classical):&quot;)
+for i in 1:4
+    ratio = vcov_hc3[i,i] / vcov_classical[i,i]
+    println(&quot;  Variable $(i): $(round(ratio, digits=2))&quot;)
+end</code></pre><h2 id="Example-2:-Time-Series-Regression-with-Autocorrelation"><a class="docs-heading-anchor" href="#Example-2:-Time-Series-Regression-with-Autocorrelation">Example 2: Time Series Regression with Autocorrelation</a><a id="Example-2:-Time-Series-Regression-with-Autocorrelation-1"></a><a class="docs-heading-anchor-permalink" href="#Example-2:-Time-Series-Regression-with-Autocorrelation" title="Permalink"></a></h2><p>Now let&#39;s consider a time series regression with serial correlation:</p><pre><code class="language-julia hljs"># Generate time series data
+T = 300
+t = 1:T
+
+# Trending regressors
+trend = collect(t) ./ T
+seasonal = sin.(2π * t / 12)  # Monthly seasonality
+x1_ts = trend + 0.3 * randn(T)
+x2_ts = seasonal + 0.2 * randn(T)
+
+# AR(1) errors
+ρ = 0.6
+ε_ts = zeros(T)
+ε_ts[1] = randn()
+for i in 2:T
+    ε_ts[i] = ρ * ε_ts[i-1] + randn()
+end
+
+# Generate dependent variable
+β_ts = [1.0, 2.0, 1.5]
+y_ts = β_ts[1] .+ β_ts[2] * x1_ts .+ β_ts[3] * x2_ts .+ ε_ts
+
+# Create time series DataFrame
+df_ts = DataFrame(y=y_ts, x1=x1_ts, x2=x2_ts, t=t)
+
+# Fit time series model
+model_ts = lm(@formula(y ~ x1 + x2), df_ts)
+println(&quot;\nTime Series Model R² = $(round(r2(model_ts), digits=3))&quot;)</code></pre><h3 id="HAC-Standard-Errors"><a class="docs-heading-anchor" href="#HAC-Standard-Errors">HAC Standard Errors</a><a id="HAC-Standard-Errors-1"></a><a class="docs-heading-anchor-permalink" href="#HAC-Standard-Errors" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Classical (incorrect for time series)
+se_ts_classical = stderror(model_ts)
+
+# HAC standard errors
+se_bartlett_andrews = stderror(Bartlett{Andrews}(), model_ts)
+se_bartlett_fixed = stderror(Bartlett(6), model_ts)
+se_parzen_nw = stderror(Parzen{NeweyWest}(), model_ts)
+se_qs = stderror(QuadraticSpectral{Andrews}(), model_ts)
+
+# VARHAC (automatic, no bandwidth selection)
+se_varhac = stderror(VARHAC(), model_ts)
+
+# Smoothed Moments (with optimal bandwidth)
+T = nobs(model_ts)
+m_T = round(Int, 2.0 * T^(1/3))
+se_smoothed = stderror(UniformSmoother(m_T), model_ts)
+
+# Results comparison
+results_ts = DataFrame(
+    Variable = [&quot;Intercept&quot;, &quot;x1&quot;, &quot;x2&quot;],
+    Coefficient = round.(coef(model_ts), digits=3),
+    SE_Classical = round.(se_ts_classical, digits=3),
+    SE_Bartlett = round.(se_bartlett_andrews, digits=3),
+    SE_Parzen = round.(se_parzen_nw, digits=3),
+    SE_VARHAC = round.(se_varhac, digits=3),
+    SE_Smoothed = round.(se_smoothed, digits=3)
+)
+
+println(&quot;\nTime Series Standard Error Comparison:&quot;)
+println(results_ts)</code></pre><h3 id="Bandwidth-Diagnosis"><a class="docs-heading-anchor" href="#Bandwidth-Diagnosis">Bandwidth Diagnosis</a><a id="Bandwidth-Diagnosis-1"></a><a class="docs-heading-anchor-permalink" href="#Bandwidth-Diagnosis" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Check bandwidth selection
+_, _, bw_bartlett = workingoptimalbw(Bartlett{Andrews}(), residuals(model_ts)&#39;)
+_, _, bw_parzen = workingoptimalbw(Parzen{NeweyWest}(), residuals(model_ts)&#39;)
+
+println(&quot;\nBandwidth Selection:&quot;)
+println(&quot;  Bartlett (Andrews): $(round(bw_bartlett, digits=2))&quot;)
+println(&quot;  Parzen (Newey-West): $(round(bw_parzen, digits=2))&quot;)
+
+# VARHAC lag selection
+varhac_est = VARHAC()
+_ = vcov(varhac_est, model_ts)  # Fit the model
+println(&quot;  VARHAC selected lags: $(order(varhac_est))&quot;)</code></pre><h2 id="Example-3:-Panel-Data-and-Clustered-Standard-Errors"><a class="docs-heading-anchor" href="#Example-3:-Panel-Data-and-Clustered-Standard-Errors">Example 3: Panel Data and Clustered Standard Errors</a><a id="Example-3:-Panel-Data-and-Clustered-Standard-Errors-1"></a><a class="docs-heading-anchor-permalink" href="#Example-3:-Panel-Data-and-Clustered-Standard-Errors" title="Permalink"></a></h2><p>Panel data often requires clustered standard errors:</p><pre><code class="language-julia hljs"># Generate panel data
+n_firms = 50
+n_years = 8
+n_panel = n_firms * n_years
+
+# Panel identifiers
+firm_id = repeat(1:n_firms, inner=n_years)
+year_id = repeat(1:n_years, outer=n_firms)
+
+# Firm fixed effects
+firm_effects = randn(n_firms)[firm_id] * 2.0
+# Year fixed effects
+year_effects = randn(n_years)[year_id] * 1.0
+
+# Regressors
+x_panel = randn(n_panel)
+# Panel error with firm-level clustering
+firm_shocks = randn(n_firms)[firm_id] * 1.5
+idiosyncratic = randn(n_panel) * 0.8
+ε_panel = firm_shocks + idiosyncratic
+
+# Dependent variable
+y_panel = 1.0 .+ 0.8 * x_panel .+ firm_effects .+ year_effects .+ ε_panel
+
+# Create panel DataFrame
+df_panel = DataFrame(
+    y = y_panel,
+    x = x_panel,
+    firm_id = firm_id,
+    year_id = year_id
+)
+
+# Fit panel model (without fixed effects for simplicity)
+model_panel = lm(@formula(y ~ x), df_panel)
+println(&quot;\nPanel Model R² = $(round(r2(model_panel), digits=3))&quot;)</code></pre><h3 id="Clustered-Standard-Errors"><a class="docs-heading-anchor" href="#Clustered-Standard-Errors">Clustered Standard Errors</a><a id="Clustered-Standard-Errors-1"></a><a class="docs-heading-anchor-permalink" href="#Clustered-Standard-Errors" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Standard errors
+se_panel_classical = stderror(model_panel)
+
+# Firm-clustered standard errors
+se_cr0_firm = stderror(CR0(firm_id), model_panel)
+se_cr1_firm = stderror(CR1(firm_id), model_panel)
+se_cr2_firm = stderror(CR2(firm_id), model_panel)
+se_cr3_firm = stderror(CR3(firm_id), model_panel)
+
+# Two-way clustering (firm and year)
+se_cr1_twoway = stderror(CR1((firm_id, year_id)), model_panel)
+
+# Driscoll-Kraay (spatial-temporal)
+se_dk = stderror(DriscollKraay(Bartlett{Andrews}(), tis=year_id, iis=firm_id), model_panel)
+
+# Panel results
+results_panel = DataFrame(
+    Variable = [&quot;Intercept&quot;, &quot;x&quot;],
+    Coefficient = round.(coef(model_panel), digits=3),
+    SE_Classical = round.(se_panel_classical, digits=3),
+    SE_CR0_Firm = round.(se_cr0_firm, digits=3),
+    SE_CR1_Firm = round.(se_cr1_firm, digits=3),
+    SE_CR2_Firm = round.(se_cr2_firm, digits=3),
+    SE_TwoWay = round.(se_cr1_twoway, digits=3),
+    SE_DriscollKraay = round.(se_dk, digits=3)
+)
+
+println(&quot;\nPanel Standard Error Comparison:&quot;)
+println(results_panel)</code></pre><h2 id="Example-4:-Logistic-Regression"><a class="docs-heading-anchor" href="#Example-4:-Logistic-Regression">Example 4: Logistic Regression</a><a id="Example-4:-Logistic-Regression-1"></a><a class="docs-heading-anchor-permalink" href="#Example-4:-Logistic-Regression" title="Permalink"></a></h2><p>CovarianceMatrices.jl also works with generalized linear models:</p><pre><code class="language-julia hljs"># Generate binary choice data
+n_logit = 500
+x1_logit = randn(n_logit)
+x2_logit = randn(n_logit)
+
+# Logit model: heteroskedasticity is inherent
+β_logit = [0.5, 1.2, -0.8]
+linear_pred = β_logit[1] .+ β_logit[2] * x1_logit .+ β_logit[3] * x2_logit
+prob = 1 ./ (1 .+ exp.(-linear_pred))
+y_binary = rand.(Bernoulli.(prob))
+
+df_logit = DataFrame(y=y_binary, x1=x1_logit, x2=x2_logit)
+
+# Fit logistic regression
+model_logit = glm(@formula(y ~ x1 + x2), df_logit, Binomial(), LogitLink())
+println(&quot;\nLogistic Regression Deviance = $(round(deviance(model_logit), digits=2))&quot;)</code></pre><h3 id="Robust-Standard-Errors-for-GLM"><a class="docs-heading-anchor" href="#Robust-Standard-Errors-for-GLM">Robust Standard Errors for GLM</a><a id="Robust-Standard-Errors-for-GLM-1"></a><a class="docs-heading-anchor-permalink" href="#Robust-Standard-Errors-for-GLM" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Standard errors for logit model
+se_logit_classical = stderror(model_logit)
+se_logit_hc3 = stderror(HC3(), model_logit)
+
+# For clustered data (create artificial clusters)
+clusters_logit = repeat(1:25, inner=20)
+se_logit_cr1 = stderror(CR1(clusters_logit), model_logit)
+
+results_logit = DataFrame(
+    Variable = [&quot;Intercept&quot;, &quot;x1&quot;, &quot;x2&quot;],
+    Coefficient = round.(coef(model_logit), digits=3),
+    SE_Classical = round.(se_logit_classical, digits=3),
+    SE_HC3 = round.(se_logit_hc3, digits=3),
+    SE_CR1 = round.(se_logit_cr1, digits=3)
+)
+
+println(&quot;\nLogistic Regression Standard Error Comparison:&quot;)
+println(results_logit)</code></pre><h2 id="Example-5:-Advanced-Usage-with-New-API"><a class="docs-heading-anchor" href="#Example-5:-Advanced-Usage-with-New-API">Example 5: Advanced Usage with New API</a><a id="Example-5:-Advanced-Usage-with-New-API-1"></a><a class="docs-heading-anchor-permalink" href="#Example-5:-Advanced-Usage-with-New-API" title="Permalink"></a></h2><p>The package includes a new unified API that provides additional flexibility:</p><pre><code class="language-julia hljs"># Using the new variance forms API
+using CovarianceMatrices: Information, Misspecified
+
+# Information matrix equality (assumes correct specification)
+vcov_info = vcov(HC3(), Information(), model)
+se_info = sqrt.(diag(vcov_info))
+
+# Robust sandwich form (allows misspecification)
+vcov_robust = vcov(HC3(), Misspecified(), model)
+se_robust = sqrt.(diag(vcov_robust))
+
+println(&quot;\nVariance Forms Comparison:&quot;)
+println(&quot;Information form SEs: $(round.(se_info, digits=3))&quot;)
+println(&quot;Robust sandwich SEs: $(round.(se_robust, digits=3))&quot;)</code></pre><h2 id="Practical-Guidelines"><a class="docs-heading-anchor" href="#Practical-Guidelines">Practical Guidelines</a><a id="Practical-Guidelines-1"></a><a class="docs-heading-anchor-permalink" href="#Practical-Guidelines" title="Permalink"></a></h2><h3 id="Choosing-the-Right-Estimator"><a class="docs-heading-anchor" href="#Choosing-the-Right-Estimator">Choosing the Right Estimator</a><a id="Choosing-the-Right-Estimator-1"></a><a class="docs-heading-anchor-permalink" href="#Choosing-the-Right-Estimator" title="Permalink"></a></h3><h4 id="For-Cross-Sectional-Data:"><a class="docs-heading-anchor" href="#For-Cross-Sectional-Data:">For Cross-Sectional Data:</a><a id="For-Cross-Sectional-Data:-1"></a><a class="docs-heading-anchor-permalink" href="#For-Cross-Sectional-Data:" title="Permalink"></a></h4><pre><code class="language-julia hljs"># Small samples (n &lt; 250): HC2 or HC3
+se_small_sample = stderror(HC3(), model)
+
+# Large samples: HC0 or HC1 acceptable
+se_large_sample = stderror(HC0(), model)
+
+# When in doubt: HC3 is generally robust choice
+se_recommended = stderror(HC3(), model)</code></pre><h4 id="For-Time-Series-Data:"><a class="docs-heading-anchor" href="#For-Time-Series-Data:">For Time Series Data:</a><a id="For-Time-Series-Data:-1"></a><a class="docs-heading-anchor-permalink" href="#For-Time-Series-Data:" title="Permalink"></a></h4><pre><code class="language-julia hljs"># Conservative approach: Bartlett with Andrews bandwidth
+se_conservative = stderror(Bartlett{Andrews}(), model_ts)
+
+# Automatic approach: VARHAC
+se_automatic = stderror(VARHAC(), model_ts)
+
+# When bandwidth matters: Try different kernels
+se_parzen = stderror(Parzen{Andrews}(), model_ts)
+se_qs = stderror(QuadraticSpectral{Andrews}(), model_ts)</code></pre><h4 id="For-Panel-Data:"><a class="docs-heading-anchor" href="#For-Panel-Data:">For Panel Data:</a><a id="For-Panel-Data:-1"></a><a class="docs-heading-anchor-permalink" href="#For-Panel-Data:" title="Permalink"></a></h4><pre><code class="language-julia hljs"># Firm clustering
+se_firm_cluster = stderror(CR1(firm_id), model_panel)
+
+# Two-way clustering
+se_twoway = stderror(CR1((firm_id, year_id)), model_panel)
+
+# Spatial-temporal correlation
+se_spatial_temporal = stderror(DriscollKraay(Bartlett{Andrews}(),
+                                          tis=year_id, iis=firm_id), model_panel)</code></pre><h3 id="Diagnostic-and-Sensitivity-Analysis"><a class="docs-heading-anchor" href="#Diagnostic-and-Sensitivity-Analysis">Diagnostic and Sensitivity Analysis</a><a id="Diagnostic-and-Sensitivity-Analysis-1"></a><a class="docs-heading-anchor-permalink" href="#Diagnostic-and-Sensitivity-Analysis" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Function to compare multiple estimators
+function robust_comparison(model, estimators, names)
+    results = DataFrame(Variable = [&quot;Intercept&quot;, &quot;x1&quot;, &quot;x2&quot;, &quot;x3&quot;][1:length(coef(model))])
+    results.Coefficient = round.(coef(model), digits=3)
+
+    for (est, name) in zip(estimators, names)
+        results[!, Symbol(&quot;SE_&quot; * name)] = round.(stderror(est, model), digits=3)
+    end
+
+    return results
+end
+
+# Apply to our heteroskedastic example
+estimators = [HC0(), HC1(), HC2(), HC3(), Bartlett(5), VARHAC()]
+names = [&quot;HC0&quot;, &quot;HC1&quot;, &quot;HC2&quot;, &quot;HC3&quot;, &quot;HAC&quot;, &quot;VARHAC&quot;]
+
+comparison_results = robust_comparison(model, estimators, names)
+println(&quot;\nComprehensive Comparison:&quot;)
+println(comparison_results)</code></pre><h3 id="Testing-for-Specification-Issues"><a class="docs-heading-anchor" href="#Testing-for-Specification-Issues">Testing for Specification Issues</a><a id="Testing-for-Specification-Issues-1"></a><a class="docs-heading-anchor-permalink" href="#Testing-for-Specification-Issues" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Simple heteroskedasticity test using residual patterns
+residuals_sq = residuals(model).^2
+het_test_model = lm(Term(:residuals_sq) ~ sum(term.([:x1, :x2, :x3])),
+                   DataFrame(residuals_sq=residuals_sq, x1=x1, x2=x2, x3=x3))
+het_test_stat = r2(het_test_model) * length(residuals_sq)
+het_p_value = 1 - cdf(Chisq(3), het_test_stat)
+
+println(&quot;\nBreusch-Pagan Test for Heteroskedasticity:&quot;)
+println(&quot;  Test statistic: $(round(het_test_stat, digits=2))&quot;)
+println(&quot;  p-value: $(round(het_p_value, digits=4))&quot;)
+if het_p_value &lt; 0.05
+    println(&quot;  Conclusion: Reject homoskedasticity (use robust SEs)&quot;)
+else
+    println(&quot;  Conclusion: Fail to reject homoskedasticity&quot;)
+end</code></pre><h2 id="Summary-and-Best-Practices"><a class="docs-heading-anchor" href="#Summary-and-Best-Practices">Summary and Best Practices</a><a id="Summary-and-Best-Practices-1"></a><a class="docs-heading-anchor-permalink" href="#Summary-and-Best-Practices" title="Permalink"></a></h2><h3 id="Default-Recommendations:"><a class="docs-heading-anchor" href="#Default-Recommendations:">Default Recommendations:</a><a id="Default-Recommendations:-1"></a><a class="docs-heading-anchor-permalink" href="#Default-Recommendations:" title="Permalink"></a></h3><ol><li><strong>Cross-sectional data</strong>: Use <code>HC3()</code> as default robust estimator</li><li><strong>Time series data</strong>: Use <code>VARHAC()</code> for automatic approach, <code>Bartlett{Andrews}()</code> for traditional HAC</li><li><strong>Panel data</strong>: Use <code>CR1()</code> for one-way clustering, <code>CR1((cluster1, cluster2))</code> for two-way</li><li><strong>Mixed cases</strong>: Start with <code>VARHAC()</code> or <code>UniformSmoother(m_T)</code> for guaranteed positive definiteness</li></ol><h3 id="Performance-Considerations:"><a class="docs-heading-anchor" href="#Performance-Considerations:">Performance Considerations:</a><a id="Performance-Considerations:-1"></a><a class="docs-heading-anchor-permalink" href="#Performance-Considerations:" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Quick performance comparison
+using BenchmarkTools
+
+println(&quot;\nPerformance comparison (on fitted model):&quot;)
+@btime vcov(HC3(), $model)
+@btime vcov(VARHAC(), $model_ts)
+@btime vcov(CR1($firm_id), $model_panel)
+@btime vcov(Bartlett{Andrews}(), $model_ts)</code></pre><h3 id="Integration-with-Other-Packages:"><a class="docs-heading-anchor" href="#Integration-with-Other-Packages:">Integration with Other Packages:</a><a id="Integration-with-Other-Packages:-1"></a><a class="docs-heading-anchor-permalink" href="#Integration-with-Other-Packages:" title="Permalink"></a></h3><p>The robust standard errors computed here integrate seamlessly with:</p><ul><li><strong>StatsBase.jl</strong>: <code>confint()</code>, <code>coeftable()</code></li><li><strong>GLM.jl</strong>: All standard model methods</li><li><strong>FixedEffectModels.jl</strong>: Panel data with fixed effects</li><li><strong>MixedModels.jl</strong>: Random effects models</li></ul><p>This completes the GLM integration tutorial. The combination of CovarianceMatrices.jl with GLM.jl provides a powerful and flexible framework for robust inference in econometric applications.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../matrix_tutorial/">« Matrix Interface</a><a class="docs-footer-nextpage" href="../interface_tutorial/">Package Interface Extension »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Saturday 4 July 2026 17:07">Saturday 4 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

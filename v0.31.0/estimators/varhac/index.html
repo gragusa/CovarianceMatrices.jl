@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>VARHAC · CovarianceMatrices.jl</title><meta name="title" content="VARHAC · CovarianceMatrices.jl"/><meta property="og:title" content="VARHAC · CovarianceMatrices.jl"/><meta property="twitter:title" content="VARHAC · CovarianceMatrices.jl"/><meta name="description" content="Documentation for CovarianceMatrices.jl."/><meta property="og:description" content="Documentation for CovarianceMatrices.jl."/><meta property="twitter:description" content="Documentation for CovarianceMatrices.jl."/><meta property="og:url" content="https://gragusa.github.io/CovarianceMatrices.jl/stable/estimators/varhac/"/><meta property="twitter:url" content="https://gragusa.github.io/CovarianceMatrices.jl/stable/estimators/varhac/"/><link rel="canonical" href="https://gragusa.github.io/CovarianceMatrices.jl/stable/estimators/varhac/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../introduction/">Introduction &amp; Mathematical Foundation</a></li><li><span class="tocitem">Estimators</span><ul><li><a class="tocitem" href="../hac/">HAC Estimators</a></li><li><a class="tocitem" href="../hc/">Heteroskedasticity-Robust (HC/HR)</a></li><li><a class="tocitem" href="../cr/">Clustered Standard Errors (CR)</a></li><li class="is-active"><a class="tocitem" href>VARHAC</a><ul class="internal"><li><a class="tocitem" href="#Mathematical-Foundation"><span>Mathematical Foundation</span></a></li><li><a class="tocitem" href="#Core-Type-and-Constructors"><span>Core Type and Constructors</span></a></li><li><a class="tocitem" href="#Lag-Selection-Methods"><span>Lag Selection Methods</span></a></li><li><a class="tocitem" href="#Basic-Usage-Examples"><span>Basic Usage Examples</span></a></li><li><a class="tocitem" href="#Advanced-Features"><span>Advanced Features</span></a></li><li><a class="tocitem" href="#Practical-Guidelines"><span>Practical Guidelines</span></a></li><li><a class="tocitem" href="#Comparison-with-Traditional-HAC"><span>Comparison with Traditional HAC</span></a></li><li><a class="tocitem" href="#Troubleshooting-and-Diagnostics"><span>Troubleshooting and Diagnostics</span></a></li><li><a class="tocitem" href="#Integration-with-GLM"><span>Integration with GLM</span></a></li><li><a class="tocitem" href="#Advanced-Configuration"><span>Advanced Configuration</span></a></li><li><a class="tocitem" href="#References"><span>References</span></a></li></ul></li><li><a class="tocitem" href="../smoothed_moments/">Smoothed Moments</a></li><li><a class="tocitem" href="../driscoll_kraay/">Driscoll-Kraay</a></li><li><a class="tocitem" href="../ewc/">EWC</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/matrix_tutorial/">Matrix Interface</a></li><li><a class="tocitem" href="../../tutorials/glm_tutorial/">GLM Integration</a></li><li><a class="tocitem" href="../../tutorials/interface_tutorial/">Package Interface Extension</a></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../../performance/">Performance</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Estimators</a></li><li class="is-active"><a href>VARHAC</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>VARHAC</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/gragusa/CovarianceMatrices.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/master/docs/src/estimators/varhac.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="VARHAC:-Vector-Autoregression-HAC-Estimation"><a class="docs-heading-anchor" href="#VARHAC:-Vector-Autoregression-HAC-Estimation">VARHAC: Vector Autoregression HAC Estimation</a><a id="VARHAC:-Vector-Autoregression-HAC-Estimation-1"></a><a class="docs-heading-anchor-permalink" href="#VARHAC:-Vector-Autoregression-HAC-Estimation" title="Permalink"></a></h1><p>VARHAC (Vector Autoregression Heteroskedasticity and Autocorrelation Consistent) provides a data-driven alternative to traditional HAC estimation that eliminates the need for bandwidth selection and automatically ensures positive semi-definiteness.</p><h2 id="Mathematical-Foundation"><a class="docs-heading-anchor" href="#Mathematical-Foundation">Mathematical Foundation</a><a id="Mathematical-Foundation-1"></a><a class="docs-heading-anchor-permalink" href="#Mathematical-Foundation" title="Permalink"></a></h2><h3 id="The-VAR-Approach"><a class="docs-heading-anchor" href="#The-VAR-Approach">The VAR Approach</a><a id="The-VAR-Approach-1"></a><a class="docs-heading-anchor-permalink" href="#The-VAR-Approach" title="Permalink"></a></h3><p>Instead of choosing kernels and bandwidths, VARHAC fits a Vector Autoregression model to the moment conditions:</p><p class="math-container">\[g_t = c + \sum_{j=1}^p A_j g_{t-j} + \varepsilon_t\]</p><p>where:</p><ul><li><p class="math-container">\[g_t\]</p>are the moment conditions at time <span>$t$</span></li><li><p class="math-container">\[c\]</p>is a vector of constants</li><li><p class="math-container">\[A_j\]</p>are coefficient matrices</li><li><p class="math-container">\[p\]</p>is the lag length</li><li><p class="math-container">\[\varepsilon_t\]</p>are i.i.d. errors with covariance <span>$\Sigma_\varepsilon$</span></li></ul><h3 id="Long-run-Covariance-Computation"><a class="docs-heading-anchor" href="#Long-run-Covariance-Computation">Long-run Covariance Computation</a><a id="Long-run-Covariance-Computation-1"></a><a class="docs-heading-anchor-permalink" href="#Long-run-Covariance-Computation" title="Permalink"></a></h3><p>The long-run covariance matrix is computed as:</p><p class="math-container">\[\hat{\Omega}_{VARHAC} = \left(I - \sum_{j=1}^p \hat{A}_j\right)^{-1} \hat{\Sigma}_\varepsilon \left(I - \sum_{j=1}^p \hat{A}_j&#39;\right)^{-1}\]</p><p>This formula comes from the Wold representation of the VAR process and represents the spectral density at frequency zero.</p><h3 id="Advantages-over-Traditional-HAC"><a class="docs-heading-anchor" href="#Advantages-over-Traditional-HAC">Advantages over Traditional HAC</a><a id="Advantages-over-Traditional-HAC-1"></a><a class="docs-heading-anchor-permalink" href="#Advantages-over-Traditional-HAC" title="Permalink"></a></h3><ol><li><strong>No bandwidth selection</strong>: The lag length <span>$p$</span> is selected via information criteria</li><li><strong>Automatic PSD</strong>: The formula guarantees positive semi-definiteness</li><li><strong>Data adaptive</strong>: Captures complex serial correlation patterns</li><li><strong>Computational efficiency</strong>: No kernel computations required</li></ol><h2 id="Core-Type-and-Constructors"><a class="docs-heading-anchor" href="#Core-Type-and-Constructors">Core Type and Constructors</a><a id="Core-Type-and-Constructors-1"></a><a class="docs-heading-anchor-permalink" href="#Core-Type-and-Constructors" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="CovarianceMatrices.VARHAC"><a class="docstring-binding" href="#CovarianceMatrices.VARHAC"><code>CovarianceMatrices.VARHAC</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">VARHAC{S&lt;:LagSelector, L&lt;:LagStrategy, T&lt;:Real} &lt;: AVarEstimator</code></pre><p>Vector Autoregression HAC (VARHAC) estimator for robust covariance estimation.</p><p>The VARHAC estimator provides a data-driven approach to HAC estimation by fitting a Vector Autoregression (VAR) model to the moment conditions and using the spectral density at frequency zero as the covariance estimator. This approach automatically accounts for serial correlation and cross-correlation patterns without requiring bandwidth selection.</p><p><strong>Construction</strong></p><p>The recommended form supplies a selector and a lag strategy explicitly:</p><pre><code class="language-julia hljs">VARHAC(selector=AICSelector(), strategy=SameLags(8); T::Type{&lt;:Real}=Float64)</code></pre><p><code>VARHAC()</code> uses the defaults (AIC, <code>SameLags(8)</code>) and is the headline form for routine use. Spell out both arguments — <code>VARHAC(BICSelector(), AutoLags())</code> — when you need full control.</p><p>The following convenience aliases expand to that explicit form:</p><pre><code class="language-julia hljs">- `VARHAC(8)`           =&gt; `VARHAC(AICSelector(), SameLags(8))`
+- `VARHAC(:aic)`        =&gt; `VARHAC(AICSelector(), SameLags(8))`
+- `VARHAC(:bic)`        =&gt; `VARHAC(BICSelector(), SameLags(8))`
+- `VARHAC(:fixed)`      =&gt; `VARHAC(FixedSelector(), SameLags(8))`
+- `VARHAC(FixedLags(5))`=&gt; `VARHAC(FixedSelector(), FixedLags(5))`
+- `VARHAC(Val(:auto))`  =&gt; `VARHAC(AICSelector(), AutoLags())`</code></pre><p>For sample-size-driven lag selection, prefer the explicit <code>VARHAC(AICSelector(), AutoLags())</code> over the <code>Val(:auto)</code> alias — it reads more clearly and lets you choose the selector.</p><p><strong>Arguments</strong></p><ul><li><p><code>selector::LagSelector</code>: Method for selecting optimal lag length</p><ul><li><code>AICSelector()</code>: Use Akaike Information Criterion (default)</li><li><code>BICSelector()</code>: Use Bayesian Information Criterion</li><li><code>FixedSelector()</code>: Use fixed lag length (automatically set with FixedLags)</li></ul></li><li><p><code>strategy::LagStrategy</code>: Strategy for lag specification</p><ul><li><code>SameLags(k)</code>: Same lag length k for all variables (default: k=8)</li><li><code>FixedLags(k)</code>: Fixed lag length k (forces FixedSelector)</li><li><code>AutoLags()</code>: Automatic lag selection based on sample size</li><li><code>DifferentOwnLags([k1,k2])</code>: Different own lag lengths for bivariate case</li></ul></li></ul><p><strong>References</strong></p><ul><li>den Haan, W.J. and Levin, A. (1997). &quot;A Practitioner&#39;s Guide to Robust Covariance Matrix Estimation&quot;. Handbook of Statistics, Vol. 15.</li></ul><p><strong>Examples</strong></p><pre><code class="language-julia hljs"># Headline form: defaults (AIC, SameLags(8))
+ve1 = VARHAC()
+
+# BIC selection with a larger lag search
+ve2 = VARHAC(BICSelector(), SameLags(12))
+
+# Fixed lag length, no selection
+ve3 = VARHAC(FixedLags(6))
+
+# Automatic lag selection based on sample size
+ve4 = VARHAC(AICSelector(), AutoLags())
+
+# Convenience aliases
+ve5 = VARHAC(:bic)   # BICSelector(), SameLags(8)
+ve6 = VARHAC(12)     # AICSelector(), SameLags(12)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L1236-L1306">source</a></section></details></article><h3 id="Construction-Forms"><a class="docs-heading-anchor" href="#Construction-Forms">Construction Forms</a><a id="Construction-Forms-1"></a><a class="docs-heading-anchor-permalink" href="#Construction-Forms" title="Permalink"></a></h3><p>The recommended form names a selector and a lag strategy explicitly:</p><pre><code class="language-julia hljs">VARHAC(selector, strategy)        # e.g. VARHAC(BICSelector(), AutoLags())
+VARHAC()                          # headline form: AICSelector(), SameLags(8)</code></pre><p><code>VARHAC()</code> covers routine use; spell out both arguments when you need control over the criterion or the lag search. The remaining forms are convenience aliases that expand to this explicit form:</p><table><tr><th style="text-align: right">Alias</th><th style="text-align: right">Expands to</th></tr><tr><td style="text-align: right"><code>VARHAC(8)</code></td><td style="text-align: right"><code>VARHAC(AICSelector(), SameLags(8))</code></td></tr><tr><td style="text-align: right"><code>VARHAC(:aic)</code></td><td style="text-align: right"><code>VARHAC(AICSelector(), SameLags(8))</code></td></tr><tr><td style="text-align: right"><code>VARHAC(:bic)</code></td><td style="text-align: right"><code>VARHAC(BICSelector(), SameLags(8))</code></td></tr><tr><td style="text-align: right"><code>VARHAC(:fixed)</code></td><td style="text-align: right"><code>VARHAC(FixedSelector(), SameLags(8))</code></td></tr><tr><td style="text-align: right"><code>VARHAC(FixedLags(5))</code></td><td style="text-align: right"><code>VARHAC(FixedSelector(), FixedLags(5))</code></td></tr><tr><td style="text-align: right"><code>VARHAC(Val(:auto))</code></td><td style="text-align: right"><code>VARHAC(AICSelector(), AutoLags())</code></td></tr></table><p>For sample-size-driven lag selection, prefer the explicit <code>VARHAC(AICSelector(), AutoLags())</code> over <code>VARHAC(Val(:auto))</code>: it reads more clearly and lets you pick the selector.</p><h2 id="Lag-Selection-Methods"><a class="docs-heading-anchor" href="#Lag-Selection-Methods">Lag Selection Methods</a><a id="Lag-Selection-Methods-1"></a><a class="docs-heading-anchor-permalink" href="#Lag-Selection-Methods" title="Permalink"></a></h2><h3 id="Information-Criteria"><a class="docs-heading-anchor" href="#Information-Criteria">Information Criteria</a><a id="Information-Criteria-1"></a><a class="docs-heading-anchor-permalink" href="#Information-Criteria" title="Permalink"></a></h3><p>The lag length <span>$p$</span> is typically selected using information criteria:</p><article><details class="docstring" open="true"><summary id="CovarianceMatrices.AICSelector"><a class="docstring-binding" href="#CovarianceMatrices.AICSelector"><code>CovarianceMatrices.AICSelector</code></a> — <span class="docstring-category">Type</span></summary><section><div><p><code>AICSelector</code></p><p>AIC-based lag selector for VARHAC estimation.</p><p>Selects the optimal number of lags by minimizing the Akaike Information Criterion (AIC). Used in conjunction with VARHAC for automatic bandwidth selection.</p><p><strong>Usage</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+varhac_aic = VARHAC(AICSelector(), SameLags(10))</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L1087-L1100">source</a></section></details></article><article><details class="docstring" open="true"><summary id="CovarianceMatrices.BICSelector"><a class="docstring-binding" href="#CovarianceMatrices.BICSelector"><code>CovarianceMatrices.BICSelector</code></a> — <span class="docstring-category">Type</span></summary><section><div><p><code>BICSelector</code></p><p>BIC-based lag selector for VARHAC estimation.</p><p>Selects the optimal number of lags by minimizing the Bayesian Information Criterion (BIC). Generally produces more parsimonious models than AIC.</p><p><strong>Usage</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+varhac_bic = VARHAC(BICSelector(), SameLags(10))</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L1103-L1116">source</a></section></details></article><article><details class="docstring" open="true"><summary id="CovarianceMatrices.FixedSelector"><a class="docstring-binding" href="#CovarianceMatrices.FixedSelector"><code>CovarianceMatrices.FixedSelector</code></a> — <span class="docstring-category">Type</span></summary><section><div><p><code>FixedSelector</code></p><p>Fixed lag selector for VARHAC estimation.</p><p>Uses a pre-specified number of lags without data-driven selection.</p><p><strong>Usage</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+varhac_fixed = VARHAC(FixedSelector(), FixedLags(5))</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L1119-L1131">source</a></section></details></article><p><strong>AIC vs BIC Trade-offs:</strong></p><ul><li><strong>AIC</strong>: Tends to select longer lags, captures more dynamics</li><li><strong>BIC</strong>: Tends to select shorter lags, more parsimonious</li><li><strong>Fixed</strong>: Use when you have strong prior knowledge</li></ul><h3 id="Lag-Strategies"><a class="docs-heading-anchor" href="#Lag-Strategies">Lag Strategies</a><a id="Lag-Strategies-1"></a><a class="docs-heading-anchor-permalink" href="#Lag-Strategies" title="Permalink"></a></h3><p>Different strategies are available for specifying how lags are searched:</p><article><details class="docstring" open="true"><summary id="CovarianceMatrices.SameLags"><a class="docstring-binding" href="#CovarianceMatrices.SameLags"><code>CovarianceMatrices.SameLags</code></a> — <span class="docstring-category">Type</span></summary><section><div><p><code>SameLags</code></p><p>Lag strategy that uses the same maximum number of lags for all variables.</p><p>Similar to <code>FixedLags</code> but with different default behavior in VARHAC.</p><p><strong>Fields</strong></p><ul><li><code>maxlag::Int</code>: Maximum number of lags to use</li></ul><p><strong>Usage</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+same_lags = SameLags(10)
+varhac = VARHAC(BICSelector(), same_lags)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L1157-L1173">source</a></section></details></article><article><details class="docstring" open="true"><summary id="CovarianceMatrices.FixedLags"><a class="docstring-binding" href="#CovarianceMatrices.FixedLags"><code>CovarianceMatrices.FixedLags</code></a> — <span class="docstring-category">Type</span></summary><section><div><p><code>FixedLags</code></p><p>Fixed lag strategy that uses the same number of lags for all variables.</p><p><strong>Fields</strong></p><ul><li><code>maxlag::Int</code>: Maximum number of lags to use</li></ul><p><strong>Usage</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+fixed_lags = FixedLags(8)
+varhac = VARHAC(AICSelector(), fixed_lags)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L1135-L1149">source</a></section></details></article><article><details class="docstring" open="true"><summary id="CovarianceMatrices.AutoLags"><a class="docstring-binding" href="#CovarianceMatrices.AutoLags"><code>CovarianceMatrices.AutoLags</code></a> — <span class="docstring-category">Type</span></summary><section><div><p><code>AutoLags</code></p><p>Automatic lag selection strategy based on sample size.</p><p>Uses a data-driven rule to select the maximum number of lags based on the sample size, typically following a T^(1/3) growth rule with practical constraints.</p><p><strong>Usage</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+auto_lags = AutoLags()
+varhac = VARHAC(AICSelector(), auto_lags)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L1181-L1195">source</a></section></details></article><article><details class="docstring" open="true"><summary id="CovarianceMatrices.DifferentOwnLags"><a class="docstring-binding" href="#CovarianceMatrices.DifferentOwnLags"><code>CovarianceMatrices.DifferentOwnLags</code></a> — <span class="docstring-category">Type</span></summary><section><div><p><code>DifferentOwnLags</code></p><p>Lag strategy that allows different maximum lags for different variables.</p><p><strong>Fields</strong></p><ul><li><code>maxlags::Vector{Int}</code>: Vector of maximum lags for each variable</li></ul><p><strong>Usage</strong></p><pre><code class="language-julia hljs">using CovarianceMatrices
+diff_lags = DifferentOwnLags([3, 5])  # 3 lags for first variable, 5 for second
+varhac = VARHAC(AICSelector(), diff_lags)
+
+# Alternative constructors
+diff_lags = DifferentOwnLags((3, 5))  # From tuple
+diff_lags = DifferentOwnLags()        # Default: [5, 5]</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/369649f8e8b502acace9d3b3ba1528c4451f0c18/src/types.jl#L1207-L1225">source</a></section></details></article><h2 id="Basic-Usage-Examples"><a class="docs-heading-anchor" href="#Basic-Usage-Examples">Basic Usage Examples</a><a id="Basic-Usage-Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-Usage-Examples" title="Permalink"></a></h2><h3 id="Default-VARHAC"><a class="docs-heading-anchor" href="#Default-VARHAC">Default VARHAC</a><a id="Default-VARHAC-1"></a><a class="docs-heading-anchor-permalink" href="#Default-VARHAC" title="Permalink"></a></h3><p>The simplest usage relies on sensible defaults:</p><pre><code class="language-julia hljs">using CovarianceMatrices, Random
+Random.seed!(123)
+
+# Generate VAR(2) data
+T = 300
+A1 = [0.5 0.1; 0.2 0.3]
+A2 = [0.2 -0.1; 0.1 0.4]
+Σ = [1.0 0.3; 0.3 1.0]
+
+X = zeros(T, 2)
+for t in 3:T
+    X[t, :] = A1 * X[t-1, :] + A2 * X[t-2, :] + rand(MvNormal(Σ))
+end
+
+# Estimate with defaults (AIC, SameLags(8))
+varhac_default = VARHAC()
+Ω_default = aVar(varhac_default, X)
+
+# Check selected lag order
+println(&quot;Selected lag order: &quot;, order(varhac_default))
+println(&quot;Trace of covariance: &quot;, round(tr(Ω_default), digits=3))</code></pre><h3 id="Comparing-Selection-Methods"><a class="docs-heading-anchor" href="#Comparing-Selection-Methods">Comparing Selection Methods</a><a id="Comparing-Selection-Methods-1"></a><a class="docs-heading-anchor-permalink" href="#Comparing-Selection-Methods" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Different selectors
+varhac_aic = VARHAC(:aic)
+varhac_bic = VARHAC(:bic)
+
+Ω_aic = aVar(varhac_aic, X)
+Ω_bic = aVar(varhac_bic, X)
+
+println(&quot;AIC selected lags: &quot;, order(varhac_aic))
+println(&quot;BIC selected lags: &quot;, order(varhac_bic))
+println(&quot;AIC trace: &quot;, round(tr(Ω_aic), digits=3))
+println(&quot;BIC trace: &quot;, round(tr(Ω_bic), digits=3))</code></pre><h3 id="Different-Lag-Strategies"><a class="docs-heading-anchor" href="#Different-Lag-Strategies">Different Lag Strategies</a><a id="Different-Lag-Strategies-1"></a><a class="docs-heading-anchor-permalink" href="#Different-Lag-Strategies" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Same maximum lags for all variables
+varhac_same = VARHAC(AICSelector(), SameLags(12))
+
+# Fixed lag length (no selection)
+varhac_fixed = VARHAC(FixedLags(4))
+
+# Automatic lag selection based on sample size
+varhac_auto = VARHAC(AICSelector(), AutoLags())
+
+# For bivariate data: different own lags
+varhac_diff = VARHAC(AICSelector(), DifferentOwnLags([3, 5]))
+
+estimators = [
+    (&quot;Same Lags&quot;, varhac_same),
+    (&quot;Fixed Lags&quot;, varhac_fixed),
+    (&quot;Auto Lags&quot;, varhac_auto),
+    (&quot;Different Own Lags&quot;, varhac_diff)
+]
+
+for (name, est) in estimators
+    Ω = aVar(est, X)
+    lags = isa(est.strategy, FixedLags) ? [est.strategy.maxlag] : order(est)
+    println(&quot;$name: lags = $lags, trace = $(round(tr(Ω), digits=3))&quot;)
+end</code></pre><h2 id="Advanced-Features"><a class="docs-heading-anchor" href="#Advanced-Features">Advanced Features</a><a id="Advanced-Features-1"></a><a class="docs-heading-anchor-permalink" href="#Advanced-Features" title="Permalink"></a></h2><h3 id="Information-Criteria-Diagnostics"><a class="docs-heading-anchor" href="#Information-Criteria-Diagnostics">Information Criteria Diagnostics</a><a id="Information-Criteria-Diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Information-Criteria-Diagnostics" title="Permalink"></a></h3><p>VARHAC stores the computed information criteria, allowing for post-estimation diagnostics:</p><pre><code class="language-julia hljs"># Fit VARHAC model
+varhac_diag = VARHAC(:aic)
+Ω = aVar(varhac_diag, X)
+
+# Extract information criteria
+aics = AICs(varhac_diag)
+bics = BICs(varhac_diag)
+
+println(&quot;AIC values: &quot;, round.(aics, digits=2))
+println(&quot;BIC values: &quot;, round.(bics, digits=2))
+println(&quot;AIC optimal lag: &quot;, order_aic(varhac_diag))
+println(&quot;BIC optimal lag: &quot;, order_bic(varhac_diag))
+
+# Plot information criteria (if Plots.jl available)
+# using Plots
+# plot([aics bics], label=[&quot;AIC&quot; &quot;BIC&quot;], title=&quot;Information Criteria&quot;)</code></pre><h3 id="Maximum-Lag-Selection"><a class="docs-heading-anchor" href="#Maximum-Lag-Selection">Maximum Lag Selection</a><a id="Maximum-Lag-Selection-1"></a><a class="docs-heading-anchor-permalink" href="#Maximum-Lag-Selection" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Access maximum lags for different strategies
+println(&quot;SameLags(10): &quot;, maxlags(VARHAC(SameLags(10))))
+println(&quot;FixedLags(5): &quot;, maxlags(VARHAC(FixedLags(5))))
+
+# AutoLags requires data dimensions
+auto_strategy = VARHAC(AutoLags())
+auto_max_lags = maxlags(auto_strategy, size(X, 1), size(X, 2))
+println(&quot;AutoLags for T=$(size(X,1)), N=$(size(X,2)): &quot;, auto_max_lags)</code></pre><h2 id="Practical-Guidelines"><a class="docs-heading-anchor" href="#Practical-Guidelines">Practical Guidelines</a><a id="Practical-Guidelines-1"></a><a class="docs-heading-anchor-permalink" href="#Practical-Guidelines" title="Permalink"></a></h2><h3 id="When-to-Use-VARHAC"><a class="docs-heading-anchor" href="#When-to-Use-VARHAC">When to Use VARHAC</a><a id="When-to-Use-VARHAC-1"></a><a class="docs-heading-anchor-permalink" href="#When-to-Use-VARHAC" title="Permalink"></a></h3><p>✅ <strong>Good for:</strong></p><ul><li>Time series with complex serial correlation patterns</li><li>When you want to avoid bandwidth selection</li><li>Applications requiring guaranteed positive semi-definiteness</li><li>Exploratory analysis where robustness is key</li><li>Multivariate time series with cross-correlation</li></ul><p>❌ <strong>Consider alternatives for:</strong></p><ul><li>Very short time series (T &lt; 50)</li><li>Cross-sectional data (use HC estimators)</li><li>When you need to match specific HAC kernel results</li><li>Real-time applications with computational constraints</li></ul><h3 id="Selector-Choice-Guidelines"><a class="docs-heading-anchor" href="#Selector-Choice-Guidelines">Selector Choice Guidelines</a><a id="Selector-Choice-Guidelines-1"></a><a class="docs-heading-anchor-permalink" href="#Selector-Choice-Guidelines" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Conservative approach: use BIC
+varhac_conservative = VARHAC(:bic)
+
+# Flexible approach: use AIC
+varhac_flexible = VARHAC(:aic)
+
+# When you know the true lag structure
+varhac_known = VARHAC(FixedLags(true_lag_length))
+
+# Let the data decide based on sample size
+varhac_adaptive = VARHAC(AutoLags())</code></pre><h3 id="Sample-Size-Considerations"><a class="docs-heading-anchor" href="#Sample-Size-Considerations">Sample Size Considerations</a><a id="Sample-Size-Considerations-1"></a><a class="docs-heading-anchor-permalink" href="#Sample-Size-Considerations" title="Permalink"></a></h3><pre><code class="language-julia hljs">function sample_size_analysis(T_values)
+    results = []
+    for T in T_values
+        # Generate simple AR(1) data
+        X_sample = zeros(T, 2)
+        for t in 2:T
+            X_sample[t, :] = 0.5 * X_sample[t-1, :] + randn(2)
+        end
+
+        # Fit VARHAC
+        ve = VARHAC()
+        Ω = aVar(ve, X_sample)
+        selected_lag = order(ve)[1]
+
+        push!(results, (T, selected_lag, tr(Ω)))
+    end
+
+    println(&quot;Sample Size Analysis:&quot;)
+    println(&quot;T\tSelected Lag\tTrace&quot;)
+    for (T, lag, trace) in results
+        println(&quot;$T\t$lag\t\t$(round(trace, digits=3))&quot;)
+    end
+end
+
+# Run analysis
+sample_size_analysis([50, 100, 200, 500, 1000])</code></pre><h2 id="Comparison-with-Traditional-HAC"><a class="docs-heading-anchor" href="#Comparison-with-Traditional-HAC">Comparison with Traditional HAC</a><a id="Comparison-with-Traditional-HAC-1"></a><a class="docs-heading-anchor-permalink" href="#Comparison-with-Traditional-HAC" title="Permalink"></a></h2><h3 id="Performance-Comparison"><a class="docs-heading-anchor" href="#Performance-Comparison">Performance Comparison</a><a id="Performance-Comparison-1"></a><a class="docs-heading-anchor-permalink" href="#Performance-Comparison" title="Permalink"></a></h3><pre><code class="language-julia hljs">using BenchmarkTools
+
+# Generate test data
+T = 500
+X_test = cumsum(randn(T, 3), dims=1)  # Random walk
+
+# VARHAC
+varhac = VARHAC()
+@btime aVar($varhac, $X_test)
+
+# Traditional HAC with bandwidth selection
+bartlett_andrews = Bartlett{Andrews}()
+@btime aVar($bartlett_andrews, $X_test)
+
+# Traditional HAC with fixed bandwidth
+bartlett_fixed = Bartlett(8)
+@btime aVar($bartlett_fixed, $X_test)</code></pre><h3 id="Accuracy-Comparison"><a class="docs-heading-anchor" href="#Accuracy-Comparison">Accuracy Comparison</a><a id="Accuracy-Comparison-1"></a><a class="docs-heading-anchor-permalink" href="#Accuracy-Comparison" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Generate AR(2) process
+T = 400
+true_A1 = [0.6 0.1; 0.2 0.4]
+true_A2 = [0.1 -0.1; 0.05 0.2]
+
+X_ar2 = zeros(T, 2)
+for t in 3:T
+    X_ar2[t, :] = true_A1 * X_ar2[t-1, :] + true_A2 * X_ar2[t-2, :] + randn(2)
+end
+
+# Compare different estimators
+estimators_comp = [
+    (&quot;VARHAC (AIC)&quot;, VARHAC(:aic)),
+    (&quot;VARHAC (BIC)&quot;, VARHAC(:bic)),
+    (&quot;Bartlett-Andrews&quot;, Bartlett{Andrews}()),
+    (&quot;Parzen-Andrews&quot;, Parzen{Andrews}()),
+    (&quot;Newey-West&quot;, Bartlett{NeweyWest}())
+]
+
+println(&quot;Method\t\t\tTrace\tMin Eigenval\tCondition&quot;)
+for (name, est) in estimators_comp
+    Ω = aVar(est, X_ar2)
+    eigenvals = eigvals(Ω)
+    println(&quot;$(rpad(name, 15))\t$(round(tr(Ω), digits=3))\t$(round(minimum(eigenvals), digits=4))\t\t$(round(cond(Ω), digits=1))&quot;)
+end</code></pre><h2 id="Troubleshooting-and-Diagnostics"><a class="docs-heading-anchor" href="#Troubleshooting-and-Diagnostics">Troubleshooting and Diagnostics</a><a id="Troubleshooting-and-Diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Troubleshooting-and-Diagnostics" title="Permalink"></a></h2><h3 id="Common-Issues-and-Solutions"><a class="docs-heading-anchor" href="#Common-Issues-and-Solutions">Common Issues and Solutions</a><a id="Common-Issues-and-Solutions-1"></a><a class="docs-heading-anchor-permalink" href="#Common-Issues-and-Solutions" title="Permalink"></a></h3><p><strong>1. Selected lag too high/low</strong></p><pre><code class="language-julia hljs"># Check information criteria progression
+varhac_check = VARHAC()
+aVar(varhac_check, X)
+
+aics = AICs(varhac_check)
+min_idx = argmin(aics)
+println(&quot;AIC minimum at lag: $min_idx&quot;)
+println(&quot;AIC values: &quot;, round.(aics[max(1, min_idx-2):min(end, min_idx+2)], digits=3))
+
+# Try different strategy if needed
+if min_idx &gt; 8
+    varhac_longer = VARHAC(SameLags(15))
+    Ω_longer = aVar(varhac_longer, X)
+end</code></pre><p><strong>2. Numerical issues with matrix inversion</strong></p><pre><code class="language-julia hljs"># Check condition number
+varhac_num = VARHAC()
+Ω_num = aVar(varhac_num, X)
+
+if cond(Ω_num) &gt; 1e12
+    println(&quot;Warning: Ill-conditioned covariance matrix&quot;)
+    # Try shorter lags
+    varhac_short = VARHAC(FixedLags(2))
+    Ω_short = aVar(varhac_short, X)
+end</code></pre><p><strong>3. Sensitivity to lag specification</strong></p><pre><code class="language-julia hljs"># Lag sensitivity analysis
+function lag_sensitivity(X, max_lag=10)
+    traces = Float64[]
+    for p in 1:max_lag
+        ve = VARHAC(FixedLags(p))
+        Ω = aVar(ve, X)
+        push!(traces, tr(Ω))
+    end
+
+    println(&quot;Lag\tTrace&quot;)
+    for (p, trace) in enumerate(traces)
+        println(&quot;$p\t$(round(trace, digits=3))&quot;)
+    end
+
+    return traces
+end
+
+traces = lag_sensitivity(X, 8)</code></pre><h2 id="Integration-with-GLM"><a class="docs-heading-anchor" href="#Integration-with-GLM">Integration with GLM</a><a id="Integration-with-GLM-1"></a><a class="docs-heading-anchor-permalink" href="#Integration-with-GLM" title="Permalink"></a></h2><p>VARHAC works seamlessly with GLM.jl for time series regression:</p><pre><code class="language-julia hljs">using GLM, DataFrames
+
+# Create time series regression data
+T_glm = 200
+trend = collect(1:T_glm) / T_glm
+y_ts = 2.0 .+ 1.5 * trend + cumsum(randn(T_glm) * 0.5)  # With unit root
+x_ts = trend + randn(T_glm) * 0.2
+
+df_ts = DataFrame(y=y_ts, x=x_ts)
+
+# Fit regression
+model_ts = lm(@formula(y ~ x), df_ts)
+
+# Get VARHAC standard errors
+se_varhac = stderror(VARHAC(), model_ts)
+se_classical = stderror(model_ts)
+
+println(&quot;Classical SEs: &quot;, round.(se_classical, digits=4))
+println(&quot;VARHAC SEs: &quot;, round.(se_varhac, digits=4))
+println(&quot;Ratio (VARHAC/Classical): &quot;, round.(se_varhac ./ se_classical, digits=2))</code></pre><h2 id="Advanced-Configuration"><a class="docs-heading-anchor" href="#Advanced-Configuration">Advanced Configuration</a><a id="Advanced-Configuration-1"></a><a class="docs-heading-anchor-permalink" href="#Advanced-Configuration" title="Permalink"></a></h2><h3 id="Custom-Type-Specifications"><a class="docs-heading-anchor" href="#Custom-Type-Specifications">Custom Type Specifications</a><a id="Custom-Type-Specifications-1"></a><a class="docs-heading-anchor-permalink" href="#Custom-Type-Specifications" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Use Float32 for memory efficiency with large datasets
+varhac_f32 = VARHAC(T=Float32)
+
+# Different precision for different applications
+varhac_f64 = VARHAC(T=Float64)  # Default</code></pre><h3 id="Integration-with-Other-Estimators"><a class="docs-heading-anchor" href="#Integration-with-Other-Estimators">Integration with Other Estimators</a><a id="Integration-with-Other-Estimators-1"></a><a class="docs-heading-anchor-permalink" href="#Integration-with-Other-Estimators" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Use VARHAC as benchmark for other methods
+function compare_with_varhac(X, other_estimators)
+    # Reference: VARHAC
+    Ω_varhac = aVar(VARHAC(), X)
+
+    println(&quot;Estimator\t\tTrace Ratio\tFrobenius Distance&quot;)
+    println(&quot;VARHAC (reference)\t1.000\t\t0.000&quot;)
+
+    for (name, est) in other_estimators
+        Ω_est = aVar(est, X)
+        trace_ratio = tr(Ω_est) / tr(Ω_varhac)
+        frob_dist = norm(Ω_est - Ω_varhac, 2)
+        println(&quot;$(rpad(name, 20))\t$(round(trace_ratio, digits=3))\t\t$(round(frob_dist, digits=3))&quot;)
+    end
+end
+
+other_estimators = [
+    (&quot;Bartlett-Andrews&quot;, Bartlett{Andrews}()),
+    (&quot;Parzen-NeweyWest&quot;, Parzen{NeweyWest}()),
+    (&quot;Smoothed Moments&quot;, UniformSmoother(10))
+]
+
+compare_with_varhac(X, other_estimators)</code></pre><p>VARHAC provides a robust, automatic, and theoretically sound approach to HAC estimation that eliminates many of the subjective choices required by traditional methods while guaranteeing positive semi-definite results.</p><h2 id="References"><a class="docs-heading-anchor" href="#References">References</a><a id="References-1"></a><a class="docs-heading-anchor-permalink" href="#References" title="Permalink"></a></h2><ul><li>den Haan, W.J. and Levin, A. (1997). &quot;A Practitioner&#39;s Guide to Robust Covariance Matrix Estimation&quot;. <em>Handbook of Statistics</em>, 15, 291-341.</li><li>Dufour, J.M., Pelletier, D., and Renault, E. (2006). &quot;Short run and long run causality in time series: inference&quot;. <em>Journal of Econometrics</em>, 132(2), 337-362.</li><li>Pelletier, D. (2011). &quot;Regime switching for dynamic correlations&quot;. <em>Journal of Econometrics</em>, 131(1-2), 445-473.</li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../cr/">« Clustered Standard Errors (CR)</a><a class="docs-footer-nextpage" href="../smoothed_moments/">Smoothed Moments »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Saturday 4 July 2026 17:07">Saturday 4 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
