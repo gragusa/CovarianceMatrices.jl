@@ -64,6 +64,33 @@ For **heteroskedasticity-robust variance** estimation, `HC0`, `HC1`, `HC2`, `HC3
 
 For **serially correlated errors**, HAC estimators account for both heteroskedasticity and autocorrelation in the error terms. Common kernel choices include `Bartlett`, `Parzen`, `QuadraticSpectral`, and `Truncated`, each with its own weighting scheme based on lag distance. The bandwidth can be specified directly (e.g., `Parzen(3)` uses a bandwidth of 3), or selected optimally using data-driven methods such as Andrews (1991) or Newey-West (1994). Another nonparametric estimator is the `Smoothed` estimator. `VARHAC` is a parametric estimator. If the correlation comes from the presence of clusters, then `CR` methods are provided.   
 
+## With Regress.jl
+
+[Regress.jl](https://github.com/gragusa/Regress.jl) is a high-performance linear-model package (OLS and IV, high-dimensional fixed effects, an extended family of IV estimators) built around tight integration with `CovarianceMatrices.jl`. Every estimator in this package is available for robust inference through Regress.jl's `model + vcov(...)` syntax, which returns a new model with all inference statistics — standard errors, `t`-statistics, `p`-values, and the robust Wald `F` — precomputed:
+
+```julia
+using Regress, CovarianceMatrices, RDatasets
+
+df = dataset("plm", "Grunfeld")
+model = Regress.ols(df, @formula(Inv ~ Value + Capital))
+
+# Attach any CovarianceMatrices.jl estimator to obtain robust inference
+model_hac = model + vcov(Bartlett{Andrews}())   # HAC, Andrews bandwidth
+model_hc3 = model + vcov(HC3())                  # heteroskedasticity-robust
+
+stderror(model_hc3)   # HC3 standard errors
+coeftable(model_hc3)  # coefficient table with HC3 inference
+```
+
+The same syntax works with Regress.jl's IV estimators (TSLS, LIML, Fuller, K-class) and automatically recomputes the first-stage diagnostics under the chosen variance estimator.
+
+Regress.jl is not registered; install it from the repository:
+
+```julia
+using Pkg
+Pkg.add(url="https://github.com/gragusa/Regress.jl")
+```
+
 ## As an Extension for Custom Statistical Models
 
 `CovarianceMatrices.jl` provides a unified API for calculating variance estimators in custom models. 
