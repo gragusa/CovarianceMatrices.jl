@@ -139,9 +139,10 @@ end
 
 For the covariance of a data or moment matrix whose observations are grouped, use
 the `Cluster` estimator. (The `CR0`–`CR3` estimators, with their degrees-of-freedom
-and leverage corrections, are the *regression* interface and require a fitted
-model — see the [GLM Integration Tutorial](glm_tutorial.md); they raise an error if
-applied to a bare matrix, where those corrections cannot be formed.)
+and leverage corrections, are the *regression* interface — see the
+[GLM Integration Tutorial](glm_tutorial.md). Those corrections need a fitted model's
+design matrix; applied to a bare matrix the CR variants carry no correction and all
+reduce to the same raw cluster sum that `Cluster` returns.)
 
 ```julia
 # Generate clustered data

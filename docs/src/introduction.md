@@ -308,10 +308,11 @@ println("Cluster (cluster-robust)     : tr = ", round(tr(aVar(Cluster(clusters),
 
 The shared per-cluster shock makes the true long-run variance much larger than
 $\Gamma_0$; the `HC0` estimator misses it, while [`Cluster`](@ref) captures it. The
-finite-sample variants [`CR0`](@ref)–[`CR3`](@ref) are reserved for the *regression*
+finite-sample variants [`CR0`](@ref)–[`CR3`](@ref) belong to the *regression*
 setting: their degrees-of-freedom and leverage factors $c$ depend on the regressor
-design matrix, so they attach to a fitted model rather than a bare matrix (Part II
-and the [CR page](estimators/cr.md)).
+design matrix, so those corrections take effect only with a fitted model. Applied
+to a bare matrix they carry no correction and reduce to the same raw cluster sum as
+[`Cluster`](@ref) (Part II and the [CR page](estimators/cr.md)).
 
 ## Case 4 — Panel data: correlation in two dimensions
 

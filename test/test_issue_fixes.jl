@@ -2,9 +2,11 @@
 ##
 ##  1. `Uncorrelated()` had no `avar`/`residual_adjustment` methods and errored on
 ##     both matrices and models. It now behaves like HC0/HR0 (White's estimator).
-##  2. On a bare moment matrix the finite-sample CR variants silently collapsed to
-##     CR0. A dedicated `Cluster` estimator now serves the matrix/mean case, and
-##     `CR1`/`CR2`/`CR3` raise an informative error on a bare matrix.
+##  2. A dedicated `Cluster` estimator now serves the matrix/mean case (the
+##     clustering analogue of `Uncorrelated`). On a bare matrix the CR variants
+##     carry no finite-sample correction and all reduce to this same cluster sum;
+##     `Cluster` requests it explicitly. `Cluster` on a model errors, pointing to
+##     the CR family.
 ##  3. `VARHAC` and the smoothed-moment estimators (`UniformSmoother`,
 ##     `TriangularSmoother`) had no `residual_adjustment(::_, ::RegressionModel)`
 ##     method and errored when used with a fitted model.
@@ -61,13 +63,13 @@ const CM = CovarianceMatrices
         # Multi-way clustering works via the same inclusion-exclusion machinery.
         @test size(aVar(Cluster((clusters, clusters2)), Z)) == (2, 2)
 
-        # The finite-sample variants cannot be formed from a bare matrix.
-        @test_throws ArgumentError aVar(CR1(clusters), Z)
-        @test_throws ArgumentError aVar(CR2(clusters), Z)
-        @test_throws ArgumentError aVar(CR3(clusters), Z)
-
-        # CR0 on a bare matrix remains available (backward compatible).
-        @test size(aVar(CR0(clusters), Z)) == (2, 2)
+        # On a bare matrix there is no design matrix, so the CR variants apply no
+        # finite-sample correction and all reduce to the same raw cluster sum as
+        # `Cluster` (their DOF/leverage factors take effect on the model path).
+        @test aVar(CR0(clusters), Z) ≈ aVar(Cluster(clusters), Z)
+        @test aVar(CR1(clusters), Z) ≈ aVar(Cluster(clusters), Z)
+        @test aVar(CR2(clusters), Z) ≈ aVar(Cluster(clusters), Z)
+        @test aVar(CR3(clusters), Z) ≈ aVar(Cluster(clusters), Z)
 
         # `Cluster` on a fitted model errors and points to the CR family.
         @test_throws ArgumentError vcov(Cluster(clusters), model)
