@@ -137,7 +137,11 @@ end
 
 ## Example 3: Clustered Data
 
-For data with cluster correlation, use CR estimators:
+For the covariance of a data or moment matrix whose observations are grouped, use
+the `Cluster` estimator. (The `CR0`–`CR3` estimators, with their degrees-of-freedom
+and leverage corrections, are the *regression* interface and require a fitted
+model — see the [GLM Integration Tutorial](glm_tutorial.md); they raise an error if
+applied to a bare matrix, where those corrections cannot be formed.)
 
 ```julia
 # Generate clustered data
@@ -156,12 +160,9 @@ y_clustered = cluster_effects[clusters] + 0.5 * individual_effects
 # Residuals from some model
 residuals_clustered = reshape(y_clustered .- mean(y_clustered), N, 1)
 
-# CR estimators
-cr_estimators = [CR0(clusters), CR1(clusters), CR2(clusters), CR3(clusters)]
-for (i, cr) in enumerate(cr_estimators)
-    Ω_cr = aVar(cr, residuals_clustered)
-    println("CR$(i-1): σ̂² = $(round(Ω_cr[1,1], digits=4))")
-end
+# Cluster estimator (matrix / moment interface)
+Ω_cluster = aVar(Cluster(clusters), residuals_clustered)
+println("Cluster: σ̂² = $(round(Ω_cluster[1,1], digits=4))")
 ```
 
 ## Example 4: Panel Data with Driscoll-Kraay

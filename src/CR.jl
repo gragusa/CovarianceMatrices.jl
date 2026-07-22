@@ -133,6 +133,28 @@ function avar(k::CR, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <: Real
     return _avar_impl(f, X)
 end
 
+# `Cluster`: the mean/matrix-interface cluster estimator. It reuses the same
+# cluster-sum machinery as the CR family but is a distinct type, so that the raw
+# (uncorrected) cluster covariance of a data/moment matrix is requested explicitly
+# rather than by borrowing a `CR*` estimator meant for fitted models.
+function avar(k::Cluster, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <: Real}
+    return _avar_impl(k.g, X)
+end
+
+# CR1/CR2/CR3 apply finite-sample corrections (DOF and leverage) that require a
+# fitted model's design matrix; they cannot be formed from a bare matrix, where
+# they would otherwise silently collapse to the CR0 result. Fail loudly instead,
+# pointing to `Cluster` (mean case) or to passing a fitted model.
+function avar(k::Union{CR1, CR2, CR3}, X::Union{Matrix{F}, Vector{F}};
+        kwargs...) where {F <: Real}
+    throw(ArgumentError(
+        "$(nameof(typeof(k))) applies a finite-sample correction that requires a " *
+        "fitted model's design matrix and cannot be computed from a bare matrix " *
+        "(it would otherwise reduce to the CR0 result). Use `Cluster(groups)` for " *
+        "the cluster covariance of a data/moment matrix, or pass a fitted model, " *
+        "e.g. `vcov($(nameof(typeof(k)))(groups), model)`."))
+end
+
 # Dispatch on tuple length for type stability
 @inline function _avar_impl(f::Tuple{Clustering}, X::Union{
         Matrix{F}, Vector{F}}) where {F <: Real}
