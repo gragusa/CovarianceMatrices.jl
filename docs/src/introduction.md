@@ -248,7 +248,7 @@ estimators = ["HC0 (ignores dependence)"          => HC0(),
               "Bartlett{Andrews} (kernel HAC)"     => Bartlett{Andrews}(),
               "Parzen{NeweyWest} (kernel HAC)"     => Parzen{NeweyWest}(),
               "VARHAC (automatic lag order)"       => VARHAC(),
-              "UniformSmoother"                    => UniformSmoother(round(Int, 2*T^(1/3))))
+              "UniformSmoother"                    => UniformSmoother(round(Int, 2*T^(1/3)))]
 
 for (name, est) in estimators
     Σ̂ = aVar(est, X)
