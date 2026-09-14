@@ -42,4 +42,3 @@ for T in (:Clustering, :BandwidthType, :LagSelector, :LagStrategy)
     @eval Base.:(==)(a::$T, b::$T) = _fieldwise_equal(a, b)
     @eval Base.hash(x::$T, h::UInt) = _fieldwise_hash(x, h)
 end
-

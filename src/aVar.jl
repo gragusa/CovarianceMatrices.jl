@@ -63,7 +63,8 @@ the deprecated numeric `scale` as a divisor.
 """
 function _scale_arguments(scale, scaleby)
     if !isa(scale, Bool)
-        isa(scale, Real) || throw(ArgumentError("`scale` must be a `Bool`; pass a divisor as `scaleby`."))
+        isa(scale, Real) ||
+            throw(ArgumentError("`scale` must be a `Bool`; pass a divisor as `scaleby`."))
         Base.depwarn(
             "`scale=$scale` as a divisor is deprecated: use `scaleby=$scale` to divide by an explicit value.",
             :aVar)
@@ -74,8 +75,10 @@ function _scale_arguments(scale, scaleby)
     return scale, scaleby
 end
 
-_checkdivisor(d) = (isfinite(d) && d > 0) ||
-                   throw(ArgumentError("`scaleby` must be a positive finite number, got $d."))
+function _checkdivisor(d)
+    (isfinite(d) && d > 0) ||
+        throw(ArgumentError("`scaleby` must be a positive finite number, got $d."))
+end
 
 # A divisor supersedes the `scale` switch: the variance is divided once.
 function scalevar!(Shat, scale::Bool, scaleby, n)

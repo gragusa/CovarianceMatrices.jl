@@ -63,14 +63,15 @@ df.y = Y;
 
     @testset "Optimal Bandwidth - Andrews ✅" begin
         𝒦 = Bartlett{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = false);
+        Σ = a𝕍ar(𝒦, X; prewhite = false)
         @test CM.bandwidth(Σ) ≈ 2.329739 rtol=1e-6
         @test optimalbw(𝒦, X; prewhite = false, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = Parzen{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = false);
+        Σ = a𝕍ar(𝒦, X; prewhite = false)
         @test CM.bandwidth(Σ) ≈ 4.81931 rtol=1e-6
-        @test CovarianceMatrices.optimalbw(𝒦, X; prewhite = false, demean = true) == CM.bandwidth(Σ)
+        @test CovarianceMatrices.optimalbw(𝒦, X; prewhite = false, demean = true) ==
+              CM.bandwidth(Σ)
 
         𝒦 = QuadraticSpectral{Andrews}()
         Σ = a𝕍ar(𝒦, X; prewhite = false)
@@ -89,14 +90,15 @@ df.y = Y;
 
         ## --
         𝒦 = Bartlett{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = true);
+        Σ = a𝕍ar(𝒦, X; prewhite = true)
         @test CM.bandwidth(Σ) ≈ 0.3836096 rtol=1e-6
         @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = Parzen{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = true);
+        Σ = a𝕍ar(𝒦, X; prewhite = true)
         @test CM.bandwidth(Σ) ≈ 1.380593 rtol=1e-6
-        @test CovarianceMatrices.optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
+        @test CovarianceMatrices.optimalbw(𝒦, X; prewhite = true, demean = true) ==
+              CM.bandwidth(Σ)
 
         𝒦 = QuadraticSpectral{Andrews}()
         Σ = a𝕍ar(𝒦, X; prewhite = true)
@@ -121,7 +123,7 @@ df.y = Y;
     end
 
     @testset "Cluster Sum Operations ✅" begin
-        f = repeat(1:20, inner = 5);
+        f = repeat(1:20, inner = 5)
         M = CovarianceMatrices.clusterize(X, Clustering(f))
         M₀ = [134.8844 120.9909 123.9828
               120.9909 124.3984 120.7009
@@ -622,7 +624,8 @@ end # Core Functionality Tests
                     )
                     𝒦 = ($k){Andrews}()
                     tmp = CM.vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
-                    da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" => tmp)
+                    da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" =>
+                        tmp)
                 end,
                 )
             end
@@ -633,7 +636,8 @@ end # Core Functionality Tests
                     𝒦 = ($k){NeweyWest}()
                     ## To get the same results of R, the weights given to the intercept should be 0
                     tmp = CM.vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
-                    dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" => tmp)
+                    dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" =>
+                        tmp)
                 end,
                 )
             end
@@ -687,7 +691,8 @@ end # Core Functionality Tests
                     )
                     𝒦 = ($k)(3)
                     tmp = vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
-                    da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" => tmp)
+                    da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" =>
+                        tmp)
                 end,
                 )
             end
@@ -697,7 +702,8 @@ end # Core Functionality Tests
                     𝒦 = ($k)(3)
                     ## To get the same results of R, the weights given to the intercept should be 0
                     tmp = vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
-                    dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" => tmp)
+                    dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" =>
+                        tmp)
                 end,
                 )
             end

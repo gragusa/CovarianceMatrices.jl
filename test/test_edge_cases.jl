@@ -229,7 +229,8 @@ using GLM
         end
 
         @test optimalbw(Bartlett(2.5), X) == 2.5
-        @test optimalbw(Bartlett(4), X) == CovarianceMatrices.bandwidth(aVar(Bartlett(4), X))
+        @test optimalbw(Bartlett(4), X) ==
+              CovarianceMatrices.bandwidth(aVar(Bartlett(4), X))
     end
 
     @testset "optimalbw covers moment smoothers" begin

@@ -1514,8 +1514,10 @@ function DriscollKraay(K::HAC; tis = nothing, iis = nothing)
 end
 
 function DriscollKraay(K::HAC, tis, iis)
-    tis === nothing && throw(ArgumentError("DriscollKraay requires time indices; pass `tis`."))
-    iis === nothing && throw(ArgumentError("DriscollKraay requires entity indices; pass `iis`."))
+    tis === nothing &&
+        throw(ArgumentError("DriscollKraay requires time indices; pass `tis`."))
+    iis === nothing &&
+        throw(ArgumentError("DriscollKraay requires entity indices; pass `iis`."))
     ct, ci = Clustering(tis), Clustering(iis)
     return DriscollKraay{typeof(K), typeof(ct), typeof(ci)}(K, ct, ci)
 end
