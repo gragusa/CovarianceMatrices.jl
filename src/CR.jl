@@ -133,6 +133,19 @@ function avar(k::CR, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <: Real
     return _avar_impl(f, X)
 end
 
+# `Cluster`: the mean/matrix-interface cluster estimator. It reuses the same
+# cluster-sum machinery as the CR family but is a distinct, explicitly named type
+# for the raw (uncorrected) cluster covariance of a data/moment matrix.
+#
+# Note on `CR0`–`CR3` on a bare matrix: the `avar(k::CR, X)` method above applies
+# no finite-sample correction, so on a matrix all four CR variants reduce to this
+# same raw cluster sum (the DOF/leverage factors are formed on the model path via
+# `residual_adjustment`, and are relied on there and by `CachedCR`). `Cluster` is
+# the recommended way to request that raw cluster covariance for the mean case.
+function avar(k::Cluster, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <: Real}
+    return _avar_impl(k.g, X)
+end
+
 # Dispatch on tuple length for type stability
 @inline function _avar_impl(f::Tuple{Clustering}, X::Union{
         Matrix{F}, Vector{F}}) where {F <: Real}

@@ -22,6 +22,7 @@ include("test_types_coverage.jl")
 include("test_equality.jl")
 include("test_edge_cases.jl")
 include("test_api_coverage.jl")
+include("test_issue_fixes.jl")
 
 println("\n" * "="^70)
 println("✅ All CovarianceMatrices.jl tests completed successfully!")

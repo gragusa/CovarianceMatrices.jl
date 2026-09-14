@@ -42,6 +42,7 @@ include("vcov_spec.jl")
 export AbstractAsymptoticVarianceEstimator,
        Uncorrelated,
        Correlated,
+       Cluster,
        Andrews,
        NeweyWest,
        Fixed,
