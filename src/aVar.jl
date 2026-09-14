@@ -18,6 +18,10 @@ where `X̄` is the sample mean of the observations in `m` (averaged along `dims`
 - `scale` selects whether the variance is divided by the number of observations.
 - `scaleby` divides the variance by an explicit positive divisor instead, which is
   convenient for a degrees-of-freedom correction. It takes precedence over `scale`.
+- `scale = true` produces the same per-observation scale for every estimator. `VARHAC`
+  estimates the spectral density at frequency zero, which already carries that scaling,
+  so `scale = false` multiplies it by the number of observations rather than leaving it
+  untouched.
 """
 function aVar(
         k::AbstractAsymptoticVarianceEstimator,
@@ -80,6 +84,14 @@ function scalevar!(Shat, scale::Bool, scaleby, n)
 end
 scalevar!(Shat, scale::Bool, ::Nothing, n) = scale ? rdiv!(Shat, n) : Shat
 
+# Counterpart of `scalevar!` for estimators whose result already carries the `1/n`.
+# `scale=true` is then a no-op and `scale=false` must undo it.
+function unscalevar!(Shat, scale::Bool, scaleby, n)
+    _checkdivisor(scaleby)
+    return rmul!(Shat, n / scaleby)
+end
+unscalevar!(Shat, scale::Bool, ::Nothing, n) = scale ? Shat : rmul!(Shat, n)
+
 function aVar(
         k::VARHAC,
         m::AbstractMatrix{T};
@@ -94,8 +106,10 @@ function aVar(
     scale, scaleby = _scale_arguments(scale, scaleby)
     X = demean ? demeaner(m; means = means, dims = dims) : m
     Shat, info = avar_with_info(k, X)
-    # VARHAC returns the spectral density at frequency zero, which already carries
-    # the variance scaling; `scale` is handled where it is honored or rejected.
+    # VARHAC estimates the spectral density at frequency zero, which is already on the
+    # per-observation scale that the other estimators reach through `scale=true`.
+    # Reaching the unscaled convention therefore multiplies by `n` rather than dividing.
+    unscalevar!(Shat, scale, scaleby, size(X, dims))
     return CovarianceMatrix(Shat, k, info)
 end
 

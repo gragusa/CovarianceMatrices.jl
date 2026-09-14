@@ -321,4 +321,37 @@ end
             @test parent(aVar(k, model; scaleby = 43)) * 43 ≈ ref
         end
     end
+
+    @testset "VARHAC" begin
+        vh = VARHAC(2)
+        scaled = parent(aVar(vh, X))
+
+        # VARHAC estimates the spectral density at frequency zero, so the default
+        # `scale = true` result is already the per-observation estimate and the
+        # unscaled one is `n` times larger, as for every other estimator.
+        @test parent(aVar(vh, X; scale = false)) ≈ scaled * n
+        @test !(parent(aVar(vh, X; scale = false)) ≈ scaled)
+        @test parent(aVar(vh, X; scaleby = 97)) ≈ scaled * n / 97
+        @test parent(aVar(vh, X; scaleby = 12.5)) ≈ scaled * n / 12.5
+        # A divisor supersedes the switch rather than compounding with it.
+        @test parent(aVar(vh, X; scale = false, scaleby = 97)) ≈
+              parent(aVar(vh, X; scaleby = 97))
+
+        @test_throws "must be a positive finite number" aVar(vh, X; scaleby = 0)
+        @test_throws "must be a `Bool`" aVar(vh, X; scale = :yes)
+        deprecated = @test_deprecated aVar(vh, X; scale = 97)
+        @test parent(deprecated) ≈ scaled * n / 97
+    end
+
+    @testset "VARHAC matches the per-observation scale of other estimators" begin
+        # When lag selection picks order zero the fitted VAR is empty, so VARHAC reduces
+        # exactly to the sample covariance. That pins down the scale of its result: it is
+        # the per-observation scale `HC0` returns by default, not a sum over observations.
+        Random.seed!(20260915)
+        W = randn(2000, 2)
+        vh0 = VARHAC(2)
+        @test all(iszero, CovarianceMatrices.information(aVar(vh0, W)).order)
+        @test parent(aVar(vh0, W)) ≈ parent(aVar(HC0(), W))
+        @test parent(aVar(vh0, W; scale = false)) ≈ parent(aVar(HC0(), W; scale = false))
+    end
 end
