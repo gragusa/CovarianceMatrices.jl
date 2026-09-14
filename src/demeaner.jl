@@ -25,14 +25,3 @@ function demeaner(
     end
     return dims == 1 ? Z : collect(Z')
 end
-
-function demeaner(k::CR, X::AbstractMatrix{T}; dims = 1, kwargs...) where {T <:
-                                                                           AbstractFloat}
-    f = clusterindicator(k)
-    Z = dims == 1 ? copy(X) : collect(X')
-    for j in clusterintervals(f)
-        W = view(Z, j, :)
-        W .= W .- mean(W; dims = 1)
-    end
-    return Z
-end

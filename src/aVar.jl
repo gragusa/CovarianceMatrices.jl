@@ -13,13 +13,10 @@ where `X̄` is the sample mean of the observations in `m` (averaged along `dims`
 
 ## Note
 
+- The element type of `m` must be `Real`.
 - `prewhite` argument is only relevant for `HAC` estimator in which case the matrix is _prewhitened_ using a VAR(1) model.
 - The `scale` parameter should indicate whether the variance be scaled by the number of observations. If `scale` is an `Int` that value is used to scale the variance. This is convenient for degrees of freedom correction or in cases where the variance is needed without scaling.
 """
-function aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix; kwargs...)
-    aVar(k, float.(m), kwargs...)
-end
-
 function aVar(
         k::AbstractAsymptoticVarianceEstimator,
         m::AbstractMatrix{T};

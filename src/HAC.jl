@@ -316,7 +316,7 @@ end
 For fixed bandwidth kernels, return data and pre-set bandwidth.
 """
 function workingoptimalbw(k::HAC{T}, m::AbstractMatrix; kwargs...) where {T <: Fixed}
-    return (m, Matrix{eltype{m}}(undef, 0, 0), first(k.bw))
+    return (m, Matrix{eltype(m)}(undef, 0, 0), first(k.bw))
 end
 
 """

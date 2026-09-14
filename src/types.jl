@@ -1332,7 +1332,7 @@ function VARHAC(max_lags::Integer; T::Type{<:Real} = Float64)
     VARHAC(AICSelector(), SameLags(max_lags); T = T)
 end
 
-# Auto-selection constructor: VARHAC(:auto)
+# Auto-selection constructor: VARHAC(Val(:auto))
 VARHAC(::Val{:auto}; T::Type{<:Real} = Float64) = VARHAC(AICSelector(), AutoLags(); T = T)
 
 function _symbol_to_strategy(s::Symbol)

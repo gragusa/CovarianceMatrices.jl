@@ -195,4 +195,34 @@ using StatsAPI
         m3 = EdgeTestGMM(randn(10, 4), randn(3), G, nothing)
         @test_throws ArgumentError CovarianceMatrices._check_dimensions(Misspecified(), m3)
     end
+
+    @testset "aVar rejects non-real element types" begin
+        # A complex moment matrix has no asymptotic-variance method and must fail
+        # immediately rather than recursing.
+        @test_throws MethodError aVar(HC0(), ComplexF64.(randn(20, 2)))
+    end
+
+    @testset "workingoptimalbw with a fixed bandwidth" begin
+        X = randn(50, 2)
+        Z, D, bw = CovarianceMatrices.workingoptimalbw(Bartlett(4), X)
+        @test Z === X
+        @test size(D) == (0, 0)
+        @test eltype(D) == eltype(X)
+        @test bw == 4.0
+    end
+
+    @testset "demeaner" begin
+        # `demeaner` operates on the moment matrix; a CR estimator is not a valid
+        # first argument.
+        @test_throws MethodError CovarianceMatrices.demeaner(CR0([1, 1, 2, 2]), randn(4, 2))
+    end
+
+    @testset "VARHAC symbol constructors" begin
+        @test VARHAC(:aic) == VARHAC(AICSelector(), SameLags(8))
+        @test VARHAC(:bic) == VARHAC(BICSelector(), SameLags(8))
+        # Automatic lag selection is spelled `Val(:auto)`; a bare symbol names a
+        # selector, so `:auto` is rejected with the list of valid selectors.
+        @test VARHAC(Val(:auto)) == VARHAC(AICSelector(), AutoLags())
+        @test_throws "Use :aic, :bic, or :fixed" VARHAC(:auto)
+    end
 end
