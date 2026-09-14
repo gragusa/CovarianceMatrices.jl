@@ -45,7 +45,7 @@ using Random
                        25.0 60.7143;
                        27.0 61.2857;
                        25.7143 55.7143;
-                       20.8571 43.7143];
+                       20.8571 43.7143]
 
         k = CovarianceMatrices.UniformSmoother(m_T)
         @test k.m_T == m_T
@@ -293,13 +293,13 @@ using Random
 
     @testset "Smoothing aVar" begin
         @testset "UniformSmoother" begin
-            X = randn(rng, 50000, 3);
+            X = randn(rng, 50000, 3)
             A = aVar(Bartlett(12), X)  # Warm-up
             B = aVar(CovarianceMatrices.UniformSmoother(11), X)  # Warm-up
             @test A ≈ B atol=1e-1
         end
         @testset "TriangularSmoother" begin
-            X = randn(rng, 50000, 3);
+            X = randn(rng, 50000, 3)
             A = aVar(Parzen(12), X)  # Warm-up
             B = aVar(CovarianceMatrices.TriangularSmoother(11), X)  # Warm-up
             @test A ≈ B atol=1e-1

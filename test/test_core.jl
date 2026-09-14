@@ -63,12 +63,12 @@ df.y = Y;
 
     @testset "Optimal Bandwidth - Andrews ✅" begin
         𝒦 = Bartlett{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = false);
+        Σ = a𝕍ar(𝒦, X; prewhite = false)
         @test 𝒦.bw[1] ≈ 2.329739 rtol=1e-6
         @test optimalbw(𝒦, X; prewhite = false) == 𝒦.bw[1]
 
         𝒦 = Parzen{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = false);
+        Σ = a𝕍ar(𝒦, X; prewhite = false)
         @test 𝒦.bw[1] ≈ 4.81931 rtol=1e-6
         @test CovarianceMatrices.optimalbw(𝒦, X; prewhite = false) == 𝒦.bw[1]
 
@@ -89,12 +89,12 @@ df.y = Y;
 
         ## --
         𝒦 = Bartlett{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = true);
+        Σ = a𝕍ar(𝒦, X; prewhite = true)
         @test 𝒦.bw[1] ≈ 0.3836096 rtol=1e-6
         @test optimalbw(𝒦, X; prewhite = true) == 𝒦.bw[1]
 
         𝒦 = Parzen{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = true);
+        Σ = a𝕍ar(𝒦, X; prewhite = true)
         @test 𝒦.bw[1] ≈ 1.380593 rtol=1e-6
         @test CovarianceMatrices.optimalbw(𝒦, X; prewhite = true) == 𝒦.bw[1]
 
@@ -121,7 +121,7 @@ df.y = Y;
     end
 
     @testset "Cluster Sum Operations ✅" begin
-        f = repeat(1:20, inner = 5);
+        f = repeat(1:20, inner = 5)
         M = CovarianceMatrices.clusterize(X, Clustering(f))
         M₀ = [134.8844 120.9909 123.9828
               120.9909 124.3984 120.7009

@@ -84,17 +84,17 @@ function load_fortran_varhac_result(filename)
 
     # Parse parameters
     params = Dict{String, Any}()
-    params["data_file"] = strip(split(lines[line_idx], ":")[2]);
+    params["data_file"] = strip(split(lines[line_idx], ":")[2])
     line_idx += 1
-    params["NT"] = parse(Int, split(lines[line_idx], ":")[2]);
+    params["NT"] = parse(Int, split(lines[line_idx], ":")[2])
     line_idx += 1
-    params["KDIM"] = parse(Int, split(lines[line_idx], ":")[2]);
+    params["KDIM"] = parse(Int, split(lines[line_idx], ":")[2])
     line_idx += 1
-    params["IMODEL"] = parse(Int, split(lines[line_idx], ":")[2]);
+    params["IMODEL"] = parse(Int, split(lines[line_idx], ":")[2])
     line_idx += 1
-    params["IMAX"] = parse(Int, split(lines[line_idx], ":")[2]);
+    params["IMAX"] = parse(Int, split(lines[line_idx], ":")[2])
     line_idx += 1
-    params["IMEAN"] = parse(Int, split(lines[line_idx], ":")[2]);
+    params["IMEAN"] = parse(Int, split(lines[line_idx], ":")[2])
     line_idx += 1
 
     # Skip "AAA matrix:" line

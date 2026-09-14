@@ -30,8 +30,7 @@ lm2 = glm(frm, df2, Normal(), IdentityLink())
 using Profile
 Profile.clear()
 @profile for j in 1:200
-    ;
-    vcov(CRHC0(df[!, :cluster]), lm1);
+    vcov(CRHC0(df[!, :cluster]), lm1)
 end
 Juno.profiler()
 using LinearAlgebra
