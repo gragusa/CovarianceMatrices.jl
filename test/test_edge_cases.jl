@@ -214,6 +214,21 @@ using StatsAPI
         @test bw == 4.0
     end
 
+    @testset "optimalbw with a fixed bandwidth" begin
+        X = randn(50, 2)
+
+        # A fixed bandwidth is part of the specification, so it is returned
+        # unchanged and does not depend on the data or the keyword arguments.
+        for 𝒦 in (Bartlett(4), Parzen(4), QuadraticSpectral(4),
+            TukeyHanning(4), CovarianceMatrices.Truncated(4))
+            @test optimalbw(𝒦, X) == 4.0
+            @test optimalbw(𝒦, X; demean = true, prewhite = true) == 4.0
+        end
+
+        @test optimalbw(Bartlett(2.5), X) == 2.5
+        @test optimalbw(Bartlett(4), X) == CovarianceMatrices.bandwidth(aVar(Bartlett(4), X))
+    end
+
     @testset "demeaner" begin
         # `demeaner` operates on the moment matrix; a CR estimator is not a valid
         # first argument.

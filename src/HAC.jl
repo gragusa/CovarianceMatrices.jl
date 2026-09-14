@@ -332,6 +332,21 @@ function optimalbw(
     return bw
 end
 
+"""
+    optimalbw(k::HAC{Fixed}, m::AbstractMatrix; kwargs...)
+
+Return the bandwidth the kernel was constructed with. A fixed bandwidth does not depend
+on the data, so `m` and the keyword arguments are ignored.
+
+# Examples
+```julia
+optimalbw(Bartlett(4), X)   # 4.0
+```
+"""
+function optimalbw(k::HAC{T}, m::AbstractMatrix; kwargs...) where {T <: Fixed}
+    return k.bw
+end
+
 function _optimalbandwidth(k::HAC{T}, mm, w, prewhite) where {T <: NeweyWest}
     return bwNeweyWest(k, mm, w, prewhite)
 end
