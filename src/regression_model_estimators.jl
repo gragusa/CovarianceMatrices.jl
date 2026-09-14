@@ -222,10 +222,6 @@ function aVar(
         prewhite = false,
         scale = true,
         kwargs...)
-    # Set kernel weights if needed (for HAC with automatic bandwidth)
-    setkernelweights!(k, m)
-    # Lock weights to prevent changes
-    wlock = unlock_kernel!(k)
     # Get moment matrix with residual adjustment
     a = residual_adjustment(k, m)
     X = modelmatrix(m)
@@ -237,14 +233,14 @@ function aVar(
     end
     # Handle rank deficiency
     midx = mask(m)
-    Σ = if sum(midx) == size(M, 2)
-        aVar(k, M; demean = demean, prewhite = prewhite, scale = scale)
-    else
-        aVar(k, M[:, midx]; demean = demean, prewhite = prewhite, scale = scale)
-    end
-    ## Reset lock
-    lock_kernel!(k, wlock)
-    return Σ
+    Mm = sum(midx) == size(M, 2) ? M : M[:, midx]
+    # Bandwidth selection weights come from the model matrix, not from the moment
+    # matrix: they must give the intercept weight 0, and the intercept column of
+    # the moment matrix is not constant.
+    kw = kernelweights(k, X)
+    kw === nothing || (kw = kw[midx])
+    return aVar(k, Mm; demean = demean, prewhite = prewhite, scale = scale,
+        weights = kw)
 end
 
 function aVar(
@@ -262,19 +258,8 @@ function aVar(
     Σ = mapreduce(+, zip(combs, V)) do (c, v)
         (-1)^(length(c) - 1)*v
     end
-    scale ? rdiv!(Σ, numobs(m)) : Σ
-end
-
-unlock_kernel!(k::AbstractAsymptoticVarianceEstimator) = return false
-function unlock_kernel!(k::HAC{T}) where {T <: Union{NeweyWest, Andrews}}
-    wlock = k.wlock[1]
-    k.wlock .= true
-    return wlock
-end
-
-lock_kernel!(k::AbstractAsymptoticVarianceEstimator, wlock) = nothing
-function lock_kernel!(k::HAC{T}, wlock) where {T <: Union{NeweyWest, Andrews}}
-    k.wlock .= wlock
+    scale && rdiv!(Σ, numobs(m))
+    return CovarianceMatrix(Σ, k)
 end
 
 """
@@ -317,7 +302,7 @@ function StatsAPI.vcov(
     # Apply DOF correction if requested
     dofadjust && dofcorrect!(Vo, k, m)
 
-    return Vo
+    return CovarianceMatrix(Vo, k, information(A))
 end
 
 # Finite-sample correction factor for Driscoll-Kraay, matching the scalar

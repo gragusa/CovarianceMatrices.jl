@@ -26,15 +26,31 @@ V = avar(k, X; prewhite=true)
 ```
 """
 function avar(k::K, X::AbstractMatrix{F}; prewhite = false) where {K <: HAC, F <: Real}
+    V, _ = avar_with_info(k, X; prewhite = prewhite)
+    return V
+end
+
+"""
+    avar_with_info(k::HAC, X::AbstractMatrix; prewhite=false)
+
+Compute the HAC estimate together with the quantities selected from the data.
+
+Returns `(V, info)` where `info` is a `NamedTuple` carrying the `bandwidth` used and
+the `kernelweights` that entered the bandwidth selection. `aVar` puts `info` into
+the returned [`CovarianceMatrix`](@ref).
+"""
+function avar_with_info(
+        k::K, X::AbstractMatrix{F}; prewhite = false,
+        weights = nothing) where {K <: HAC, F <: Real}
     Z, D = finalize_prewhite(X, Val(prewhite))
     T, p = size(Z)
-    setkernelweights!(k, X)
-    k.bw .= _optimalbandwidth(k, Z, prewhite)
+    kw = weights === nothing ? kernelweights(k, X) : weights
+    bw = _optimalbandwidth(k, Z, kw, prewhite)
     V = zeros(F, p, p)
     Q = similar(V)
-    kernelestimator!(k, V, Q, Z)
+    kernelestimator!(k, V, Q, Z, bw)
     v = inv(one(F)*I - D')
-    return v * V * v'
+    return v * V * v', (bandwidth = bw, kernelweights = kw)
 end
 
 """
@@ -67,7 +83,7 @@ Base.:+(J::UniformScaling, Z::ZeroMat) = J
 LinearAlgebra.adjoint(Z::ZeroMat) = Z
 
 """
-    kernelestimator!(k::HAC, V::AbstractMatrix, Q::AbstractMatrix, Z::AbstractMatrix)
+    kernelestimator!(k::HAC, V::AbstractMatrix, Q::AbstractMatrix, Z::AbstractMatrix, bw)
 
 Compute the HAC variance estimator in-place using kernel weighting.
 
@@ -86,34 +102,11 @@ where:
 - bw is the bandwidth
 
 """
-# function kernelestimator!(k::K, V::AbstractMatrix{F}, Q, Z) where {K <: HAC, F <: Real}
-#     ## V is the final variance
-#     ## Q is the temporary matrix
-#     ## Z is the data matrix
-#     ## κ is the kernel vector
-#     T, _ = size(Z)
-#     idx = covindices(k, T)
-#     bw = convert(F, k.bw[1])
-#     κ = [kernel(k, j/bw) for j in eachindex(idx)]
-#     ## Calculate the variance at lag 0
-#     mul!(Q, Z', Z)
-#     copy!(V, Q)
-#     ## Calculate Γ₁, Γ₂, ..., Γⱼ
-#     @inbounds for j in eachindex(idx)
-#         Zₜ = view(Z, 1:(T - j), :)
-#         Zₜ₊₁ = view(Z, (1 + j):T, :)
-#         mul!(Q, Zₜ', Zₜ₊₁)
-#         @. V += κ[j] * Q
-#         @. V += κ[j] * Q'
-#     end
-#     #rdiv!(V, T)
-#     return V
-# end
-
-function kernelestimator!(k::K, V::AbstractMatrix{F}, Q, Z) where {K <: HAC, F <: Real}
+function kernelestimator!(
+        k::K, V::AbstractMatrix{F}, Q, Z, bw_in) where {K <: HAC, F <: Real}
     T, _ = size(Z)
-    idx = covindices(k, T)
-    bw = convert(F, k.bw[1])
+    bw = convert(F, bw_in)
+    idx = covindices(k, T, bw)
 
     # Pre-allocate kernel weights
     κ = Vector{F}(undef, length(idx))
@@ -156,13 +149,14 @@ Return the scaling factor for asymptotic variance computation.
 @inline avarscaler(K::HAC, X; prewhite = false) = size(X, 1)
 
 """
-    covindices(k::HAC, n::Int)
+    covindices(k::HAC, n::Int, bw)
 
 Determine the lag indices to use in covariance computation based on kernel type.
 
 # Arguments
 - `k::HAC`: Kernel specification
 - `n::Int`: Sample size
+- `bw`: Bandwidth
 
 # Returns
 - Range or collection of lag indices
@@ -173,10 +167,9 @@ Different kernels use different lag ranges:
 - `Bartlett`: Truncated at bandwidth
 - `HR`: No lags (0 lags)
 """
-covindices(k::T, n) where {T <: QuadraticSpectral} = 1:n
-covindices(k::T, n) where {T <: Bartlett} = 1:(floor(Int, k.bw[1]))
-covindices(k::HAC, n) = 1:floor(Int, k.bw[1])
-covindices(k::T, n) where {T <: HR} = 1:0
+covindices(k::T, n, bw) where {T <: QuadraticSpectral} = 1:n
+covindices(k::HAC, n, bw) = 1:floor(Int, bw)
+covindices(k::T, n, bw) where {T <: HR} = 1:0
 # -----------------------------------------------------------------------------
 # Kernels
 # -----------------------------------------------------------------------------
@@ -237,56 +230,35 @@ where z = 6πx/5. This kernel has infinite support.
 end
 
 """
-    setkernelweights!(k::HAC{Union{Andrews,NeweyWest}}, X::AbstractMatrix)
+    kernelweights(k::HAC{Union{Andrews,NeweyWest}}, X::AbstractMatrix)
 
-Set kernel weights for columns of X, excluding constant columns.
+Per-column weights entering the data-driven bandwidth selection for `X`.
 
-# Arguments
-- `k::HAC`: Kernel estimator with kernel weights field `kw`
-- `X::AbstractMatrix`: the moment matrix
-
-# Details
-The field `k.kw` is updated in-place with column weights. If weights are locked (`k.wlock[1] == true`), only validates existing weights to make sure they are consistent with the dimension of `X`. Otherwise, sets weights to 1 for varying columns, 0 for constant columns.
-
-
+A column that is constant carries no information about serial correlation and gets
+weight `0`; every other column gets weight `1`.
 """
-
-function setkernelweights!(k::HAC{T}, m::RegressionModel) where {T <:
-                                                                 Union{Andrews, NeweyWest}}
-    setkernelweights!(k, modelmatrix(m))
+function kernelweights(k::HAC{T}, m::RegressionModel) where {T <:
+                                                             Union{Andrews, NeweyWest}}
+    return kernelweights(k, modelmatrix(m))
 end
 
-function setkernelweights!(k::HAC{T}, X::AbstractMatrix) where {T <:
-                                                                Union{Andrews, NeweyWest}}
-    if k.wlock[1]
-        length(k.kw) == size(X, 2) ||
-            throw(DimensionMismatch("The number of columns in X must match the number of kernel weights, got $(length(k.kw)) weights for $(size(X, 2)) columns"))
-    else
-        resize!(k.kw, size(X, 2))
-        @inbounds for (i, col) in enumerate(eachcol(X))
-            k.kw[i] = allequal(col) ? 0.0 : 1.0
-        end
+function kernelweights(k::HAC{T}, X::AbstractMatrix) where {T <:
+                                                            Union{Andrews, NeweyWest}}
+    w = Vector{WFLOAT}(undef, size(X, 2))
+    for (i, col) in zip(eachindex(w), eachcol(X))
+        w[i] = allequal(col) ? 0.0 : 1.0
     end
-    return k.kw
+    return w
 end
-# function setkernelweights!(k::HAC{T}, X) where {T <: Union{Andrews, NeweyWest}}
-#     if k.wlock[1]
-#         @assert length(k.kw) == size(X, 2) "The number of columns in X must match the number of kernel weights instead $(k.kw)"
-#     else
-#         resize!(k.kw, size(X, 2))
-#         k.kw .= 1.0 .- map(x -> CovarianceMatrices.allequal(x), eachcol(X))
-#     end
-#     return k.kw
-# end
 
 """
-    setkernelweights!(k::HAC{Fixed}, X)
-    setkernelweights!(k::AbstractAsymptoticVarianceEstimator, X)
+    kernelweights(k::HAC{Fixed}, X)
+    kernelweights(k::AbstractAsymptoticVarianceEstimator, X)
 
-No-op for fixed bandwidth kernels and other estimators.
+Estimators that do not select a bandwidth from the data use no kernel weights.
 """
-setkernelweights!(k::HAC{T}, X) where {T <: Fixed} = nothing
-setkernelweights!(k::AbstractAsymptoticVarianceEstimator, X) = nothing
+kernelweights(k::HAC{T}, X) where {T <: Fixed} = nothing
+kernelweights(k::AbstractAsymptoticVarianceEstimator, X) = nothing
 
 # -----------------------------------------------------------------------------
 # Optimal bandwidth
@@ -305,8 +277,8 @@ function workingoptimalbw(
         prewhite::Bool = false
 ) where {T <: Union{Andrews, NeweyWest}}
     X, D = prewhiter(A, prewhite)
-    setkernelweights!(k, X)
-    bw = _optimalbandwidth(k, X, prewhite)
+    kw = kernelweights(k, X)
+    bw = _optimalbandwidth(k, X, kw, prewhite)
     return X, D, bw
 end
 
@@ -316,7 +288,7 @@ end
 For fixed bandwidth kernels, return data and pre-set bandwidth.
 """
 function workingoptimalbw(k::HAC{T}, m::AbstractMatrix; kwargs...) where {T <: Fixed}
-    return (m, Matrix{eltype(m)}(undef, 0, 0), first(k.bw))
+    return (m, Matrix{eltype(m)}(undef, 0, 0), k.bw)
 end
 
 """
@@ -360,15 +332,18 @@ function optimalbw(
     return bw
 end
 
-function _optimalbandwidth(k::HAC{T}, mm, prewhite) where {T <: NeweyWest}
-    return bwNeweyWest(k, mm, prewhite)
+function _optimalbandwidth(k::HAC{T}, mm, w, prewhite) where {T <: NeweyWest}
+    return bwNeweyWest(k, mm, w, prewhite)
 end
 
-_optimalbandwidth(k::HAC{T}, mm, prewhite) where {T <: Andrews} = bwAndrews(k, mm, prewhite)
-_optimalbandwidth(k::HAC{T}, mm, prewhite) where {T <: Fixed} = first(k.bw)
+function _optimalbandwidth(k::HAC{T}, mm, w, prewhite) where {T <: Andrews}
+    return bwAndrews(k, mm, w, prewhite)
+end
+
+_optimalbandwidth(k::HAC{T}, mm, w, prewhite) where {T <: Fixed} = k.bw
 
 """
-    bwAndrews(k::HAC, mm::AbstractMatrix, prewhite::Bool)
+    bwAndrews(k::HAC, mm::AbstractMatrix, w, prewhite::Bool)
 
 Compute Andrews (1991) optimal bandwidth using AR(1) approximation.
 
@@ -377,15 +352,14 @@ bw = cₖ * (α̂₂ * n)^(1/5)
 
 where cₖ is kernel-specific constant and α̂₂ depends on AR(1) parameters.
 """
-function bwAndrews(k::HAC, mm, prewhite::Bool)
+function bwAndrews(k::HAC, mm, w, prewhite::Bool)
     n, p = size(mm)
-    a1, a2 = getalpha(k, mm)
-    k.bw[1] = bw_andrews(k, a1, a2, n)
-    return k.bw[1]
+    a1, a2 = getalpha(k, mm, w)
+    return bw_andrews(k, a1, a2, n)
 end
 
 """
-    bwNeweyWest(k::HAC, mm::AbstractMatrix, prewhite::Bool)
+    bwNeweyWest(k::HAC, mm::AbstractMatrix, w, prewhite::Bool)
 
 Compute Newey-West (1994) automatic bandwidth selection.
 
@@ -395,9 +369,7 @@ bw = cₖ * (ŝ₂/ŝ₀)^(2/5) * n^(1/5)  [for Parzen, QS]
 
 where ŝⱼ are lag-weighted autocovariances.
 """
-function bwNeweyWest(k::HAC, mm, prewhite::Bool)
-    bw = bandwidth(k)
-    w = k.kw
+function bwNeweyWest(k::HAC, mm, w, prewhite::Bool)
     n, _ = size(mm)
     l = getrates(k, mm, prewhite)
     xm = mm * w
@@ -412,8 +384,7 @@ function bwNeweyWest(k::HAC, mm, prewhite::Bool)
     a0 = a[1] + 2 * sum(aa)
     a1 = 2 * sum((1:l) .* aa)
     a2 = 2 * sum((1:l) .^ 2 .* aa)
-    bw[1] = bwnw(k, a0, a1, a2) * (n + prewhite)^growthrate(k)
-    return bw[1]
+    return bwnw(k, a0, a1, a2) * (n + prewhite)^growthrate(k)
 end
 
 ## ---> Andrews Optimal bandwidth <---
@@ -433,7 +404,7 @@ for kerneltype in kernels
 end
 
 """
-    getalpha(k::HAC, mm::AbstractMatrix)
+    getalpha(k::HAC, mm::AbstractMatrix, w)
 
 Compute α₁ and α₂ parameters for Andrews bandwidth selection.
 
@@ -444,8 +415,7 @@ Compute α₁ and α₂ parameters for Andrews bandwidth selection.
 α₁ = Σ wⱼ * 4ρⱼ²σⱼ⁴ / [(1-ρⱼ)⁶(1+ρⱼ)²] / Σ wⱼ * σⱼ⁴/(1-ρⱼ)⁴
 α₂ = Σ wⱼ * 4ρⱼ²σⱼ⁴ / (1-ρⱼ)⁸ / Σ wⱼ * σⱼ⁴/(1-ρⱼ)⁴
 """
-function getalpha(k, mm)
-    w = k.kw
+function getalpha(k, mm, w)
     rho, σ⁴ = fit_ar(mm)
 
     # Pre-compute common terms

@@ -44,10 +44,10 @@ is_approx_symmetric(V; atol = 1e-10) = isapprox(V, V', atol = atol)
 
         K = Bartlett{NeweyWest}()
         Σ = aVar(K, m)
-        @test K.bw[1] ≈ 1.737626 atol=1e-06
+        @test CovarianceMatrices.bandwidth(Σ) ≈ 1.737626 atol=1e-06
 
-        # Test that bandwidth is set after aVar call
-        @test K.bw[1] > 0
+        # The result carries the bandwidth that produced it
+        @test CovarianceMatrices.bandwidth(Σ) > 0
     end
 
     @testset "Linear Model - HC estimators" begin
@@ -167,7 +167,7 @@ is_approx_symmetric(V; atol = 1e-10) = isapprox(V, V', atol = atol)
         # Test HAC variance
         k = Parzen{Andrews}()
         V = vcov(k, GAMMA)
-        bw = k.bw[1]
+        bw = CovarianceMatrices.bandwidth(V)
 
         @test size(V) == (2, 2)
         @test bw > 0

@@ -32,86 +32,86 @@ df.y = Y;
         ## --
         𝒦 = Bartlett{NeweyWest}()
         Σ = a𝕍ar(𝒦, X)
-        @test 𝒦.bw[1] ≈ 5.326955 atol=1e-6
-        @test optimalbw(𝒦, X; prewhite = false, demean = true) ≈ 𝒦.bw[1] rtol=1e-9
+        @test CM.bandwidth(Σ) ≈ 5.326955 atol=1e-6
+        @test optimalbw(𝒦, X; prewhite = false, demean = true) ≈ CM.bandwidth(Σ) rtol=1e-9
 
         𝒦 = Parzen{NeweyWest}()
         Σ = a𝕍ar(𝒦, X)
-        @test 𝒦.bw[1] ≈ 9.72992 atol=1e-6
-        @test optimalbw(𝒦, X; prewhite = false, demean = true) ≈ 𝒦.bw[1] rtol=1e-9
+        @test CM.bandwidth(Σ) ≈ 9.72992 atol=1e-6
+        @test optimalbw(𝒦, X; prewhite = false, demean = true) ≈ CM.bandwidth(Σ) rtol=1e-9
 
         𝒦 = QuadraticSpectral{NeweyWest}()
         Σ = a𝕍ar(𝒦, X)
-        @test 𝒦.bw[1] ≈ 4.833519 atol=1e-6
-        @test optimalbw(𝒦, X; prewhite = false, demean = true) ≈ 𝒦.bw[1] rtol=1e-9
+        @test CM.bandwidth(Σ) ≈ 4.833519 atol=1e-6
+        @test optimalbw(𝒦, X; prewhite = false, demean = true) ≈ CM.bandwidth(Σ) rtol=1e-9
         ## ---
         𝒦 = Bartlett{NeweyWest}()
         Σ = a𝕍ar(𝒦, X; prewhite = true)
-        @test 𝒦.bw[1] ≈ 1.946219 rtol=1e-7
-        @test optimalbw(𝒦, X; prewhite = true) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 1.946219 rtol=1e-7
+        @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = Parzen{NeweyWest}()
         Σ = a𝕍ar(𝒦, X; prewhite = true)
-        @test 𝒦.bw[1] ≈ 6.409343 rtol=1e-7
-        @test optimalbw(𝒦, X; prewhite = true) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 6.409343 rtol=1e-7
+        @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = QuadraticSpectral{NeweyWest}()
         Σ = a𝕍ar(𝒦, X; prewhite = true)
-        @test 𝒦.bw[1] ≈ 3.183961 atol=1e-6
-        @test optimalbw(𝒦, X; prewhite = true) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 3.183961 atol=1e-6
+        @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
     end
 
     @testset "Optimal Bandwidth - Andrews ✅" begin
         𝒦 = Bartlett{Andrews}()
         Σ = a𝕍ar(𝒦, X; prewhite = false);
-        @test 𝒦.bw[1] ≈ 2.329739 rtol=1e-6
-        @test optimalbw(𝒦, X; prewhite = false) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 2.329739 rtol=1e-6
+        @test optimalbw(𝒦, X; prewhite = false, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = Parzen{Andrews}()
         Σ = a𝕍ar(𝒦, X; prewhite = false);
-        @test 𝒦.bw[1] ≈ 4.81931 rtol=1e-6
-        @test CovarianceMatrices.optimalbw(𝒦, X; prewhite = false) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 4.81931 rtol=1e-6
+        @test CovarianceMatrices.optimalbw(𝒦, X; prewhite = false, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = QuadraticSpectral{Andrews}()
         Σ = a𝕍ar(𝒦, X; prewhite = false)
-        @test 𝒦.bw[1] ≈ 2.394082 atol=1e-6
-        @test optimalbw(𝒦, X) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 2.394082 atol=1e-6
+        @test optimalbw(𝒦, X; prewhite = false, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = TukeyHanning{Andrews}()
         Σ = a𝕍ar(𝒦, X; prewhite = false)
-        @test 𝒦.bw[1] ≈ 3.162049 rtol=1e-6
-        @test optimalbw(𝒦, X) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 3.162049 rtol=1e-6
+        @test optimalbw(𝒦, X; prewhite = false, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = Truncated{Andrews}()
         Σ = a𝕍ar(𝒦, X; prewhite = false)
-        @test 𝒦.bw[1] ≈ 1.197131 rtol=1e-6
-        @test optimalbw(𝒦, X) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 1.197131 rtol=1e-6
+        @test optimalbw(𝒦, X; prewhite = false, demean = true) == CM.bandwidth(Σ)
 
         ## --
         𝒦 = Bartlett{Andrews}()
         Σ = a𝕍ar(𝒦, X; prewhite = true);
-        @test 𝒦.bw[1] ≈ 0.3836096 rtol=1e-6
-        @test optimalbw(𝒦, X; prewhite = true) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 0.3836096 rtol=1e-6
+        @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = Parzen{Andrews}()
         Σ = a𝕍ar(𝒦, X; prewhite = true);
-        @test 𝒦.bw[1] ≈ 1.380593 rtol=1e-6
-        @test CovarianceMatrices.optimalbw(𝒦, X; prewhite = true) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 1.380593 rtol=1e-6
+        @test CovarianceMatrices.optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = QuadraticSpectral{Andrews}()
         Σ = a𝕍ar(𝒦, X; prewhite = true)
-        @test 𝒦.bw[1] ≈ 0.6858351 atol=1e-6
-        @test optimalbw(𝒦, X) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 0.6858351 atol=1e-6
+        @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = TukeyHanning{Andrews}()
         Σ = a𝕍ar(𝒦, X; prewhite = true)
-        @test 𝒦.bw[1] ≈ 0.9058356 rtol=1e-6
-        @test optimalbw(𝒦, X) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 0.9058356 rtol=1e-6
+        @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = Truncated{Andrews}()
         Σ = a𝕍ar(𝒦, X; prewhite = true)
-        @test 𝒦.bw[1] ≈ 0.3429435 rtol=1e-6
-        @test optimalbw(𝒦, X) == 𝒦.bw[1]
+        @test CM.bandwidth(Σ) ≈ 0.3429435 rtol=1e-6
+        @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
     end
 
     @testset "Cold Start Bandwidth ✅" begin
@@ -622,7 +622,7 @@ end # Core Functionality Tests
                     )
                     𝒦 = ($k){Andrews}()
                     tmp = CM.vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
-                    da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
+                    da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" => tmp)
                 end,
                 )
             end
@@ -633,7 +633,7 @@ end # Core Functionality Tests
                     𝒦 = ($k){NeweyWest}()
                     ## To get the same results of R, the weights given to the intercept should be 0
                     tmp = CM.vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
-                    dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
+                    dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" => tmp)
                 end,
                 )
             end
@@ -687,7 +687,7 @@ end # Core Functionality Tests
                     )
                     𝒦 = ($k)(3)
                     tmp = vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
-                    da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
+                    da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" => tmp)
                 end,
                 )
             end
@@ -697,7 +697,7 @@ end # Core Functionality Tests
                     𝒦 = ($k)(3)
                     ## To get the same results of R, the weights given to the intercept should be 0
                     tmp = vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
-                    dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(𝒦), "V" => tmp)
+                    dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" => tmp)
                 end,
                 )
             end
@@ -716,24 +716,24 @@ end # Core Functionality Tests
             h in ("andrews",),
             k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
             @test hcat(reg[j][h][k]["V"]...) ≈ u[j][h][k]["V"]
-            @test reg[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
+            @test only(reg[j][h][k]["bw"]) ≈ u[j][h][k]["bw"]
         end
 
         for j in 1:2, h in ("neweywest",), k in ("Bartlett", "Quadratic Spectral")
             @test hcat(reg[j][h][k]["V"]...) ≈ u[j][h][k]["V"]
-            @test reg[j][h][k]["bw"] ≈ u[j][h][k]["bw"]
+            @test only(reg[j][h][k]["bw"]) ≈ u[j][h][k]["bw"]
         end
 
         for j in 3:4,
             h in ("andrews",),
             k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
             @test hcat(reg[j][h][k]["V"]...) ≈ u[j + 1][h][k]["V"]
-            @test reg[j][h][k]["bw"] ≈ u[j + 1][h][k]["bw"]
+            @test only(reg[j][h][k]["bw"]) ≈ u[j + 1][h][k]["bw"]
         end
 
         for j in 3:4, h in ("neweywest",), k in ("Bartlett", "Quadratic Spectral")
             @test hcat(reg[j][h][k]["V"]...) ≈ u[j + 1][h][k]["V"]
-            @test reg[j][h][k]["bw"] ≈ u[j + 1][h][k]["bw"]
+            @test only(reg[j][h][k]["bw"]) ≈ u[j + 1][h][k]["bw"]
         end
     end
 
@@ -746,24 +746,24 @@ end # Core Functionality Tests
             h in ("andrews",),
             k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
             @test hcat(wreg[j][h][k]["V"]...) ≈ uw[j][h][k]["V"]
-            @test wreg[j][h][k]["bw"] ≈ uw[j][h][k]["bw"]
+            @test only(wreg[j][h][k]["bw"]) ≈ uw[j][h][k]["bw"]
         end
 
         for j in 1:2, h in ("neweywest",), k in ("Bartlett", "Quadratic Spectral")
             @test hcat(wreg[j][h][k]["V"]...) ≈ uw[j][h][k]["V"]
-            @test wreg[j][h][k]["bw"] ≈ uw[j][h][k]["bw"]
+            @test only(wreg[j][h][k]["bw"]) ≈ uw[j][h][k]["bw"]
         end
 
         for j in 3:4,
             h in ("andrews",),
             k in ("Truncated", "Bartlett", "Tukey-Hanning", "Quadratic Spectral")
             @test hcat(wreg[j][h][k]["V"]...) ≈ uw[j + 1][h][k]["V"]
-            @test wreg[j][h][k]["bw"] ≈ uw[j + 1][h][k]["bw"]
+            @test only(wreg[j][h][k]["bw"]) ≈ uw[j + 1][h][k]["bw"]
         end
 
         for j in 3:4, h in ("neweywest",), k in ("Bartlett", "Quadratic Spectral")
             @test hcat(wreg[j][h][k]["V"]...) ≈ uw[j + 1][h][k]["V"]
-            @test wreg[j][h][k]["bw"] ≈ uw[j + 1][h][k]["bw"]
+            @test only(wreg[j][h][k]["bw"]) ≈ uw[j + 1][h][k]["bw"]
         end
     end
 
@@ -1076,7 +1076,7 @@ end # Core Functionality Tests
             @test Σ1 ≈ Σ2 rtol=1e-14
 
             # Test bandwidth values are identical
-            @test kernel1.bw ≈ kernel2.bw rtol=1e-14
+            @test CM.bandwidth(Σ1) ≈ CM.bandwidth(Σ2) rtol=1e-14
 
             # Test with prewhitening as well
             Σ1_pre = a𝕍ar(kernel1, X; prewhite = true)

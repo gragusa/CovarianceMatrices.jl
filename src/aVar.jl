@@ -24,13 +24,27 @@ function aVar(
         dims::Int = 1,
         means::Union{Nothing, AbstractArray} = nothing,
         prewhite::Bool = false,
-        scale = true
+        scale = true,
+        weights = nothing
 ) where {T <: Real}
     Base.require_one_based_indexing(m)
     X = demean ? demeaner(m; means = means, dims = dims) : m
-    Shat = avar(k, X; prewhite = isa(k, HAC) ? prewhite : false)
+    Shat, info = avar_with_info(k, X; prewhite = isa(k, HAC) ? prewhite : false, weights)
     scalevar!(Shat, scale, size(X, dims))
-    return Shat
+    return CovarianceMatrix(Shat, k, info)
+end
+
+"""
+    avar_with_info(k, X; prewhite=false)
+
+Compute the estimate and the quantities selected from the data.
+
+Returns `(V, info)`. Estimators that select nothing from the data return an empty
+`info`; `HAC` kernels report the bandwidth and kernel weights, `VARHAC` the selected
+lag orders and information criteria.
+"""
+function avar_with_info(k, X; weights = nothing, kwargs...)
+    return avar(k, X; kwargs...), NamedTuple()
 end
 
 scalevar!(Shat, scale::Bool, n::Int) = scale ? rdiv!(Shat, n) : Shat
@@ -54,17 +68,10 @@ function aVar(
 ) where {T <: Real}
     Base.require_one_based_indexing(m)
     X = demean ? demeaner(m; means = means, dims = dims) : m
-    Shat = avar(k, X)
-    # VARHAC returns spectral density at frequency zero, which is already
-    # properly scaled for variance estimation, so no additional scaling needed
-    # However, maintain API consistency for user expectations
-    if scale === false
-        # User explicitly requested no scaling, but VARHAC is already properly scaled
-        return Shat
-    else
-        # VARHAC already provides proper variance scaling
-        return Shat
-    end
+    Shat, info = avar_with_info(k, X)
+    # VARHAC returns the spectral density at frequency zero, which already carries
+    # the variance scaling; `scale` is handled where it is honored or rejected.
+    return CovarianceMatrix(Shat, k, info)
 end
 
 const a𝕍ar = aVar

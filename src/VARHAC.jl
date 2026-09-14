@@ -1,67 +1,70 @@
-function avar(
+"""
+    avar_with_info(k::VARHAC, X::AbstractMatrix)
+
+Compute the VARHAC estimate and the lag selection it performed.
+
+Returns `(Ω, info)` where `info` carries the AIC and BIC tables over the lag orders
+searched, the orders each criterion selected, and `order`, the orders selected by the
+criterion `k` is configured with.
+"""
+function avar_with_info(
         k::VARHAC{S, L},
         X::AbstractMatrix{R};
         kwargs...
 ) where {S <: LagSelector, L <: SameLags, R <: Real}
-    lagstrategy = isa(k.selector, AICSelector) ? :aic : :bic
-    Ω, AICs,
-    BICs,
-    order_aic,
-    order_bic = _var_selection_samelag(
+    lagstrategy = _lagstrategy(k)
+    Ω, AICs, BICs, order_aic, order_bic = _var_selection_samelag(
         X, maxlags(k)...; lagstrategy = lagstrategy, demean = false)
-    k.AICs = AICs
-    k.BICs = BICs
-    k.order_aic = order_aic
-    k.order_bic = order_bic
-    return Ω
+    return Ω, _varhac_info(k, AICs, BICs, order_aic, order_bic)
 end
 
-function avar(
+function avar_with_info(
         k::VARHAC{S, L},
         X::AbstractMatrix{R};
         kwargs...
 ) where {S <: LagSelector, L <: DifferentOwnLags, R <: Real}
-    lagstrategy = isa(k.selector, AICSelector) ? :aic : :bic
-    Ω, AICs,
-    BICs,
-    order_aic,
-    order_bic = _var_selection_ownlag(
+    lagstrategy = _lagstrategy(k)
+    Ω, AICs, BICs, order_aic, order_bic = _var_selection_ownlag(
         X, maxlags(k)...; lagstrategy = lagstrategy, demean = false)
-    k.AICs = AICs
-    k.BICs = BICs
-    k.order_aic = order_aic
-    k.order_bic = order_bic
-    return Ω
+    return Ω, _varhac_info(k, AICs, BICs, order_aic, order_bic)
 end
 
-function avar(k::VARHAC{S, L}, X::AbstractMatrix{R};
+function avar_with_info(k::VARHAC{S, L}, X::AbstractMatrix{R};
         kwargs...) where {S <: LagSelector, L <: FixedLags, R <: Real}
-    lagstrategy = isa(k.selector, AICSelector) ? :aic : :bic
     Ω, AICs, BICs, order_aic, order_bic = _var_fixed(X, maxlags(k)...; demean = false)
-    k.AICs = AICs
-    k.BICs = BICs
-    k.order_aic = order_aic
-    k.order_bic = order_bic
-    return Ω
+    return Ω, _varhac_info(k, AICs, BICs, order_aic, order_bic)
 end
 
-function avar(
+function avar_with_info(
         k::VARHAC{S, L},
         X::AbstractMatrix{R};
         kwargs...
 ) where {S <: LagSelector, L <: AutoLags, R <: Real}
     T, N = size(X)
     K_auto = maxlags(k, T, N)
-    lagstrategy = isa(k.selector, AICSelector) ? :aic : :bic
-    Ω, AICs,
-    BICs,
-    order_aic,
-    order_bic = _var_selection_samelag(X, K_auto; lagstrategy = lagstrategy, demean = false)
-    k.AICs = AICs
-    k.BICs = BICs
-    k.order_aic = order_aic
-    k.order_bic = order_bic
+    lagstrategy = _lagstrategy(k)
+    Ω, AICs, BICs, order_aic,
+    order_bic = _var_selection_samelag(
+        X, K_auto; lagstrategy = lagstrategy, demean = false)
+    return Ω, _varhac_info(k, AICs, BICs, order_aic, order_bic)
+end
+
+function avar(k::VARHAC, X::AbstractMatrix; kwargs...)
+    Ω, _ = avar_with_info(k, X; kwargs...)
     return Ω
+end
+
+_lagstrategy(k::VARHAC) = isa(k.selector, AICSelector) ? :aic : :bic
+
+# `order` is the selection the configured criterion actually made; the per-criterion
+# orders and the criterion tables are reported alongside it.
+_selected_order(k::VARHAC{AICSelector}, order_aic, order_bic) = order_aic
+_selected_order(k::VARHAC{BICSelector}, order_aic, order_bic) = order_bic
+_selected_order(k::VARHAC, order_aic, order_bic) = order_aic
+
+function _varhac_info(k::VARHAC, AICs, BICs, order_aic, order_bic)
+    return (AICs = AICs, BICs = BICs, order_aic = order_aic, order_bic = order_bic,
+        order = _selected_order(k, order_aic, order_bic))
 end
 
 function _var_selection_samelag(

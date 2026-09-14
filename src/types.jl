@@ -220,11 +220,7 @@ Truncated(Andrews)              # Andrews bandwidth selection (alternative synta
 **Note**: Provides consistent but not necessarily positive semi-definite estimates. `NeweyWest` bandwidth selection is not supported for Truncated kernel.
 """
 struct TruncatedKernel{G <: BandwidthType} <: HAC{G}
-    bw::Vector{WFLOAT}
-    kw::Vector{WFLOAT}
-    "When `wlock` is false, the kernelweights are allowed to updated by
-    aVar, if true the kernelweights are locked."
-    wlock::Vector{Bool}
+    bw::WFLOAT
 end
 
 """
@@ -264,9 +260,7 @@ Bartlett(NeweyWest)            # Newey-West bandwidth selection (alternative syn
 - Equivalent to Newey-West estimator
 """
 struct BartlettKernel{G <: BandwidthType} <: HAC{G}
-    bw::Vector{WFLOAT}
-    kw::Vector{WFLOAT}
-    wlock::Vector{Bool}
+    bw::WFLOAT
 end
 
 """
@@ -303,9 +297,7 @@ Parzen(NeweyWest)              # Newey-West bandwidth selection (alternative syn
 
 """
 struct ParzenKernel{G <: BandwidthType} <: HAC{G}
-    bw::Vector{WFLOAT}
-    kw::Vector{WFLOAT}
-    wlock::Vector{Bool}
+    bw::WFLOAT
 end
 
 """
@@ -343,9 +335,7 @@ TukeyHanning(Andrews)           # Andrews bandwidth selection (alternative synta
 `NeweyWest` bandwidth selection is not supported for TukeyHanning kernel.
 """
 struct TukeyHanningKernel{G <: BandwidthType} <: HAC{G}
-    bw::Vector{WFLOAT}
-    kw::Vector{WFLOAT}
-    wlock::Vector{Bool}
+    bw::WFLOAT
 end
 
 """
@@ -382,9 +372,7 @@ QuadraticSpectral(NeweyWest)   # Newey-West bandwidth selection (alternative syn
 
 """
 struct QuadraticSpectralKernel{G <: BandwidthType} <: HAC{G}
-    bw::Vector{WFLOAT}
-    kw::Vector{WFLOAT}
-    wlock::Vector{Bool}
+    bw::WFLOAT
 end
 
 """
@@ -404,15 +392,15 @@ const QuadraticSpectral = QuadraticSpectralKernel
 const kernels = [:Bartlett, :Parzen, :QuadraticSpectral, :Truncated, :TukeyHanning]
 
 for kerneltype in kernels
-    @eval ($kerneltype(x::Number)) = ($kerneltype){Fixed}(WFLOAT[x], WFLOAT[], [false])
-    @eval ($kerneltype{Fixed}(x::Number)) = ($kerneltype){Fixed}(
-        WFLOAT[x], WFLOAT[], [false])
+    @eval ($kerneltype(x::Number)) = ($kerneltype){Fixed}(x)
 end
 
 for kerneltype in kernels
     for opt in [:Andrews, :NeweyWest]
         if !(opt == :NeweyWest && kerneltype in [:TukeyHanning, :Truncated])
-            @eval ($kerneltype){$opt}() = ($kerneltype){$opt}(WFLOAT[0], WFLOAT[], [false])
+            # Data-driven bandwidth: the stored value is unused, the selection rule
+            # is carried by the type parameter.
+            @eval ($kerneltype){$opt}() = ($kerneltype){$opt}(zero(WFLOAT))
             # Add constructor that takes bandwidth type as argument: Bartlett(NeweyWest())
             @eval ($kerneltype(::Type{$opt})) = ($kerneltype){$opt}()
         else
@@ -427,29 +415,36 @@ function Base.show(io::IO, x::HAC{T}) where {T <: Union{Andrews, NeweyWest}}
     return print(typeof(x).name, "{", T, "}")
 end
 function Base.show(io::IO, x::HAC{T}) where {T <: Fixed}
-    return print(typeof(x).name, "{", T, "}(", first(x.bw), ")")
+    return print(typeof(x).name, "{", T, "}(", x.bw, ")")
 end
 ## Makes the default bandwidth selection
 #Optimal() = Optimal{Andrews}()
 
 ## Accessor
 """
-    bandwidth(x::HAC)
+    bandwidth(k::HAC{Fixed})
 
-Extract the bandwidth parameter(s) from a HAC estimator.
+Return the fixed bandwidth of `k`.
 
-Returns the bandwidth values used in the kernel weighting. For automatically-selected
-bandwidths, this returns the computed optimal bandwidth after model fitting.
+A kernel with data-driven bandwidth selection (`Andrews`, `NeweyWest`) carries no
+bandwidth of its own — the bandwidth is a property of an estimate, not of the
+specification. Read it from the result with [`bandwidth(::CovarianceMatrix)`](@ref),
+or compute it directly with [`optimalbw`](@ref).
 
 # Usage
 ```julia
-using CovarianceMatrices
-hac = Bartlett{Andrews}()
-aVar(hac, X)  # Fit the model
-bw = bandwidth(hac)  # Get the selected bandwidth
+bandwidth(Bartlett(4))                  # 4.0
+
+V = aVar(Bartlett{Andrews}(), X)
+bandwidth(V)                            # the selected bandwidth
+optimalbw(Bartlett{Andrews}(), X)       # the same value, computed on its own
 ```
 """
-bandwidth(x::HAC) = x.bw
+bandwidth(k::HAC{Fixed}) = k.bw
+
+function bandwidth(k::HAC{T}) where {T <: Union{Andrews, NeweyWest}}
+    throw(ArgumentError("`$(nameof(typeof(k))){$(nameof(T))}` selects its bandwidth from the data, so the estimator does not carry one. Read it from a result with `bandwidth(aVar(k, X))`, or compute it with `optimalbw(k, X)`."))
+end
 # kernelweights(x::HAC) = x.weights
 
 #=========
@@ -1304,19 +1299,14 @@ ve5 = VARHAC(:bic)   # BICSelector(), SameLags(8)
 ve6 = VARHAC(12)     # AICSelector(), SameLags(12)
 ```
 """
-mutable struct VARHAC{S <: LagSelector, L <: LagStrategy, T <: Real} <: Correlated
-    AICs::Union{Array{T}, Nothing}
-    BICs::Union{Array{T}, Nothing}
-    order_aic::Union{Array{Int}, Nothing}  # Vector for SameLags, Matrix for DifferentOwnLags
-    order_bic::Union{Array{Int}, Nothing}  # Vector for SameLags, Matrix for DifferentOwnLags
-    const selector::S
-    const strategy::L
+struct VARHAC{S <: LagSelector, L <: LagStrategy, T <: Real} <: Correlated
+    selector::S
+    strategy::L
 end
 
 function VARHAC(selector = AICSelector(), strategy = SameLags(8); T::Type{<:Real} = Float64)
     isa(strategy, FixedLags) && (selector = FixedSelector())
-    return VARHAC{typeof(selector), typeof(strategy), T}(
-        nothing, nothing, nothing, nothing, selector, strategy)
+    return VARHAC{typeof(selector), typeof(strategy), T}(selector, strategy)
 end
 
 # Convenient constructors for common usage patterns
@@ -1397,82 +1387,58 @@ function maxlags(k::VARHAC{S, AutoLags, T}) where {S <: LagSelector, T}
 end
 
 """
-    AICs(k::VARHAC)
+    AICs(V::CovarianceMatrix)
 
-Return the AIC values computed during VARHAC estimation.
-
-Returns the matrix of AIC values for different lag combinations tried during model selection.
+Return the AIC values over the lag orders searched during VARHAC estimation.
 
 # Usage
 ```julia
-varhac = VARHAC(AICSelector(), SameLags(5))
-aVar(varhac, X)  # Fit the model
-aic_values = AICs(varhac)
+V = aVar(VARHAC(AICSelector(), SameLags(5)), X)
+AICs(V)
 ```
 """
-AICs(k::VARHAC) = k.AICs
+AICs(V::CovarianceMatrix) = V.info.AICs
 
 """
-    BICs(k::VARHAC)
+    BICs(V::CovarianceMatrix)
 
-Return the BIC values computed during VARHAC estimation.
-
-Returns the matrix of BIC values for different lag combinations tried during model selection.
+Return the BIC values over the lag orders searched during VARHAC estimation.
 
 # Usage
 ```julia
-varhac = VARHAC(BICSelector(), SameLags(5))
-aVar(varhac, X)  # Fit the model
-bic_values = BICs(varhac)
+V = aVar(VARHAC(BICSelector(), SameLags(5)), X)
+BICs(V)
 ```
 """
-BICs(k::VARHAC) = k.BICs
+BICs(V::CovarianceMatrix) = V.info.BICs
 
 """
-    order_aic(k::VARHAC)
+    order_aic(V::CovarianceMatrix)
 
-Return the optimal lag orders selected by AIC criterion.
+Return the lag orders the AIC criterion selected during VARHAC estimation.
+"""
+order_aic(V::CovarianceMatrix) = V.info.order_aic
+
+"""
+    order_bic(V::CovarianceMatrix)
+
+Return the lag orders the BIC criterion selected during VARHAC estimation.
+"""
+order_bic(V::CovarianceMatrix) = V.info.order_bic
+
+"""
+    order(V::CovarianceMatrix)
+
+Return the lag orders selected by the criterion the estimator was configured with:
+AIC for `AICSelector`, BIC for `BICSelector`.
 
 # Usage
 ```julia
-varhac = VARHAC(AICSelector(), SameLags(5))
-aVar(varhac, X)  # Fit the model
-aic_orders = order_aic(varhac)
+V = aVar(VARHAC(AICSelector(), SameLags(5)), X)
+order(V)
 ```
 """
-order_aic(k::VARHAC) = k.order_aic
-
-"""
-    order_bic(k::VARHAC)
-
-Return the optimal lag orders selected by BIC criterion.
-
-# Usage
-```julia
-varhac = VARHAC(BICSelector(), SameLags(5))
-aVar(varhac, X)  # Fit the model
-bic_orders = order_bic(varhac)
-```
-"""
-order_bic(k::VARHAC) = k.order_bic
-
-"""
-    order(k::VARHAC)
-
-Return the optimal lag orders selected by the active criterion (AIC or BIC).
-
-For VARHAC with AICSelector, returns the AIC-selected orders.
-For VARHAC with BICSelector, returns the BIC-selected orders.
-
-# Usage
-```julia
-varhac = VARHAC(AICSelector(), SameLags(5))
-aVar(varhac, X)  # Fit the model
-selected_orders = order(varhac)
-```
-"""
-order(k::VARHAC{AICSelector, S}) where {S} = order_aic(k)
-order(k::VARHAC{BICSelector, S}) where {S} = order_bic(k)
+order(V::CovarianceMatrix) = V.info.order
 
 ## Show method for VARHAC
 function Base.show(io::IO, k::VARHAC)

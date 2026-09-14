@@ -15,5 +15,5 @@ function avar(k::T, X::Matrix{R}; kwargs...) where {T <: DriscollKraay, R <: Rea
             X2[tis.groups[i], idx] += X[i, j]
         end
     end
-    return a𝕍ar(k.K, X2; kwargs...)
+    return parent(a𝕍ar(k.K, X2; kwargs...))
 end

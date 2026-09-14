@@ -330,14 +330,14 @@ end
         for (selector, strategy, desc) in vh_configs
             # Create VARHAC with explicit Float32 type
             vh_f32 = VARHAC{typeof(selector), typeof(strategy), Float32}(
-                nothing, nothing, nothing, nothing, selector, strategy)
+                selector, strategy)
 
             # Test aVar with Float32 data
             result_f32 = aVar(vh_f32, fortran_data_f32; demean = true, scale = false)
 
             # Verify type stability
             @test eltype(result_f32) == Float32
-            @test result_f32 isa Matrix{Float32}
+            @test parent(result_f32) isa Matrix{Float32}
 
             # Test different demean options
             result_f32_nodemean = aVar(vh_f32, fortran_data_f32; demean = false, scale = false)

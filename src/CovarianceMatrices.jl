@@ -19,6 +19,7 @@ using Statistics: Statistics
 using StatsAPI: StatsAPI, vcov, stderror
 using StatsBase: StatsBase, RegressionModel, coef, cov, mean, modelmatrix, weights
 include("Clustering.jl")
+include("CovarianceMatrix.jl")
 include("types.jl")
 include("equality.jl")
 include("HAC.jl")
@@ -38,6 +39,7 @@ include("api.jl")
 include("regression_model_estimators.jl")
 # VcovSpec wrapper for model + vcov() syntax
 include("vcov_spec.jl")
+include("deprecated.jl")
 
 export AbstractAsymptoticVarianceEstimator,
        Uncorrelated,
@@ -76,6 +78,11 @@ export AbstractAsymptoticVarianceEstimator,
        aVar,
        a𝕍ar,
        optimalbw,
+       CovarianceMatrix,
+       estimator,
+       bandwidth,
+       kernelweights,
+       information,
        vcov,
        stderror,
        DriscollKraay,

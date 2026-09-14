@@ -51,19 +51,22 @@ using StatsAPI
         @test size(V) == (2, 2)
     end
 
-    @testset "Kernel locking" begin
-        # Test unlock_kernel! and lock_kernel!
+    @testset "Estimators are unchanged by use" begin
         k = Bartlett{Andrews}()
-
         X = randn(100, 2)
-        aVar(k, X)  # Sets bandwidth
-        bw1 = k.bw[1]
-        @test bw1 > 0
 
-        # Lock and verify bandwidth doesn't change on repeated aVar call
-        k.wlock .= true
-        aVar(k, X .* 2)  # Different data
-        @test k.bw[1] == bw1  # Bandwidth should not change when locked
+        V1 = aVar(k, X)
+        @test CovarianceMatrices.bandwidth(V1) > 0
+
+        # A second dataset selects its own bandwidth without disturbing the first
+        # result or the estimator.
+        bw1 = CovarianceMatrices.bandwidth(V1)
+        V2 = aVar(k, X .* 2 .+ randn(100, 2))
+        @test CovarianceMatrices.bandwidth(V1) == bw1
+        @test k == Bartlett{Andrews}()
+
+        # Reusing the estimator on the same data reproduces the same estimate.
+        @test aVar(k, X) == V1
     end
 
     @testset "aVar with various inputs" begin

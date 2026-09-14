@@ -9,6 +9,8 @@ using Test
 using CovarianceMatrices
 using LinearAlgebra
 using StatsAPI
+using StableRNGs
+using Random
 
 @testset "Type System Coverage" begin
     @testset "HAC kernel constructors" begin
@@ -44,10 +46,10 @@ using StatsAPI
 
         # Verify bandwidth is set
         k = Bartlett(10)
-        @test k.bw[1] == 10.0
+        @test CovarianceMatrices.bandwidth(k) == 10.0
 
         k2 = Parzen(5)  # Fixed bandwidth via value
-        @test k2.bw[1] == 5.0
+        @test CovarianceMatrices.bandwidth(k2) == 5.0
     end
 
     @testset "VARHAC constructors and accessors" begin
@@ -151,11 +153,16 @@ using StatsAPI
     end
 
     @testset "bandwidth accessor" begin
+        # A fixed bandwidth is part of the specification and reads off the estimator.
         k = Bartlett(5)
-        @test CovarianceMatrices.bandwidth(k) == [5.0]
+        @test CovarianceMatrices.bandwidth(k) == 5.0
 
+        # A data-driven bandwidth is a property of an estimate, not of the estimator.
         k2 = Parzen{Andrews}()
-        @test CovarianceMatrices.bandwidth(k2) == [0.0]  # Not yet computed
+        @test_throws "selects its bandwidth from the data" CovarianceMatrices.bandwidth(k2)
+
+        X = randn(StableRNG(456), 100, 3)
+        @test CovarianceMatrices.bandwidth(aVar(k2, X)) > 0
     end
 
     @testset "VarianceForm and Model types" begin
