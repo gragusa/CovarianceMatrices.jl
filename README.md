@@ -366,6 +366,18 @@ Unit: milliseconds
 
 Contributions to CovarianceMatrices.jl are welcome! Please feel free to submit issues and pull requests on our [GitHub repository](https://github.com/gragusa/CovarianceMatrices.jl).
 
+To work on the documentation with live reload, first instantiate its environment,
+then start the development server:
+
+```shell
+julia --project=docs -e 'using Pkg; Pkg.instantiate()'
+julia --project=docs docs/serve.jl
+```
+
+The documentation opens in your browser (normally at `http://localhost:8000/`)
+and rebuilds whenever a file under `docs/src` changes. Press Ctrl-C to stop the
+server.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

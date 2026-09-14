@@ -51,6 +51,25 @@ function bread end
 @noinline residual_adjustment(k::HAC, r::RegressionModel) = 1.0
 @noinline residual_adjustment(k::EWC, r::RegressionModel) = 1.0
 @noinline residual_adjustment(k::DriscollKraay, r::RegressionModel) = 1.0
+# VARHAC and the smoothed-moment estimators are full long-run-variance estimators
+# that need no per-observation adjustment (mirrors HAC/EWC above). Without these
+# methods `vcov(VARHAC(), model)` / `vcov(UniformSmoother(m), model)` would fail
+# with a MethodError.
+@noinline residual_adjustment(k::VARHAC, r::RegressionModel) = 1.0
+@noinline residual_adjustment(k::MomentSmoother, r::RegressionModel) = 1.0
+
+# `Uncorrelated` behaves like HC0/HR0 on a fitted model (White's estimator).
+@noinline residual_adjustment(k::Uncorrelated, r::RegressionModel) = 1.0
+
+# `Cluster` is the matrix/mean-case cluster estimator; for regression it would need
+# the design matrix to form the (optional) finite-sample corrections, so route users
+# to the CR family instead of silently returning an uncorrected result.
+@noinline function residual_adjustment(k::Cluster, r::RegressionModel)
+    throw(ArgumentError(
+        "`Cluster` is the mean/matrix-interface cluster estimator. For cluster-robust " *
+        "regression standard errors use `CR0`, `CR1`, `CR2`, or `CR3` with the model, " *
+        "e.g. `vcov(CR1(groups), model)`."))
+end
 
 # HC0/HR0: No adjustment
 @noinline residual_adjustment(k::HR0, r::RegressionModel) = 1.0

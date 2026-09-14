@@ -67,6 +67,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `optimalbw` on a fixed-bandwidth kernel returns the configured bandwidth
   instead of throwing a `MethodError`, so a call site can switch between a fixed
   and a data-driven kernel unchanged.
+- `Cluster`, the clustering analogue of `Uncorrelated` for the matrix / moment
+  interface. `aVar(Cluster(groups), X)` returns the raw cluster long-run variance
+  with no finite-sample correction, since degrees-of-freedom and leverage factors
+  require a fitted model's design matrix. For cluster-robust regression standard
+  errors use `CR0`–`CR3` with a model; `Cluster` on a model raises an
+  `ArgumentError` pointing to them.
 
 ### Changed
 
@@ -87,6 +93,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
+- `aVar(Uncorrelated(), X)` and `vcov(Uncorrelated(), model)` work instead of
+  throwing a `MethodError`. `Uncorrelated` now matches HC0/HR0 (White's
+  estimator) on both a matrix and a fitted model.
+- `vcov` and `stderror` work on a fitted model for `VARHAC` and for the
+  `UniformSmoother`/`TriangularSmoother` moment smoothers, which previously
+  threw a `MethodError`.
 - `workingoptimalbw` for fixed-bandwidth kernels threw a `TypeError` on every
   call: it wrote `Matrix{eltype{m}}` with braces instead of parens.
 - Removed `demeaner(k::CR, X)`, which called two functions the package does not

@@ -44,6 +44,7 @@ include("deprecated.jl")
 export AbstractAsymptoticVarianceEstimator,
        Uncorrelated,
        Correlated,
+       Cluster,
        Andrews,
        NeweyWest,
        Fixed,

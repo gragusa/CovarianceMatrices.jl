@@ -90,6 +90,47 @@ abstract type HAC{G} <: Correlated end
 abstract type HR <: AbstractAsymptoticVarianceEstimator end
 abstract type CR <: Correlated end
 
+"""
+`Cluster`
+
+Cluster-robust estimator of the asymptotic variance of a **sample mean**, for the
+matrix / moment interface. Given a `T × k` data or moment matrix and a vector of
+group identifiers, `aVar(Cluster(groups), X)` returns the cluster long-run variance
+
+```math
+\\hat{\\Omega} = \\sum_{g=1}^{G} \\hat{u}_g \\hat{u}_g', \\qquad \\hat{u}_g = \\sum_{t \\in g} \\tilde{X}_t,
+```
+
+treating observations as correlated within groups and independent across groups.
+
+`Cluster` is the clustering analogue of [`Uncorrelated`](@ref): it carries **no**
+finite-sample (degrees-of-freedom or leverage) correction, because those require a
+fitted model's design matrix. For cluster-robust *regression* standard errors use
+[`CR0`](@ref), [`CR1`](@ref), [`CR2`](@ref), or [`CR3`](@ref) with a fitted model.
+
+# Usage
+```julia
+using CovarianceMatrices
+clusters = [1, 1, 2, 2, 3, 3, 4, 4]
+Ω = aVar(Cluster(clusters), X)
+
+# Multi-way clustering
+Ω = aVar(Cluster((firm_ids, year_ids)), X)
+```
+"""
+struct Cluster{G} <: Correlated
+    g::G
+    function Cluster(g::G) where {G <: AbstractVector}
+        t = (Clustering(g),)
+        new{typeof(t)}(t)
+    end
+    Cluster(g::G) where {G <: Tuple{Vararg{Symbol}}} = new{G}(g)
+    function Cluster(g::G) where {G <: Tuple}
+        t = map(Clustering, g)
+        new{typeof(t)}(t)
+    end
+end
+
 #=========
 HAC Types
 =========#

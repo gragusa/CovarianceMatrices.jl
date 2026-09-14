@@ -36,6 +36,7 @@ optimalbw
 AbstractAsymptoticVarianceEstimator
 Uncorrelated
 Correlated
+Cluster
 ```
 
 ## HAC Estimator Reference
