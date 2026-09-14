@@ -5,6 +5,95 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.0]
+
+### Breaking
+
+- `aVar` and `vcov` return a `CovarianceMatrix` instead of a plain `Matrix`. It
+  subtypes `AbstractMatrix`, so indexing, arithmetic, `inv`, `\`, `diag` and
+  factorizations work unchanged; operations that do not preserve the covariance
+  interpretation return a plain matrix. `parent(V)` recovers the underlying
+  matrix.
+
+- Estimators are immutable specifications and no longer carry fit state. HAC
+  kernels previously held `bw`/`kw`/`wlock` vectors and `VARHAC` held its AIC/BIC
+  tables and selected orders, so reusing an estimator silently rewrote the
+  bandwidth behind an earlier estimate, `==` reported two kernels equal while
+  their bandwidths differed, and concurrent use raced. What was selected from the
+  data now lives on the returned `CovarianceMatrix` and is reached through
+  `estimator`, `bandwidth`, `kernelweights`, `information`, and for `VARHAC`
+  `order`, `order_aic`, `order_bic`, `AICs` and `BICs`.
+
+- The `scale` keyword of `aVar` and `vcov` is a `Bool` switch only. A divisor is
+  passed as `scaleby`, which supersedes the switch so the variance is divided
+  once:
+
+      aVar(k, X; scale = false)    # no division
+      aVar(k, X; scaleby = n - p)  # divide by an explicit value
+
+  Divisors may be any positive finite real; a degrees-of-freedom correction is
+  not generally an integer. Passing a number as `scale` still works and warns.
+
+- `aVar(::VARHAC, ::AbstractMatrix)` honors `scale`. Both arms of the
+  `scale === false` branch returned the same matrix, so a caller asking for
+  unscaled output received scaled output. VARHAC estimates the spectral density
+  at frequency zero, which already carries the per-observation scaling the other
+  estimators reach through `scale = true`; reaching the unscaled convention
+  multiplies by the number of observations rather than dividing.
+
+- `aVar` on a matrix whose element type is not `Real` raises a `MethodError`. The
+  `AbstractMatrix` fallback was shadowed for every real element type and recursed
+  infinitely for any other.
+
+### Deprecated
+
+- `k.kw` and `k.wlock` on a HAC kernel. Kernel weights belong to an estimate:
+  use `kernelweights(aVar(k, X))`.
+- `AICs(k)`, `BICs(k)`, `order(k)`, `order_aic(k)` and `order_bic(k)` on a
+  `VARHAC` estimator. Call them on the result of `aVar(k, X)` instead.
+- A numeric `scale` keyword. Use `scaleby`.
+- `optimal_bandwidth(k::MomentSmoother, T)`. Bandwidth selection is spelled
+  `optimalbw` for every estimator family.
+
+### Added
+
+- `CovarianceMatrix` and its accessors `estimator`, `bandwidth`,
+  `kernelweights` and `information` are exported.
+- A `PDMats` extension: `PDMat(V::CovarianceMatrix)` gives access to the PDMats
+  interface, and `isposdef(V)` checks first. Not every estimator is positive
+  definite — the `Truncated` kernel is consistent without being positive
+  semi-definite, the multiway cluster-robust estimator can be indefinite in
+  finite samples, and a rank-deficient model produces `NaN` entries.
+- `optimalbw` on a fixed-bandwidth kernel returns the configured bandwidth
+  instead of throwing a `MethodError`, so a call site can switch between a fixed
+  and a data-driven kernel unchanged.
+
+### Changed
+
+- Eighteen documented non-exported names are declared `public` on Julia 1.11 and
+  later: the result and estimator accessors `AICs`, `BICs`, `maxlags`,
+  `nclusters`, `order`, `order_aic` and `order_bic`; the kernel struct names
+  `BartlettKernel`, `ParzenKernel`, `QuadraticSpectralKernel`, `TruncatedKernel`
+  and `TukeyHanningKernel` behind the exported aliases; the cluster caches
+  `CRCache` and `CRModelCache`; and the abstract supertypes `BandwidthType`,
+  `CR` and `LagSelector`. Every other non-exported name is an implementation
+  detail and may change in any release.
+- The positional `DriscollKraay` constructor accepts identifiers of any type.
+  It was pinned to `AbstractArray{<:AbstractFloat}`, and integer identifiers
+  fell through to the default inner constructor, producing an estimator that
+  failed later inside `aVar` with "type Array has no field ngroups". Both call
+  forms now share one coercion path, and `tis` and `iis` are required arguments
+  that each report their own absence.
+
+### Bug Fixes
+
+- `workingoptimalbw` for fixed-bandwidth kernels threw a `TypeError` on every
+  call: it wrote `Matrix{eltype{m}}` with braces instead of parens.
+- Removed `demeaner(k::CR, X)`, which called two functions the package does not
+  define; every caller passes a matrix, not a `CR`.
+- Removed two unreachable `scalevar!` methods: one was shadowed by an identical
+  signature above it, and the other called `rdiv!` on an undefined variable.
+
 ## [0.31.0]
 
 ### Breaking
