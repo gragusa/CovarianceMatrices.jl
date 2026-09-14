@@ -146,35 +146,32 @@ weight_matrix
 VcovSpec
 ```
 
-## Internal Types and Functions
+## Public but Not Exported
 
-The following functions are primarily for internal use but may be useful for advanced users:
+The names below are part of the API: they are supported and follow the package's
+compatibility guarantees, but they are not exported, so they must be reached
+through the module — `CovarianceMatrices.nclusters(k)`. On Julia 1.11 and later
+they are declared with `public`, so `Base.ispublic` reports them.
 
-### Internal Computation Functions
+`AICs`, `BICs`, `maxlags`, `nclusters`, `order`, `order_aic` and `order_bic` are
+the result and estimator accessors documented above. `BartlettKernel`,
+`ParzenKernel`, `QuadraticSpectralKernel`, `TruncatedKernel` and
+`TukeyHanningKernel` are the kernel struct names; the exported [`Bartlett`](@ref),
+[`Parzen`](@ref), [`QuadraticSpectral`](@ref), [`Truncated`](@ref) and
+[`TukeyHanning`](@ref) are aliases for them, and these are the names that appear
+when a kernel is displayed. [`CRCache`](@ref) and [`CRModelCache`](@ref) are the
+cluster caches. `BandwidthType`, `CR` and `LagSelector` are abstract supertypes
+available for dispatch. `optimal_bandwidth` selects the bandwidth for moment
+smoothers.
 
-- `avar`: Low-level covariance computation (method-specific)
-- `setkernelweights!`: Set kernel weights for HAC estimators
-- `workingoptimalbw`: Internal bandwidth computation
-- `scalevar!`: Scale variance matrices
-- `demeaner`: Remove means from data matrices
+```@docs
+nclusters
+optimal_bandwidth
+```
 
-### Internal HAC Functions
+## Everything Else Is Internal
 
-- `_optimalbandwidth`: Compute optimal bandwidth
-- `kernelfunction`: Evaluate kernel functions
-- `avar_func`: Core HAC computation
-
-### Internal Smoothing Functions
-
-- `smooth_moments!`: In-place moment smoothing (kernel-based)
-- `compute_weights`: Compute smoothing weights (fallback)
-- `compute_normalization`: Normalization constants
-
-### Internal Utility Functions
-
-- `finalize_prewhite`: Handle prewhitening operations
-- `fit_var`: VAR model fitting for prewhitening/VARHAC
-- `rdiv!`: In-place division
-- `groupby`: Grouping operations for clustered data
-
-These internal functions are subject to change and should generally not be used directly in user code.
+Any name that is neither exported nor listed above is an implementation detail.
+It may be renamed, change signature, or disappear in any release, including a
+patch release, and some such names carry docstrings for the benefit of
+maintainers. Do not call them from user code.

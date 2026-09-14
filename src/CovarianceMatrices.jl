@@ -111,4 +111,25 @@ export AbstractAsymptoticVarianceEstimator,
        weight_matrix,
 # VcovSpec
        VcovSpec
+
+# Supported but not exported. Names here are part of the API and follow the
+# package's compatibility guarantees; every other non-exported name is internal
+# and may change in any release. `public` is 1.11 syntax, so it is built as an
+# expression to keep the module parseable on the 1.10 compat floor.
+@static if VERSION >= v"1.11"
+    eval(Expr(:public,
+        # Result and estimator accessors
+        :AICs, :BICs, :maxlags, :nclusters, :order, :order_aic, :order_bic,
+        # Kernel struct names; the exported `Bartlett`, `Parzen`,
+        # `QuadraticSpectral`, `Truncated` and `TukeyHanning` are aliases for these,
+        # and these are the names that appear when a kernel is displayed.
+        :BartlettKernel, :ParzenKernel, :QuadraticSpectralKernel, :TruncatedKernel,
+        :TukeyHanningKernel,
+        # Cluster caches
+        :CRCache, :CRModelCache,
+        # Abstract supertypes available for dispatch
+        :BandwidthType, :CR, :LagSelector,
+        # Bandwidth selection for moment smoothers
+        :optimal_bandwidth))
+end
 end
