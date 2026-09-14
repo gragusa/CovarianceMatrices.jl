@@ -225,4 +225,30 @@ using StatsAPI
         @test VARHAC(Val(:auto)) == VARHAC(AICSelector(), AutoLags())
         @test_throws "Use :aic, :bic, or :fixed" VARHAC(:auto)
     end
+
+    @testset "DriscollKraay identifier types" begin
+        tis = repeat(1:5, inner = 4)
+        iis = repeat(1:4, outer = 5)
+        X = randn(20, 3)
+        ref = aVar(DriscollKraay(Bartlett(2), tis = tis, iis = iis), X)
+
+        # Identifiers of any type, and of differing types between the two
+        # dimensions, are mapped to groups identically by both call forms.
+        @test aVar(DriscollKraay(Bartlett(2), tis, iis), X) ≈ ref
+        @test aVar(DriscollKraay(Bartlett(2), float.(tis), float.(iis)), X) ≈ ref
+        @test aVar(DriscollKraay(Bartlett(2), float.(tis), iis), X) ≈ ref
+        @test aVar(DriscollKraay(Bartlett(2), string.(tis), iis), X) ≈ ref
+        @test aVar(
+            DriscollKraay(
+                Bartlett(2),
+                CovarianceMatrices.Clustering(tis),
+                CovarianceMatrices.Clustering(iis)
+            ),
+            X
+        ) ≈ ref
+
+        # Both index arrays are required; the estimator has no meaning without them.
+        @test_throws "requires time indices" DriscollKraay(Bartlett(2))
+        @test_throws "requires entity indices" DriscollKraay(Bartlett(2), tis = tis)
+    end
 end

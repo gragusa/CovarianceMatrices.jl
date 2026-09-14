@@ -1483,7 +1483,7 @@ end
 ##DriscollKraay
 =========#
 """
-    DriscollKraay{K, D} <: AVarEstimator
+    DriscollKraay{K, D, I} <: AVarEstimator
 
 Driscoll-Kraay estimator for panel data with cross-sectional and temporal dependence.
 
@@ -1499,6 +1499,10 @@ where
 - `K::HAC`: HAC kernel for temporal dependence (Bartlett, Parzen, etc.)
 - `tis`: Time dimension indices (panel identifier for time)
 - `iis`: Cross-section dimension indices (panel identifier for units)
+
+Both index arrays are required and may hold identifiers of any type; they are
+mapped to contiguous group numbers by [`Clustering`](@ref). The two arrays need
+not share an element type.
 
 # Mathematical Foundation
 The Driscoll-Kraay estimator computes:
@@ -1529,21 +1533,25 @@ ve = DriscollKraay(Bartlett{Andrews}(), tis=time_ids, iis=unit_ids)
 ve = DriscollKraay(Parzen(4), tis=years, iis=countries)
 ```
 """
-struct DriscollKraay{K, D} <: Correlated
+struct DriscollKraay{K, D, I} <: Correlated
     K::K
     tis::D
-    iis::D
+    iis::I
+
+    function DriscollKraay{K, D, I}(kernel, tis, iis) where {K, D, I}
+        return new{K, D, I}(kernel, tis, iis)
+    end
 end
 
 function DriscollKraay(K::HAC; tis = nothing, iis = nothing)
-    return DriscollKraay(K, Clustering(tis), Clustering(iis))
+    return DriscollKraay(K, tis, iis)
 end
-function DriscollKraay(
-        K::HAC,
-        tis::AbstractArray{T},
-        iis::AbstractArray{T}
-) where {T <: AbstractFloat}
-    return DriscollKraay(K, Clustering(tis), Clustering(iis))
+
+function DriscollKraay(K::HAC, tis, iis)
+    tis === nothing && throw(ArgumentError("DriscollKraay requires time indices; pass `tis`."))
+    iis === nothing && throw(ArgumentError("DriscollKraay requires entity indices; pass `iis`."))
+    ct, ci = Clustering(tis), Clustering(iis)
+    return DriscollKraay{typeof(K), typeof(ct), typeof(ci)}(K, ct, ci)
 end
 
 """
