@@ -232,6 +232,33 @@ using GLM
         @test optimalbw(Bartlett(4), X) == CovarianceMatrices.bandwidth(aVar(Bartlett(4), X))
     end
 
+    @testset "optimalbw covers moment smoothers" begin
+        # Bandwidth selection is spelled `optimalbw` for every estimator family.
+        # A smoother's bandwidth follows a rate in the sample size, so the method
+        # takes `T` rather than a moment matrix.
+        @test optimalbw(UniformSmoother(0), 1000) ≈ 2.0 * 1000^(1 / 3)
+        @test optimalbw(TriangularSmoother(0), 1000) ≈ 1.5 * 1000^(1 / 5)
+        @test optimalbw(UniformSmoother(5), 500) ≈ optimalbw(UniformSmoother(0), 500)
+
+        # Both families answer the same generic function: the HAC and smoother
+        # methods resolve through one binding, not two look-alike names.
+        @test which(optimalbw, Tuple{UniformSmoother, Int}).module === CovarianceMatrices
+        @test length(methods(optimalbw, Tuple{MomentSmoother, Int})) == 2
+        @test !isempty(methods(optimalbw, Tuple{HAC, AbstractMatrix}))
+
+        # `optimal_bandwidth` is the deprecated spelling: it still returns the
+        # same value and warns.
+        @test (@test_deprecated CovarianceMatrices.optimal_bandwidth(
+            UniformSmoother(0), 1000)) ≈ optimalbw(UniformSmoother(0), 1000)
+        @test (@test_deprecated CovarianceMatrices.optimal_bandwidth(
+            TriangularSmoother(0), 1000)) ≈ optimalbw(TriangularSmoother(0), 1000)
+
+        # The deprecated name is no longer part of the declared surface.
+        @static if VERSION >= v"1.11"
+            @test !Base.ispublic(CovarianceMatrices, :optimal_bandwidth)
+        end
+    end
+
     @testset "demeaner" begin
         # `demeaner` operates on the moment matrix; a CR estimator is not a valid
         # first argument.

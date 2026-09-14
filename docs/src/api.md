@@ -23,6 +23,9 @@ StatsBase.stderror
 
 ### Bandwidth Selection
 
+`optimalbw` is the single entry point for bandwidth selection. HAC kernels select
+from the moment matrix; moment smoothers follow a rate rule in the sample size.
+
 ```@docs
 optimalbw
 ```
@@ -161,12 +164,10 @@ the result and estimator accessors documented above. `BartlettKernel`,
 [`TukeyHanning`](@ref) are aliases for them, and these are the names that appear
 when a kernel is displayed. [`CRCache`](@ref) and [`CRModelCache`](@ref) are the
 cluster caches. `BandwidthType`, `CR` and `LagSelector` are abstract supertypes
-available for dispatch. `optimal_bandwidth` selects the bandwidth for moment
-smoothers.
+available for dispatch.
 
 ```@docs
 nclusters
-optimal_bandwidth
 ```
 
 ## Everything Else Is Internal

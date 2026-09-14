@@ -707,25 +707,25 @@ using Random
     end
 
     @testset "Optimal Bandwidth Functions" begin
-        # Test optimal_bandwidth for both kernel types
+        # Test optimalbw for both kernel types
 
-        @testset "UniformSmoother optimal_bandwidth" begin
+        @testset "UniformSmoother optimalbw" begin
             # Formula: 2.0 * T^(1/3)
-            @test CovarianceMatrices.optimal_bandwidth(CovarianceMatrices.UniformSmoother(0), 100) ≈
+            @test CovarianceMatrices.optimalbw(CovarianceMatrices.UniformSmoother(0), 100) ≈
                   2.0 * 100^(1/3)
-            @test CovarianceMatrices.optimal_bandwidth(CovarianceMatrices.UniformSmoother(0), 1000) ≈
+            @test CovarianceMatrices.optimalbw(CovarianceMatrices.UniformSmoother(0), 1000) ≈
                   2.0 * 1000^(1/3)
-            @test CovarianceMatrices.optimal_bandwidth(CovarianceMatrices.UniformSmoother(5), 500) ≈
+            @test CovarianceMatrices.optimalbw(CovarianceMatrices.UniformSmoother(5), 500) ≈
                   2.0 * 500^(1/3)
         end
 
-        @testset "TriangularSmoother optimal_bandwidth" begin
+        @testset "TriangularSmoother optimalbw" begin
             # Formula: 1.5 * T^(1/5)
-            @test CovarianceMatrices.optimal_bandwidth(CovarianceMatrices.TriangularSmoother(0), 100) ≈
+            @test CovarianceMatrices.optimalbw(CovarianceMatrices.TriangularSmoother(0), 100) ≈
                   1.5 * 100^(1/5)
-            @test CovarianceMatrices.optimal_bandwidth(CovarianceMatrices.TriangularSmoother(0), 1000) ≈
+            @test CovarianceMatrices.optimalbw(CovarianceMatrices.TriangularSmoother(0), 1000) ≈
                   1.5 * 1000^(1/5)
-            @test CovarianceMatrices.optimal_bandwidth(CovarianceMatrices.TriangularSmoother(5), 500) ≈
+            @test CovarianceMatrices.optimalbw(CovarianceMatrices.TriangularSmoother(5), 500) ≈
                   1.5 * 500^(1/5)
         end
     end

@@ -24,6 +24,9 @@ function Base.getproperty(k::HAC, s::Symbol)
     return getfield(k, s)
 end
 
+# Bandwidth selection is spelled `optimalbw` for every estimator family.
+Base.@deprecate optimal_bandwidth(k::MomentSmoother, T::Int) optimalbw(k, T) false
+
 for f in (:AICs, :BICs, :order_aic, :order_bic, :order)
     @eval function $f(k::VARHAC)
         Base.depwarn(

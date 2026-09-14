@@ -128,8 +128,6 @@ export AbstractAsymptoticVarianceEstimator,
         # Cluster caches
         :CRCache, :CRModelCache,
         # Abstract supertypes available for dispatch
-        :BandwidthType, :CR, :LagSelector,
-        # Bandwidth selection for moment smoothers
-        :optimal_bandwidth))
+        :BandwidthType, :CR, :LagSelector))
 end
 end
