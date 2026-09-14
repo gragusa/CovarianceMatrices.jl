@@ -221,6 +221,7 @@ function aVar(
         demean = false,
         prewhite = false,
         scale = true,
+        scaleby::Union{Nothing, Real} = nothing,
         kwargs...)
     # Get moment matrix with residual adjustment
     a = residual_adjustment(k, m)
@@ -240,13 +241,14 @@ function aVar(
     kw = kernelweights(k, X)
     kw === nothing || (kw = kw[midx])
     return aVar(k, Mm; demean = demean, prewhite = prewhite, scale = scale,
-        weights = kw)
+        scaleby = scaleby, weights = kw)
 end
 
 function aVar(
         k::CR,
         m::RegressionModel;
         scale = true,
+        scaleby::Union{Nothing, Real} = nothing,
         kwargs...)
     H = residual_adjustment(k, m)
     X = modelmatrix(m)
@@ -258,7 +260,8 @@ function aVar(
     Σ = mapreduce(+, zip(combs, V)) do (c, v)
         (-1)^(length(c) - 1)*v
     end
-    scale && rdiv!(Σ, numobs(m))
+    scale, scaleby = _scale_arguments(scale, scaleby)
+    scalevar!(Σ, scale, scaleby, numobs(m))
     return CovarianceMatrix(Σ, k)
 end
 
@@ -513,7 +516,7 @@ function residual_adjustment(k::CachedCRModel, m::RegressionModel)
 end
 
 """
-    aVar(k::CachedCRModel, m::RegressionModel; scale=true, kwargs...)
+    aVar(k::CachedCRModel, m::RegressionModel; scale=true, scaleby=nothing, kwargs...)
 
 Compute asymptotic variance using cached leverage adjustments.
 Only the residual-dependent parts are computed; leverage adjustments are reused from cache.
@@ -522,6 +525,7 @@ function aVar(
         k::CachedCRModel,
         m::RegressionModel;
         scale = true,
+        scaleby::Union{Nothing, Real} = nothing,
         kwargs...)
     cache = k.cache
     H = cache.leverage_adjustments
@@ -539,7 +543,8 @@ function aVar(
         sign * v
     end
 
-    scale ? rdiv!(Σ, numobs(m)) : Σ
+    scale, scaleby = _scale_arguments(scale, scaleby)
+    return scalevar!(Σ, scale, scaleby, numobs(m))
 end
 
 """

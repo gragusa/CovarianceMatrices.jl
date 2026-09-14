@@ -8,6 +8,9 @@ using Test
 using CovarianceMatrices
 using LinearAlgebra
 using StatsAPI
+using Random
+using DataFrames
+using GLM
 
 @testset "Edge Cases and Error Paths" begin
     @testset "ipinv edge cases" begin
@@ -268,5 +271,54 @@ using StatsAPI
         # Both index arrays are required; the estimator has no meaning without them.
         @test_throws "requires time indices" DriscollKraay(Bartlett(2))
         @test_throws "requires entity indices" DriscollKraay(Bartlett(2), tis = tis)
+    end
+end
+
+@testset "scale switch and scaleby divisor" begin
+    Random.seed!(20260915)
+    X = randn(50, 3)
+    n = size(X, 1)
+
+    unscaled = parent(aVar(HC0(), X; scale = false))
+
+    @testset "matrix entry point" begin
+        # `scale=true` divides by the number of observations.
+        @test parent(aVar(HC0(), X)) * n ≈ unscaled
+        # `scaleby` divides by the value given, integer or float.
+        @test parent(aVar(HC0(), X; scaleby = 97)) * 97 ≈ unscaled
+        @test parent(aVar(HC0(), X; scaleby = 47.5)) * 47.5 ≈ unscaled
+        # A divisor supersedes the switch rather than compounding with it.
+        @test parent(aVar(HC0(), X; scale = true, scaleby = 97)) ≈
+              parent(aVar(HC0(), X; scaleby = 97))
+        @test parent(aVar(HC0(), X; scale = false, scaleby = 97)) ≈
+              parent(aVar(HC0(), X; scaleby = 97))
+    end
+
+    @testset "invalid arguments" begin
+        @test_throws "must be a positive finite number" aVar(HC0(), X; scaleby = 0)
+        @test_throws "must be a positive finite number" aVar(HC0(), X; scaleby = -2.0)
+        @test_throws "must be a positive finite number" aVar(HC0(), X; scaleby = Inf)
+        @test_throws ArgumentError aVar(HC0(), X; scaleby = NaN)
+        @test_throws "must be a `Bool`" aVar(HC0(), X; scale = :yes)
+        @test_throws "pass the divisor as `scaleby` alone" aVar(
+            HC0(), X; scale = 97, scaleby = 5)
+    end
+
+    @testset "deprecated numeric scale" begin
+        # The old overloaded form still divides by the value it is given.
+        deprecated = @test_deprecated aVar(HC0(), X; scale = 97)
+        @test parent(deprecated) * 97 ≈ unscaled
+    end
+
+    @testset "regression entry points" begin
+        y = X[:, 1]
+        df = DataFrame(y = y, x = X[:, 2], z = X[:, 3], g = repeat(1:10, inner = 5))
+        model = lm(@formula(y ~ x + z), df)
+
+        for k in (HC1(), Bartlett(2), CR0(df.g))
+            ref = parent(aVar(k, model; scale = false))
+            @test parent(aVar(k, model)) * nobs(model) ≈ ref
+            @test parent(aVar(k, model; scaleby = 43)) * 43 ≈ ref
+        end
     end
 end
