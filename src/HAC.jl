@@ -80,7 +80,7 @@ Supports operations with UniformScaling without allocation.
 struct ZeroMat end
 Base.:-(J::UniformScaling, Z::ZeroMat) = J
 Base.:+(J::UniformScaling, Z::ZeroMat) = J
-LinearAlgebra.adjoint(Z::ZeroMat) = Z
+Base.adjoint(Z::ZeroMat) = Z
 
 """
     kernelestimator!(k::HAC, V::AbstractMatrix, Q::AbstractMatrix, Z::AbstractMatrix, bw)
