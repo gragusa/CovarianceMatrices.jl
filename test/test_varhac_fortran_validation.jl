@@ -17,6 +17,9 @@ FORTRAN Parameters mapping:
 - IMODEL=3 → Fixed lag order
 - IMAX=4 → Maximum lag order
 - IMEAN=1 → Remove means, IMEAN=0 → Keep means
+
+The FORTRAN AAA matrix is the spectral density at frequency zero, which is the
+per-observation scale `aVar` returns under its default `scale = true`.
 """
 
 using CovarianceMatrices
@@ -181,7 +184,7 @@ end
         )
 
         # Compute Julia result
-        julia_result = aVar(vh_julia, fortran_data; demean = demean, scale = false)
+        julia_result = aVar(vh_julia, fortran_data; demean = demean)
 
         # Compare results
         println("\n=== CASE 1 COMPARISON ===")
@@ -211,7 +214,7 @@ end
             params_ref["IMAX"],
             params_ref["IMEAN"]
         )
-        julia_result = aVar(vh_julia, fortran_data; demean = demean, scale = false)
+        julia_result = aVar(vh_julia, fortran_data; demean = demean)
 
         println("\n=== CASE 2 COMPARISON ===")
         println("FORTRAN AAA matrix:")
@@ -237,7 +240,7 @@ end
             params_ref["IMAX"],
             params_ref["IMEAN"]
         )
-        julia_result = aVar(vh_julia, fortran_data; demean = demean, scale = false)
+        julia_result = aVar(vh_julia, fortran_data; demean = demean)
 
         println("\n=== CASE 3 COMPARISON ===")
         println("FORTRAN AAA matrix:")
@@ -263,7 +266,7 @@ end
             params_ref["IMAX"],
             params_ref["IMEAN"]
         )
-        julia_result = aVar(vh_julia, fortran_data; demean = demean, scale = false)
+        julia_result = aVar(vh_julia, fortran_data; demean = demean)
 
         println("\n=== CASE 4 COMPARISON ===")
         println("FORTRAN AAA matrix:")
@@ -299,7 +302,7 @@ end
                 params_ref["IMODEL"], params_ref["IMAX"], params_ref["IMEAN"])
 
             # Test aVar API directly
-            julia_result = aVar(vh_julia, fortran_data; demean = demean, scale = false)
+            julia_result = aVar(vh_julia, fortran_data; demean = demean)
 
             # Tolerance handling for IMEAN=0 case
             tolerance = params_ref["IMEAN"] == 0 ? 0.035 : COMPARISON_TOL
@@ -330,17 +333,17 @@ end
         for (selector, strategy, desc) in vh_configs
             # Create VARHAC with explicit Float32 type
             vh_f32 = VARHAC{typeof(selector), typeof(strategy), Float32}(
-                nothing, nothing, nothing, nothing, selector, strategy)
+                selector, strategy)
 
             # Test aVar with Float32 data
-            result_f32 = aVar(vh_f32, fortran_data_f32; demean = true, scale = false)
+            result_f32 = aVar(vh_f32, fortran_data_f32; demean = true)
 
             # Verify type stability
             @test eltype(result_f32) == Float32
-            @test result_f32 isa Matrix{Float32}
+            @test parent(result_f32) isa Matrix{Float32}
 
             # Test different demean options
-            result_f32_nodemean = aVar(vh_f32, fortran_data_f32; demean = false, scale = false)
+            result_f32_nodemean = aVar(vh_f32, fortran_data_f32; demean = false)
             @test eltype(result_f32_nodemean) == Float32
 
             println("✅ $desc: Type stable Float32 ✓")
@@ -356,8 +359,8 @@ end
         println("✅ Constructor type parameters working correctly")
 
         # Test type promotion behavior
-        result_f64 = aVar(vh_default_f64, fortran_data; demean = true, scale = false)
-        result_f32_from_f64_vh = aVar(vh_default_f64, fortran_data_f32; demean = true, scale = false)
+        result_f64 = aVar(vh_default_f64, fortran_data; demean = true)
+        result_f32_from_f64_vh = aVar(vh_default_f64, fortran_data_f32; demean = true)
 
         @test eltype(result_f64) == Float64
         @test eltype(result_f32_from_f64_vh) == Float32  # Should follow input data type
@@ -372,8 +375,8 @@ end
         small_data = fortran_data[1:20, :]
         vh_small = VARHAC(AICSelector(), SameLags(2))  # Small lag to avoid overfitting
 
-        @test_nowarn result_small = aVar(vh_small, small_data; demean = true, scale = false)
-        result_small = aVar(vh_small, small_data; demean = true, scale = false)
+        @test_nowarn result_small = aVar(vh_small, small_data; demean = true)
+        result_small = aVar(vh_small, small_data; demean = true)
         @test size(result_small) == (5, 5)
         @test result_small ≈ result_small'  # Check numerical symmetry
 
@@ -381,7 +384,7 @@ end
         for T_size in [50, 100, 200]
             data_subset = fortran_data[1:T_size, :]
             vh_auto = VARHAC(AICSelector(), AutoLags())
-            result_auto = aVar(vh_auto, data_subset; demean = true, scale = false)
+            result_auto = aVar(vh_auto, data_subset; demean = true)
 
             @test size(result_auto) == (5, 5)
             @test result_auto ≈ result_auto'  # Check numerical symmetry

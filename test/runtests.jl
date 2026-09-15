@@ -8,6 +8,7 @@ using Test
 include("aqua.jl")
 include("explicit_imports.jl")
 include("test_core.jl")
+include("test_covariance_matrix.jl")
 #include("test_glm_integration.jl")  # Requires RCall - use test_glm_integration_julia.jl instead
 include("test_glm_integration_julia.jl")  # Pure Julia GLM tests
 include("test_interface.jl")

@@ -8,6 +8,9 @@ using Test
 using CovarianceMatrices
 using LinearAlgebra
 using StatsAPI
+using Random
+using DataFrames
+using GLM
 
 @testset "Edge Cases and Error Paths" begin
     @testset "ipinv edge cases" begin
@@ -51,19 +54,22 @@ using StatsAPI
         @test size(V) == (2, 2)
     end
 
-    @testset "Kernel locking" begin
-        # Test unlock_kernel! and lock_kernel!
+    @testset "Estimators are unchanged by use" begin
         k = Bartlett{Andrews}()
-
         X = randn(100, 2)
-        aVar(k, X)  # Sets bandwidth
-        bw1 = k.bw[1]
-        @test bw1 > 0
 
-        # Lock and verify bandwidth doesn't change on repeated aVar call
-        k.wlock .= true
-        aVar(k, X .* 2)  # Different data
-        @test k.bw[1] == bw1  # Bandwidth should not change when locked
+        V1 = aVar(k, X)
+        @test CovarianceMatrices.bandwidth(V1) > 0
+
+        # A second dataset selects its own bandwidth without disturbing the first
+        # result or the estimator.
+        bw1 = CovarianceMatrices.bandwidth(V1)
+        V2 = aVar(k, X .* 2 .+ randn(100, 2))
+        @test CovarianceMatrices.bandwidth(V1) == bw1
+        @test k == Bartlett{Andrews}()
+
+        # Reusing the estimator on the same data reproduces the same estimate.
+        @test aVar(k, X) == V1
     end
 
     @testset "aVar with various inputs" begin
@@ -194,5 +200,186 @@ using StatsAPI
         # GMM Misspecified without hessian - should throw
         m3 = EdgeTestGMM(randn(10, 4), randn(3), G, nothing)
         @test_throws ArgumentError CovarianceMatrices._check_dimensions(Misspecified(), m3)
+    end
+
+    @testset "aVar rejects non-real element types" begin
+        # A complex moment matrix has no asymptotic-variance method and must fail
+        # immediately rather than recursing.
+        @test_throws MethodError aVar(HC0(), ComplexF64.(randn(20, 2)))
+    end
+
+    @testset "workingoptimalbw with a fixed bandwidth" begin
+        X = randn(50, 2)
+        Z, D, bw = CovarianceMatrices.workingoptimalbw(Bartlett(4), X)
+        @test Z === X
+        @test size(D) == (0, 0)
+        @test eltype(D) == eltype(X)
+        @test bw == 4.0
+    end
+
+    @testset "optimalbw with a fixed bandwidth" begin
+        X = randn(50, 2)
+
+        # A fixed bandwidth is part of the specification, so it is returned
+        # unchanged and does not depend on the data or the keyword arguments.
+        for 𝒦 in (Bartlett(4), Parzen(4), QuadraticSpectral(4),
+            TukeyHanning(4), CovarianceMatrices.Truncated(4))
+            @test optimalbw(𝒦, X) == 4.0
+            @test optimalbw(𝒦, X; demean = true, prewhite = true) == 4.0
+        end
+
+        @test optimalbw(Bartlett(2.5), X) == 2.5
+        @test optimalbw(Bartlett(4), X) ==
+              CovarianceMatrices.bandwidth(aVar(Bartlett(4), X))
+    end
+
+    @testset "optimalbw covers moment smoothers" begin
+        # Bandwidth selection is spelled `optimalbw` for every estimator family.
+        # A smoother's bandwidth follows a rate in the sample size, so the method
+        # takes `T` rather than a moment matrix.
+        @test optimalbw(UniformSmoother(0), 1000) ≈ 2.0 * 1000^(1 / 3)
+        @test optimalbw(TriangularSmoother(0), 1000) ≈ 1.5 * 1000^(1 / 5)
+        @test optimalbw(UniformSmoother(5), 500) ≈ optimalbw(UniformSmoother(0), 500)
+
+        # Both families answer the same generic function: the HAC and smoother
+        # methods resolve through one binding, not two look-alike names.
+        @test which(optimalbw, Tuple{UniformSmoother, Int}).module === CovarianceMatrices
+        @test length(methods(optimalbw, Tuple{MomentSmoother, Int})) == 2
+        @test !isempty(methods(optimalbw, Tuple{HAC, AbstractMatrix}))
+
+        # `optimal_bandwidth` is the deprecated spelling: it still returns the
+        # same value and warns.
+        @test (@test_deprecated CovarianceMatrices.optimal_bandwidth(
+            UniformSmoother(0), 1000)) ≈ optimalbw(UniformSmoother(0), 1000)
+        @test (@test_deprecated CovarianceMatrices.optimal_bandwidth(
+            TriangularSmoother(0), 1000)) ≈ optimalbw(TriangularSmoother(0), 1000)
+
+        # The deprecated name is no longer part of the declared surface.
+        @static if VERSION >= v"1.11"
+            @test !Base.ispublic(CovarianceMatrices, :optimal_bandwidth)
+        end
+    end
+
+    @testset "demeaner" begin
+        # `demeaner` operates on the moment matrix; a CR estimator is not a valid
+        # first argument.
+        @test_throws MethodError CovarianceMatrices.demeaner(CR0([1, 1, 2, 2]), randn(4, 2))
+    end
+
+    @testset "VARHAC symbol constructors" begin
+        @test VARHAC(:aic) == VARHAC(AICSelector(), SameLags(8))
+        @test VARHAC(:bic) == VARHAC(BICSelector(), SameLags(8))
+        # Automatic lag selection is spelled `Val(:auto)`; a bare symbol names a
+        # selector, so `:auto` is rejected with the list of valid selectors.
+        @test VARHAC(Val(:auto)) == VARHAC(AICSelector(), AutoLags())
+        @test_throws "Use :aic, :bic, or :fixed" VARHAC(:auto)
+    end
+
+    @testset "DriscollKraay identifier types" begin
+        tis = repeat(1:5, inner = 4)
+        iis = repeat(1:4, outer = 5)
+        X = randn(20, 3)
+        ref = aVar(DriscollKraay(Bartlett(2), tis = tis, iis = iis), X)
+
+        # Identifiers of any type, and of differing types between the two
+        # dimensions, are mapped to groups identically by both call forms.
+        @test aVar(DriscollKraay(Bartlett(2), tis, iis), X) ≈ ref
+        @test aVar(DriscollKraay(Bartlett(2), float.(tis), float.(iis)), X) ≈ ref
+        @test aVar(DriscollKraay(Bartlett(2), float.(tis), iis), X) ≈ ref
+        @test aVar(DriscollKraay(Bartlett(2), string.(tis), iis), X) ≈ ref
+        @test aVar(
+            DriscollKraay(
+                Bartlett(2),
+                CovarianceMatrices.Clustering(tis),
+                CovarianceMatrices.Clustering(iis)
+            ),
+            X
+        ) ≈ ref
+
+        # Both index arrays are required; the estimator has no meaning without them.
+        @test_throws "requires time indices" DriscollKraay(Bartlett(2))
+        @test_throws "requires entity indices" DriscollKraay(Bartlett(2), tis = tis)
+    end
+end
+
+@testset "scale switch and scaleby divisor" begin
+    Random.seed!(20260915)
+    X = randn(50, 3)
+    n = size(X, 1)
+
+    unscaled = parent(aVar(HC0(), X; scale = false))
+
+    @testset "matrix entry point" begin
+        # `scale=true` divides by the number of observations.
+        @test parent(aVar(HC0(), X)) * n ≈ unscaled
+        # `scaleby` divides by the value given, integer or float.
+        @test parent(aVar(HC0(), X; scaleby = 97)) * 97 ≈ unscaled
+        @test parent(aVar(HC0(), X; scaleby = 47.5)) * 47.5 ≈ unscaled
+        # A divisor supersedes the switch rather than compounding with it.
+        @test parent(aVar(HC0(), X; scale = true, scaleby = 97)) ≈
+              parent(aVar(HC0(), X; scaleby = 97))
+        @test parent(aVar(HC0(), X; scale = false, scaleby = 97)) ≈
+              parent(aVar(HC0(), X; scaleby = 97))
+    end
+
+    @testset "invalid arguments" begin
+        @test_throws "must be a positive finite number" aVar(HC0(), X; scaleby = 0)
+        @test_throws "must be a positive finite number" aVar(HC0(), X; scaleby = -2.0)
+        @test_throws "must be a positive finite number" aVar(HC0(), X; scaleby = Inf)
+        @test_throws ArgumentError aVar(HC0(), X; scaleby = NaN)
+        @test_throws "must be a `Bool`" aVar(HC0(), X; scale = :yes)
+        @test_throws "pass the divisor as `scaleby` alone" aVar(
+            HC0(), X; scale = 97, scaleby = 5)
+    end
+
+    @testset "deprecated numeric scale" begin
+        # The old overloaded form still divides by the value it is given.
+        deprecated = @test_deprecated aVar(HC0(), X; scale = 97)
+        @test parent(deprecated) * 97 ≈ unscaled
+    end
+
+    @testset "regression entry points" begin
+        y = X[:, 1]
+        df = DataFrame(y = y, x = X[:, 2], z = X[:, 3], g = repeat(1:10, inner = 5))
+        model = lm(@formula(y ~ x + z), df)
+
+        for k in (HC1(), Bartlett(2), CR0(df.g))
+            ref = parent(aVar(k, model; scale = false))
+            @test parent(aVar(k, model)) * nobs(model) ≈ ref
+            @test parent(aVar(k, model; scaleby = 43)) * 43 ≈ ref
+        end
+    end
+
+    @testset "VARHAC" begin
+        vh = VARHAC(2)
+        scaled = parent(aVar(vh, X))
+
+        # VARHAC estimates the spectral density at frequency zero, so the default
+        # `scale = true` result is already the per-observation estimate and the
+        # unscaled one is `n` times larger, as for every other estimator.
+        @test parent(aVar(vh, X; scale = false)) ≈ scaled * n
+        @test !(parent(aVar(vh, X; scale = false)) ≈ scaled)
+        @test parent(aVar(vh, X; scaleby = 97)) ≈ scaled * n / 97
+        @test parent(aVar(vh, X; scaleby = 12.5)) ≈ scaled * n / 12.5
+        # A divisor supersedes the switch rather than compounding with it.
+        @test parent(aVar(vh, X; scale = false, scaleby = 97)) ≈
+              parent(aVar(vh, X; scaleby = 97))
+
+        @test_throws "must be a positive finite number" aVar(vh, X; scaleby = 0)
+        @test_throws "must be a `Bool`" aVar(vh, X; scale = :yes)
+        deprecated = @test_deprecated aVar(vh, X; scale = 97)
+        @test parent(deprecated) ≈ scaled * n / 97
+    end
+
+    @testset "VARHAC matches the per-observation scale of other estimators" begin
+        # When lag selection picks order zero the fitted VAR is empty, so VARHAC reduces
+        # exactly to the sample covariance. That pins down the scale of its result: it is
+        # the per-observation scale `HC0` returns by default, not a sum over observations.
+        Random.seed!(20260915)
+        W = randn(2000, 2)
+        vh0 = VARHAC(2)
+        @test all(iszero, CovarianceMatrices.information(aVar(vh0, W)).order)
+        @test parent(aVar(vh0, W)) ≈ parent(aVar(HC0(), W))
+        @test parent(aVar(vh0, W; scale = false)) ≈ parent(aVar(HC0(), W; scale = false))
     end
 end

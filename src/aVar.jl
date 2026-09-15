@@ -1,7 +1,7 @@
 """
 Asymptotic Variance Estimators
 
-aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhite::Bool=false, scale=true)
+aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhite::Bool=false, scale::Bool=true, scaleby::Union{Nothing, Real}=nothing)
 
 The asymptotic variance is the matrix `Σ` of the asymptotic approximation:
 
@@ -13,13 +13,16 @@ where `X̄` is the sample mean of the observations in `m` (averaged along `dims`
 
 ## Note
 
+- The element type of `m` must be `Real`.
 - `prewhite` argument is only relevant for `HAC` estimator in which case the matrix is _prewhitened_ using a VAR(1) model.
-- The `scale` parameter should indicate whether the variance be scaled by the number of observations. If `scale` is an `Int` that value is used to scale the variance. This is convenient for degrees of freedom correction or in cases where the variance is needed without scaling.
+- `scale` selects whether the variance is divided by the number of observations.
+- `scaleby` divides the variance by an explicit positive divisor instead, which is
+  convenient for a degrees-of-freedom correction. It takes precedence over `scale`.
+- `scale = true` produces the same per-observation scale for every estimator. `VARHAC`
+  estimates the spectral density at frequency zero, which already carries that scaling,
+  so `scale = false` multiplies it by the number of observations rather than leaving it
+  untouched.
 """
-function aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix; kwargs...)
-    aVar(k, float.(m), kwargs...)
-end
-
 function aVar(
         k::AbstractAsymptoticVarianceEstimator,
         m::AbstractMatrix{T};
@@ -27,24 +30,70 @@ function aVar(
         dims::Int = 1,
         means::Union{Nothing, AbstractArray} = nothing,
         prewhite::Bool = false,
-        scale = true
+        scale = true,
+        scaleby::Union{Nothing, Real} = nothing,
+        weights = nothing
 ) where {T <: Real}
     Base.require_one_based_indexing(m)
+    scale, scaleby = _scale_arguments(scale, scaleby)
     X = demean ? demeaner(m; means = means, dims = dims) : m
-    Shat = avar(k, X; prewhite = isa(k, HAC) ? prewhite : false)
-    scalevar!(Shat, scale, size(X, dims))
-    return Shat
+    Shat, info = avar_with_info(k, X; prewhite = isa(k, HAC) ? prewhite : false, weights)
+    scalevar!(Shat, scale, scaleby, size(X, dims))
+    return CovarianceMatrix(Shat, k, info)
 end
 
-scalevar!(Shat, scale::Bool, n::Int) = scale ? rdiv!(Shat, n) : Shat
-scalevar!(Shat, scale::Int, n::Int) = rdiv!(Shat, scale)
-function scalevar!(Shat, scale, n)
-    throw(ArgumentError("`scale` should be either an Int or a Bool."))
+"""
+    avar_with_info(k, X; prewhite=false)
+
+Compute the estimate and the quantities selected from the data.
+
+Returns `(V, info)`. Estimators that select nothing from the data return an empty
+`info`; `HAC` kernels report the bandwidth and kernel weights, `VARHAC` the selected
+lag orders and information criteria.
+"""
+function avar_with_info(k, X; weights = nothing, kwargs...)
+    return avar(k, X; kwargs...), NamedTuple()
 end
-function scalevar!(Shat, scale::Int, n)
-    @warn "The variance is being scaled by an AbstractFloat"
-    rdiv!(X, scale)
+
+"""
+    _scale_arguments(scale, scaleby) -> (scale::Bool, scaleby)
+
+Normalize the scaling keywords to a `Bool` switch and an optional divisor, accepting
+the deprecated numeric `scale` as a divisor.
+"""
+function _scale_arguments(scale, scaleby)
+    if !isa(scale, Bool)
+        isa(scale, Real) ||
+            throw(ArgumentError("`scale` must be a `Bool`; pass a divisor as `scaleby`."))
+        Base.depwarn(
+            "`scale=$scale` as a divisor is deprecated: use `scaleby=$scale` to divide by an explicit value.",
+            :aVar)
+        scaleby === nothing ||
+            throw(ArgumentError("`scale` was given a divisor and `scaleby` was also given; pass the divisor as `scaleby` alone."))
+        return true, scale
+    end
+    return scale, scaleby
 end
+
+function _checkdivisor(d)
+    (isfinite(d) && d > 0) ||
+        throw(ArgumentError("`scaleby` must be a positive finite number, got $d."))
+end
+
+# A divisor supersedes the `scale` switch: the variance is divided once.
+function scalevar!(Shat, scale::Bool, scaleby, n)
+    _checkdivisor(scaleby)
+    return rdiv!(Shat, scaleby)
+end
+scalevar!(Shat, scale::Bool, ::Nothing, n) = scale ? rdiv!(Shat, n) : Shat
+
+# Counterpart of `scalevar!` for estimators whose result already carries the `1/n`.
+# `scale=true` is then a no-op and `scale=false` must undo it.
+function unscalevar!(Shat, scale::Bool, scaleby, n)
+    _checkdivisor(scaleby)
+    return rmul!(Shat, n / scaleby)
+end
+unscalevar!(Shat, scale::Bool, ::Nothing, n) = scale ? Shat : rmul!(Shat, n)
 
 function aVar(
         k::VARHAC,
@@ -53,21 +102,18 @@ function aVar(
         dims::Int = 1,
         means::Union{Nothing, AbstractArray} = nothing,
         scale = true,
+        scaleby::Union{Nothing, Real} = nothing,
         kwargs...
 ) where {T <: Real}
     Base.require_one_based_indexing(m)
+    scale, scaleby = _scale_arguments(scale, scaleby)
     X = demean ? demeaner(m; means = means, dims = dims) : m
-    Shat = avar(k, X)
-    # VARHAC returns spectral density at frequency zero, which is already
-    # properly scaled for variance estimation, so no additional scaling needed
-    # However, maintain API consistency for user expectations
-    if scale === false
-        # User explicitly requested no scaling, but VARHAC is already properly scaled
-        return Shat
-    else
-        # VARHAC already provides proper variance scaling
-        return Shat
-    end
+    Shat, info = avar_with_info(k, X)
+    # VARHAC estimates the spectral density at frequency zero, which is already on the
+    # per-observation scale that the other estimators reach through `scale=true`.
+    # Reaching the unscaled convention therefore multiplies by `n` rather than dividing.
+    unscalevar!(Shat, scale, scaleby, size(X, dims))
+    return CovarianceMatrix(Shat, k, info)
 end
 
 const a𝕍ar = aVar

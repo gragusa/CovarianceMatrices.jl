@@ -155,10 +155,9 @@ using Distributions
 
             # Check that selected orders are reasonable for white noise
             # (Most equations should select low lag orders)
-            orders = CovarianceMatrices.order_aic(vh)
-            if !isnothing(orders) && !isempty(orders)
-                @test mean(orders) <= 3  # Should be low for white noise
-            end
+            orders = CovarianceMatrices.order_aic(S)
+            @test !isempty(orders)
+            @test mean(orders) <= 3  # Should be low for white noise
         end
 
         @testset "Known VAR Process Test" begin
@@ -297,7 +296,7 @@ using Distributions
             @test isposdef(Symmetric(S)) || isposdef(Symmetric(S + 1e-10*I))
 
             # order_aic should be m × 2 matrix (one row per variable)
-            order = CovarianceMatrices.order_aic(vh)
+            order = CovarianceMatrices.order_aic(S)
             @test size(order) == (m, 2)
             @test all(order[:, 1] .>= 0) && all(order[:, 1] .<= K_own)
             @test all(order[:, 2] .>= 0) && all(order[:, 2] .<= K_cross)
@@ -428,11 +427,11 @@ using Distributions
             @test S ≈ S'
             @test isposdef(Symmetric(S)) || isposdef(Symmetric(S + 1e-10*I))
 
-            # Check that AICs/BICs are populated
-            @test !isnothing(vh.AICs)
-            @test !isnothing(vh.BICs)
-            @test !isnothing(vh.order_aic)
-            @test !isnothing(vh.order_bic)
+            # The result carries the lag selection that produced it
+            @test !isnothing(CovarianceMatrices.AICs(S))
+            @test !isnothing(CovarianceMatrices.BICs(S))
+            @test !isnothing(CovarianceMatrices.order_aic(S))
+            @test !isnothing(CovarianceMatrices.order_bic(S))
         end
 
         @testset "DifferentOwnLags Edge Cases" begin

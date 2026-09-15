@@ -19,6 +19,7 @@ using Statistics: Statistics
 using StatsAPI: StatsAPI, vcov, stderror
 using StatsBase: StatsBase, RegressionModel, coef, cov, mean, modelmatrix, weights
 include("Clustering.jl")
+include("CovarianceMatrix.jl")
 include("types.jl")
 include("equality.jl")
 include("HAC.jl")
@@ -38,6 +39,7 @@ include("api.jl")
 include("regression_model_estimators.jl")
 # VcovSpec wrapper for model + vcov() syntax
 include("vcov_spec.jl")
+include("deprecated.jl")
 
 export AbstractAsymptoticVarianceEstimator,
        Uncorrelated,
@@ -77,6 +79,11 @@ export AbstractAsymptoticVarianceEstimator,
        aVar,
        a𝕍ar,
        optimalbw,
+       CovarianceMatrix,
+       estimator,
+       bandwidth,
+       kernelweights,
+       information,
        vcov,
        stderror,
        DriscollKraay,
@@ -105,4 +112,23 @@ export AbstractAsymptoticVarianceEstimator,
        weight_matrix,
 # VcovSpec
        VcovSpec
+
+# Supported but not exported. Names here are part of the API and follow the
+# package's compatibility guarantees; every other non-exported name is internal
+# and may change in any release. `public` is 1.11 syntax, so it is built as an
+# expression to keep the module parseable on the 1.10 compat floor.
+@static if VERSION >= v"1.11"
+    eval(Expr(:public,
+        # Result and estimator accessors
+        :AICs, :BICs, :maxlags, :nclusters, :order, :order_aic, :order_bic,
+        # Kernel struct names; the exported `Bartlett`, `Parzen`,
+        # `QuadraticSpectral`, `Truncated` and `TukeyHanning` are aliases for these,
+        # and these are the names that appear when a kernel is displayed.
+        :BartlettKernel, :ParzenKernel, :QuadraticSpectralKernel, :TruncatedKernel,
+        :TukeyHanningKernel,
+        # Cluster caches
+        :CRCache, :CRModelCache,
+        # Abstract supertypes available for dispatch
+        :BandwidthType, :CR, :LagSelector))
+end
 end

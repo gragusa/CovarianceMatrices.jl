@@ -51,17 +51,16 @@ using Random
         @test Bartlett{Andrews}() != Bartlett{NeweyWest}()
         @test Bartlett(2) != Bartlett{Andrews}()
 
-        # A fitted estimator stays equal to its unfitted self: fitting populates
-        # bw/kw/wlock, which equality ignores.
+        # An estimator used for an estimate is unchanged by it: the bandwidth the
+        # data selected belongs to the result.
         Random.seed!(1)
         X = randn(200, 3)
-        fitted = Bartlett{Andrews}()
-        unfitted = Bartlett{Andrews}()
-        aVar(fitted, X)
-        # fit-state did change (bandwidth is an unexported accessor)
-        @test CovarianceMatrices.bandwidth(fitted) != CovarianceMatrices.bandwidth(unfitted)
-        @test fitted == unfitted
-        @test hash(fitted) == hash(unfitted)
+        used = Bartlett{Andrews}()
+        unused = Bartlett{Andrews}()
+        V = aVar(used, X)
+        @test CovarianceMatrices.bandwidth(V) > 0
+        @test used == unused
+        @test hash(used) == hash(unused)
     end
 
     @testset "VARHAC equality reflects selector and strategy only" begin
@@ -71,14 +70,13 @@ using Random
 
         Random.seed!(2)
         X = randn(200, 3)
-        fitted = VARHAC(AICSelector(), SameLags(4))
-        unfitted = VARHAC(AICSelector(), SameLags(4))
-        aVar(fitted, X)
-        # fit-state did change (order_aic is an unexported accessor)
-        @test CovarianceMatrices.order_aic(fitted) !== nothing
-        @test CovarianceMatrices.order_aic(unfitted) === nothing
-        @test fitted == unfitted
-        @test hash(fitted) == hash(unfitted)
+        used = VARHAC(AICSelector(), SameLags(4))
+        unused = VARHAC(AICSelector(), SameLags(4))
+        V = aVar(used, X)
+        # The lag selection belongs to the result, not to the estimator.
+        @test CovarianceMatrices.order_aic(V) !== nothing
+        @test used == unused
+        @test hash(used) == hash(unused)
     end
 
     @testset "hash is consistent with ==" begin

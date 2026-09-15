@@ -240,11 +240,8 @@ function aVar(
         demean = false,
         prewhite = false,
         scale = true,
+        scaleby::Union{Nothing, Real} = nothing,
         kwargs...)
-    # Set kernel weights if needed (for HAC with automatic bandwidth)
-    setkernelweights!(k, m)
-    # Lock weights to prevent changes
-    wlock = unlock_kernel!(k)
     # Get moment matrix with residual adjustment
     a = residual_adjustment(k, m)
     X = modelmatrix(m)
@@ -256,20 +253,21 @@ function aVar(
     end
     # Handle rank deficiency
     midx = mask(m)
-    Σ = if sum(midx) == size(M, 2)
-        aVar(k, M; demean = demean, prewhite = prewhite, scale = scale)
-    else
-        aVar(k, M[:, midx]; demean = demean, prewhite = prewhite, scale = scale)
-    end
-    ## Reset lock
-    lock_kernel!(k, wlock)
-    return Σ
+    Mm = sum(midx) == size(M, 2) ? M : M[:, midx]
+    # Bandwidth selection weights come from the model matrix, not from the moment
+    # matrix: they must give the intercept weight 0, and the intercept column of
+    # the moment matrix is not constant.
+    kw = kernelweights(k, X)
+    kw === nothing || (kw = kw[midx])
+    return aVar(k, Mm; demean = demean, prewhite = prewhite, scale = scale,
+        scaleby = scaleby, weights = kw)
 end
 
 function aVar(
         k::CR,
         m::RegressionModel;
         scale = true,
+        scaleby::Union{Nothing, Real} = nothing,
         kwargs...)
     H = residual_adjustment(k, m)
     X = modelmatrix(m)
@@ -281,19 +279,9 @@ function aVar(
     Σ = mapreduce(+, zip(combs, V)) do (c, v)
         (-1)^(length(c) - 1)*v
     end
-    scale ? rdiv!(Σ, numobs(m)) : Σ
-end
-
-unlock_kernel!(k::AbstractAsymptoticVarianceEstimator) = return false
-function unlock_kernel!(k::HAC{T}) where {T <: Union{NeweyWest, Andrews}}
-    wlock = k.wlock[1]
-    k.wlock .= true
-    return wlock
-end
-
-lock_kernel!(k::AbstractAsymptoticVarianceEstimator, wlock) = nothing
-function lock_kernel!(k::HAC{T}, wlock) where {T <: Union{NeweyWest, Andrews}}
-    k.wlock .= wlock
+    scale, scaleby = _scale_arguments(scale, scaleby)
+    scalevar!(Σ, scale, scaleby, numobs(m))
+    return CovarianceMatrix(Σ, k)
 end
 
 """
@@ -336,7 +324,7 @@ function StatsAPI.vcov(
     # Apply DOF correction if requested
     dofadjust && dofcorrect!(Vo, k, m)
 
-    return Vo
+    return CovarianceMatrix(Vo, k, information(A))
 end
 
 # Finite-sample correction factor for Driscoll-Kraay, matching the scalar
@@ -547,7 +535,7 @@ function residual_adjustment(k::CachedCRModel, m::RegressionModel)
 end
 
 """
-    aVar(k::CachedCRModel, m::RegressionModel; scale=true, kwargs...)
+    aVar(k::CachedCRModel, m::RegressionModel; scale=true, scaleby=nothing, kwargs...)
 
 Compute asymptotic variance using cached leverage adjustments.
 Only the residual-dependent parts are computed; leverage adjustments are reused from cache.
@@ -556,6 +544,7 @@ function aVar(
         k::CachedCRModel,
         m::RegressionModel;
         scale = true,
+        scaleby::Union{Nothing, Real} = nothing,
         kwargs...)
     cache = k.cache
     H = cache.leverage_adjustments
@@ -573,7 +562,8 @@ function aVar(
         sign * v
     end
 
-    scale ? rdiv!(Σ, numobs(m)) : Σ
+    scale, scaleby = _scale_arguments(scale, scaleby)
+    return scalevar!(Σ, scale, scaleby, numobs(m))
 end
 
 """

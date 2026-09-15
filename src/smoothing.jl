@@ -101,16 +101,26 @@ kernel_k2(::TriangularSmoother) = 2 / 3  # ∫k(a)² da = 2/3
 kernel_k3(::TriangularSmoother) = 1 / 2  # ∫k(a) da = 1/2
 
 """
-    optimal_bandwidth(kernel::MomentSmoother, T::Int) -> Float64
+    optimalbw(kernel::MomentSmoother, T::Int) -> Float64
 
-Compute optimal bandwidth for given kernel and sample size T.
+Return the bandwidth the smoothing kernel's rate rule selects for a sample of size `T`.
+
+Unlike the [`HAC`](@ref) methods of `optimalbw`, which read the bandwidth off the data,
+a moment smoother's bandwidth follows a closed-form rate in the sample size alone, so
+this method takes `T` rather than a moment matrix.
+
+# Examples
+```julia
+optimalbw(UniformSmoother(0), 1000)      # 2 * 1000^(1/3)
+optimalbw(TriangularSmoother(0), 1000)   # 1.5 * 1000^(1/5)
+```
 """
-function optimal_bandwidth(::UniformSmoother, T::Int)
+function optimalbw(::UniformSmoother, T::Int)
     # Optimal rate T^(1/3) for uniform kernel
     return 2.0 * T^(1.0 / 3.0)
 end
 
-function optimal_bandwidth(::TriangularSmoother, T::Int)
+function optimalbw(::TriangularSmoother, T::Int)
     # Optimal rate T^(1/5) for triangular kernel
     return 1.5 * T^(1.0 / 5.0)
 end

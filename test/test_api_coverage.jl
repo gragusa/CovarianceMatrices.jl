@@ -294,3 +294,44 @@ using StatsAPI
         @test size(V2) == (k, k)
     end
 end
+
+@testset "Declared API surface" begin
+    # Every name here is supported: it is either exported or declared `public`.
+    # Adding a name is a deliberate API extension; removing one is breaking.
+    public_names = [
+        :AICs, :BICs, :maxlags, :nclusters, :order, :order_aic, :order_bic,
+        :BartlettKernel, :ParzenKernel, :QuadraticSpectralKernel,
+        :TruncatedKernel, :TukeyHanningKernel,
+        :CRCache, :CRModelCache,
+        :BandwidthType, :CR, :LagSelector]
+
+    @testset "public names resolve" begin
+        for name in public_names
+            @test isdefined(CovarianceMatrices, name)
+        end
+    end
+
+    @testset "public names are not exported" begin
+        for name in public_names
+            @test !Base.isexported(CovarianceMatrices, name)
+        end
+    end
+
+    if VERSION >= v"1.11"
+        @testset "public names are declared public" begin
+            for name in public_names
+                @test Base.ispublic(CovarianceMatrices, name)
+            end
+        end
+
+        @testset "no undeclared names are public" begin
+            all_names = names(CovarianceMatrices; all = true)
+            declared = Set(public_names) ∪
+                       Set(filter(n -> Base.isexported(CovarianceMatrices, n), all_names))
+            leaked = filter(all_names) do name
+                name ∉ declared && Base.ispublic(CovarianceMatrices, name)
+            end
+            @test isempty(leaked)
+        end
+    end
+end

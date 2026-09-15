@@ -260,7 +260,17 @@ function _avar_tuple_impl(f::NTuple{N, Clustering}, X) where {N}
     end
 end
 
-# Type-stable nclusters
+"""
+    nclusters(k)
+
+Return the number of groups in each clustering dimension of a cluster-robust
+estimator, as a tuple with one entry per dimension.
+
+```julia
+nclusters(CR0(firm))         # (n_firms,)
+nclusters(CR0(firm, year))   # (n_firms, n_years)
+```
+"""
 nclusters(k::CR) = _nclusters(k.g)
 @inline _nclusters(f::Tuple{Clustering}) = (f[1].ngroups,)
 @inline _nclusters(f::Tuple{Clustering, Clustering}) = (f[1].ngroups, f[2].ngroups)

@@ -41,8 +41,8 @@ const CM = CovarianceMatrices
         @test aVar(Uncorrelated(), Z; scale = false) ≈ aVar(HC0(), Z; scale = false)
         # scale=false is the T-fold sum of the default (scale=true) result.
         @test aVar(Uncorrelated(), Z; scale = false) ≈ aVar(Uncorrelated(), Z) .* size(Z, 1)
-        # integer scale divides by that integer (DOF-style correction).
-        @test aVar(Uncorrelated(), Z; scale = size(Z, 1) - 1) ≈
+        # `scaleby` divides by an explicit positive divisor (DOF-style correction).
+        @test aVar(Uncorrelated(), Z; scaleby = size(Z, 1) - 1) ≈
               aVar(Uncorrelated(), Z; scale = false) ./ (size(Z, 1) - 1)
 
         # Model interface: identical to White's HC0.
