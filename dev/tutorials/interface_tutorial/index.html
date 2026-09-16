@@ -1,338 +1,97 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Package Interface Extension · CovarianceMatrices.jl</title><meta name="title" content="Package Interface Extension · CovarianceMatrices.jl"/><meta property="og:title" content="Package Interface Extension · CovarianceMatrices.jl"/><meta property="twitter:title" content="Package Interface Extension · CovarianceMatrices.jl"/><meta name="description" content="Documentation for CovarianceMatrices.jl."/><meta property="og:description" content="Documentation for CovarianceMatrices.jl."/><meta property="twitter:description" content="Documentation for CovarianceMatrices.jl."/><meta property="og:url" content="https://gragusa.github.io/CovarianceMatrices.jl/stable/tutorials/interface_tutorial/"/><meta property="twitter:url" content="https://gragusa.github.io/CovarianceMatrices.jl/stable/tutorials/interface_tutorial/"/><link rel="canonical" href="https://gragusa.github.io/CovarianceMatrices.jl/stable/tutorials/interface_tutorial/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../introduction/">Introduction &amp; Mathematical Foundation</a></li><li><span class="tocitem">Estimators</span><ul><li><a class="tocitem" href="../../estimators/hac/">HAC Estimators</a></li><li><a class="tocitem" href="../../estimators/hc/">Heteroskedasticity-Robust (HC/HR)</a></li><li><a class="tocitem" href="../../estimators/cr/">Clustered Standard Errors (CR)</a></li><li><a class="tocitem" href="../../estimators/varhac/">VARHAC</a></li><li><a class="tocitem" href="../../estimators/smoothed_moments/">Smoothed Moments</a></li><li><a class="tocitem" href="../../estimators/driscoll_kraay/">Driscoll-Kraay</a></li><li><a class="tocitem" href="../../estimators/ewc/">EWC</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../matrix_tutorial/">Matrix Interface</a></li><li><a class="tocitem" href="../glm_tutorial/">GLM Integration</a></li><li class="is-active"><a class="tocitem" href>Package Interface Extension</a><ul class="internal"><li><a class="tocitem" href="#Overview"><span>Overview</span></a></li><li><a class="tocitem" href="#Three-Ways-to-Obtain-a-Variance"><span>Three Ways to Obtain a Variance</span></a></li><li><a class="tocitem" href="#The-Core-Interface"><span>The Core Interface</span></a></li><li><a class="tocitem" href="#Example-1:-Simple-M-Estimator"><span>Example 1: Simple M-Estimator</span></a></li><li><a class="tocitem" href="#Example-2:-Maximum-Likelihood-Model"><span>Example 2: Maximum Likelihood Model</span></a></li><li><a class="tocitem" href="#Example-3:-GMM-Estimator"><span>Example 3: GMM Estimator</span></a></li><li><a class="tocitem" href="#Example-4:-Custom-Model-Without-Inheritance"><span>Example 4: Custom Model Without Inheritance</span></a></li><li><a class="tocitem" href="#Interface-Quick-Reference"><span>Interface Quick Reference</span></a></li><li><a class="tocitem" href="#Best-Practices"><span>Best Practices</span></a></li><li><a class="tocitem" href="#Advanced:-Manual-Variance-Computation"><span>Advanced: Manual Variance Computation</span></a></li><li><a class="tocitem" href="#Testing-Your-Implementation"><span>Testing Your Implementation</span></a></li><li><a class="tocitem" href="#Summary"><span>Summary</span></a></li><li><a class="tocitem" href="#Further-Reading"><span>Further Reading</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../../performance/">Performance</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Package Interface Extension</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Package Interface Extension</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/gragusa/CovarianceMatrices.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/master/docs/src/tutorials/interface_tutorial.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Package-Interface-Tutorial"><a class="docs-heading-anchor" href="#Package-Interface-Tutorial">Package Interface Tutorial</a><a id="Package-Interface-Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Package-Interface-Tutorial" title="Permalink"></a></h1><p>This tutorial demonstrates how to extend CovarianceMatrices.jl to work with custom model types. The package provides a minimal, duck-typed interface that allows any statistical model to obtain robust covariance matrices.</p><h2 id="Overview"><a class="docs-heading-anchor" href="#Overview">Overview</a><a id="Overview-1"></a><a class="docs-heading-anchor-permalink" href="#Overview" title="Permalink"></a></h2><p>CovarianceMatrices.jl uses a <strong>duck-typing</strong> approach: any model that implements a few required methods automatically gains access to all robust covariance estimators. You don&#39;t need to inherit from special types (though you can for semantic clarity).</p><h3 id="Key-Benefits"><a class="docs-heading-anchor" href="#Key-Benefits">Key Benefits</a><a id="Key-Benefits-1"></a><a class="docs-heading-anchor-permalink" href="#Key-Benefits" title="Permalink"></a></h3><ol><li><strong>Minimal interface</strong>: Implement 1-3 methods depending on your needs</li><li><strong>Automatic compatibility</strong>: Works with all estimators (HAC, HC, CR, VARHAC, etc.)</li><li><strong>Flexible design</strong>: Choose between Information and Misspecified variance forms</li><li><strong>Type-safe</strong>: Optional abstract types provide compile-time guarantees</li></ol><h2 id="Three-Ways-to-Obtain-a-Variance"><a class="docs-heading-anchor" href="#Three-Ways-to-Obtain-a-Variance">Three Ways to Obtain a Variance</a><a id="Three-Ways-to-Obtain-a-Variance-1"></a><a class="docs-heading-anchor-permalink" href="#Three-Ways-to-Obtain-a-Variance" title="Permalink"></a></h2><p>The package exposes the same estimators through three layered entry points, from lowest to highest level:</p><ol><li><p><strong>Matrix core — <code>aVar(estimator, Z; scale=false)</code>.</strong> Takes a raw <code>T × m</code> moment or score matrix and returns the long-run covariance <code>Ω</code>. This is the computational core; every higher-level path ultimately calls it. Use it directly when you already hold the moment matrix and want to assemble a variance yourself (see <a href="#Advanced:-Manual-Variance-Computation">Advanced: Manual Variance Computation</a>).</p></li><li><p><strong>Model protocol — <code>vcov(estimator, model)</code> / <code>vcov(estimator, form, model)</code> / <code>stderror(...)</code>.</strong> The extension interface documented in this tutorial. A model that implements <code>momentmatrix</code>, <code>coef</code>, and <code>nobs</code> (plus <code>hessian_objective</code> / <code>jacobian_momentfunction</code> as its variance form requires) gets the full sandwich assembled for it. This is the surface most users implement against.</p></li><li><p><strong>Specification wrapper — <code>model + vcov(estimator)</code>.</strong> <code>vcov(estimator)</code> with a single argument returns a <a href="../../api/#CovarianceMatrices.VcovSpec"><code>VcovSpec</code></a> that simply packages the estimator. The <code>+</code> operator that consumes it is defined by downstream modeling packages (e.g. Regress.jl), not by CovarianceMatrices.jl; this package only provides the wrapper so those packages can offer the <code>model + vcov(...)</code> idiom.</p></li></ol><p>The rest of this tutorial concerns surface 2, the model protocol.</p><h2 id="The-Core-Interface"><a class="docs-heading-anchor" href="#The-Core-Interface">The Core Interface</a><a id="The-Core-Interface-1"></a><a class="docs-heading-anchor-permalink" href="#The-Core-Interface" title="Permalink"></a></h2><h3 id="Required-Methods"><a class="docs-heading-anchor" href="#Required-Methods">Required Methods</a><a id="Required-Methods-1"></a><a class="docs-heading-anchor-permalink" href="#Required-Methods" title="Permalink"></a></h3><p>Every model must implement:</p><ol><li><strong><code>momentmatrix(model)</code></strong>: Return the <span>$T \times m$</span> matrix of moment conditions</li><li><strong><code>StatsAPI.coef(model)</code></strong>: Return the <span>$k$</span>-dimensional parameter vector</li><li><strong><code>StatsAPI.nobs(model)</code></strong>: Return the number of observations</li></ol><h3 id="Optional-Methods-(for-advanced-features)"><a class="docs-heading-anchor" href="#Optional-Methods-(for-advanced-features)">Optional Methods (for advanced features)</a><a id="Optional-Methods-(for-advanced-features)-1"></a><a class="docs-heading-anchor-permalink" href="#Optional-Methods-(for-advanced-features)" title="Permalink"></a></h3><ol><li><strong><code>cross_score(model)</code></strong>: Return <span>$G = \sum_i g_i g_i&#39;$</span> (has default implementation)</li><li><strong><code>hessian_objective(model)</code></strong>: Required for the Misspecified form (<code>vcov</code> throws if missing)</li><li><strong><code>jacobian_momentfunction(model)</code></strong>: Required for <code>GMMLikeModel</code> (<code>vcov</code> throws if missing)</li><li><strong><code>weight_matrix(model)</code></strong>: Optional for GMM; omit (defaults to optimal <code>inv(Ω)</code>)</li></ol><h2 id="Example-1:-Simple-M-Estimator"><a class="docs-heading-anchor" href="#Example-1:-Simple-M-Estimator">Example 1: Simple M-Estimator</a><a id="Example-1:-Simple-M-Estimator-1"></a><a class="docs-heading-anchor-permalink" href="#Example-1:-Simple-M-Estimator" title="Permalink"></a></h2><p>Let&#39;s implement a custom robust regression estimator:</p><pre><code class="language-julia hljs">using CovarianceMatrices, StatsBase, LinearAlgebra
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Package Interface Extension · CovarianceMatrices.jl</title><meta name="title" content="Package Interface Extension · CovarianceMatrices.jl"/><meta property="og:title" content="Package Interface Extension · CovarianceMatrices.jl"/><meta property="twitter:title" content="Package Interface Extension · CovarianceMatrices.jl"/><meta name="description" content="Documentation for CovarianceMatrices.jl."/><meta property="og:description" content="Documentation for CovarianceMatrices.jl."/><meta property="twitter:description" content="Documentation for CovarianceMatrices.jl."/><meta property="og:url" content="https://gragusa.github.io/CovarianceMatrices.jl/stable/tutorials/interface_tutorial/"/><meta property="twitter:url" content="https://gragusa.github.io/CovarianceMatrices.jl/stable/tutorials/interface_tutorial/"/><link rel="canonical" href="https://gragusa.github.io/CovarianceMatrices.jl/stable/tutorials/interface_tutorial/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../introduction/">Introduction &amp; Mathematical Foundation</a></li><li><span class="tocitem">Estimators</span><ul><li><a class="tocitem" href="../../estimators/hac/">HAC Estimators</a></li><li><a class="tocitem" href="../../estimators/hc/">Heteroskedasticity-Robust (HC/HR)</a></li><li><a class="tocitem" href="../../estimators/cr/">Clustered Standard Errors (CR)</a></li><li><a class="tocitem" href="../../estimators/varhac/">VARHAC</a></li><li><a class="tocitem" href="../../estimators/smoothed_moments/">Smoothed Moments</a></li><li><a class="tocitem" href="../../estimators/driscoll_kraay/">Driscoll-Kraay</a></li><li><a class="tocitem" href="../../estimators/ewc/">EWC</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../matrix_tutorial/">Matrix Interface</a></li><li><a class="tocitem" href="../glm_tutorial/">GLM Integration</a></li><li class="is-active"><a class="tocitem" href>Package Interface Extension</a><ul class="internal"><li><a class="tocitem" href="#Overview"><span>Overview</span></a></li><li><a class="tocitem" href="#Three-Ways-to-Obtain-a-Variance"><span>Three Ways to Obtain a Variance</span></a></li><li><a class="tocitem" href="#The-Core-Interface"><span>The Core Interface</span></a></li><li><a class="tocitem" href="#Example-1:-An-M-Estimator"><span>Example 1: An M-Estimator</span></a></li><li><a class="tocitem" href="#Example-2:-A-GMM-Estimator"><span>Example 2: A GMM Estimator</span></a></li><li><a class="tocitem" href="#Duck-Typing"><span>Duck Typing</span></a></li><li><a class="tocitem" href="#Interface-Quick-Reference"><span>Interface Quick Reference</span></a></li><li><a class="tocitem" href="#Best-Practices"><span>Best Practices</span></a></li><li><a class="tocitem" href="#Advanced:-Manual-Variance-Computation"><span>Advanced: Manual Variance Computation</span></a></li><li><a class="tocitem" href="#Testing-Your-Implementation"><span>Testing Your Implementation</span></a></li><li><a class="tocitem" href="#Summary"><span>Summary</span></a></li><li><a class="tocitem" href="#Further-Reading"><span>Further Reading</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../../performance/">Performance</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Package Interface Extension</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Package Interface Extension</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/gragusa/CovarianceMatrices.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/gragusa/CovarianceMatrices.jl/blob/master/docs/src/tutorials/interface_tutorial.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Package-Interface-Tutorial"><a class="docs-heading-anchor" href="#Package-Interface-Tutorial">Package Interface Tutorial</a><a id="Package-Interface-Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Package-Interface-Tutorial" title="Permalink"></a></h1><p>This tutorial demonstrates how to extend CovarianceMatrices.jl to work with custom model types. The package provides a minimal, duck-typed interface that allows any statistical model to obtain robust covariance matrices.</p><h2 id="Overview"><a class="docs-heading-anchor" href="#Overview">Overview</a><a id="Overview-1"></a><a class="docs-heading-anchor-permalink" href="#Overview" title="Permalink"></a></h2><p>CovarianceMatrices.jl uses a <strong>duck-typing</strong> approach: any model that implements a few required methods automatically gains access to all robust covariance estimators. You don&#39;t need to inherit from special types (though you can for semantic clarity).</p><h3 id="Key-Benefits"><a class="docs-heading-anchor" href="#Key-Benefits">Key Benefits</a><a id="Key-Benefits-1"></a><a class="docs-heading-anchor-permalink" href="#Key-Benefits" title="Permalink"></a></h3><ol><li><strong>Minimal interface</strong>: Implement 1-3 methods depending on your needs</li><li><strong>Automatic compatibility</strong>: Works with all estimators (HAC, HC, CR, VARHAC, etc.)</li><li><strong>Flexible design</strong>: Choose between Information and Misspecified variance forms</li><li><strong>Type-safe</strong>: Optional abstract types provide compile-time guarantees</li></ol><h2 id="Three-Ways-to-Obtain-a-Variance"><a class="docs-heading-anchor" href="#Three-Ways-to-Obtain-a-Variance">Three Ways to Obtain a Variance</a><a id="Three-Ways-to-Obtain-a-Variance-1"></a><a class="docs-heading-anchor-permalink" href="#Three-Ways-to-Obtain-a-Variance" title="Permalink"></a></h2><p>The package exposes the same estimators through three layered entry points, from lowest to highest level:</p><ol><li><p><strong>Matrix core — <code>aVar(estimator, Z; scale=false)</code>.</strong> Takes a raw <code>T × m</code> moment or score matrix and returns the long-run covariance <code>Ω</code>. This is the computational core; every higher-level path ultimately calls it. Use it directly when you already hold the moment matrix and want to assemble a variance yourself (see <a href="#Advanced:-Manual-Variance-Computation">Advanced: Manual Variance Computation</a>).</p></li><li><p><strong>Model protocol — <code>vcov(estimator, model)</code> / <code>vcov(estimator, form, model)</code> / <code>stderror(...)</code>.</strong> The extension interface documented in this tutorial. A model that implements <code>momentmatrix</code>, <code>coef</code>, and <code>nobs</code> (plus <code>hessian_objective</code> / <code>jacobian_momentfunction</code> as its variance form requires) gets the full sandwich assembled for it. This is the surface most users implement against.</p></li><li><p><strong>Specification wrapper — <code>model + vcov(estimator)</code>.</strong> <code>vcov(estimator)</code> with a single argument returns a <a href="../../api/#CovarianceMatrices.VcovSpec"><code>VcovSpec</code></a> that simply packages the estimator. The <code>+</code> operator that consumes it is defined by downstream modeling packages (e.g. Regress.jl), not by CovarianceMatrices.jl; this package only provides the wrapper so those packages can offer the <code>model + vcov(...)</code> idiom.</p></li></ol><p>The rest of this tutorial concerns surface 2, the model protocol.</p><h2 id="The-Core-Interface"><a class="docs-heading-anchor" href="#The-Core-Interface">The Core Interface</a><a id="The-Core-Interface-1"></a><a class="docs-heading-anchor-permalink" href="#The-Core-Interface" title="Permalink"></a></h2><h3 id="Required-Methods"><a class="docs-heading-anchor" href="#Required-Methods">Required Methods</a><a id="Required-Methods-1"></a><a class="docs-heading-anchor-permalink" href="#Required-Methods" title="Permalink"></a></h3><p>Every model must implement:</p><ol><li><strong><code>momentmatrix(model)</code></strong>: Return the <span>$T \times m$</span> matrix of moment conditions</li><li><strong><code>StatsAPI.coef(model)</code></strong>: Return the <span>$k$</span>-dimensional parameter vector</li><li><strong><code>StatsAPI.nobs(model)</code></strong>: Return the number of observations</li></ol><h3 id="Optional-Methods-(for-advanced-features)"><a class="docs-heading-anchor" href="#Optional-Methods-(for-advanced-features)">Optional Methods (for advanced features)</a><a id="Optional-Methods-(for-advanced-features)-1"></a><a class="docs-heading-anchor-permalink" href="#Optional-Methods-(for-advanced-features)" title="Permalink"></a></h3><ol><li><strong><code>cross_score(model)</code></strong>: Return <span>$G = \sum_i g_i g_i&#39;$</span> (has default implementation)</li><li><strong><code>hessian_objective(model)</code></strong>: Required for the Misspecified form (<code>vcov</code> throws if missing)</li><li><strong><code>jacobian_momentfunction(model)</code></strong>: Required for <code>GMMLikeModel</code> (<code>vcov</code> throws if missing)</li><li><strong><code>weight_matrix(model)</code></strong>: Optional for GMM; omit (defaults to optimal <code>inv(Ω)</code>)</li></ol><h2 id="Example-1:-An-M-Estimator"><a class="docs-heading-anchor" href="#Example-1:-An-M-Estimator">Example 1: An M-Estimator</a><a id="Example-1:-An-M-Estimator-1"></a><a class="docs-heading-anchor-permalink" href="#Example-1:-An-M-Estimator" title="Permalink"></a></h2><p>Huber regression replaces the squared-error loss with a loss that is quadratic for small residuals and linear beyond a cutoff <code>c</code>, which limits the influence of outliers. The estimator solves <span>$\sum_t \psi(y_t - x_t&#39;\beta) x_t = 0$</span>, so the moment matrix is <span>$\psi(r_t) x_t$</span>.</p><pre><code class="language-julia hljs">using CovarianceMatrices, RDatasets, DataFrames, StatsAPI, StatsBase, LinearAlgebra
 
-&quot;&quot;&quot;
-Custom robust regression using Huber&#39;s M-estimator.
-&quot;&quot;&quot;
-struct HuberRegression
+struct HuberRegression &lt;: CovarianceMatrices.MLikeModel
     X::Matrix{Float64}
     y::Vector{Float64}
     β::Vector{Float64}
-    c::Float64  # Tuning parameter for Huber loss
-
-    function HuberRegression(X, y; c=1.345)
-        β = huber_fit(X, y, c)
-        new(X, y, β, c)
-    end
+    c::Float64
 end
 
-# Helper: Huber loss derivative (ψ function)
-function huber_ψ(r, c)
-    return abs(r) ≤ c ? r : c * sign(r)
-end
+huber_ψ(r, c) = abs(r) &lt;= c ? r : c * sign(r)
 
-# Simple IRLS fitting (for illustration)
-function huber_fit(X, y, c; maxiter=100, tol=1e-6)
-    β = X \ y  # Start with OLS
-    for iter in 1:maxiter
+function HuberRegression(X, y; c = 1.345, maxiter = 200, tol = 1e-10)
+    β = X \ y                       # start from OLS
+    for _ in 1:maxiter               # iteratively reweighted least squares
         r = y - X * β
-        ψ_r = huber_ψ.(r, c)
-        β_new = (X&#39; * X) \ (X&#39; * (y - r + ψ_r))
-
-        if norm(β_new - β) &lt; tol
-            return β_new
-        end
-        β = β_new
+        w = [abs(ri) &lt;= c ? 1.0 : c / abs(ri) for ri in r]
+        βnew = (X&#39; * (w .* X)) \ (X&#39; * (w .* y))
+        converged = norm(βnew - β) &lt; tol
+        β = βnew
+        converged &amp;&amp; break
     end
-    return β
-end
+    return HuberRegression(X, y, β, c)
+end</code></pre><p>The three required methods:</p><pre><code class="language-julia hljs">CovarianceMatrices.momentmatrix(m::HuberRegression) =
+    huber_ψ.(m.y - m.X * m.β, m.c) .* m.X
 
-# ============================================================================
-# Required Interface Implementation
-# ============================================================================
+StatsAPI.coef(m::HuberRegression) = m.β
+StatsAPI.nobs(m::HuberRegression) = length(m.y)</code></pre><p><code>hessian_objective</code> returns the Hessian of the minimized objective, which is positive definite at the optimum. <code>Information</code> inverts it directly, so returning the negative log-likelihood Hessian with the wrong sign produces negative variances.</p><pre><code class="language-julia hljs">function CovarianceMatrices.hessian_objective(m::HuberRegression)
+    r = m.y - m.X * m.β
+    w = [abs(ri) &lt;= m.c ? 1.0 : 0.0 for ri in r]
+    return m.X&#39; * (w .* m.X)
+end</code></pre><p>Fit the CAPM market model from the <code>Capm</code> data. Monthly returns have fat tails, so the Huber slope differs from the OLS slope:</p><pre><code class="language-julia hljs">capm = dataset(&quot;Ecdat&quot;, &quot;Capm&quot;)
+y = capm.RFood .- capm.RF
+X = [ones(length(y)) capm.RMRF]
 
-&quot;&quot;&quot;
-Moment matrix: ψ(residual) ⊗ X
-&quot;&quot;&quot;
-function CovarianceMatrices.momentmatrix(model::HuberRegression)
-    r = model.y - model.X * model.β
-    ψ_r = huber_ψ.(r, model.c)
-    return ψ_r .* model.X  # Broadcasting: T × k matrix
-end
-
-&quot;&quot;&quot;
-Parameter estimates
-&quot;&quot;&quot;
-StatsAPI.coef(model::HuberRegression) = model.β
-
-&quot;&quot;&quot;
-Number of observations
-&quot;&quot;&quot;
-StatsAPI.nobs(model::HuberRegression) = length(model.y)
-
-# ============================================================================
-# Usage
-# ============================================================================
-
-# Generate data with outliers
-using Random
-Random.seed!(123)
-
-n = 200
-k = 3
-X = randn(n, k)
-β_true = [2.0, -1.5, 1.0]
-ε = randn(n)
-
-# Add outliers
-outlier_idx = rand(1:n, 10)
-ε[outlier_idx] .+= 10 * randn(10)
-
-y = X * β_true + ε
-
-# Fit model
 model = HuberRegression(X, y)
 
-println(&quot;Estimated coefficients:&quot;)
-println(round.(coef(model), digits=3))
-
-# Robust standard errors with HC3
-se_hc3 = stderror(HC3(), model)
-println(&quot;\nHC3 standard errors:&quot;)
-println(round.(se_hc3, digits=3))
-
-# HAC standard errors (if errors are autocorrelated)
-se_hac = stderror(Bartlett{Andrews}(), model)
-println(&quot;\nHAC standard errors:&quot;)
-println(round.(se_hac, digits=3))
-
-# Covariance matrix
-vcov_hc3 = vcov(HC3(), model)
-println(&quot;\nCovariance matrix condition number: $(round(cond(vcov_hc3), digits=2))&quot;)</code></pre><h2 id="Example-2:-Maximum-Likelihood-Model"><a class="docs-heading-anchor" href="#Example-2:-Maximum-Likelihood-Model">Example 2: Maximum Likelihood Model</a><a id="Example-2:-Maximum-Likelihood-Model-1"></a><a class="docs-heading-anchor-permalink" href="#Example-2:-Maximum-Likelihood-Model" title="Permalink"></a></h2><p>For MLE models, you can optionally inherit from <code>MLikeModel</code> for semantic clarity:</p><pre><code class="language-julia hljs">using CovarianceMatrices, StatsBase, Distributions, Optim
-
-&quot;&quot;&quot;
-Poisson regression via maximum likelihood.
-&quot;&quot;&quot;
-struct PoissonMLE &lt;: CovarianceMatrices.MLikeModel
-    X::Matrix{Float64}
-    y::Vector{Int}
-    β::Vector{Float64}
-    H::Matrix{Float64}  # Negative Hessian at optimum
-
-    function PoissonMLE(X, y)
-        β, H = fit_poisson_mle(X, y)
-        new(X, y, β, H)
-    end
-end
-
-# Fit via numerical optimization
-function fit_poisson_mle(X, y)
-    n, k = size(X)
-
-    # Negative log-likelihood
-    function neg_loglik(β)
-        λ = exp.(X * β)
-        return -sum(y .* log.(λ) - λ)
-    end
-
-    # Optimize
-    result = optimize(neg_loglik, zeros(k), BFGS(), autodiff=:forward)
-    β_hat = Optim.minimizer(result)
-
-    # Compute Hessian
-    H = ForwardDiff.hessian(neg_loglik, β_hat)
-
-    return β_hat, H
-end
-
-# ============================================================================
-# Interface Implementation
-# ============================================================================
-
-&quot;&quot;&quot;
-Score functions (gradient of log-likelihood for each observation)
-&quot;&quot;&quot;
-function CovarianceMatrices.momentmatrix(model::PoissonMLE)
-    λ = exp.(model.X * model.β)
-    residuals = model.y - λ
-    return residuals .* model.X  # T × k
-end
-
-&quot;&quot;&quot;
-Hessian of objective (negative log-likelihood)
-&quot;&quot;&quot;
-CovarianceMatrices.hessian_objective(model::PoissonMLE) = model.H
-
-StatsAPI.coef(model::PoissonMLE) = model.β
-StatsAPI.nobs(model::PoissonMLE) = length(model.y)
-
-# ============================================================================
-# Usage with Variance Forms
-# ============================================================================
-
-using Random
-Random.seed!(456)
-
-n = 300
-k = 2
-X = [ones(n) randn(n)]
-β_true = [0.5, 0.3]
-λ_true = exp.(X * β_true)
-y = [rand(Poisson(λ)) for λ in λ_true]
-
-# Fit model
-poisson_model = PoissonMLE(X, y)
-
-# Information form (assumes correct specification)
-# V = inv(H) where H is Fisher Information
-vcov_info = vcov(HC0(), Information(), poisson_model)
-se_info = stderror(HC0(), Information(), poisson_model)
-
-println(&quot;Information form standard errors:&quot;)
-println(round.(se_info, digits=4))
-
-# Misspecified form (robust sandwich)
-# V = inv(H) * G * inv(H) where G is outer product of scores
-vcov_robust = vcov(HC3(), Misspecified(), poisson_model)
-se_robust = stderror(HC3(), Misspecified(), poisson_model)
-
-println(&quot;\nMisspecified (robust) standard errors:&quot;)
-println(round.(se_robust, digits=4))
-
-# Compare with GLM.jl
-using GLM, DataFrames
-df = DataFrame(y=y, x1=X[:,2])
-glm_model = glm(@formula(y ~ x1), df, Poisson(), LogLink())
-
-println(&quot;\nGLM.jl standard errors (for comparison):&quot;)
-println(round.(stderror(glm_model), digits=4))</code></pre><h2 id="Example-3:-GMM-Estimator"><a class="docs-heading-anchor" href="#Example-3:-GMM-Estimator">Example 3: GMM Estimator</a><a id="Example-3:-GMM-Estimator-1"></a><a class="docs-heading-anchor-permalink" href="#Example-3:-GMM-Estimator" title="Permalink"></a></h2><p>For GMM models with overidentification (<span>$m &gt; k$</span>):</p><pre><code class="language-julia hljs">&quot;&quot;&quot;
-Instrumental variables GMM estimator.
-&quot;&quot;&quot;
-struct IVGMM &lt;: CovarianceMatrices.GMMLikeModel
+DataFrame(coef = [&quot;(Intercept)&quot;, &quot;RMRF&quot;], ols = X \ y, huber = coef(model))</code></pre><div><div style = "float: left;"><span>2×3 DataFrame</span></div><div style = "clear: both;"></div></div><div class = "data-frame" style = "overflow-x: scroll;"><table class = "data-frame" style = "margin-bottom: 6px;"><thead><tr class = "columnLabelRow"><th class = "stubheadLabel" style = "font-weight: bold; text-align: right;">Row</th><th style = "text-align: left;">coef</th><th style = "text-align: left;">ols</th><th style = "text-align: left;">huber</th></tr><tr class = "columnLabelRow"><th class = "stubheadLabel" style = "font-weight: bold; text-align: right;"></th><th title = "String" style = "text-align: left;">String</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th></tr></thead><tbody><tr class = "dataRow"><td class = "rowLabel" style = "font-weight: bold; text-align: right;">1</td><td style = "text-align: left;">(Intercept)</td><td style = "text-align: right;">-0.135823</td><td style = "text-align: right;">-0.235129</td></tr><tr class = "dataRow"><td class = "rowLabel" style = "font-weight: bold; text-align: right;">2</td><td style = "text-align: left;">RMRF</td><td style = "text-align: right;">0.787194</td><td style = "text-align: right;">0.837314</td></tr></tbody></table></div><p>A model carrying a variance form is asked for one explicitly. <code>Information</code> assumes the model is correctly specified; <code>Misspecified</code> builds the sandwich:</p><pre><code class="language-julia hljs">DataFrame(
+    coef = [&quot;(Intercept)&quot;, &quot;RMRF&quot;],
+    information = stderror(HC0(), Information(), model),
+    misspecified = stderror(HC3(), Misspecified(), model),
+    misspecified_hac = stderror(Bartlett{Andrews}(), Misspecified(), model),
+)</code></pre><div><div style = "float: left;"><span>2×4 DataFrame</span></div><div style = "clear: both;"></div></div><div class = "data-frame" style = "overflow-x: scroll;"><table class = "data-frame" style = "margin-bottom: 6px;"><thead><tr class = "columnLabelRow"><th class = "stubheadLabel" style = "font-weight: bold; text-align: right;">Row</th><th style = "text-align: left;">coef</th><th style = "text-align: left;">information</th><th style = "text-align: left;">misspecified</th><th style = "text-align: left;">misspecified_hac</th></tr><tr class = "columnLabelRow"><th class = "stubheadLabel" style = "font-weight: bold; text-align: right;"></th><th title = "String" style = "text-align: left;">String</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th></tr></thead><tbody><tr class = "dataRow"><td class = "rowLabel" style = "font-weight: bold; text-align: right;">1</td><td style = "text-align: left;">(Intercept)</td><td style = "text-align: right;">0.0626249</td><td style = "text-align: right;">0.0961391</td><td style = "text-align: right;">0.103393</td></tr><tr class = "dataRow"><td class = "rowLabel" style = "font-weight: bold; text-align: right;">2</td><td style = "text-align: left;">RMRF</td><td style = "text-align: right;">0.0163115</td><td style = "text-align: right;">0.0312471</td><td style = "text-align: right;">0.034934</td></tr></tbody></table></div><p>The sandwich standard errors are roughly twice the information-form ones. Under correct specification the two agree, so a gap this size is evidence against the assumptions behind the information form.</p><h2 id="Example-2:-A-GMM-Estimator"><a class="docs-heading-anchor" href="#Example-2:-A-GMM-Estimator">Example 2: A GMM Estimator</a><a id="Example-2:-A-GMM-Estimator-1"></a><a class="docs-heading-anchor-permalink" href="#Example-2:-A-GMM-Estimator" title="Permalink"></a></h2><p>A <code>GMMLikeModel</code> may have more moment conditions than parameters. It implements <code>jacobian_momentfunction</code> in place of <code>hessian_objective</code>, and optionally <code>weight_matrix</code>.</p><pre><code class="language-julia hljs">struct IVGMM &lt;: CovarianceMatrices.GMMLikeModel
     y::Vector{Float64}
-    X::Matrix{Float64}  # Endogenous regressors
-    Z::Matrix{Float64}  # Instruments
+    X::Matrix{Float64}   # regressors, some endogenous
+    Z::Matrix{Float64}   # instruments
     β::Vector{Float64}
-    W::Matrix{Float64}  # Weight matrix
-
-    function IVGMM(y, X, Z; W=nothing)
-        β, W_used = fit_iv_gmm(y, X, Z, W)
-        new(y, X, Z, β, W_used)
-    end
+    W::Matrix{Float64}   # weight matrix
 end
 
-function fit_iv_gmm(y, X, Z, W)
-    if W === nothing
-        # Two-stage least squares (2SLS): W = (Z&#39;Z)^{-1}
-        W = inv(Z&#39; * Z)
-    end
-
-    # GMM estimator: β = (X&#39;Z W Z&#39;X)^{-1} X&#39;Z W Z&#39;y
+function IVGMM(y, X, Z)
+    W = inv(Z&#39; * Z)                              # two-stage least squares
     β = (X&#39; * Z * W * Z&#39; * X) \ (X&#39; * Z * W * Z&#39; * y)
-
-    return β, W
+    return IVGMM(y, X, Z, β, W)
 end
 
-# ============================================================================
-# GMM Interface
-# ============================================================================
+CovarianceMatrices.momentmatrix(m::IVGMM) = (m.y - m.X * m.β) .* m.Z
+CovarianceMatrices.jacobian_momentfunction(m::IVGMM) = -(m.Z&#39; * m.X)
+CovarianceMatrices.weight_matrix(m::IVGMM) = m.W
+StatsAPI.coef(m::IVGMM) = m.β
+StatsAPI.nobs(m::IVGMM) = length(m.y)</code></pre><p>The <code>Misspecified</code> form also needs the Hessian of the GMM objective, <span>$G&#39;WG$</span> with <span>$G$</span> the moment Jacobian:</p><pre><code class="language-julia hljs">function CovarianceMatrices.hessian_objective(m::IVGMM)
+    G = CovarianceMatrices.jacobian_momentfunction(m)
+    return G&#39; * m.W * G
+end</code></pre><p>When <code>weight_matrix</code> is supplied, <code>Information</code> computes <span>$(G&#39;WG)^{-1} G&#39;W\Omega WG (G&#39;WG)^{-1}$</span>, which is the same expression the <code>Misspecified</code> form builds from this Hessian, so the two agree for this model. They differ when the model omits <code>weight_matrix</code>: <code>Information</code> then assumes the efficient weight <span>$W = \Omega^{-1}$</span> and reduces to <span>$(G&#39;\Omega^{-1}G)^{-1}$</span>.</p><p>The Grunfeld data estimate investment on firm value, instrumented by capital stock and lagged value, giving three instruments for two parameters:</p><pre><code class="language-julia hljs">grunfeld = dataset(&quot;plm&quot;, &quot;Grunfeld&quot;)
+n = nrow(grunfeld)
 
-&quot;&quot;&quot;
-Moment conditions: Z ⊗ (y - Xβ)
-&quot;&quot;&quot;
-function CovarianceMatrices.momentmatrix(model::IVGMM)
-    residuals = model.y - model.X * model.β
-    return residuals .* model.Z  # T × m (m = number of instruments)
-end
+y_iv = grunfeld.Inv
+X_iv = [ones(n) grunfeld.Value]
+Z_iv = [ones(n) grunfeld.Capital grunfeld.Value]
 
-&quot;&quot;&quot;
-Jacobian of moment function: E[∂g/∂β&#39;] = -Z&#39;X
-&quot;&quot;&quot;
-function CovarianceMatrices.jacobian_momentfunction(model::IVGMM)
-    return -(model.Z&#39; * model.X)  # m × k
-end
+iv = IVGMM(y_iv, X_iv, Z_iv)
 
-&quot;&quot;&quot;
-Weight matrix used in GMM
-&quot;&quot;&quot;
-CovarianceMatrices.weight_matrix(model::IVGMM) = model.W
-
-StatsAPI.coef(model::IVGMM) = model.β
-StatsAPI.nobs(model::IVGMM) = length(model.y)
-
-# ============================================================================
-# Usage
-# ============================================================================
-
-using Random
-Random.seed!(789)
-
-n = 500
-# True structural model: y = X*β + ε where X is endogenous
-β_true = [1.5, -0.8]
-
-# Instruments (2 instruments for 2 endogenous variables)
-Z = randn(n, 3)  # 3 instruments for overidentification
-
-# Endogenous regressors (correlated with errors)
-u = randn(n)  # Common shock
-X = Z * [0.5, 0.3, 0.2, 0.4, 0.1, 0.3] |&gt; x -&gt; reshape(x, n, 2)
-X .+= 0.3 * u  # Endogeneity
-
-# Outcome
-ε = u + 0.5 * randn(n)
-y = X * β_true + ε
-
-# Fit GMM
-iv_model = IVGMM(y, X, Z)
-
-println(&quot;IV-GMM estimates:&quot;)
-println(round.(coef(iv_model), digits=3))
-
-# Robust GMM standard errors (allows misspecification)
-se_gmm = stderror(HC1(), iv_model)
-println(&quot;\nGMM robust standard errors:&quot;)
-println(round.(se_gmm, digits=4))
-
-# With HAC (for time series applications)
-se_gmm_hac = stderror(Bartlett{Andrews}(), iv_model)
-println(&quot;\nGMM-HAC standard errors:&quot;)
-println(round.(se_gmm_hac, digits=4))</code></pre><h2 id="Example-4:-Custom-Model-Without-Inheritance"><a class="docs-heading-anchor" href="#Example-4:-Custom-Model-Without-Inheritance">Example 4: Custom Model Without Inheritance</a><a id="Example-4:-Custom-Model-Without-Inheritance-1"></a><a class="docs-heading-anchor-permalink" href="#Example-4:-Custom-Model-Without-Inheritance" title="Permalink"></a></h2><p>You don&#39;t need to inherit from <code>MLikeModel</code> or <code>GMMLikeModel</code>. The package uses duck typing:</p><pre><code class="language-julia hljs">&quot;&quot;&quot;
-Quantile regression (not inheriting from any abstract type).
-&quot;&quot;&quot;
-struct QuantileRegression
+DataFrame(
+    coef = [&quot;(Intercept)&quot;, &quot;Value&quot;],
+    estimate = coef(iv),
+    information = stderror(HC0(), Information(), iv),
+    misspecified = stderror(HC0(), Misspecified(), iv),
+    clustered = stderror(CR1(grunfeld.Firm), Misspecified(), iv),
+)</code></pre><div><div style = "float: left;"><span>2×5 DataFrame</span></div><div style = "clear: both;"></div></div><div class = "data-frame" style = "overflow-x: scroll;"><table class = "data-frame" style = "margin-bottom: 6px;"><thead><tr class = "columnLabelRow"><th class = "stubheadLabel" style = "font-weight: bold; text-align: right;">Row</th><th style = "text-align: left;">coef</th><th style = "text-align: left;">estimate</th><th style = "text-align: left;">information</th><th style = "text-align: left;">misspecified</th><th style = "text-align: left;">clustered</th></tr><tr class = "columnLabelRow"><th class = "stubheadLabel" style = "font-weight: bold; text-align: right;"></th><th title = "String" style = "text-align: left;">String</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th></tr></thead><tbody><tr class = "dataRow"><td class = "rowLabel" style = "font-weight: bold; text-align: right;">1</td><td style = "text-align: left;">(Intercept)</td><td style = "text-align: right;">-6.97628</td><td style = "text-align: right;">9.77191</td><td style = "text-align: right;">9.77191</td><td style = "text-align: right;">13.6472</td></tr><tr class = "dataRow"><td class = "rowLabel" style = "font-weight: bold; text-align: right;">2</td><td style = "text-align: left;">Value</td><td style = "text-align: right;">0.141386</td><td style = "text-align: right;">0.0136743</td><td style = "text-align: right;">0.0136743</td><td style = "text-align: right;">0.0129995</td></tr></tbody></table></div><p>Clustering by firm widens the standard errors, as it did for the fitted models in the <a href="../glm_tutorial/">GLM Integration Tutorial</a>.</p><h2 id="Duck-Typing"><a class="docs-heading-anchor" href="#Duck-Typing">Duck Typing</a><a id="Duck-Typing-1"></a><a class="docs-heading-anchor-permalink" href="#Duck-Typing" title="Permalink"></a></h2><p>Inheriting from <code>MLikeModel</code> or <code>GMMLikeModel</code> selects the variance forms available and is the clearest way to declare which class a model belongs to. The methods themselves are looked up by dispatch, so a type outside the hierarchy that defines <code>momentmatrix</code>, <code>coef</code> and <code>nobs</code> works with <code>aVar</code> on its moment matrix:</p><pre><code class="language-julia hljs">struct QuantileRegression
     X::Matrix{Float64}
     y::Vector{Float64}
     β::Vector{Float64}
-    τ::Float64  # Quantile level
+    τ::Float64
 end
 
-function QuantileRegression(X, y, τ=0.5)
-    β = quantile_fit(X, y, τ)
-    QuantileRegression(X, y, β, τ)
-end
+CovarianceMatrices.momentmatrix(m::QuantileRegression) =
+    [r &lt; 0 ? m.τ - 1 : m.τ for r in (m.y - m.X * m.β)] .* m.X
+StatsAPI.coef(m::QuantileRegression) = m.β
+StatsAPI.nobs(m::QuantileRegression) = length(m.y)
 
-# Simple quantile regression fit (using convex optimization)
-function quantile_fit(X, y, τ)
-    n, k = size(X)
-
-    # Minimize: sum(ρ_τ(y - Xβ)) where ρ_τ(u) = u(τ - I(u&lt;0))
-    function objective(β)
-        residuals = y - X * β
-        return sum(r -&gt; r * (τ - (r &lt; 0)), residuals)
-    end
-
-    # Use numerical optimization
-    result = optimize(objective, zeros(k), BFGS())
-    return Optim.minimizer(result)
-end
-
-# ============================================================================
-# Minimal Interface
-# ============================================================================
-
-function CovarianceMatrices.momentmatrix(model::QuantileRegression)
-    residuals = model.y - model.X * model.β
-    # Gradient of check function
-    ψ = [r &lt; 0 ? model.τ - 1 : model.τ for r in residuals]
-    return ψ .* model.X
-end
-
-StatsAPI.coef(model::QuantileRegression) = model.β
-StatsAPI.nobs(model::QuantileRegression) = length(model.y)
-
-# Works immediately with all CovarianceMatrices.jl estimators!
-# (No inheritance required)</code></pre><h2 id="Interface-Quick-Reference"><a class="docs-heading-anchor" href="#Interface-Quick-Reference">Interface Quick Reference</a><a id="Interface-Quick-Reference-1"></a><a class="docs-heading-anchor-permalink" href="#Interface-Quick-Reference" title="Permalink"></a></h2><h3 id="Methods-Summary"><a class="docs-heading-anchor" href="#Methods-Summary">Methods Summary</a><a id="Methods-Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Methods-Summary" title="Permalink"></a></h3><table><tr><th style="text-align: right">Method</th><th style="text-align: right">Required?</th><th style="text-align: right">Purpose</th><th style="text-align: right">Return Type</th></tr><tr><td style="text-align: right"><code>momentmatrix(model)</code></td><td style="text-align: right">✅ Yes</td><td style="text-align: right">Moment conditions or scores</td><td style="text-align: right"><code>T × m</code> matrix</td></tr><tr><td style="text-align: right"><code>StatsAPI.coef(model)</code></td><td style="text-align: right">✅ Yes</td><td style="text-align: right">Parameter estimates</td><td style="text-align: right"><code>k</code>-vector</td></tr><tr><td style="text-align: right"><code>StatsAPI.nobs(model)</code></td><td style="text-align: right">✅ Yes</td><td style="text-align: right">Sample size</td><td style="text-align: right">Integer</td></tr><tr><td style="text-align: right"><code>cross_score(model)</code></td><td style="text-align: right">Optional</td><td style="text-align: right"><span>$\sum_i g_i g_i&#39;$</span></td><td style="text-align: right"><code>m × m</code> matrix</td></tr><tr><td style="text-align: right"><code>hessian_objective(model)</code></td><td style="text-align: right">Conditional</td><td style="text-align: right">Objective Hessian</td><td style="text-align: right"><code>k × k</code> matrix</td></tr><tr><td style="text-align: right"><code>jacobian_momentfunction(model)</code></td><td style="text-align: right">For GMM</td><td style="text-align: right"><span>$\partial g/\partial \beta&#39;$</span></td><td style="text-align: right"><code>m × k</code> matrix</td></tr><tr><td style="text-align: right"><code>weight_matrix(model)</code></td><td style="text-align: right">For GMM</td><td style="text-align: right">GMM weight matrix</td><td style="text-align: right"><code>m × m</code> matrix</td></tr></table><h3 id="When-to-Implement-Each-Method"><a class="docs-heading-anchor" href="#When-to-Implement-Each-Method">When to Implement Each Method</a><a id="When-to-Implement-Each-Method-1"></a><a class="docs-heading-anchor-permalink" href="#When-to-Implement-Each-Method" title="Permalink"></a></h3><p><strong>Always implement:</strong></p><ul><li><code>momentmatrix(model)</code>: Core of the interface</li><li><code>StatsAPI.coef(model)</code>: Parameter vector</li><li><code>StatsAPI.nobs(model)</code>: Sample size</li></ul><p><strong>Implement for Misspecified form:</strong></p><ul><li><code>hessian_objective(model)</code>: Required for sandwich variance</li></ul><p><strong>Implement for GMM:</strong></p><ul><li><code>jacobian_momentfunction(model)</code>: Derivative of moments w.r.t. parameters</li><li>Optionally <code>weight_matrix(model)</code>: If using suboptimal weight</li></ul><p><strong>Usually skip (has default):</strong></p><ul><li><code>cross_score(model)</code>: Defaults to <code>momentmatrix(model)&#39; * momentmatrix(model)</code></li></ul><h2 id="Best-Practices"><a class="docs-heading-anchor" href="#Best-Practices">Best Practices</a><a id="Best-Practices-1"></a><a class="docs-heading-anchor-permalink" href="#Best-Practices" title="Permalink"></a></h2><h3 id="1.-Scaling-Conventions"><a class="docs-heading-anchor" href="#1.-Scaling-Conventions">1. Scaling Conventions</a><a id="1.-Scaling-Conventions-1"></a><a class="docs-heading-anchor-permalink" href="#1.-Scaling-Conventions" title="Permalink"></a></h3><p><strong>All matrices should be unscaled</strong> (sums, not averages):</p><pre><code class="language-julia hljs"># ✅ Correct: unscaled cross-product
+qr = QuantileRegression(X, y, X \ y, 0.5)
+aVar(HC0(), CovarianceMatrices.momentmatrix(qr))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2×2 CovarianceMatrix from HR0():
+ 0.2492638663541861   0.10901418184003367
+ 0.10901418184003367  5.0245405068806</code></pre><h2 id="Interface-Quick-Reference"><a class="docs-heading-anchor" href="#Interface-Quick-Reference">Interface Quick Reference</a><a id="Interface-Quick-Reference-1"></a><a class="docs-heading-anchor-permalink" href="#Interface-Quick-Reference" title="Permalink"></a></h2><h3 id="Methods-Summary"><a class="docs-heading-anchor" href="#Methods-Summary">Methods Summary</a><a id="Methods-Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Methods-Summary" title="Permalink"></a></h3><table><tr><th style="text-align: right">Method</th><th style="text-align: right">Required?</th><th style="text-align: right">Purpose</th><th style="text-align: right">Return Type</th></tr><tr><td style="text-align: right"><code>momentmatrix(model)</code></td><td style="text-align: right">✅ Yes</td><td style="text-align: right">Moment conditions or scores</td><td style="text-align: right"><code>T × m</code> matrix</td></tr><tr><td style="text-align: right"><code>StatsAPI.coef(model)</code></td><td style="text-align: right">✅ Yes</td><td style="text-align: right">Parameter estimates</td><td style="text-align: right"><code>k</code>-vector</td></tr><tr><td style="text-align: right"><code>StatsAPI.nobs(model)</code></td><td style="text-align: right">✅ Yes</td><td style="text-align: right">Sample size</td><td style="text-align: right">Integer</td></tr><tr><td style="text-align: right"><code>cross_score(model)</code></td><td style="text-align: right">Optional</td><td style="text-align: right"><span>$\sum_i g_i g_i&#39;$</span></td><td style="text-align: right"><code>m × m</code> matrix</td></tr><tr><td style="text-align: right"><code>hessian_objective(model)</code></td><td style="text-align: right">Conditional</td><td style="text-align: right">Objective Hessian</td><td style="text-align: right"><code>k × k</code> matrix</td></tr><tr><td style="text-align: right"><code>jacobian_momentfunction(model)</code></td><td style="text-align: right">For GMM</td><td style="text-align: right"><span>$\partial g/\partial \beta&#39;$</span></td><td style="text-align: right"><code>m × k</code> matrix</td></tr><tr><td style="text-align: right"><code>weight_matrix(model)</code></td><td style="text-align: right">For GMM</td><td style="text-align: right">GMM weight matrix</td><td style="text-align: right"><code>m × m</code> matrix</td></tr></table><h3 id="When-to-Implement-Each-Method"><a class="docs-heading-anchor" href="#When-to-Implement-Each-Method">When to Implement Each Method</a><a id="When-to-Implement-Each-Method-1"></a><a class="docs-heading-anchor-permalink" href="#When-to-Implement-Each-Method" title="Permalink"></a></h3><p><strong>Always implement:</strong></p><ul><li><code>momentmatrix(model)</code>: Core of the interface</li><li><code>StatsAPI.coef(model)</code>: Parameter vector</li><li><code>StatsAPI.nobs(model)</code>: Sample size</li></ul><p><strong>Implement for Misspecified form:</strong></p><ul><li><code>hessian_objective(model)</code>: Required for sandwich variance</li></ul><p><strong>Implement for GMM:</strong></p><ul><li><code>jacobian_momentfunction(model)</code>: Derivative of moments w.r.t. parameters</li><li>Optionally <code>weight_matrix(model)</code>: If using suboptimal weight</li></ul><p><strong>Usually skip (has default):</strong></p><ul><li><code>cross_score(model)</code>: Defaults to <code>momentmatrix(model)&#39; * momentmatrix(model)</code></li></ul><h2 id="Best-Practices"><a class="docs-heading-anchor" href="#Best-Practices">Best Practices</a><a id="Best-Practices-1"></a><a class="docs-heading-anchor-permalink" href="#Best-Practices" title="Permalink"></a></h2><h3 id="1.-Scaling-Conventions"><a class="docs-heading-anchor" href="#1.-Scaling-Conventions">1. Scaling Conventions</a><a id="1.-Scaling-Conventions-1"></a><a class="docs-heading-anchor-permalink" href="#1.-Scaling-Conventions" title="Permalink"></a></h3><p><strong>All matrices should be unscaled</strong> (sums, not averages):</p><pre><code class="language-julia hljs"># ✅ Correct: unscaled cross-product
 function CovarianceMatrices.cross_score(model)
     g = momentmatrix(model)
     return g&#39; * g  # Sum, not mean
@@ -421,4 +180,4 @@ V_gmm = inv(∇g&#39; * inv(Ω_hat) * ∇g)</code></pre><h2 id="Testing-Your-Imp
     if model isa CovarianceMatrices.MLikeModel
         @test_nowarn vcov(HC3(), Information(), model)
     end
-end</code></pre><h2 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h2><ol><li><strong>Minimal effort</strong>: Implement 3 methods, get all estimators</li><li><strong>Maximum flexibility</strong>: Duck typing means no forced inheritance</li><li><strong>Optional features</strong>: Add methods incrementally as needed</li><li><strong>Type safety</strong>: Use abstract types for compile-time checks</li><li><strong>Full power</strong>: Access to all HAC, HC, CR, VARHAC, etc. estimators</li></ol><p>The interface is designed to be <strong>easy to implement</strong> but <strong>powerful to use</strong>. Start minimal, extend as needed.</p><h2 id="Further-Reading"><a class="docs-heading-anchor" href="#Further-Reading">Further Reading</a><a id="Further-Reading-1"></a><a class="docs-heading-anchor-permalink" href="#Further-Reading" title="Permalink"></a></h2><ul><li><a href="../../introduction/">Introduction &amp; Mathematical Foundation</a>: Theory behind the estimators</li><li><a href="../glm_tutorial/">GLM Tutorial</a>: See how GLM.jl integration works</li><li><a href="../../api/">API Reference</a>: Complete API documentation</li><li>Source code: <code>src/model_interface.jl</code> and <code>src/api.jl</code></li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../glm_tutorial/">« GLM Integration</a><a class="docs-footer-nextpage" href="../../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Monday 14 September 2026 23:50">Monday 14 September 2026</span>. Using Julia version 1.13.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><h2 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h2><ol><li><strong>Minimal effort</strong>: Implement 3 methods, get all estimators</li><li><strong>Maximum flexibility</strong>: Duck typing means no forced inheritance</li><li><strong>Optional features</strong>: Add methods incrementally as needed</li><li><strong>Type safety</strong>: Use abstract types for compile-time checks</li><li><strong>Full power</strong>: Access to all HAC, HC, CR, VARHAC, etc. estimators</li></ol><p>The interface is designed to be <strong>easy to implement</strong> but <strong>powerful to use</strong>. Start minimal, extend as needed.</p><h2 id="Further-Reading"><a class="docs-heading-anchor" href="#Further-Reading">Further Reading</a><a id="Further-Reading-1"></a><a class="docs-heading-anchor-permalink" href="#Further-Reading" title="Permalink"></a></h2><ul><li><a href="../../introduction/">Introduction &amp; Mathematical Foundation</a>: Theory behind the estimators</li><li><a href="../glm_tutorial/">GLM Tutorial</a>: See how GLM.jl integration works</li><li><a href="../../api/">API Reference</a>: Complete API documentation</li><li>Source code: <code>src/model_interface.jl</code> and <code>src/api.jl</code></li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../glm_tutorial/">« GLM Integration</a><a class="docs-footer-nextpage" href="../../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Wednesday 16 September 2026 23:45">Wednesday 16 September 2026</span>. Using Julia version 1.13.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
