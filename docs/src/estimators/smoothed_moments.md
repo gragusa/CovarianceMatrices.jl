@@ -60,19 +60,17 @@ k(x) = \begin{cases}
 
 **Usage:**
 
-```julia
-using CovarianceMatrices
+The examples below use the `Capm` data: 516 monthly excess returns on three
+industry portfolios.
 
-# Fixed bandwidth (m_T parameter)
-smoother_uniform = UniformSmoother(5)
+```@example smooth
+using CovarianceMatrices, RDatasets, DataFrames, LinearAlgebra, Statistics
 
-# Compute optimal bandwidth for sample size T
-T = 300
-m_T_optimal = round(Int, 2.0 * T^(1/3))  # ≈ 13 for T=300
-smoother_uniform_optimal = UniformSmoother(m_T_optimal)
+capm = dataset("Ecdat", "Capm")
+X = Matrix(select(capm, [:RFood, :RDur, :RCon])) .- capm.RF
+X = X .- mean(X, dims = 1)
 
-# Use with aVar
-Ω = aVar(smoother_uniform, X)
+aVar(UniformSmoother(5), X)
 ```
 
 ### Triangular Kernel
@@ -93,18 +91,8 @@ k(x) = \begin{cases}
 - Better for strong serial correlation
 
 **Usage:**
-
-```julia
-# Fixed bandwidth (m_T parameter)
-smoother_triangular = TriangularSmoother(5)
-
-# Compute optimal bandwidth for sample size T
-T = 300
-m_T_optimal = round(Int, 1.5 * T^(1/5))  # ≈ 5 for T=300
-smoother_triangular_optimal = TriangularSmoother(m_T_optimal)
-
-# Use with aVar
-Ω = aVar(smoother_triangular, X)
+```@example smooth
+aVar(TriangularSmoother(5), X)
 ```
 
 ## Automatic Bandwidth Selection
@@ -129,62 +117,36 @@ These rates are theoretically optimal for the respective kernels.
 
 ### Usage Examples
 
-```julia
-using CovarianceMatrices, Random, LinearAlgebra
-Random.seed!(123)
+`optimalbw` applies the rate rule for a smoother. It takes a smoother instance and
+the sample size, since the bandwidth depends only on `T`:
 
-# Generate AR(1) time series
-T = 300
-ρ = 0.6
-X = zeros(T, 3)
-for t in 2:T
-    X[t, :] = ρ * X[t-1, :] + randn(3)
-end
+```@example smooth
+T = size(X, 1)
 
-# Compute optimal bandwidths
-m_T_uniform = round(Int, 2.0 * T^(1/3))      # Uniform: T^(1/3) scaling
-m_T_triangular = round(Int, 1.5 * T^(1/5))   # Triangular: T^(1/5) scaling
+bw_uniform = optimalbw(UniformSmoother(0), T)
+bw_triangular = optimalbw(TriangularSmoother(0), T)
 
-# Create smoothers with optimal bandwidths
-smoother_uniform = UniformSmoother(m_T_uniform)
-smoother_triangular = TriangularSmoother(m_T_triangular)
-
-Ω_uniform = aVar(smoother_uniform, X)
-Ω_triangular = aVar(smoother_triangular, X)
-
-println("Uniform kernel trace: $(round(tr(Ω_uniform), digits=3))")
-println("Triangular kernel trace: $(round(tr(Ω_triangular), digits=3))")
-
-# Check eigenvalues (should all be positive)
-println("Uniform min eigenvalue: $(round(minimum(eigvals(Ω_uniform)), digits=6))")
-println("Triangular min eigenvalue: $(round(minimum(eigvals(Ω_triangular)), digits=6))")
+(T = T, uniform = bw_uniform, triangular = bw_triangular)
 ```
 
-## Performance
+```@example smooth
+V_uniform = aVar(UniformSmoother(round(Int, bw_uniform)), X)
+V_triangular = aVar(TriangularSmoother(round(Int, bw_triangular)), X)
 
-The kernel-based implementation provides excellent performance:
-
-```julia
-using BenchmarkTools
-
-# Performance comparison
-T_sizes = [100, 500, 1000, 5000]
-
-for T in T_sizes
-    X = randn(T, 4)
-
-    # Smoothed moments with optimal bandwidth
-    m_T = round(Int, 2.0 * T^(1/3))
-    sm = UniformSmoother(m_T)
-    t_sm = @belapsed aVar($sm, $X)
-
-    # Compare with HAC
-    hac = Bartlett{Andrews}()
-    t_hac = @belapsed aVar($hac, $X)
-
-    println("T=$T: Smoothed=$(round(t_sm*1000, digits=2))ms, HAC=$(round(t_hac*1000, digits=2))ms")
-end
+DataFrame(
+    kernel = ["Uniform", "Triangular"],
+    bandwidth = round.(Int, [bw_uniform, bw_triangular]),
+    trace = [tr(V_uniform), tr(V_triangular)],
+    min_eigenvalue = [
+        minimum(eigvals(Matrix(V_uniform))),
+        minimum(eigvals(Matrix(V_triangular))),
+    ],
+)
 ```
+
+The smallest eigenvalue is positive in both cases: the smoothing construction gives
+a positive semi-definite estimate for any bandwidth, which the kernel HAC estimators
+do not guarantee.
 
 ## Comparison with HAC Estimators
 
@@ -435,7 +397,7 @@ function bandwidth_diagnostic(X)
     Ω_hac = aVar(hac_bartlett, X)
 
     # Get optimal bandwidth for HAC
-    _, _, bw_hac = workingoptimalbw(hac_bartlett, X)
+    bw_hac = optimalbw(hac_bartlett, X)
 
     # Compare bandwidths
     println("HAC bandwidth: $(round(bw_hac, digits=2))")

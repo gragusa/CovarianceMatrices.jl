@@ -1,286 +1,212 @@
 # Matrix Interface Tutorial
 
-This tutorial demonstrates how to use CovarianceMatrices.jl with the matrix interface for direct covariance matrix estimation. This approach is ideal when you have moment conditions or residuals and need to compute robust covariance matrices directly.
+This tutorial shows how to use CovarianceMatrices.jl with the matrix interface for
+direct covariance estimation. Use this approach when you have moment conditions or
+residuals in hand and need a robust covariance matrix without fitting a model
+through GLM.jl.
 
 ## Basic Workflow
 
-The matrix interface follows this general pattern:
+The matrix interface follows this pattern:
 
 1. Prepare your data matrix (moment conditions, residuals, etc.)
-2. Choose an appropriate estimator
-3. Compute the covariance matrix using `aVar()`
+2. Choose an estimator
+3. Compute the covariance matrix with `aVar`
 4. Extract standard errors if needed
 
-```julia
-using CovarianceMatrices, LinearAlgebra, Random
-Random.seed!(123)  # For reproducibility
+```@example matrix
+using CovarianceMatrices, RDatasets, DataFrames, LinearAlgebra, Statistics
 ```
 
 ## Example 1: Time Series with Serial Correlation
 
-Let's start with simulated time series data that exhibits serial correlation:
+The `Capm` data hold 516 monthly returns on three industry portfolios together with
+the market factor and the risk-free rate. Monthly excess returns are serially
+correlated, so they make a natural test case for HAC estimation.
 
-```julia
-# Generate AR(1) time series with multiple variables
-T = 500
-ρ = 0.6
-k = 3
-
-# Initialize
-X = zeros(T, k)
-ε = randn(T, k)
-
-# Generate AR(1) process: X_t = ρ * X_{t-1} + ε_t
-for t in 2:T
-    X[t, :] = ρ * X[t-1, :] + ε[t, :]
-end
-
-println("Generated $(T)×$(k) time series with AR(1) coefficient ρ = $ρ")
+```@example matrix
+capm = dataset("Ecdat", "Capm")
+X = Matrix(select(capm, [:RFood, :RDur, :RCon])) .- capm.RF
+X = X .- mean(X, dims = 1)
+size(X)
 ```
+
+Each column is the demeaned excess return of one portfolio. `aVar` treats the rows
+as observations and estimates the long-run covariance of the column means.
 
 ### HAC Estimation
 
-For time series data, HAC estimators account for both heteroskedasticity and autocorrelation:
+HAC estimators account for both heteroskedasticity and autocorrelation:
 
-```julia
-# 1. Bartlett kernel with Andrews bandwidth selection
-bart_andrews = Bartlett{Andrews}()
-Ω_bart_andrews = aVar(bart_andrews, X)
-println("Bartlett (Andrews): trace = $(round(tr(Ω_bart_andrews), digits=3))")
+```@example matrix
+estimators = [
+    "Bartlett (Andrews)" => Bartlett{Andrews}(),
+    "Bartlett (fixed, 5)" => Bartlett(5),
+    "Parzen (Newey-West)" => Parzen{NeweyWest}(),
+    "Quadratic Spectral" => QuadraticSpectral{Andrews}(),
+]
 
-# 2. Bartlett kernel with fixed bandwidth
-bart_fixed = Bartlett(5)  # bandwidth = 5
-Ω_bart_fixed = aVar(bart_fixed, X)
-println("Bartlett (fixed): trace = $(round(tr(Ω_bart_fixed), digits=3))")
-
-# 3. Parzen kernel with Newey-West bandwidth
-parzen_nw = Parzen{NeweyWest}()
-Ω_parzen_nw = aVar(parzen_nw, X)
-println("Parzen (Newey-West): trace = $(round(tr(Ω_parzen_nw), digits=3))")
-
-# 4. Quadratic Spectral kernel
-qs_andrews = QuadraticSpectral{Andrews}()
-Ω_qs_andrews = aVar(qs_andrews, X)
-println("Quadratic Spectral: trace = $(round(tr(Ω_qs_andrews), digits=3))")
+DataFrame(
+    estimator = first.(estimators),
+    trace = [tr(aVar(e, X)) for e in last.(estimators)],
+)
 ```
 
-### VARHAC Estimation (Recommended for Automatic Approach)
+### VARHAC Estimation
 
-VARHAC eliminates the need for bandwidth selection by fitting a VAR model:
+VARHAC fits a VAR to the moment matrix and reads the long-run covariance off the
+fitted model, so no bandwidth is needed:
 
-```julia
-# Basic VARHAC with AIC selection
-varhac_aic = VARHAC()  # Defaults: AIC, SameLags(8)
-Ω_varhac_aic = aVar(varhac_aic, X)
-println("VARHAC (AIC): trace = $(round(tr(Ω_varhac_aic), digits=3))")
+```@example matrix
+V_aic = aVar(VARHAC(), X)        # defaults: AIC, SameLags(8)
+V_bic = aVar(VARHAC(:bic), X)
 
-# VARHAC with BIC selection
-varhac_bic = VARHAC(:bic)
-Ω_varhac_bic = aVar(varhac_bic, X)
-println("VARHAC (BIC): trace = $(round(tr(Ω_varhac_bic), digits=3))")
-
-# Check selected lag orders
-println("AIC selected lags: ", order(varhac_aic))
-println("BIC selected lags: ", order(varhac_bic))
+DataFrame(
+    selector = ["AIC", "BIC"],
+    trace = [tr(V_aic), tr(V_bic)],
+    lags = [CovarianceMatrices.order(V_aic), CovarianceMatrices.order(V_bic)],
+)
 ```
+
+`order` reads the selected lag length off the result, one entry per column of `X`.
+BIC penalizes lags more heavily than AIC and here selects zero for every column, so
+its estimate reduces to the contemporaneous covariance.
+
+The accessors `order`, `AICs` and `BICs` take the `CovarianceMatrix` that `aVar`
+returns, not the estimator, and are reached through the module since they are not
+exported.
 
 ### Smoothed Moments Estimation
 
-Smith's smoothed moments method provides automatic positive semi-definiteness:
+Smith's smoothed moments method yields a positive semi-definite estimate by
+construction:
 
-```julia
-# Compute optimal bandwidths
+```@example matrix
 T = size(X, 1)
-m_T_uniform = round(Int, 2.0 * T^(1/3))
-m_T_triangular = round(Int, 1.5 * T^(1/5))
+smoothers = [
+    "Uniform (rate rule)" => UniformSmoother(round(Int, 2.0 * T^(1 / 3))),
+    "Triangular (rate rule)" => TriangularSmoother(round(Int, 1.5 * T^(1 / 5))),
+    "Uniform (fixed, 8)" => UniformSmoother(8),
+]
 
-# Uniform kernel (induces Bartlett HAC)
-sm_uniform = UniformSmoother(m_T_uniform)
-Ω_sm_uniform = aVar(sm_uniform, X)
-println("Smoothed Moments (Uniform): trace = $(round(tr(Ω_sm_uniform), digits=3))")
-
-# Triangular kernel (induces Parzen HAC)
-sm_triangular = TriangularSmoother(m_T_triangular)
-Ω_sm_triangular = aVar(sm_triangular, X)
-println("Smoothed Moments (Triangular): trace = $(round(tr(Ω_sm_triangular), digits=3))")
-
-# Fixed bandwidth
-sm_fixed = UniformSmoother(8)
-Ω_sm_fixed = aVar(sm_fixed, X)
-println("Smoothed Moments (Fixed): trace = $(round(tr(Ω_sm_fixed), digits=3))")
+DataFrame(
+    smoother = first.(smoothers),
+    trace = [tr(aVar(s, X)) for s in last.(smoothers)],
+)
 ```
 
 ## Example 2: Cross-Sectional Data with Heteroskedasticity
 
-For cross-sectional data without serial correlation, use HC/HR estimators:
+When observations are independent, the HC/HR estimators correct for
+heteroskedasticity alone:
 
-```julia
-# Generate cross-sectional data with heteroskedasticity
-N = 200
-x = randn(N, 2)
-β = [1.0, -0.5]
-# Heteroskedastic errors: variance depends on x
-σ² = exp.(0.5 * x[:, 1])
-ε = σ² .* randn(N)
-y = x * β + ε
-
-# Compute residuals (this would be your moment conditions)
-residuals = reshape(y - x * β, N, 1)
-
-# HC estimators
-hc_estimators = [HC0(), HC1(), HC2(), HC3(), HC4(), HC5()]
-for (i, hc) in enumerate(hc_estimators)
-    Ω_hc = aVar(hc, residuals)
-    println("HC$(i-1): σ̂² = $(round(Ω_hc[1,1], digits=4))")
-end
+```@example matrix
+resid = reshape(X[:, 1], :, 1)   # one column of moment contributions
+aVar(HC0(), resid)[1, 1]
 ```
+
+The corrections that distinguish `HC1` from `HC5` are functions of the design
+matrix: `HC1` rescales by `n/(n-k)` and `HC2`–`HC5` use the leverage of each
+observation. A bare moment matrix supplies neither, so every variant returns the
+same number here. Apply them to a fitted model — see the
+[GLM Integration Tutorial](glm_tutorial.md) — for the corrections to take effect.
 
 ## Example 3: Clustered Data
 
-For the covariance of a data or moment matrix whose observations are grouped, use
-the `Cluster` estimator. (The `CR0`–`CR3` estimators, with their degrees-of-freedom
-and leverage corrections, are the *regression* interface — see the
+For a data or moment matrix whose observations are grouped, use the `Cluster`
+estimator. The `CR0`–`CR3` estimators, with their degrees-of-freedom and leverage
+corrections, are the *regression* interface — see the
 [GLM Integration Tutorial](glm_tutorial.md). Those corrections need a fitted model's
 design matrix; applied to a bare matrix the CR variants carry no correction and all
-reduce to the same raw cluster sum that `Cluster` returns.)
+reduce to the raw cluster sum that `Cluster` returns.
 
-```julia
-# Generate clustered data
-G = 20  # Number of clusters
-n_per_cluster = 10
-N = G * n_per_cluster
+The Grunfeld data track investment for ten firms over twenty years:
 
-# Cluster indicators
-clusters = repeat(1:G, inner=n_per_cluster)
+```@example matrix
+grunfeld = dataset("plm", "Grunfeld")
+inv_dev = reshape(grunfeld.Inv .- mean(grunfeld.Inv), :, 1)
 
-# Generate clustered data
-cluster_effects = randn(G)
-individual_effects = randn(N)
-y_clustered = cluster_effects[clusters] + 0.5 * individual_effects
-
-# Residuals from some model
-residuals_clustered = reshape(y_clustered .- mean(y_clustered), N, 1)
-
-# Cluster estimator (matrix / moment interface)
-Ω_cluster = aVar(Cluster(clusters), residuals_clustered)
-println("Cluster: σ̂² = $(round(Ω_cluster[1,1], digits=4))")
+DataFrame(
+    estimator = ["HC0 (no clustering)", "Cluster by firm", "Cluster by year"],
+    variance = [
+        aVar(HC0(), inv_dev)[1, 1],
+        aVar(Cluster(grunfeld.Firm), inv_dev)[1, 1],
+        aVar(Cluster(grunfeld.Year), inv_dev)[1, 1],
+    ],
+)
 ```
+
+Clustering by firm raises the variance substantially: investment is strongly
+persistent within a firm, so the independent-observation estimate understates it.
 
 ## Example 4: Panel Data with Driscoll-Kraay
 
-For panel data with both cross-sectional and time dependence:
+Driscoll-Kraay handles panels where units are correlated within a period and each
+unit is correlated over time:
 
-```julia
-# Panel dimensions
-T_panel = 50
-N_panel = 30
-total_obs = T_panel * N_panel
-
-# Create panel identifiers
-time_ids = repeat(1:T_panel, outer=N_panel)
-unit_ids = repeat(1:N_panel, inner=T_panel)
-
-# Generate panel data with both dimensions of dependence
-# Time effects
-time_effects = cumsum(randn(T_panel))[time_ids] * 0.5
-# Unit effects
-unit_effects = randn(N_panel)[unit_ids] * 0.3
-# Individual noise
-noise = randn(total_obs) * 0.2
-
-panel_data = time_effects + unit_effects + noise
-residuals_panel = reshape(panel_data .- mean(panel_data), total_obs, 1)
-
-# Driscoll-Kraay estimator
-dk_estimator = DriscollKraay(Bartlett{Andrews}(), tis=time_ids, iis=unit_ids)
-Ω_dk = aVar(dk_estimator, residuals_panel)
-println("Driscoll-Kraay: σ̂² = $(round(Ω_dk[1,1], digits=4))")
+```@example matrix
+dk = DriscollKraay(Bartlett{Andrews}(), tis = grunfeld.Year, iis = grunfeld.Firm)
+aVar(dk, inv_dev)[1, 1]
 ```
 
 ## Example 5: EWC Estimation
 
-The Equal Weighted Cosine estimator provides a non-parametric alternative:
+The Equal Weighted Cosine estimator uses a number of basis functions in place of a
+bandwidth:
 
-```julia
-# EWC with different numbers of basis functions
-for B in [5, 10, 15]
-    ewc_est = EWC(B)
-    Ω_ewc = aVar(ewc_est, X)  # Using AR(1) data from Example 1
-    println("EWC (B=$B): trace = $(round(tr(Ω_ewc), digits=3))")
-end
+```@example matrix
+DataFrame(
+    B = [5, 10, 15],
+    trace = [tr(aVar(EWC(B), X)) for B in (5, 10, 15)],
+)
 ```
 
-## Advanced Usage: Custom Options and Diagnostics
+## Prewhitening
 
-### Prewhitening for HAC Estimators
+Prewhitening fits a VAR(1) before applying the kernel, which can improve
+finite-sample behavior when the series is persistent:
 
-Prewhitening can improve finite-sample performance of HAC estimators:
-
-```julia
-# HAC with prewhitening
-Ω_prewhite = aVar(bart_andrews, X; prewhite=true)
-Ω_no_prewhite = aVar(bart_andrews, X; prewhite=false)
-
-println("Bartlett without prewhitening: $(round(tr(Ω_no_prewhite), digits=3))")
-println("Bartlett with prewhitening: $(round(tr(Ω_prewhite), digits=3))")
+```@example matrix
+DataFrame(
+    prewhite = [false, true],
+    trace = [
+        tr(aVar(Bartlett{Andrews}(), X; prewhite = false)),
+        tr(aVar(Bartlett{Andrews}(), X; prewhite = true)),
+    ],
+)
 ```
 
-### Bandwidth Diagnosis for HAC
+## Bandwidth Diagnostics
 
-```julia
-# Extract optimal bandwidth
-_, _, bw = workingoptimalbw(bart_andrews, X)
-println("Optimal Andrews bandwidth: $(round(bw, digits=2))")
+`optimalbw` returns the bandwidth a data-driven rule selects, and `bandwidth` reads
+the bandwidth actually used off a result:
 
-# Compare with rule-of-thumb
-bw_newey_west = 4 * (T/100)^(2/9)
-println("Newey-West rule-of-thumb: $(round(bw_newey_west, digits=2))")
+```@example matrix
+bw_andrews = optimalbw(Bartlett{Andrews}(), X)
+bw_newey = optimalbw(Bartlett{NeweyWest}(), X)
+V = aVar(Bartlett{Andrews}(), X)
+
+DataFrame(
+    quantity = ["optimalbw (Andrews)", "optimalbw (Newey-West)", "bandwidth(V)"],
+    value = [bw_andrews, bw_newey, bandwidth(V)[1]],
+)
 ```
 
-### Memory and Performance Considerations
+## Choosing an Estimator
 
-```julia
-using BenchmarkTools
+| Data structure | Estimator |
+|---|---|
+| Cross-section, heteroskedasticity only | `HC0`–`HC5` |
+| Time series, serial correlation | `Bartlett`, `Parzen`, `QuadraticSpectral` |
+| Time series, no bandwidth choice | `VARHAC` |
+| Time series, positive semi-definite by construction | `VARHAC`, `UniformSmoother`, `EWC` |
+| Grouped observations | `Cluster`, or `CR0`–`CR3` for a fitted model |
+| Panel with cross-sectional dependence | `DriscollKraay` |
 
-# Compare performance of different estimators
-println("Performance comparison on $(size(X)) matrix:")
+HAC estimates are sensitive to the bandwidth, so report the one you used;
+`bandwidth` retrieves it from the result. `VARHAC` and the smoothed-moments
+estimators avoid the choice altogether. With few clusters the CR estimators are
+unreliable regardless of the correction applied.
 
-# Fast estimators
-@btime aVar(HC3(), $X)
-@btime aVar(VARHAC(), $X)
-
-# Medium complexity
-@btime aVar(Bartlett(5), $X)
-@btime aVar(UniformSmoother(10), $X)
-
-# More computationally intensive
-@btime aVar(Parzen{Andrews}(), $X)
-```
-
-## Summary of Recommendations
-
-### When to Use Each Estimator
-
-1. **HC/HR (HC0-HC5)**: Cross-sectional data with heteroskedasticity only
-2. **HAC (Bartlett, Parzen, etc.)**: Time series with both heteroskedasticity and autocorrelation
-3. **VARHAC**: Time series when you want automatic bandwidth selection and guaranteed PSD
-4. **Smoothed Moments**: Time series when you want automatic PSD with traditional HAC-like results
-5. **CR (CR0-CR3)**: Data with cluster correlation
-6. **Driscoll-Kraay**: Panel data with spatial and temporal correlation
-7. **EWC**: Financial time series or when other methods are sensitive to specification
-
-### Performance Tips
-
-1. **For large datasets**: Use `HC3()` or `VARHAC()` for best performance
-2. **For automatic approaches**: Use `VARHAC()` or `UniformSmoother(10)`
-3. **For maximum compatibility**: Use `Bartlett{Andrews}()` or `Parzen{NeweyWest}()`
-4. **For guaranteed PSD**: Use `VARHAC()`, `UniformSmoother(10)`, or `EWC()`
-
-### Common Pitfalls
-
-1. **Wrong estimator choice**: Using HC for time series data or HAC for cross-sectional data
-2. **Bandwidth sensitivity**: HAC results can be sensitive to bandwidth choice
-3. **Small sample bias**: Consider HC2/HC3 over HC0/HC1 for small samples
-4. **Cluster size**: CR estimators require sufficient cluster size for good properties
-
-This tutorial covers the essential usage patterns for the matrix interface. The next tutorial will show how to integrate these estimators with GLM.jl for econometric modeling.
+The [GLM Integration Tutorial](glm_tutorial.md) shows the same estimators applied to
+a fitted model.

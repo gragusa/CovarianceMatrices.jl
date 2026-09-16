@@ -1,436 +1,194 @@
 # GLM Integration Tutorial
 
-This tutorial demonstrates how to use CovarianceMatrices.jl with GLM.jl for robust inference in regression models. The integration provides seamless robust standard errors for linear and generalized linear models.
+This tutorial shows how to use CovarianceMatrices.jl with GLM.jl for robust
+inference in regression models.
 
 ## Overview
 
-CovarianceMatrices.jl extends GLM.jl's `vcov()` and `stderror()` functions with robust covariance estimators. The general workflow is:
+CovarianceMatrices.jl adds methods to GLM.jl's `vcov` and `stderror`, so a robust
+covariance estimator is supplied as the first argument:
 
-1. Fit your model using GLM.jl (`lm()`, `glm()`, etc.)
-2. Compute robust covariance matrix using `vcov(estimator, model)`
-3. Extract robust standard errors using `stderror(estimator, model)`
-4. Perform inference using robust statistics
+1. Fit the model with GLM.jl (`lm`, `glm`)
+2. Compute the robust covariance with `vcov(estimator, model)`
+3. Take robust standard errors with `stderror(estimator, model)`
 
-```julia
-using GLM, CovarianceMatrices, DataFrames, Random, Statistics
-using LinearAlgebra, StatsBase, Distributions
-Random.seed!(123)
+```@example glm
+using CovarianceMatrices, GLM, RDatasets, DataFrames, StatsBase, LinearAlgebra, Statistics
 ```
 
-## Example 1: Linear Regression with Heteroskedasticity
+## Example 1: Time Series Regression
 
-Let's start with a simple linear regression that exhibits heteroskedasticity:
+The `Capm` data hold 516 monthly returns. Regressing the food-industry excess
+return on the market excess return gives a CAPM market model whose residuals are
+both heteroskedastic and serially correlated.
 
-```julia
-# Generate data with heteroskedasticity
-n = 200
-x1 = randn(n)
-x2 = randn(n)
-x3 = randn(n)
+```@example glm
+capm = dataset("Ecdat", "Capm")
+capm.ExFood = capm.RFood .- capm.RF
 
-# Heteroskedastic error variance depends on x1
-σ² = exp.(0.5 .+ 0.8 * abs.(x1))
-ε = sqrt.(σ²) .* randn(n)
-
-# True coefficients
-β = [2.0, 1.5, -1.0, 0.5]
-y = β[1] .+ β[2] * x1 .+ β[3] * x2 .+ β[4] * x3 .+ ε
-
-# Create DataFrame
-df = DataFrame(y=y, x1=x1, x2=x2, x3=x3)
-
-# Fit OLS model
-model = lm(@formula(y ~ x1 + x2 + x3), df)
-println("R² = $(round(r2(model), digits=3))")
-println("True coefficients: $β")
-println("OLS estimates: $(round.(coef(model), digits=3))")
+model = lm(@formula(ExFood ~ RMRF), capm)
 ```
 
-### Comparing Standard Errors
+### Heteroskedasticity-Robust Standard Errors
 
-```julia
-# Classical standard errors (assume homoskedasticity)
-se_classical = stderror(model)
+The HC estimators relax the constant-variance assumption. `HC1` applies the
+`n/(n-k)` correction; `HC2` and `HC3` downweight high-leverage observations and are
+the usual choice in samples of moderate size.
 
-# Robust standard errors (HC estimators)
-se_hc0 = stderror(HC0(), model)
-se_hc1 = stderror(HC1(), model)
-se_hc2 = stderror(HC2(), model)
-se_hc3 = stderror(HC3(), model)  # Most common choice
-
-# Display results
-results_df = DataFrame(
-    Variable = ["Intercept", "x1", "x2", "x3"],
-    Coefficient = round.(coef(model), digits=3),
-    SE_Classical = round.(se_classical, digits=3),
-    SE_HC0 = round.(se_hc0, digits=3),
-    SE_HC1 = round.(se_hc1, digits=3),
-    SE_HC2 = round.(se_hc2, digits=3),
-    SE_HC3 = round.(se_hc3, digits=3)
+```@example glm
+DataFrame(
+    coef = coefnames(model),
+    classical = stderror(model),
+    HC0 = stderror(HC0(), model),
+    HC1 = stderror(HC1(), model),
+    HC2 = stderror(HC2(), model),
+    HC3 = stderror(HC3(), model),
 )
-
-println("\nStandard Error Comparison:")
-println(results_df)
 ```
 
-### Variance-Covariance Matrices
-
-```julia
-# Compare covariance matrices
-vcov_classical = vcov(model)
-vcov_hc3 = vcov(HC3(), model)
-
-println("\nDiagonal ratio (HC3/Classical):")
-for i in 1:4
-    ratio = vcov_hc3[i,i] / vcov_classical[i,i]
-    println("  Variable $(i): $(round(ratio, digits=2))")
-end
-```
-
-## Example 2: Time Series Regression with Autocorrelation
-
-Now let's consider a time series regression with serial correlation:
-
-```julia
-# Generate time series data
-T = 300
-t = 1:T
-
-# Trending regressors
-trend = collect(t) ./ T
-seasonal = sin.(2π * t / 12)  # Monthly seasonality
-x1_ts = trend + 0.3 * randn(T)
-x2_ts = seasonal + 0.2 * randn(T)
-
-# AR(1) errors
-ρ = 0.6
-ε_ts = zeros(T)
-ε_ts[1] = randn()
-for i in 2:T
-    ε_ts[i] = ρ * ε_ts[i-1] + randn()
-end
-
-# Generate dependent variable
-β_ts = [1.0, 2.0, 1.5]
-y_ts = β_ts[1] .+ β_ts[2] * x1_ts .+ β_ts[3] * x2_ts .+ ε_ts
-
-# Create time series DataFrame
-df_ts = DataFrame(y=y_ts, x1=x1_ts, x2=x2_ts, t=t)
-
-# Fit time series model
-model_ts = lm(@formula(y ~ x1 + x2), df_ts)
-println("\nTime Series Model R² = $(round(r2(model_ts), digits=3))")
-```
+The robust standard error on the slope is about 37% larger than the classical one,
+so the classical figure overstates the precision of the market beta. The intercept
+is barely affected.
 
 ### HAC Standard Errors
 
-```julia
-# Classical (incorrect for time series)
-se_ts_classical = stderror(model_ts)
+Monthly returns are also serially correlated, which the HC estimators do not
+address. HAC estimators correct for both:
 
-# HAC standard errors
-se_bartlett_andrews = stderror(Bartlett{Andrews}(), model_ts)
-se_bartlett_fixed = stderror(Bartlett(6), model_ts)
-se_parzen_nw = stderror(Parzen{NeweyWest}(), model_ts)
-se_qs = stderror(QuadraticSpectral{Andrews}(), model_ts)
-
-# VARHAC (automatic, no bandwidth selection)
-se_varhac = stderror(VARHAC(), model_ts)
-
-# Smoothed Moments (with optimal bandwidth)
-T = nobs(model_ts)
-m_T = round(Int, 2.0 * T^(1/3))
-se_smoothed = stderror(UniformSmoother(m_T), model_ts)
-
-# Results comparison
-results_ts = DataFrame(
-    Variable = ["Intercept", "x1", "x2"],
-    Coefficient = round.(coef(model_ts), digits=3),
-    SE_Classical = round.(se_ts_classical, digits=3),
-    SE_Bartlett = round.(se_bartlett_andrews, digits=3),
-    SE_Parzen = round.(se_parzen_nw, digits=3),
-    SE_VARHAC = round.(se_varhac, digits=3),
-    SE_Smoothed = round.(se_smoothed, digits=3)
+```@example glm
+DataFrame(
+    coef = coefnames(model),
+    classical = stderror(model),
+    bartlett = stderror(Bartlett{Andrews}(), model),
+    parzen = stderror(Parzen{NeweyWest}(), model),
+    quadratic = stderror(QuadraticSpectral{Andrews}(), model),
+    varhac = stderror(VARHAC(), model),
+    smoothed = stderror(UniformSmoother(round(Int, 2.0 * nobs(model)^(1 / 3))), model),
 )
-
-println("\nTime Series Standard Error Comparison:")
-println(results_ts)
 ```
 
-### Bandwidth Diagnosis
+Accounting for serial correlation widens the standard errors further. `VARHAC` and
+the smoothed-moments estimators reach a similar answer without a bandwidth choice.
 
-```julia
-# Check bandwidth selection
-_, _, bw_bartlett = workingoptimalbw(Bartlett{Andrews}(), residuals(model_ts)')
-_, _, bw_parzen = workingoptimalbw(Parzen{NeweyWest}(), residuals(model_ts)')
+### Bandwidth and Lag Diagnostics
 
-println("\nBandwidth Selection:")
-println("  Bartlett (Andrews): $(round(bw_bartlett, digits=2))")
-println("  Parzen (Newey-West): $(round(bw_parzen, digits=2))")
+`optimalbw` reports the bandwidth a data-driven rule selects for a moment matrix.
+`bandwidth` and `order` read what was actually used off the returned
+`CovarianceMatrix`:
 
-# VARHAC lag selection
-varhac_est = VARHAC()
-_ = vcov(varhac_est, model_ts)  # Fit the model
-println("  VARHAC selected lags: $(order(varhac_est))")
+```@example glm
+V_bartlett = vcov(Bartlett{Andrews}(), model)
+V_varhac = vcov(VARHAC(), model)
+
+(bartlett_bandwidth = bandwidth(V_bartlett)[1],
+ varhac_lags = CovarianceMatrices.order(V_varhac))
 ```
 
-## Example 3: Panel Data and Clustered Standard Errors
+## Example 2: Panel Data and Clustered Standard Errors
 
-Panel data often requires clustered standard errors:
+The Grunfeld data follow ten firms over twenty years. Investment is persistent
+within a firm, so the independence assumption behind the classical and HC standard
+errors fails.
 
-```julia
-# Generate panel data
-n_firms = 50
-n_years = 8
-n_panel = n_firms * n_years
+```@example glm
+grunfeld = dataset("plm", "Grunfeld")
+panel = lm(@formula(Inv ~ Value + Capital), grunfeld)
 
-# Panel identifiers
-firm_id = repeat(1:n_firms, inner=n_years)
-year_id = repeat(1:n_years, outer=n_firms)
-
-# Firm fixed effects
-firm_effects = randn(n_firms)[firm_id] * 2.0
-# Year fixed effects
-year_effects = randn(n_years)[year_id] * 1.0
-
-# Regressors
-x_panel = randn(n_panel)
-# Panel error with firm-level clustering
-firm_shocks = randn(n_firms)[firm_id] * 1.5
-idiosyncratic = randn(n_panel) * 0.8
-ε_panel = firm_shocks + idiosyncratic
-
-# Dependent variable
-y_panel = 1.0 .+ 0.8 * x_panel .+ firm_effects .+ year_effects .+ ε_panel
-
-# Create panel DataFrame
-df_panel = DataFrame(
-    y = y_panel,
-    x = x_panel,
-    firm_id = firm_id,
-    year_id = year_id
+DataFrame(
+    coef = coefnames(panel),
+    classical = stderror(panel),
+    HC1 = stderror(HC1(), panel),
+    CR0_firm = stderror(CR0(grunfeld.Firm), panel),
+    CR1_firm = stderror(CR1(grunfeld.Firm), panel),
+    CR2_firm = stderror(CR2(grunfeld.Firm), panel),
+    CR3_firm = stderror(CR3(grunfeld.Firm), panel),
 )
-
-# Fit panel model (without fixed effects for simplicity)
-model_panel = lm(@formula(y ~ x), df_panel)
-println("\nPanel Model R² = $(round(r2(model_panel), digits=3))")
 ```
 
-### Clustered Standard Errors
+Clustering by firm roughly doubles the standard errors relative to `HC1`. `CR0`
+applies no small-sample correction and `CR3` the heaviest, a spread that matters
+here because there are only ten clusters.
 
-```julia
-# Standard errors
-se_panel_classical = stderror(model_panel)
+```@example glm
+CovarianceMatrices.nclusters(CR1(grunfeld.Firm))
+```
 
-# Firm-clustered standard errors
-se_cr0_firm = stderror(CR0(firm_id), model_panel)
-se_cr1_firm = stderror(CR1(firm_id), model_panel)
-se_cr2_firm = stderror(CR2(firm_id), model_panel)
-se_cr3_firm = stderror(CR3(firm_id), model_panel)
+Two-way clustering and Driscoll-Kraay allow for dependence across firms within a
+year as well:
 
-# Two-way clustering (firm and year)
-se_cr1_twoway = stderror(CR1((firm_id, year_id)), model_panel)
+```@example glm
+dk = DriscollKraay(Bartlett{Andrews}(), tis = grunfeld.Year, iis = grunfeld.Firm)
 
-# Driscoll-Kraay (spatial-temporal)
-se_dk = stderror(DriscollKraay(Bartlett{Andrews}(), tis=year_id, iis=firm_id), model_panel)
-
-# Panel results
-results_panel = DataFrame(
-    Variable = ["Intercept", "x"],
-    Coefficient = round.(coef(model_panel), digits=3),
-    SE_Classical = round.(se_panel_classical, digits=3),
-    SE_CR0_Firm = round.(se_cr0_firm, digits=3),
-    SE_CR1_Firm = round.(se_cr1_firm, digits=3),
-    SE_CR2_Firm = round.(se_cr2_firm, digits=3),
-    SE_TwoWay = round.(se_cr1_twoway, digits=3),
-    SE_DriscollKraay = round.(se_dk, digits=3)
+DataFrame(
+    coef = coefnames(panel),
+    CR1_firm = stderror(CR1(grunfeld.Firm), panel),
+    CR1_twoway = stderror(CR1((grunfeld.Firm, grunfeld.Year)), panel),
+    driscoll_kraay = stderror(dk, panel),
 )
-
-println("\nPanel Standard Error Comparison:")
-println(results_panel)
 ```
 
-## Example 4: Logistic Regression
+## Example 3: Logistic Regression
 
-CovarianceMatrices.jl also works with generalized linear models:
+The estimators apply to generalized linear models as well. The Boston HMDA data
+record whether a mortgage application was denied, along with the debt-to-income
+ratio and the loan-to-value ratio.
 
-```julia
-# Generate binary choice data
-n_logit = 500
-x1_logit = randn(n_logit)
-x2_logit = randn(n_logit)
+```@example glm
+hmda = dropmissing(dataset("Ecdat", "Hdma"), [:Deny, :DIR, :LVR, :Black])
+hmda.denied = hmda.Deny .== "yes"
+hmda.black = hmda.Black .== "yes"
 
-# Logit model: heteroskedasticity is inherent
-β_logit = [0.5, 1.2, -0.8]
-linear_pred = β_logit[1] .+ β_logit[2] * x1_logit .+ β_logit[3] * x2_logit
-prob = 1 ./ (1 .+ exp.(-linear_pred))
-y_binary = rand.(Bernoulli.(prob))
-
-df_logit = DataFrame(y=y_binary, x1=x1_logit, x2=x2_logit)
-
-# Fit logistic regression
-model_logit = glm(@formula(y ~ x1 + x2), df_logit, Binomial(), LogitLink())
-println("\nLogistic Regression Deviance = $(round(deviance(model_logit), digits=2))")
+logit = glm(@formula(denied ~ DIR + LVR + black), hmda, Binomial(), LogitLink())
 ```
 
-### Robust Standard Errors for GLM
-
-```julia
-# Standard errors for logit model
-se_logit_classical = stderror(model_logit)
-se_logit_hc3 = stderror(HC3(), model_logit)
-
-# For clustered data (create artificial clusters)
-clusters_logit = repeat(1:25, inner=20)
-se_logit_cr1 = stderror(CR1(clusters_logit), model_logit)
-
-results_logit = DataFrame(
-    Variable = ["Intercept", "x1", "x2"],
-    Coefficient = round.(coef(model_logit), digits=3),
-    SE_Classical = round.(se_logit_classical, digits=3),
-    SE_HC3 = round.(se_logit_hc3, digits=3),
-    SE_CR1 = round.(se_logit_cr1, digits=3)
+```@example glm
+DataFrame(
+    coef = coefnames(logit),
+    estimate = coef(logit),
+    classical = stderror(logit),
+    HC0 = stderror(HC0(), logit),
+    HC3 = stderror(HC3(), logit),
+    CR1_credit = stderror(CR1(hmda.CCS), logit),
 )
-
-println("\nLogistic Regression Standard Error Comparison:")
-println(results_logit)
 ```
 
-## Example 5: Advanced Usage with New API
+Clustering here is on the credit score category, `CCS`.
 
-The package includes a new unified API that provides additional flexibility:
+## Inference
 
-```julia
-# Using the new variance forms API
-using CovarianceMatrices: Information, Misspecified
+`vcov` and `stderror` are the two methods that take an estimator. Build the test
+statistics from the robust standard errors:
 
-# Information matrix equality (assumes correct specification)
-vcov_info = vcov(HC3(), Information(), model)
-se_info = sqrt.(diag(vcov_info))
+```@example glm
+se = stderror(HC3(), logit)
+estimates = coef(logit)
 
-# Robust sandwich form (allows misspecification)
-vcov_robust = vcov(HC3(), Misspecified(), model)
-se_robust = sqrt.(diag(vcov_robust))
-
-println("\nVariance Forms Comparison:")
-println("Information form SEs: $(round.(se_info, digits=3))")
-println("Robust sandwich SEs: $(round.(se_robust, digits=3))")
+DataFrame(
+    coef = coefnames(logit),
+    estimate = estimates,
+    se = se,
+    z = estimates ./ se,
+    lower = estimates .- 1.96 .* se,
+    upper = estimates .+ 1.96 .* se,
+)
 ```
 
-## Practical Guidelines
+## Choosing an Estimator
 
-### Choosing the Right Estimator
+| Data structure | Estimator |
+|---|---|
+| Cross-section, moderate sample | `HC2` or `HC3` |
+| Cross-section, large sample | `HC0` or `HC1` |
+| Time series | `Bartlett{Andrews}`, or `VARHAC` to avoid choosing a bandwidth |
+| Clustered | `CR1(g)`, or `CR1((g1, g2))` for two-way |
+| Panel with cross-sectional dependence | `DriscollKraay` |
 
-#### For Cross-Sectional Data:
-```julia
-# Small samples (n < 250): HC2 or HC3
-se_small_sample = stderror(HC3(), model)
+Two cautions. HAC estimates depend on the bandwidth, so report the one you used;
+`bandwidth` retrieves it. The CR estimators rely on a growing number of clusters,
+and with few clusters — ten in the Grunfeld example — they understate uncertainty
+whichever correction is applied.
 
-# Large samples: HC0 or HC1 acceptable
-se_large_sample = stderror(HC0(), model)
-
-# When in doubt: HC3 is generally robust choice
-se_recommended = stderror(HC3(), model)
-```
-
-#### For Time Series Data:
-```julia
-# Conservative approach: Bartlett with Andrews bandwidth
-se_conservative = stderror(Bartlett{Andrews}(), model_ts)
-
-# Automatic approach: VARHAC
-se_automatic = stderror(VARHAC(), model_ts)
-
-# When bandwidth matters: Try different kernels
-se_parzen = stderror(Parzen{Andrews}(), model_ts)
-se_qs = stderror(QuadraticSpectral{Andrews}(), model_ts)
-```
-
-#### For Panel Data:
-```julia
-# Firm clustering
-se_firm_cluster = stderror(CR1(firm_id), model_panel)
-
-# Two-way clustering
-se_twoway = stderror(CR1((firm_id, year_id)), model_panel)
-
-# Spatial-temporal correlation
-se_spatial_temporal = stderror(DriscollKraay(Bartlett{Andrews}(),
-                                          tis=year_id, iis=firm_id), model_panel)
-```
-
-### Diagnostic and Sensitivity Analysis
-
-```julia
-# Function to compare multiple estimators
-function robust_comparison(model, estimators, names)
-    results = DataFrame(Variable = ["Intercept", "x1", "x2", "x3"][1:length(coef(model))])
-    results.Coefficient = round.(coef(model), digits=3)
-
-    for (est, name) in zip(estimators, names)
-        results[!, Symbol("SE_" * name)] = round.(stderror(est, model), digits=3)
-    end
-
-    return results
-end
-
-# Apply to our heteroskedastic example
-estimators = [HC0(), HC1(), HC2(), HC3(), Bartlett(5), VARHAC()]
-names = ["HC0", "HC1", "HC2", "HC3", "HAC", "VARHAC"]
-
-comparison_results = robust_comparison(model, estimators, names)
-println("\nComprehensive Comparison:")
-println(comparison_results)
-```
-
-### Testing for Specification Issues
-
-```julia
-# Simple heteroskedasticity test using residual patterns
-residuals_sq = residuals(model).^2
-het_test_model = lm(Term(:residuals_sq) ~ sum(term.([:x1, :x2, :x3])),
-                   DataFrame(residuals_sq=residuals_sq, x1=x1, x2=x2, x3=x3))
-het_test_stat = r2(het_test_model) * length(residuals_sq)
-het_p_value = 1 - cdf(Chisq(3), het_test_stat)
-
-println("\nBreusch-Pagan Test for Heteroskedasticity:")
-println("  Test statistic: $(round(het_test_stat, digits=2))")
-println("  p-value: $(round(het_p_value, digits=4))")
-if het_p_value < 0.05
-    println("  Conclusion: Reject homoskedasticity (use robust SEs)")
-else
-    println("  Conclusion: Fail to reject homoskedasticity")
-end
-```
-
-## Summary and Best Practices
-
-### Default Recommendations:
-
-1. **Cross-sectional data**: Use `HC3()` as default robust estimator
-2. **Time series data**: Use `VARHAC()` for automatic approach, `Bartlett{Andrews}()` for traditional HAC
-3. **Panel data**: Use `CR1()` for one-way clustering, `CR1((cluster1, cluster2))` for two-way
-4. **Mixed cases**: Start with `VARHAC()` or `UniformSmoother(m_T)` for guaranteed positive definiteness
-
-### Performance Considerations:
-
-```julia
-# Quick performance comparison
-using BenchmarkTools
-
-println("\nPerformance comparison (on fitted model):")
-@btime vcov(HC3(), $model)
-@btime vcov(VARHAC(), $model_ts)
-@btime vcov(CR1($firm_id), $model_panel)
-@btime vcov(Bartlett{Andrews}(), $model_ts)
-```
-
-### Integration with Other Packages:
-
-The robust standard errors computed here integrate seamlessly with:
-- **StatsBase.jl**: `confint()`, `coeftable()`
-- **GLM.jl**: All standard model methods
-- **FixedEffectModels.jl**: Panel data with fixed effects
-- **MixedModels.jl**: Random effects models
-
-This completes the GLM integration tutorial. The combination of CovarianceMatrices.jl with GLM.jl provides a powerful and flexible framework for robust inference in econometric applications.
+The [Matrix Interface Tutorial](matrix_tutorial.md) covers the same estimators
+applied directly to a moment matrix, and the
+[Package Interface Extension](interface_tutorial.md) shows how to support a custom
+model type.
