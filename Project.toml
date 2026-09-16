@@ -28,7 +28,7 @@ SparseArraysExt = ["SparseArrays"]
 [compat]
 Aqua = "0.8"
 BlockDiagonals = "0.2"
-CSV = "0.10"
+CSV = "0.10, 1"
 CategoricalArrays = "1"
 Combinatorics = "1.0"
 DataFrames = "1.0"
