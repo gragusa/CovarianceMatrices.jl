@@ -100,113 +100,90 @@ DifferentOwnLags
 
 ### Default VARHAC
 
-The simplest usage relies on sensible defaults:
+The `Capm` data hold 516 monthly returns on three industry portfolios. The defaults
+select the lag length per equation by AIC, searching up to eight lags:
 
-```julia
-using CovarianceMatrices, Random
-Random.seed!(123)
+```@example varhac
+using CovarianceMatrices, RDatasets, DataFrames, LinearAlgebra, Statistics
 
-# Generate VAR(2) data
-T = 300
-A1 = [0.5 0.1; 0.2 0.3]
-A2 = [0.2 -0.1; 0.1 0.4]
-Σ = [1.0 0.3; 0.3 1.0]
+capm = dataset("Ecdat", "Capm")
+X = Matrix(select(capm, [:RFood, :RDur, :RCon])) .- capm.RF
+X = X .- mean(X, dims = 1)
 
-X = zeros(T, 2)
-for t in 3:T
-    X[t, :] = A1 * X[t-1, :] + A2 * X[t-2, :] + rand(MvNormal(Σ))
-end
-
-# Estimate with defaults (AIC, SameLags(8))
-varhac_default = VARHAC()
-Ω_default = aVar(varhac_default, X)
-
-# Check selected lag order
-println("Selected lag order: ", order(varhac_default))
-println("Trace of covariance: ", round(tr(Ω_default), digits=3))
+V = aVar(VARHAC(), X)
+(order = CovarianceMatrices.order(V), trace = tr(V))
 ```
+
+`order` reads the selected lag length off the returned `CovarianceMatrix`, one entry
+per column. It and the other result accessors below are public but not exported, so
+they are reached through the module.
 
 ### Comparing Selection Methods
 
-```julia
-# Different selectors
-varhac_aic = VARHAC(:aic)
-varhac_bic = VARHAC(:bic)
+```@example varhac
+V_aic = aVar(VARHAC(:aic), X)
+V_bic = aVar(VARHAC(:bic), X)
 
-Ω_aic = aVar(varhac_aic, X)
-Ω_bic = aVar(varhac_bic, X)
-
-println("AIC selected lags: ", order(varhac_aic))
-println("BIC selected lags: ", order(varhac_bic))
-println("AIC trace: ", round(tr(Ω_aic), digits=3))
-println("BIC trace: ", round(tr(Ω_bic), digits=3))
+DataFrame(
+    selector = ["AIC", "BIC"],
+    order = [CovarianceMatrices.order(V_aic), CovarianceMatrices.order(V_bic)],
+    trace = [tr(V_aic), tr(V_bic)],
+)
 ```
+
+BIC penalizes additional lags more heavily and here selects zero for every equation,
+reducing the estimate to the contemporaneous covariance.
 
 ### Different Lag Strategies
 
-```julia
-# Same maximum lags for all variables
-varhac_same = VARHAC(AICSelector(), SameLags(12))
+A strategy sets the search range; the selector picks within it. `FixedLags` skips
+selection altogether, so it pairs with `FixedSelector` automatically.
 
-# Fixed lag length (no selection)
-varhac_fixed = VARHAC(FixedLags(4))
-
-# Automatic lag selection based on sample size
-varhac_auto = VARHAC(AICSelector(), AutoLags())
-
-# For bivariate data: different own lags
-varhac_diff = VARHAC(AICSelector(), DifferentOwnLags([3, 5]))
-
-estimators = [
-    ("Same Lags", varhac_same),
-    ("Fixed Lags", varhac_fixed),
-    ("Auto Lags", varhac_auto),
-    ("Different Own Lags", varhac_diff)
+```@example varhac
+strategies = [
+    "SameLags(12)" => VARHAC(AICSelector(), SameLags(12)),
+    "FixedLags(4)" => VARHAC(FixedLags(4)),
+    "AutoLags" => VARHAC(AICSelector(), AutoLags()),
+    "DifferentOwnLags([3, 5])" => VARHAC(AICSelector(), DifferentOwnLags([3, 5])),
 ]
 
-for (name, est) in estimators
-    Ω = aVar(est, X)
-    lags = isa(est.strategy, FixedLags) ? [est.strategy.maxlag] : order(est)
-    println("$name: lags = $lags, trace = $(round(tr(Ω), digits=3))")
-end
+DataFrame(
+    strategy = first.(strategies),
+    trace = [tr(aVar(e, X)) for e in last.(strategies)],
+)
 ```
+
+Apart from `VARHAC(FixedLags(n))`, a strategy is passed as the second argument:
+`VARHAC(AICSelector(), SameLags(12))`. Passing one on its own throws a `TypeError`,
+since the first argument is the selector.
 
 ## Advanced Features
 
 ### Information Criteria Diagnostics
 
-VARHAC stores the computed information criteria, allowing for post-estimation diagnostics:
+The criteria evaluated during selection are stored on the result, one row per
+equation and one column per candidate lag:
 
-```julia
-# Fit VARHAC model
-varhac_diag = VARHAC(:aic)
-Ω = aVar(varhac_diag, X)
+```@example varhac
+aics = CovarianceMatrices.AICs(V)
+size(aics)
+```
 
-# Extract information criteria
-aics = AICs(varhac_diag)
-bics = BICs(varhac_diag)
-
-println("AIC values: ", round.(aics, digits=2))
-println("BIC values: ", round.(bics, digits=2))
-println("AIC optimal lag: ", order_aic(varhac_diag))
-println("BIC optimal lag: ", order_bic(varhac_diag))
-
-# Plot information criteria (if Plots.jl available)
-# using Plots
-# plot([aics bics], label=["AIC" "BIC"], title="Information Criteria")
+```@example varhac
+(order_aic = CovarianceMatrices.order_aic(V),
+ order_bic = CovarianceMatrices.order_bic(V))
 ```
 
 ### Maximum Lag Selection
 
-```julia
-# Access maximum lags for different strategies
-println("SameLags(10): ", maxlags(VARHAC(SameLags(10))))
-println("FixedLags(5): ", maxlags(VARHAC(FixedLags(5))))
+`maxlags` reports the search range of an estimator. `AutoLags` derives it from the
+data, so that method also takes the sample size and the number of variables:
 
-# AutoLags requires data dimensions
-auto_strategy = VARHAC(AutoLags())
-auto_max_lags = maxlags(auto_strategy, size(X, 1), size(X, 2))
-println("AutoLags for T=$(size(X,1)), N=$(size(X,2)): ", auto_max_lags)
+```@example varhac
+(same = CovarianceMatrices.maxlags(VARHAC(AICSelector(), SameLags(10))),
+ fixed = CovarianceMatrices.maxlags(VARHAC(FixedLags(5))),
+ auto = CovarianceMatrices.maxlags(
+     VARHAC(AICSelector(), AutoLags()), size(X, 1), size(X, 2)))
 ```
 
 ## Practical Guidelines
@@ -239,7 +216,7 @@ varhac_flexible = VARHAC(:aic)
 varhac_known = VARHAC(FixedLags(true_lag_length))
 
 # Let the data decide based on sample size
-varhac_adaptive = VARHAC(AutoLags())
+varhac_adaptive = VARHAC(AICSelector(), AutoLags())
 ```
 
 ### Sample Size Considerations
@@ -334,17 +311,16 @@ end
 **1. Selected lag too high/low**
 ```julia
 # Check information criteria progression
-varhac_check = VARHAC()
-aVar(varhac_check, X)
+V_check = aVar(VARHAC(), X)
 
-aics = AICs(varhac_check)
+aics = CovarianceMatrices.AICs(V_check)
 min_idx = argmin(aics)
 println("AIC minimum at lag: $min_idx")
 println("AIC values: ", round.(aics[max(1, min_idx-2):min(end, min_idx+2)], digits=3))
 
 # Try different strategy if needed
 if min_idx > 8
-    varhac_longer = VARHAC(SameLags(15))
+    varhac_longer = VARHAC(AICSelector(), SameLags(15))
     Ω_longer = aVar(varhac_longer, X)
 end
 ```

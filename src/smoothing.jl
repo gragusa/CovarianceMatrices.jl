@@ -105,7 +105,7 @@ kernel_k3(::TriangularSmoother) = 1 / 2  # ∫k(a) da = 1/2
 
 Return the bandwidth the smoothing kernel's rate rule selects for a sample of size `T`.
 
-Unlike the [`HAC`](@ref) methods of `optimalbw`, which read the bandwidth off the data,
+Unlike the HAC kernel methods of `optimalbw`, which read the bandwidth off the data,
 a moment smoother's bandwidth follows a closed-form rate in the sample size alone, so
 this method takes `T` rather than a moment matrix.
 

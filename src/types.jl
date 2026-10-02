@@ -1508,8 +1508,8 @@ where
 - `iis`: Cross-section dimension indices (panel identifier for units)
 
 Both index arrays are required and may hold identifiers of any type; they are
-mapped to contiguous group numbers by [`Clustering`](@ref). The two arrays need
-not share an element type.
+mapped internally to contiguous group numbers. The two arrays need not share an
+element type.
 
 # Mathematical Foundation
 The Driscoll-Kraay estimator computes:

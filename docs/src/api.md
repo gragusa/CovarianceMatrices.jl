@@ -14,6 +14,25 @@ This section provides comprehensive documentation for all exported functions and
 aVar
 ```
 
+### The Result Type
+
+`aVar` and `vcov` return a [`CovarianceMatrix`](@ref): the estimate together with
+the estimator that produced it and any quantities selected along the way.
+
+```@docs
+CovarianceMatrix
+```
+
+The accessors below read those stored quantities. They take the result, not the
+estimator specification.
+
+```@docs
+estimator
+information
+bandwidth
+kernelweights
+```
+
 ### GLM Integration
 
 ```@docs
@@ -102,6 +121,10 @@ documented on the [VARHAC: Vector Autoregression HAC Estimation](@ref) page.
 
 ### VARHAC Utilities
 
+`AICs`, `BICs`, `order_aic`, `order_bic` and `order` read the lag selection off a
+[`CovarianceMatrix`](@ref) returned by `aVar`. `maxlags` reports the search range
+of a `VARHAC` estimator or a lag strategy.
+
 ```@docs
 AICs
 BICs
@@ -109,12 +132,6 @@ order_aic
 order_bic
 order
 maxlags
-```
-
-### HAC Utilities
-
-```@docs
-bandwidth
 ```
 
 ## New Unified API

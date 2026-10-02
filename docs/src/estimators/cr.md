@@ -48,13 +48,17 @@ CR3
 - Can be downward biased in small samples
 
 **Usage:**
-```julia
-using CovarianceMatrices
 
-# Single cluster variable
-cluster_ids = [1, 1, 2, 2, 3, 3, 4, 4]
-cr0 = CR0(cluster_ids)
-Ω = aVar(cr0, residuals)
+The examples below use the Grunfeld data: investment for ten firms over twenty
+years, clustered by firm.
+
+```@example cr
+using CovarianceMatrices, RDatasets, DataFrames, GLM, Statistics
+
+grunfeld = dataset("plm", "Grunfeld")
+moments = reshape(grunfeld.Inv .- mean(grunfeld.Inv), :, 1)
+
+aVar(CR0(grunfeld.Firm), moments)
 ```
 
 ### CR1: Degrees-of-Freedom Correction
@@ -69,10 +73,8 @@ cr0 = CR0(cluster_ids)
 - **Most commonly used in practice**
 
 **Usage:**
-```julia
-# CR1 with single clustering dimension
-cr1 = CR1(cluster_ids)
-Ω = aVar(cr1, residuals)
+```@example cr
+aVar(CR1(grunfeld.Firm), moments)
 ```
 
 ### CR2 and CR3: Leverage-Based Corrections
@@ -98,14 +100,8 @@ where $h_g$ represents cluster-level leverage values.
 
 The package supports multi-way clustering with intersection corrections:
 
-```julia
-# Two-way clustering
-firm_ids = [1, 1, 2, 2, 3, 3, 4, 4]
-year_ids = [2001, 2002, 2001, 2002, 2001, 2002, 2001, 2002]
-
-# Multi-way clustering
-cr_multi = CR1((firm_ids, year_ids))
-Ω = aVar(cr_multi, residuals)
+```@example cr
+aVar(CR1((grunfeld.Firm, grunfeld.Year)), moments)
 ```
 
 The estimator automatically applies the inclusion-exclusion principle:
@@ -117,92 +113,57 @@ The estimator automatically applies the inclusion-exclusion principle:
 
 ### Panel Data Example
 
-```julia
-using CovarianceMatrices, DataFrames, GLM, Random
-Random.seed!(123)
+Fitting the Grunfeld investment equation and comparing clustering dimensions:
 
-# Generate panel data
-N_firms = 50
-N_years = 10
-N = N_firms * N_years
+```@example cr
+model = lm(@formula(Inv ~ Value + Capital), grunfeld)
 
-# Create panel structure
-firm_ids = repeat(1:N_firms, N_years)
-year_ids = repeat(1:N_years, inner=N_firms)
-
-# Generate data with firm and time effects
-firm_effects = randn(N_firms)[firm_ids]
-time_effects = randn(N_years)[year_ids]
-X = randn(N, 2)
-ε = firm_effects + time_effects + randn(N) * 0.5
-
-y = 1.0 .+ 0.5 * X[:, 1] - 0.3 * X[:, 2] + ε
-
-df = DataFrame(
-    y = y,
-    x1 = X[:, 1],
-    x2 = X[:, 2],
-    firm_id = firm_ids,
-    year_id = year_ids
+DataFrame(
+    coef = coefnames(model),
+    classical = stderror(model),
+    firm = stderror(CR1(grunfeld.Firm), model),
+    year = stderror(CR1(grunfeld.Year), model),
+    twoway = stderror(CR1((grunfeld.Firm, grunfeld.Year)), model),
 )
-
-# Fit model
-model = lm(@formula(y ~ x1 + x2), df)
-
-# Compare different clustering approaches
-se_classical = stderror(model)
-se_firm = stderror(CR1(df.firm_id), model)
-se_year = stderror(CR1(df.year_id), model)
-se_twoway = stderror(CR1((df.firm_id, df.year_id)), model)
-
-results = DataFrame(
-    Variable = ["Intercept", "x1", "x2"],
-    Classical = round.(se_classical, digits=4),
-    Firm_Cluster = round.(se_firm, digits=4),
-    Year_Cluster = round.(se_year, digits=4),
-    TwoWay_Cluster = round.(se_twoway, digits=4)
-)
-
-println(results)
 ```
+
+Clustering by firm matters far more than clustering by year: investment is
+persistent within a firm, while the common year-to-year shocks are comparatively
+small.
 
 ### Comparing CR Variants
 
-```julia
-# Compare all CR estimators
-cr_estimators = [CR0(firm_ids), CR1(firm_ids), CR2(firm_ids), CR3(firm_ids)]
-cr_names = ["CR0", "CR1", "CR2", "CR3"]
-
-println("Estimator\\tStd Errors (x1, x2)")
-for (est, name) in zip(cr_estimators, cr_names)
-    se = stderror(est, model)
-    println("$name\\t\\t$(round.(se[2:3], digits=4))")
-end
+```@example cr
+DataFrame(
+    coef = coefnames(model),
+    CR0 = stderror(CR0(grunfeld.Firm), model),
+    CR1 = stderror(CR1(grunfeld.Firm), model),
+    CR2 = stderror(CR2(grunfeld.Firm), model),
+    CR3 = stderror(CR3(grunfeld.Firm), model),
+)
 ```
+
+`CR0` applies no small-sample correction and `CR3` the heaviest. The spread between
+them is wide here because the ten firms give few clusters.
 
 ### Cluster Diagnostics
 
-```julia
-function cluster_diagnostics(cluster_var)
-    n_clusters = length(unique(cluster_var))
-    cluster_sizes = [sum(cluster_var .== g) for g in unique(cluster_var)]
+`nclusters` reports the number of groups per clustering dimension:
 
-    println("Cluster Diagnostics:")
-    println("Number of clusters: $n_clusters")
-    println("Average cluster size: $(round(mean(cluster_sizes), digits=1))")
-    println("Min cluster size: $(minimum(cluster_sizes))")
-    println("Max cluster size: $(maximum(cluster_sizes))")
-
-    # Rule of thumb: need at least 30-50 clusters for asymptotic theory
-    if n_clusters < 30
-        println("⚠️  Warning: Few clusters detected. Consider bootstrap inference.")
-    end
-
-    return n_clusters, cluster_sizes
-end
-
-n_clusters, sizes = cluster_diagnostics(firm_ids)
+```@example cr
+(firm = CovarianceMatrices.nclusters(CR1(grunfeld.Firm)),
+ year = CovarianceMatrices.nclusters(CR1(grunfeld.Year)),
+ twoway = CovarianceMatrices.nclusters(CR1((grunfeld.Firm, grunfeld.Year))))
 ```
+
+```@example cr
+sizes = combine(groupby(grunfeld, :Firm), nrow => :n).n
+(clusters = length(sizes), min = minimum(sizes), max = maximum(sizes))
+```
+
+The asymptotics behind the CR estimators take the number of clusters to infinity.
+With ten clusters the standard errors are biased downward whichever correction is
+used, and a cluster bootstrap is the more reliable route.
 
 ## Selection Guidelines
 

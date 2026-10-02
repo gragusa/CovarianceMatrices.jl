@@ -55,369 +55,187 @@ Every model must implement:
 6. **`jacobian_momentfunction(model)`**: Required for `GMMLikeModel` (`vcov` throws if missing)
 7. **`weight_matrix(model)`**: Optional for GMM; omit (defaults to optimal `inv(Ω)`)
 
-## Example 1: Simple M-Estimator
+## Example 1: An M-Estimator
 
-Let's implement a custom robust regression estimator:
+Huber regression replaces the squared-error loss with a loss that is quadratic for
+small residuals and linear beyond a cutoff `c`, which limits the influence of
+outliers. The estimator solves $\sum_t \psi(y_t - x_t'\beta) x_t = 0$, so the
+moment matrix is $\psi(r_t) x_t$.
 
-```julia
-using CovarianceMatrices, StatsBase, LinearAlgebra
+```@example iface
+using CovarianceMatrices, RDatasets, DataFrames, StatsAPI, StatsBase, LinearAlgebra
 
-"""
-Custom robust regression using Huber's M-estimator.
-"""
-struct HuberRegression
+struct HuberRegression <: CovarianceMatrices.MLikeModel
     X::Matrix{Float64}
     y::Vector{Float64}
     β::Vector{Float64}
-    c::Float64  # Tuning parameter for Huber loss
-
-    function HuberRegression(X, y; c=1.345)
-        β = huber_fit(X, y, c)
-        new(X, y, β, c)
-    end
+    c::Float64
 end
 
-# Helper: Huber loss derivative (ψ function)
-function huber_ψ(r, c)
-    return abs(r) ≤ c ? r : c * sign(r)
-end
+huber_ψ(r, c) = abs(r) <= c ? r : c * sign(r)
 
-# Simple IRLS fitting (for illustration)
-function huber_fit(X, y, c; maxiter=100, tol=1e-6)
-    β = X \ y  # Start with OLS
-    for iter in 1:maxiter
+function HuberRegression(X, y; c = 1.345, maxiter = 200, tol = 1e-10)
+    β = X \ y                       # start from OLS
+    for _ in 1:maxiter               # iteratively reweighted least squares
         r = y - X * β
-        ψ_r = huber_ψ.(r, c)
-        β_new = (X' * X) \ (X' * (y - r + ψ_r))
-
-        if norm(β_new - β) < tol
-            return β_new
-        end
-        β = β_new
+        w = [abs(ri) <= c ? 1.0 : c / abs(ri) for ri in r]
+        βnew = (X' * (w .* X)) \ (X' * (w .* y))
+        converged = norm(βnew - β) < tol
+        β = βnew
+        converged && break
     end
-    return β
+    return HuberRegression(X, y, β, c)
 end
+nothing # hide
+```
 
-# ============================================================================
-# Required Interface Implementation
-# ============================================================================
+The three required methods:
 
-"""
-Moment matrix: ψ(residual) ⊗ X
-"""
-function CovarianceMatrices.momentmatrix(model::HuberRegression)
-    r = model.y - model.X * model.β
-    ψ_r = huber_ψ.(r, model.c)
-    return ψ_r .* model.X  # Broadcasting: T × k matrix
+```@example iface
+CovarianceMatrices.momentmatrix(m::HuberRegression) =
+    huber_ψ.(m.y - m.X * m.β, m.c) .* m.X
+
+StatsAPI.coef(m::HuberRegression) = m.β
+StatsAPI.nobs(m::HuberRegression) = length(m.y)
+nothing # hide
+```
+
+`hessian_objective` returns the Hessian of the minimized objective, which is
+positive definite at the optimum. `Information` inverts it directly, so returning
+the negative log-likelihood Hessian with the wrong sign produces negative
+variances.
+
+```@example iface
+function CovarianceMatrices.hessian_objective(m::HuberRegression)
+    r = m.y - m.X * m.β
+    w = [abs(ri) <= m.c ? 1.0 : 0.0 for ri in r]
+    return m.X' * (w .* m.X)
 end
+nothing # hide
+```
 
-"""
-Parameter estimates
-"""
-StatsAPI.coef(model::HuberRegression) = model.β
+Fit the CAPM market model from the `Capm` data. Monthly returns have fat tails, so
+the Huber slope differs from the OLS slope:
 
-"""
-Number of observations
-"""
-StatsAPI.nobs(model::HuberRegression) = length(model.y)
+```@example iface
+capm = dataset("Ecdat", "Capm")
+y = capm.RFood .- capm.RF
+X = [ones(length(y)) capm.RMRF]
 
-# ============================================================================
-# Usage
-# ============================================================================
-
-# Generate data with outliers
-using Random
-Random.seed!(123)
-
-n = 200
-k = 3
-X = randn(n, k)
-β_true = [2.0, -1.5, 1.0]
-ε = randn(n)
-
-# Add outliers
-outlier_idx = rand(1:n, 10)
-ε[outlier_idx] .+= 10 * randn(10)
-
-y = X * β_true + ε
-
-# Fit model
 model = HuberRegression(X, y)
 
-println("Estimated coefficients:")
-println(round.(coef(model), digits=3))
-
-# Robust standard errors with HC3
-se_hc3 = stderror(HC3(), model)
-println("\nHC3 standard errors:")
-println(round.(se_hc3, digits=3))
-
-# HAC standard errors (if errors are autocorrelated)
-se_hac = stderror(Bartlett{Andrews}(), model)
-println("\nHAC standard errors:")
-println(round.(se_hac, digits=3))
-
-# Covariance matrix
-vcov_hc3 = vcov(HC3(), model)
-println("\nCovariance matrix condition number: $(round(cond(vcov_hc3), digits=2))")
+DataFrame(coef = ["(Intercept)", "RMRF"], ols = X \ y, huber = coef(model))
 ```
 
-## Example 2: Maximum Likelihood Model
+A model carrying a variance form is asked for one explicitly. `Information` assumes
+the model is correctly specified; `Misspecified` builds the sandwich:
 
-For MLE models, you can optionally inherit from `MLikeModel` for semantic clarity:
-
-```julia
-using CovarianceMatrices, StatsBase, Distributions, Optim
-
-"""
-Poisson regression via maximum likelihood.
-"""
-struct PoissonMLE <: CovarianceMatrices.MLikeModel
-    X::Matrix{Float64}
-    y::Vector{Int}
-    β::Vector{Float64}
-    H::Matrix{Float64}  # Negative Hessian at optimum
-
-    function PoissonMLE(X, y)
-        β, H = fit_poisson_mle(X, y)
-        new(X, y, β, H)
-    end
-end
-
-# Fit via numerical optimization
-function fit_poisson_mle(X, y)
-    n, k = size(X)
-
-    # Negative log-likelihood
-    function neg_loglik(β)
-        λ = exp.(X * β)
-        return -sum(y .* log.(λ) - λ)
-    end
-
-    # Optimize
-    result = optimize(neg_loglik, zeros(k), BFGS(), autodiff=:forward)
-    β_hat = Optim.minimizer(result)
-
-    # Compute Hessian
-    H = ForwardDiff.hessian(neg_loglik, β_hat)
-
-    return β_hat, H
-end
-
-# ============================================================================
-# Interface Implementation
-# ============================================================================
-
-"""
-Score functions (gradient of log-likelihood for each observation)
-"""
-function CovarianceMatrices.momentmatrix(model::PoissonMLE)
-    λ = exp.(model.X * model.β)
-    residuals = model.y - λ
-    return residuals .* model.X  # T × k
-end
-
-"""
-Hessian of objective (negative log-likelihood)
-"""
-CovarianceMatrices.hessian_objective(model::PoissonMLE) = model.H
-
-StatsAPI.coef(model::PoissonMLE) = model.β
-StatsAPI.nobs(model::PoissonMLE) = length(model.y)
-
-# ============================================================================
-# Usage with Variance Forms
-# ============================================================================
-
-using Random
-Random.seed!(456)
-
-n = 300
-k = 2
-X = [ones(n) randn(n)]
-β_true = [0.5, 0.3]
-λ_true = exp.(X * β_true)
-y = [rand(Poisson(λ)) for λ in λ_true]
-
-# Fit model
-poisson_model = PoissonMLE(X, y)
-
-# Information form (assumes correct specification)
-# V = inv(H) where H is Fisher Information
-vcov_info = vcov(HC0(), Information(), poisson_model)
-se_info = stderror(HC0(), Information(), poisson_model)
-
-println("Information form standard errors:")
-println(round.(se_info, digits=4))
-
-# Misspecified form (robust sandwich)
-# V = inv(H) * G * inv(H) where G is outer product of scores
-vcov_robust = vcov(HC3(), Misspecified(), poisson_model)
-se_robust = stderror(HC3(), Misspecified(), poisson_model)
-
-println("\nMisspecified (robust) standard errors:")
-println(round.(se_robust, digits=4))
-
-# Compare with GLM.jl
-using GLM, DataFrames
-df = DataFrame(y=y, x1=X[:,2])
-glm_model = glm(@formula(y ~ x1), df, Poisson(), LogLink())
-
-println("\nGLM.jl standard errors (for comparison):")
-println(round.(stderror(glm_model), digits=4))
+```@example iface
+DataFrame(
+    coef = ["(Intercept)", "RMRF"],
+    information = stderror(HC0(), Information(), model),
+    misspecified = stderror(HC3(), Misspecified(), model),
+    misspecified_hac = stderror(Bartlett{Andrews}(), Misspecified(), model),
+)
 ```
 
-## Example 3: GMM Estimator
+The sandwich standard errors are roughly twice the information-form ones. Under
+correct specification the two agree, so a gap this size is evidence against the
+assumptions behind the information form.
 
-For GMM models with overidentification ($m > k$):
+## Example 2: A GMM Estimator
 
-```julia
-"""
-Instrumental variables GMM estimator.
-"""
+A `GMMLikeModel` may have more moment conditions than parameters. It implements
+`jacobian_momentfunction` in place of `hessian_objective`, and optionally
+`weight_matrix`.
+
+```@example iface
 struct IVGMM <: CovarianceMatrices.GMMLikeModel
     y::Vector{Float64}
-    X::Matrix{Float64}  # Endogenous regressors
-    Z::Matrix{Float64}  # Instruments
+    X::Matrix{Float64}   # regressors, some endogenous
+    Z::Matrix{Float64}   # instruments
     β::Vector{Float64}
-    W::Matrix{Float64}  # Weight matrix
-
-    function IVGMM(y, X, Z; W=nothing)
-        β, W_used = fit_iv_gmm(y, X, Z, W)
-        new(y, X, Z, β, W_used)
-    end
+    W::Matrix{Float64}   # weight matrix
 end
 
-function fit_iv_gmm(y, X, Z, W)
-    if W === nothing
-        # Two-stage least squares (2SLS): W = (Z'Z)^{-1}
-        W = inv(Z' * Z)
-    end
-
-    # GMM estimator: β = (X'Z W Z'X)^{-1} X'Z W Z'y
+function IVGMM(y, X, Z)
+    W = inv(Z' * Z)                              # two-stage least squares
     β = (X' * Z * W * Z' * X) \ (X' * Z * W * Z' * y)
-
-    return β, W
+    return IVGMM(y, X, Z, β, W)
 end
 
-# ============================================================================
-# GMM Interface
-# ============================================================================
-
-"""
-Moment conditions: Z ⊗ (y - Xβ)
-"""
-function CovarianceMatrices.momentmatrix(model::IVGMM)
-    residuals = model.y - model.X * model.β
-    return residuals .* model.Z  # T × m (m = number of instruments)
-end
-
-"""
-Jacobian of moment function: E[∂g/∂β'] = -Z'X
-"""
-function CovarianceMatrices.jacobian_momentfunction(model::IVGMM)
-    return -(model.Z' * model.X)  # m × k
-end
-
-"""
-Weight matrix used in GMM
-"""
-CovarianceMatrices.weight_matrix(model::IVGMM) = model.W
-
-StatsAPI.coef(model::IVGMM) = model.β
-StatsAPI.nobs(model::IVGMM) = length(model.y)
-
-# ============================================================================
-# Usage
-# ============================================================================
-
-using Random
-Random.seed!(789)
-
-n = 500
-# True structural model: y = X*β + ε where X is endogenous
-β_true = [1.5, -0.8]
-
-# Instruments (2 instruments for 2 endogenous variables)
-Z = randn(n, 3)  # 3 instruments for overidentification
-
-# Endogenous regressors (correlated with errors)
-u = randn(n)  # Common shock
-X = Z * [0.5, 0.3, 0.2, 0.4, 0.1, 0.3] |> x -> reshape(x, n, 2)
-X .+= 0.3 * u  # Endogeneity
-
-# Outcome
-ε = u + 0.5 * randn(n)
-y = X * β_true + ε
-
-# Fit GMM
-iv_model = IVGMM(y, X, Z)
-
-println("IV-GMM estimates:")
-println(round.(coef(iv_model), digits=3))
-
-# Robust GMM standard errors (allows misspecification)
-se_gmm = stderror(HC1(), iv_model)
-println("\nGMM robust standard errors:")
-println(round.(se_gmm, digits=4))
-
-# With HAC (for time series applications)
-se_gmm_hac = stderror(Bartlett{Andrews}(), iv_model)
-println("\nGMM-HAC standard errors:")
-println(round.(se_gmm_hac, digits=4))
+CovarianceMatrices.momentmatrix(m::IVGMM) = (m.y - m.X * m.β) .* m.Z
+CovarianceMatrices.jacobian_momentfunction(m::IVGMM) = -(m.Z' * m.X)
+CovarianceMatrices.weight_matrix(m::IVGMM) = m.W
+StatsAPI.coef(m::IVGMM) = m.β
+StatsAPI.nobs(m::IVGMM) = length(m.y)
+nothing # hide
 ```
 
-## Example 4: Custom Model Without Inheritance
+The `Misspecified` form also needs the Hessian of the GMM objective,
+$G'WG$ with $G$ the moment Jacobian:
 
-You don't need to inherit from `MLikeModel` or `GMMLikeModel`. The package uses duck typing:
+```@example iface
+function CovarianceMatrices.hessian_objective(m::IVGMM)
+    G = CovarianceMatrices.jacobian_momentfunction(m)
+    return G' * m.W * G
+end
+nothing # hide
+```
 
-```julia
-"""
-Quantile regression (not inheriting from any abstract type).
-"""
+When `weight_matrix` is supplied, `Information` computes
+$(G'WG)^{-1} G'W\Omega WG (G'WG)^{-1}$, which is the same expression the
+`Misspecified` form builds from this Hessian, so the two agree for this model. They
+differ when the model omits `weight_matrix`: `Information` then assumes the
+efficient weight $W = \Omega^{-1}$ and reduces to $(G'\Omega^{-1}G)^{-1}$.
+
+The Grunfeld data estimate investment on firm value, instrumented by capital stock
+and lagged value, giving three instruments for two parameters:
+
+```@example iface
+grunfeld = dataset("plm", "Grunfeld")
+n = nrow(grunfeld)
+
+y_iv = grunfeld.Inv
+X_iv = [ones(n) grunfeld.Value]
+Z_iv = [ones(n) grunfeld.Capital grunfeld.Value]
+
+iv = IVGMM(y_iv, X_iv, Z_iv)
+
+DataFrame(
+    coef = ["(Intercept)", "Value"],
+    estimate = coef(iv),
+    information = stderror(HC0(), Information(), iv),
+    misspecified = stderror(HC0(), Misspecified(), iv),
+    clustered = stderror(CR1(grunfeld.Firm), Misspecified(), iv),
+)
+```
+
+Clustering by firm widens the standard errors, as it did for the fitted models in
+the [GLM Integration Tutorial](glm_tutorial.md).
+
+## Duck Typing
+
+Inheriting from `MLikeModel` or `GMMLikeModel` selects the variance forms available
+and is the clearest way to declare which class a model belongs to. The methods
+themselves are looked up by dispatch, so a type outside the hierarchy that defines
+`momentmatrix`, `coef` and `nobs` works with `aVar` on its moment matrix:
+
+```@example iface
 struct QuantileRegression
     X::Matrix{Float64}
     y::Vector{Float64}
     β::Vector{Float64}
-    τ::Float64  # Quantile level
+    τ::Float64
 end
 
-function QuantileRegression(X, y, τ=0.5)
-    β = quantile_fit(X, y, τ)
-    QuantileRegression(X, y, β, τ)
-end
+CovarianceMatrices.momentmatrix(m::QuantileRegression) =
+    [r < 0 ? m.τ - 1 : m.τ for r in (m.y - m.X * m.β)] .* m.X
+StatsAPI.coef(m::QuantileRegression) = m.β
+StatsAPI.nobs(m::QuantileRegression) = length(m.y)
 
-# Simple quantile regression fit (using convex optimization)
-function quantile_fit(X, y, τ)
-    n, k = size(X)
-
-    # Minimize: sum(ρ_τ(y - Xβ)) where ρ_τ(u) = u(τ - I(u<0))
-    function objective(β)
-        residuals = y - X * β
-        return sum(r -> r * (τ - (r < 0)), residuals)
-    end
-
-    # Use numerical optimization
-    result = optimize(objective, zeros(k), BFGS())
-    return Optim.minimizer(result)
-end
-
-# ============================================================================
-# Minimal Interface
-# ============================================================================
-
-function CovarianceMatrices.momentmatrix(model::QuantileRegression)
-    residuals = model.y - model.X * model.β
-    # Gradient of check function
-    ψ = [r < 0 ? model.τ - 1 : model.τ for r in residuals]
-    return ψ .* model.X
-end
-
-StatsAPI.coef(model::QuantileRegression) = model.β
-StatsAPI.nobs(model::QuantileRegression) = length(model.y)
-
-# Works immediately with all CovarianceMatrices.jl estimators!
-# (No inheritance required)
+qr = QuantileRegression(X, y, X \ y, 0.5)
+aVar(HC0(), CovarianceMatrices.momentmatrix(qr))
 ```
 
 ## Interface Quick Reference
