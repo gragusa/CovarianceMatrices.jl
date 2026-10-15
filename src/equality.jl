@@ -31,11 +31,14 @@ function _fieldwise_hash(x, h::UInt)
     return h
 end
 
-# Estimators and the bare cache-wrapper that does not subtype the estimator root.
-for T in (:AbstractAsymptoticVarianceEstimator, :CachedCRModel)
-    @eval Base.:(==)(a::$T, b::$T) = _fieldwise_equal(a, b)
-    @eval Base.hash(x::$T, h::UInt) = _fieldwise_hash(x, h)
+function Base.:(==)(a::AbstractAsymptoticVarianceEstimator, b::AbstractAsymptoticVarianceEstimator)
+    _fieldwise_equal(a, b)
 end
+Base.hash(x::AbstractAsymptoticVarianceEstimator, h::UInt) = _fieldwise_hash(x, h)
+
+# A cached estimator is the estimator it wraps; the cache holds derived data and buffers.
+Base.:(==)(a::CachedCR, b::CachedCR) = a.estimator == b.estimator
+Base.hash(x::CachedCR, h::UInt) = hash(x.estimator, hash(CachedCR, h))
 
 # Component value types carried inside estimators.
 for T in (:Clustering, :BandwidthType, :LagSelector, :LagStrategy)

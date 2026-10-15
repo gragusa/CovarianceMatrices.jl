@@ -221,8 +221,10 @@ end
     end
 end
 
-# CachedCR fast path: uses preallocated buffers and precomputed cluster indices
-function avar(k::CachedCR, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <: Real}
+# CachedCR fast path: uses preallocated buffers and precomputed cluster indices. A
+# `CachedCR` built from a model has no buffers and takes the uncached `avar(::CR, X)`.
+function avar(k::CachedCR{<:CR, <:CRCache}, X::Union{Matrix{F}, Vector{F}};
+        kwargs...) where {F <: Real}
     cache = k.cache
     ncols = size(X, 2)
 

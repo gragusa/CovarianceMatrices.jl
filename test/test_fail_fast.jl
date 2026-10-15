@@ -144,7 +144,7 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
         @test_throws msg aVar(CR0(:g), model)
         @test_throws msg CovarianceMatrices.nclusters(CR0(:g))
         @test_throws msg CovarianceMatrices.CachedCR(CR0(:g), 2)
-        @test_throws msg CovarianceMatrices.CachedCRModel(CR1(:g), model)
+        @test_throws msg CachedCR(CR1(:g), model)
         @test Cluster(:g) == Cluster((:g,))
         @test Cluster(:g, :h) == Cluster((:g, :h))
     end

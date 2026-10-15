@@ -46,14 +46,14 @@ roundtrip(x) = Core.eval(ShowRoundTrip, Meta.parse(repr(x)))
         @test repr(k) == "CachedCR(CR1([1, 1, 2, 2]), 3, Float64)"
         k2 = roundtrip(k)
         @test k2 isa CachedCR
-        @test k2.estimator == k.estimator
+        @test k2 == k
         @test k2.cache.ncols == 3
 
         df = DataFrame(y = [1.0, 2.0, 2.5, 4.0, 5.5, 5.0], x = 1:6, g = [1, 1, 2, 2, 3, 3])
         m = lm(@formula(y ~ x), df)
-        km = CachedCRModel(CR0(df.g), m)
+        km = CachedCR(CR0(df.g), m)
         @test repr(km) ==
-              "CachedCRModel(CR0([1, 1, 2, 2, 3, 3]), <cache: nobs = 6, ncols = 2>)"
+              "CachedCR(CR0([1, 1, 2, 2, 3, 3]), <model cache: nobs = 6, ncols = 2>)"
     end
 
     @testset "CovarianceMatrix header" begin

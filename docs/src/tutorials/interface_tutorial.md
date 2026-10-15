@@ -390,7 +390,7 @@ identifiers. The field `g` holds the names as a tuple of `Symbol`s: `CR1(:firm,
 multi-way clustering, exactly as the corresponding tuple of vectors would.
 
 CovarianceMatrices has no data table, so it cannot look up the names. `aVar`, `vcov`,
-`stderror`, `nclusters`, `CachedCR` and `CachedCRModel` throw an `ArgumentError` on a
+`stderror`, `nclusters` and `CachedCR` throw an `ArgumentError` on a
 column-named estimator. The modeling package resolves it first by rebuilding the same
 estimator type from the columns:
 

@@ -909,14 +909,44 @@ function _check_resolved(k::_UnresolvedClusterEstimator)
 end
 
 #=========
-CRCache and CachedCR
+CRCache, CRModelCache and CachedCR
 =========#
+
+"""
+    precompute_cluster_indices(g::Clustering)
+
+Compute observation indices for each cluster in a single O(n) pass.
+Returns `Vector{Vector{Int}}` where `result[cluster_id]` contains all row indices for that cluster.
+"""
+function precompute_cluster_indices(g::Clustering)
+    indices = [Int[] for _ in 1:g.ngroups]
+    for i in eachindex(g.groups)
+        push!(indices[g.groups[i]], i)
+    end
+    return indices
+end
+
+# The clusterings, per-cluster observation indices and inclusion-exclusion signs for
+# every nonempty combination of the clustering dimensions `f`.
+function _cluster_combinations(f)
+    grouped_arrays = Clustering[]
+    cluster_indices = Vector{Vector{Int}}[]
+    signs = Int[]
+    # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
+    for c in Iterators.filter(!isempty, combinations(1:length(f)))
+        g = length(c) == 1 ? Clustering(f[c[1]]) : Clustering((f[i] for i in c)...)
+        push!(grouped_arrays, g)
+        push!(signs, (-1)^(length(c) - 1))
+        push!(cluster_indices, precompute_cluster_indices(g))
+    end
+    return grouped_arrays, cluster_indices, signs
+end
 
 """
     CRCache{T}
 
 Preallocated buffers and precomputed data for fast repeated cluster-robust
-variance calculations. Used internally by `CachedCR`.
+variance calculations on a moment matrix. Built by `CachedCR(k, ncols)`.
 
 # Fields
 - `X2_buffers`: Tuple of preallocated matrices (ngroups × ncols) for cluster aggregation
@@ -942,153 +972,24 @@ end
 """
     CRCache(k::CR, ncols::Int, ::Type{T}=Float64) where T
 
-Construct a cache for cluster-robust variance calculations.
-
-# Arguments
-- `k`: A cluster-robust estimator (CR0, CR1, CR2, or CR3)
-- `ncols`: Number of columns in the moment matrix X
-- `T`: Element type (default Float64)
-
-# Example
-```julia
-cluster_ids = repeat(1:50, inner=20)
-k = CR0(cluster_ids)
-cache = CRCache(k, 5)  # For 5-column moment matrix
-cached_k = CachedCR(k, cache)
-
-# Fast repeated calculations (e.g., wild bootstrap)
-for b in 1:1000
-    perturbed_X = X .* rademacher_weights[b]
-    S = aVar(cached_k, perturbed_X)
-end
-```
+Construct a cache for cluster-robust variance calculations on a moment matrix with
+`ncols` columns. `CachedCR(k, ncols)` builds one and wraps it with `k`.
 """
 function CRCache(k::CR, ncols::Int, ::Type{T} = Float64) where {T}
-    f = k.g
-    # Precompute Clusterings, signs, and cluster indices for each combination
-    grouped_arrays = Clustering[]
-    cluster_indices = Vector{Vector{Int}}[]
-    signs = Int[]
-    ngroups_list = Int[]
-
-    # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
-    combs = Iterators.filter(!isempty, combinations(1:length(f)))
-    for c in combs
-        if length(c) == 1
-            g = Clustering(f[c[1]])
-        else
-            g = Clustering((f[i] for i in c)...)
-        end
-        push!(grouped_arrays, g)
-        push!(signs, (-1)^(length(c) - 1))
-        push!(ngroups_list, g.ngroups)
-
-        # Precompute indices for each cluster in this combination
-        indices = [Int[] for _ in 1:g.ngroups]
-        for i in eachindex(g.groups)
-            push!(indices[g.groups[i]], i)
-        end
-        push!(cluster_indices, indices)
-    end
-
-    # Preallocate buffers
-    X2_buffers = [zeros(T, ng, ncols) for ng in ngroups_list]
+    grouped_arrays, cluster_indices, signs = _cluster_combinations(k.g)
+    X2_buffers = [zeros(T, g.ngroups, ncols) for g in grouped_arrays]
     S_buffer = zeros(T, ncols, ncols)
-
     return CRCache{T}(X2_buffers, S_buffer, grouped_arrays, cluster_indices, signs, ncols)
 end
 
 """
-    CachedCR{K<:CR, C<:CRCache}
-
-Wrapper around a cluster-robust estimator with preallocated cache for fast
-repeated variance calculations.
-
-This is designed for use cases like wild bootstrap where the same cluster
-structure is used many times with different moment matrices (perturbed residuals).
-
-# Type Parameters
-- `K`: The underlying CR estimator type (CR0, CR1, CR2, or CR3)
-- `C`: The cache type
-
-# Fields
-- `estimator`: The underlying CR estimator
-- `cache`: Preallocated buffers and precomputed data
-
-# Warning
-Using `CachedCR` makes the variance calculation non-differentiable with
-automatic differentiation (AD). For AD compatibility, use the standard
-non-cached CR estimators directly.
-
-# Example
-```julia
-using CovarianceMatrices
-
-# Setup
-cluster_ids = repeat(1:100, inner=10)
-X = randn(1000, 5)
-k = CR0(cluster_ids)
-
-# Create cached version for repeated use
-cached_k = CachedCR(k, size(X, 2))
-
-# Wild bootstrap - same cluster structure, different moment matrices
-for b in 1:1000
-    weights = rand([-1, 1], 1000)
-    X_perturbed = X .* weights
-    S = aVar(cached_k, X_perturbed)  # Uses cached buffers
-end
-```
-
-See also: [`CR0`](@ref), [`CR1`](@ref), [`CR2`](@ref), [`CR3`](@ref), [`CRCache`](@ref)
-"""
-struct CachedCR{K <: CR, C <: CRCache} <: CR
-    estimator::K
-    cache::C
-end
-
-"""
-    CachedCR(k::CR, ncols::Int, ::Type{T}=Float64) where T
-
-Create a cached version of a cluster-robust estimator.
-
-# Arguments
-- `k`: A cluster-robust estimator (CR0, CR1, CR2, or CR3)
-- `ncols`: Number of columns in the moment matrix
-- `T`: Element type (default Float64)
-
-# Example
-```julia
-k = CR0(cluster_ids)
-cached_k = CachedCR(k, 5)  # Cache for 5-column moment matrix
-S = aVar(cached_k, X)      # Fast calculation using cache
-```
-"""
-function CachedCR(k::CR, ncols::Int, ::Type{T} = Float64) where {T}
-    _check_resolved(k)
-    cache = CRCache(k, ncols, T)
-    return CachedCR(k, cache)
-end
-
-# Forward nclusters to underlying estimator
-nclusters(k::CachedCR) = nclusters(k.estimator)
-
-# Access underlying estimator's grouped arrays
-function Base.getproperty(k::CachedCR, s::Symbol)
-    s === :g ? getfield(k, :estimator).g : getfield(k, s)
-end
-
-#=========
-CRModelCache and CachedCRModel - For GLM Extension
-=========#
-
-"""
     CRModelCache{T, H}
 
-Cache for cluster-robust variance calculations with RegressionModel/GLM.
-Stores precomputed leverage adjustments that depend only on X and cluster structure,
-not on residuals. This enables fast repeated variance calculations (e.g., wild bootstrap)
-where only residuals change between iterations.
+Cache for cluster-robust variance calculations on a `RegressionModel`. Built by
+`CachedCR(k, model)`. Stores the leverage adjustments, which depend only on the model
+matrix and the cluster structure, not on the residuals. This enables fast repeated
+variance calculations (e.g., wild bootstrap) where only residuals change between
+iterations.
 
 # Type Parameters
 - `T`: Element type (e.g., Float64)
@@ -1098,7 +999,7 @@ where only residuals change between iterations.
 - `grouped_arrays`: Precomputed Clusterings for each clustering combination
 - `cluster_indices`: Precomputed observation indices [combination][cluster] -> obs indices
 - `signs`: Precomputed signs for inclusion-exclusion formula
-- `bread_matrix`: Cached (X'X)^-1 matrix
+- `bread_matrix`: (X'X)^-1 of the model the cache was built from
 - `leverage_adjustments`: Precomputed leverage adjustments (BlockDiagonal for CR2/CR3)
 - `ncols`: Number of model coefficients (for validation)
 - `nobs`: Number of observations (for validation)
@@ -1118,60 +1019,63 @@ struct CRModelCache{T <: Real, H}
 end
 
 """
-    CachedCRModel{K<:CR, C<:CRModelCache}
+    CachedCR(k::CR, ncols::Integer, ::Type{T}=Float64)
+    CachedCR(k::CR, model::RegressionModel)
 
-Wrapper around a cluster-robust estimator with precomputed model-specific cache.
-Designed for scenarios where the same model structure (X, clusters) is used repeatedly
-with different residuals (e.g., wild bootstrap, Monte Carlo simulations).
+Wrap the cluster-robust estimator `k` with precomputed cluster indices and buffers,
+for repeated variance calculations with the same cluster structure, such as a wild
+bootstrap or a Monte Carlo study.
 
-# Type Parameters
-- `K`: The underlying CR estimator type (CR0, CR1, CR2, or CR3)
-- `C`: The cache type
+- `CachedCR(k, ncols)` preallocates buffers for moment matrices with `ncols` columns
+  (`aVar(cached, X)` reuses them and returns the buffer itself, overwritten on the
+  next call).
+- `CachedCR(k, model)` also precomputes the leverage adjustments of `CR2`/`CR3`, which
+  depend only on the model matrix and the clusters, so `vcov(cached, m)` recomputes
+  only the residual-dependent part. `m` must have the same model matrix as `model`.
 
-# Fields
-- `estimator`: The underlying CR estimator
-- `cache`: Precomputed leverage adjustments and cluster indices
-
-# Key Insight
-For CR2/CR3, the leverage adjustments (BlockDiagonal matrices) depend only on X and
-cluster structure, NOT on residuals. By caching these expensive computations,
-subsequent variance calculations only need to compute `M = X .* (H * u)` and
-the cluster aggregation.
+A `CachedCR` is a `CR` estimator and works wherever `k` does, on moment matrices and
+on models, with the same results. Two `CachedCR` values are equal when their
+estimators are equal; the cache is ignored.
 
 # Warning
-Using `CachedCRModel` makes the variance calculation non-differentiable with
-automatic differentiation (AD). For AD compatibility, use standard CR estimators.
+The cached computation is not differentiable with automatic differentiation (AD).
+For AD compatibility, use the standard non-cached CR estimators directly.
 
 # Example
 ```julia
-using CovarianceMatrices, GLM, DataFrames
+using CovarianceMatrices
 
-# Fit model
-df = DataFrame(y=randn(1000), x1=randn(1000), x2=randn(1000), cl=repeat(1:50, 20))
-model = lm(@formula(y ~ x1 + x2), df)
+cluster_ids = repeat(1:100, inner=10)
+X = randn(1000, 5)
+cached_k = CachedCR(CR0(cluster_ids), size(X, 2))
 
-# Create cached estimator (one-time cost)
-cached_cr2 = CachedCRModel(CR2(df.cl), model)
-
-# Wild bootstrap - leverage adjustments are reused
+# Wild bootstrap - same cluster structure, different moment matrices
 for b in 1:1000
-    # Perturb residuals, compute variance using cached leverage
-    V = vcov(cached_cr2, perturbed_model)  # 10-50x faster than uncached
+    weights = rand([-1, 1], 1000)
+    S = aVar(cached_k, X .* weights)  # Uses cached buffers
 end
 ```
 
-See also: [`CR2`](@ref), [`CR3`](@ref), [`CRModelCache`](@ref)
+See also: [`CR0`](@ref), [`CR1`](@ref), [`CR2`](@ref), [`CR3`](@ref), [`CRCache`](@ref),
+[`CRModelCache`](@ref)
 """
-struct CachedCRModel{K <: CR, C <: CRModelCache}
+struct CachedCR{K <: CR, C <: Union{CRCache, CRModelCache}} <: CR
     estimator::K
     cache::C
 end
 
+function CachedCR(k::CR, ncols::Integer, ::Type{T} = Float64) where {T}
+    _check_resolved(k)
+    return CachedCR(k, CRCache(k, Int(ncols), T))
+end
+
+Base.@deprecate_binding CachedCRModel CachedCR
+
 # Forward nclusters to underlying estimator
-nclusters(k::CachedCRModel) = nclusters(k.estimator)
+nclusters(k::CachedCR) = nclusters(k.estimator)
 
 # Access underlying estimator's grouped arrays
-function Base.getproperty(k::CachedCRModel, s::Symbol)
+function Base.getproperty(k::CachedCR, s::Symbol)
     s === :g ? getfield(k, :estimator).g : getfield(k, s)
 end
 
@@ -1854,9 +1758,9 @@ end
 
 # The cache is built from a fitted model, which the estimator does not retain, so
 # this form is a summary rather than constructor syntax.
-function Base.show(io::IO, k::CachedCRModel)
-    print(io, "CachedCRModel(")
+function Base.show(io::IO, k::CachedCR{<:CR, <:CRModelCache})
+    print(io, "CachedCR(")
     show(io, k.estimator)
     c = getfield(k, :cache)
-    return print(io, ", <cache: nobs = ", c.nobs, ", ncols = ", c.ncols, ">)")
+    return print(io, ", <model cache: nobs = ", c.nobs, ", ncols = ", c.ncols, ">)")
 end

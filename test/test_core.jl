@@ -424,12 +424,12 @@ df.y = Y;
         @test Vw2 ≈ Vw_2 rtol = 1e-2
         @test Vw3 ≈ Vw_3 rtol = 1e-2
 
-        # CachedCRModel validation: cached == uncached
+        # CachedCR built from a model: cached == uncached
         # Unweighted regression
-        cached_cr0 = CachedCRModel(CR0(df.cl), lm_1)
-        cached_cr1 = CachedCRModel(CR1(df.cl), lm_1)
-        cached_cr2 = CachedCRModel(CR2(df.cl), lm_1)
-        cached_cr3 = CachedCRModel(CR3(df.cl), lm_1)
+        cached_cr0 = CachedCR(CR0(df.cl), lm_1)
+        cached_cr1 = CachedCR(CR1(df.cl), lm_1)
+        cached_cr2 = CachedCR(CR2(df.cl), lm_1)
+        cached_cr3 = CachedCR(CR3(df.cl), lm_1)
 
         @test vcov(cached_cr0, lm_1) ≈ V0
         @test vcov(cached_cr1, lm_1) ≈ V1
@@ -437,10 +437,10 @@ df.y = Y;
         @test vcov(cached_cr3, lm_1) ≈ V3
 
         # Weighted regression
-        cached_crw0 = CachedCRModel(CR0(df.cl), lmw_1)
-        cached_crw1 = CachedCRModel(CR1(df.cl), lmw_1)
-        cached_crw2 = CachedCRModel(CR2(df.cl), lmw_1)
-        cached_crw3 = CachedCRModel(CR3(df.cl), lmw_1)
+        cached_crw0 = CachedCR(CR0(df.cl), lmw_1)
+        cached_crw1 = CachedCR(CR1(df.cl), lmw_1)
+        cached_crw2 = CachedCR(CR2(df.cl), lmw_1)
+        cached_crw3 = CachedCR(CR3(df.cl), lmw_1)
 
         @test vcov(cached_crw0, lmw_1) ≈ Vw0
         @test vcov(cached_crw1, lmw_1) ≈ Vw1

@@ -91,7 +91,6 @@ The cluster-robust estimators [`CR0`](@ref), [`CR1`](@ref), [`CR2`](@ref), and
 [Clustered Robust (CR) Estimators](@ref) page.
 
 ```@docs
-CachedCRModel
 CRCache
 CRModelCache
 ```

@@ -118,6 +118,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `optimalbw(k::MomentSmoother, G)` takes the moment matrix, as for HAC
   kernels.
 
+- `CachedCR(k, model)` caches the cluster indices and the `CR2`/`CR3`
+  leverage adjustments of a regression model. Every `CachedCR` works on both
+  moment matrices and models: `CachedCR(k, ncols)` on a model gives the
+  results of `k`, and a model-built cache checks that the model matches it.
+  Two `CachedCR` values compare equal (and hash equally) when they wrap equal
+  estimators, whatever their caches.
+
 ### Deprecated
 
 - `vcov(k::DriscollKraay, model; type = ...)`; use
@@ -144,6 +151,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `optimalbw(k::MomentSmoother, T::Integer)`; use `optimalbw(k, G)` with the
   moment matrix `G`.
+
+- `CachedCRModel` is a deprecated alias of `CachedCR`; `CachedCRModel(k, model)`
+  returns `CachedCR(k, model)`, which prints as `CachedCR(...)`.
 
 ### Removed
 

@@ -375,6 +375,26 @@ cached_k = CachedCR(k, size(X, 2))
 S = aVar(cached_k, X)
 ```
 
+### Caching for a Regression Model
+
+`CachedCR(k, model)` builds the cache from a fitted model. For `CR2` and `CR3` it
+also precomputes the leverage adjustments, which depend only on the model matrix and
+the clusters, so only the residual-dependent part is recomputed on each call. The
+models passed to `vcov` must share the model matrix of `model`; a model with a
+different number of observations or coefficients raises a `DimensionMismatch`.
+
+```julia
+using GLM, DataFrames
+df = DataFrame(y = randn(1000), x = randn(1000), cl = repeat(1:50, 20))
+model = lm(@formula(y ~ x), df)
+
+cached = CachedCR(CR2(df.cl), model)
+vcov(cached, model) ≈ vcov(CR2(df.cl), model)   # true
+```
+
+Either form of `CachedCR` works on both moment matrices and models, and compares
+equal to any other `CachedCR` wrapping an equal estimator.
+
 ### Important Limitations
 
 !!! warning "AD Incompatibility"

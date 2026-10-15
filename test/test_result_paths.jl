@@ -80,7 +80,7 @@ CovarianceMatrices.hessian_objective(m::ResultPathsGMM) = m.H
 
     @testset "cached CR on a model" begin
         k = CR2(df.firm)
-        ck = CachedCRModel(k, m)
+        ck = CachedCR(k, m)
         A = aVar(ck, m)
         @test A isa CovarianceMatrix
         @test information(A).nclusters == (12,)
@@ -89,6 +89,45 @@ CovarianceMatrices.hessian_objective(m::ResultPathsGMM) = m.H
         @test V isa CovarianceMatrix
         @test V ≈ vcov(k, m)
         @test stderror(ck, m) ≈ stderror(k, m)
+    end
+
+    @testset "one cached CR on both paths: $(nameof(K))" for K in (CR0, CR1, CR2, CR3)
+        for g in ((df.firm,), (df.firm, df.year))
+            k = K(g...)
+            cm = CachedCR(k, m)            # cache built from the model
+            cx = CachedCR(k, size(X, 2))   # cache built for moment matrices
+            @test cm isa CovarianceMatrices.CR && cx isa CovarianceMatrices.CR
+            for c in (cm, cx)
+                @test aVar(c, X) ≈ aVar(k, X)
+                @test aVar(c, m) ≈ aVar(k, m)
+                @test vcov(c, m) ≈ vcov(k, m)
+                @test vcov(c, m) isa CovarianceMatrix
+                @test vcov(c) isa VcovSpec
+            end
+        end
+    end
+
+    @testset "cached CR equality ignores the cache" begin
+        k = CR2(df.firm)
+        cm, cx = CachedCR(k, m), CachedCR(k, size(X, 2))
+        @test cm == cx
+        @test hash(cm) == hash(cx)
+        @test CachedCR(k, 2) == CachedCR(k, 5)
+        @test cm != k
+        @test cm != CachedCR(CR1(df.firm), m)
+        @test length(unique([cm, cx, CachedCR(k, 7)])) == 1
+    end
+
+    @testset "cached CR checks the model against its cache" begin
+        msub = lm(@formula(y ~ x1 + x2), df[1:60, :])
+        cm = CachedCR(CR2(df.firm), m)
+        @test_throws "the model has 60 observations and 3 coefficients, but the cache was built for $n and 3" vcov(
+            cm, msub)
+    end
+
+    @testset "CachedCRModel is a deprecated alias of CachedCR" begin
+        @test Base.isdeprecated(CovarianceMatrices, :CachedCRModel)
+        @test CovarianceMatrices.CachedCRModel === CachedCR
     end
 
     @testset "M- and GMM-like models" begin

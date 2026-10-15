@@ -10,6 +10,8 @@
 ## - `Base.print_matrix`: `show(::IO, ::MIME"text/plain", ::CovarianceMatrix)`
 ##   uses it to print the matrix body without the `Matrix{T}` header line;
 ##   Base has no public equivalent.
+## - `Base.@deprecate_binding`: retires an exported name while keeping it working;
+##   Base has no public equivalent.
 ##
 ## Reference: https://ericphanson.github.io/ExplicitImports.jl/stable/
 
@@ -22,7 +24,8 @@ using CovarianceMatrices
         CovarianceMatrices;
         all_explicit_imports_are_public = (; ignore = (:Clustering,)),
         all_qualified_accesses_are_public = (;
-            ignore = (:print_matrix, :clusterize, :fit_var, :_checkclusterlength)
+            ignore = (:print_matrix, Symbol("@deprecate_binding"), :clusterize, :fit_var,
+            :_checkclusterlength)
         )
     )
 end
