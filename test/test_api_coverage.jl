@@ -32,8 +32,8 @@ using StatsAPI
 
         # Test stderror returns sqrt of diagonal of vcov
         # Use HC0 which has a working avar method
-        V = vcov(HC0(), Information(), model)
-        se = stderror(HC0(), Information(), model)
+        V = vcov(Information(), model)
+        se = stderror(Information(), model)
 
         @test length(se) == k
         @test se ≈ sqrt.(diag(V))
@@ -207,7 +207,7 @@ using StatsAPI
         @test_throws ArgumentError vcov(HC0(), Misspecified(), model)
 
         # Information form should work (falls back to cross_score)
-        V = vcov(HC0(), Information(), model)
+        V = vcov(Information(), model)
         @test size(V) == (3, 3)
     end
 
@@ -230,11 +230,11 @@ using StatsAPI
         model = SkipCheckModel2(Z, randn(k), H)
 
         # Should work with check=false
-        V = vcov(HC0(), Information(), model; check = false)
+        V = vcov(Information(), model; check = false)
         @test size(V) == (k, k)
 
         # Also with debug and warn options
-        V2 = vcov(HC0(), Information(), model; debug = false, warn = false)
+        V2 = vcov(Information(), model; debug = false, warn = false)
         @test size(V2) == (k, k)
     end
 
@@ -257,9 +257,9 @@ using StatsAPI
         model = TolTestModel2(Z, randn(k), H)
 
         # Test with custom tolerances
-        V1 = vcov(HC0(), Information(), model; cond_atol = 1e-10)
-        V2 = vcov(HC0(), Information(), model; cond_rtol = 1e-8)
-        V3 = vcov(HC0(), Information(), model; cond_atol = 1e-10, cond_rtol = 1e-8)
+        V1 = vcov(Information(), model; cond_atol = 1e-10)
+        V2 = vcov(Information(), model; cond_rtol = 1e-8)
+        V3 = vcov(Information(), model; cond_atol = 1e-10, cond_rtol = 1e-8)
 
         @test size(V1) == (k, k)
         @test size(V2) == (k, k)
@@ -303,7 +303,8 @@ end
         :BartlettKernel, :ParzenKernel, :QuadraticSpectralKernel,
         :TruncatedKernel, :TukeyHanningKernel,
         :CRCache, :CRModelCache,
-        :BandwidthType, :CR, :LagSelector]
+        :BandwidthType, :CR, :LagSelector,
+        :bread, :leverage, :mask, :momentresiduals]
 
     @testset "public names resolve" begin
         for name in public_names

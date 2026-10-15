@@ -125,6 +125,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Two `CachedCR` values compare equal (and hash equally) when they wrap equal
   estimators, whatever their caches.
 
+- A documented, `public` protocol for `RegressionModel` types other than GLM
+  fits: `bread`, `momentresiduals`, `leverage` and `mask`, together with
+  `coef`, `modelmatrix` and (for `CR2`/`CR3`) `weights`. `momentresiduals`
+  falls back to `StatsAPI.residuals`, `leverage` to `StatsAPI.leverage`, and
+  `mask` to all coefficients estimable, so an unweighted least-squares model
+  needs only `bread` beyond the StatsAPI functions. Models that define the
+  internal `_residuals` keep working. The number of observations is the number
+  of rows of `modelmatrix`.
+
+- `vcov(Information(), model)` and `stderror(Information(), model)` for an
+  `MLikeModel`.
+
 ### Deprecated
 
 - `vcov(k::DriscollKraay, model; type = ...)`; use
@@ -151,6 +163,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `optimalbw(k::MomentSmoother, T::Integer)`; use `optimalbw(k, G)` with the
   moment matrix `G`.
+
+- `vcov(ve, Information(), model)` and `stderror(ve, Information(), model)` for
+  an `MLikeModel`, which do not use `ve`; omit the estimator.
 
 - `CachedCRModel` is a deprecated alias of `CachedCR`; `CachedCRModel(k, model)`
   returns `CachedCR(k, model)`, which prints as `CachedCR(...)`.

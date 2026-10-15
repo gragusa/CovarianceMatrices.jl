@@ -80,7 +80,7 @@ is_approx_symmetric(V; atol = 1e-10) = isapprox(V, V', atol = atol)
         m = lm(@formula(Y~X1 + X2), df, wts = df.w)
 
         # Test residuals for weighted model
-        r = CovarianceMatrices._residuals(m.model)
+        r = CovarianceMatrices.momentresiduals(m.model)
         @test length(r) == 20
 
         # Test momentmatrix for weighted model

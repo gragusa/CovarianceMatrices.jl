@@ -394,7 +394,7 @@ end
         mle = TestMLE([1.0, 2.0])
 
         # Should work with both forms
-        V_info = vcov(HC0(), Information(), mle)
+        V_info = vcov(Information(), mle)
         @test_throws ArgumentError vcov(HC0(), Misspecified(), mle)
 
         @test size(V_info) == (2, 2)

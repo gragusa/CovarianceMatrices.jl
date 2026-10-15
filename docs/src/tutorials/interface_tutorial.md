@@ -134,7 +134,7 @@ the model is correctly specified; `Misspecified` builds the sandwich:
 ```@example iface
 DataFrame(
     coef = ["(Intercept)", "RMRF"],
-    information = stderror(HC0(), Information(), model),
+    information = stderror(Information(), model),
     misspecified = stderror(HC3(), Misspecified(), model),
     misspecified_hac = stderror(Bartlett{Andrews}(), Misspecified(), model),
 )
@@ -374,6 +374,52 @@ V_sandwich = inv(H) * Ω_hat * inv(H')
 V_gmm = inv(∇g' * inv(Ω_hat) * ∇g)
 ```
 
+## Regression Models
+
+A model that subtypes `StatsBase.RegressionModel` takes a separate path:
+`vcov(k, model)` forms the sandwich `n · B · aVar(k, model) · B` from the model's
+bread `B`, which is what the finite-sample corrections of `HC1`–`HC5` and `CR1`–`CR3`
+need. The protocol is:
+
+| Function | Required? | Returns |
+|----------|-----------|---------|
+| `StatsAPI.coef(model)` | Yes | `k`-vector of estimates |
+| `StatsAPI.modelmatrix(model)` | Yes | `n × k` design matrix |
+| [`CovarianceMatrices.bread`](@ref)`(model)` | Yes | `k × k` bread, e.g. `inv(X'X)` |
+| [`CovarianceMatrices.momentresiduals`](@ref)`(model)` | Fallback: `StatsAPI.residuals` | `u` with scores `X .* u` |
+| [`CovarianceMatrices.leverage`](@ref)`(model)` | `HC2`–`HC5`; fallback: `StatsAPI.leverage` | hat-matrix diagonal |
+| [`CovarianceMatrices.mask`](@ref)`(model)` | Fallback: all `true` | estimable coefficients |
+| `StatsAPI.weights(model)` | `CR2`/`CR3` | observation weights, empty if none |
+
+The number of observations is the number of rows of `modelmatrix(model)`. The
+fallback for `momentresiduals` is right only for unweighted least squares; a weighted
+or nonlinear model defines it. An unweighted least-squares model needs little:
+
+```@example iface
+using LinearAlgebra, StatsBase
+
+struct OLS <: StatsBase.RegressionModel
+    X::Matrix{Float64}
+    y::Vector{Float64}
+    β::Vector{Float64}
+end
+OLS(X, y) = OLS(X, y, X \ y)
+
+StatsAPI.coef(m::OLS) = m.β
+StatsAPI.modelmatrix(m::OLS) = m.X
+StatsAPI.residuals(m::OLS) = m.y - m.X * m.β
+StatsAPI.leverage(m::OLS) = diag(m.X * inv(m.X' * m.X) * m.X')
+CovarianceMatrices.bread(m::OLS) = inv(m.X' * m.X)
+
+ols = OLS(X, y)
+DataFrame(
+    coef = ["(Intercept)", "RMRF"],
+    hc1 = stderror(HC1(), ols),
+    hc3 = stderror(HC3(), ols),
+    hac = stderror(Bartlett{Andrews}(), ols),
+)
+```
+
 ## For Modeling Packages: Column-Named Clusters and `VcovSpec`
 
 A modeling package that fits models to a data table can let its users name
@@ -463,7 +509,7 @@ using Test
 
     # Test variance forms if applicable
     if model isa CovarianceMatrices.MLikeModel
-        @test_nowarn vcov(HC3(), Information(), model)
+        @test_nowarn vcov(Information(), model)
     end
 end
 ```

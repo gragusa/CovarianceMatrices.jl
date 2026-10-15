@@ -12,7 +12,7 @@ either correct specification or misspecification.
 # ============================================================================
 
 """
-    vcov(ve::AbstractAsymptoticVarianceEstimator, form::Information, model::MLikeModel; kwargs...)
+    vcov(form::Information, model::MLikeModel; kwargs...)
 
 Compute variance-covariance matrix for MLE-like models under correct specification assumption.
 
@@ -20,8 +20,10 @@ For MLikeModel + Information:
 - If hessian_objective available: V = inv(H) where H is the Hessian
 - Otherwise: V = inv(G) where G is the cross_score matrix
 
+No variance estimator is involved: the result depends only on the model. The form
+`vcov(ve, Information(), model)` is deprecated, because it ignores `ve`.
+
 # Arguments
-- `ve::AbstractAsymptoticVarianceEstimator`: Variance estimator (HAC, HC, etc.)
 - `form::Information`: Information form (assumes correct specification)
 - `model::MLikeModel`: Maximum likelihood model
 
@@ -33,10 +35,9 @@ For MLikeModel + Information:
 - `warn::Bool=true`: Issue warnings for potential issues
 
 # Returns
-- `CovarianceMatrix`: Variance-covariance matrix (Fisher Information inverse); `estimator` returns `form`, since `ve` is not used
+- `CovarianceMatrix`: Variance-covariance matrix (Fisher Information inverse); `estimator` returns `form`
 """
 function StatsAPI.vcov(
-        ve::AbstractAsymptoticVarianceEstimator,
         form::Information,
         model::MLikeModel;
         cond_atol::Union{Nothing, Real} = nothing,
@@ -64,8 +65,16 @@ function StatsAPI.vcov(
             cond_rtol = cond_rtol, debug = debug, warn = warn)
     end
 
-    # `ve` takes no part in this computation, so the result records the form.
     return CovarianceMatrix(V, form)
+end
+
+function StatsAPI.vcov(
+        ve::AbstractAsymptoticVarianceEstimator, form::Information, model::MLikeModel;
+        kwargs...)
+    Base.depwarn(
+        "`vcov(ve, Information(), model)` is deprecated for an `MLikeModel` because it " *
+        "does not use `ve`; call `vcov(Information(), model)`.", :vcov)
+    return StatsAPI.vcov(form, model; kwargs...)
 end
 
 """
@@ -270,6 +279,15 @@ Compute standard errors from variance-covariance matrix.
 function StatsAPI.stderror(ve::AbstractAsymptoticVarianceEstimator, args...; kwargs...)
     V = StatsAPI.vcov(ve, args...; kwargs...)
     return sqrt.(diag(V))
+end
+
+"""
+    stderror(form::Information, model::MLikeModel; kwargs...)
+
+Standard errors from `vcov(form, model; kwargs...)`.
+"""
+function StatsAPI.stderror(form::Information, model::MLikeModel; kwargs...)
+    return sqrt.(diag(StatsAPI.vcov(form, model; kwargs...)))
 end
 
 # # ============================================================================

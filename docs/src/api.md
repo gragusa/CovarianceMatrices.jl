@@ -182,10 +182,15 @@ the result and estimator accessors documented above. `BartlettKernel`,
 [`TukeyHanning`](@ref) are aliases for them, and these are the names that appear
 when a kernel is displayed. [`CRCache`](@ref) and [`CRModelCache`](@ref) are the
 cluster caches. `BandwidthType`, `CR` and `LagSelector` are abstract supertypes
-available for dispatch.
+available for dispatch. `bread`, `momentresiduals`, `leverage` and `mask` are the
+protocol a `RegressionModel` implements to work with `vcov(k, model)`.
 
 ```@docs
 nclusters
+CovarianceMatrices.bread
+CovarianceMatrices.momentresiduals
+CovarianceMatrices.leverage
+CovarianceMatrices.mask
 ```
 
 ## Everything Else Is Internal

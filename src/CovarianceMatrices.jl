@@ -124,5 +124,7 @@ public AICs, BICs, maxlags, nclusters, order, order_aic, order_bic,
 # Cluster caches
        CRCache, CRModelCache,
 # Abstract supertypes available for dispatch
-       BandwidthType, CR, LagSelector
+       BandwidthType, CR, LagSelector,
+# Regression-model protocol
+       bread, leverage, mask, momentresiduals
 end

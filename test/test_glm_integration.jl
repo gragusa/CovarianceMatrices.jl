@@ -26,9 +26,9 @@
     @test CovarianceMatrices.bandwidth(Σ_M)≈1.737626 atol=1e-06
 end
 
-@testset "GLM Integration (_residuals)" begin
+@testset "GLM Integration (momentresiduals)" begin
     ## GLM `residuals` function is sketchy at best, so we provide our own
-    ## _residuals
+    ## momentresiduals
     ##  - linear models: (y - Xβ).*sqrt(wts)
     ## - GLM: working residuals .* sqrt(wts)
     using StableRNGs
@@ -38,7 +38,7 @@ end
     df = DataFrame(X1 = randn(rng, 20), X2 = randn(rng, 20), Y = randn(rng, 20),
         w = rand(rng, 20), cl = repeat(1:4, inner = 5))
     m = lm(@formula(Y~X1 + X2), df)
-    r = CovarianceMatrices._residuals(m.model)
+    r = CovarianceMatrices.momentresiduals(m.model)
     @rput df
     R"""
     library(sandwich)
@@ -54,7 +54,7 @@ end
     """
     @rget resid
     m = lm(@formula(Y~X1 + X2), df, wts = df.w)
-    r = CovarianceMatrices._residuals(m.model)
+    r = CovarianceMatrices.momentresiduals(m.model)
     @test r ≈ resid .* sqrt.(df.w)
     R"""
     Mr <- sandwich::estfun(m) # working residuals

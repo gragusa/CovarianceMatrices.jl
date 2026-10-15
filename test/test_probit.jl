@@ -200,7 +200,7 @@ fit!(model)
 
 @test coef(model) ≈ thetahat_ rtol=1e-0
 
-V1 = vcov(HC0(), Information(), model)
+V1 = vcov(Information(), model)
 @test maximum(abs.(V1 .- vcov_hat)) < 1e-03
 
 ## This is expected to be true in theory. But with only n=100

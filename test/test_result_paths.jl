@@ -134,7 +134,7 @@ CovarianceMatrices.hessian_objective(m::ResultPathsGMM) = m.H
         g = randn(rng, n, 2)
         H = g' * g
         mle = ResultPathsMLE(g, H)
-        Vi = vcov(Bartlett{Andrews}(), Information(), mle; check = false)
+        Vi = vcov(Information(), mle; check = false)
         @test Vi isa CovarianceMatrix
         @test estimator(Vi) == Information()
         Vm = vcov(Bartlett{Andrews}(), Misspecified(), mle; check = false)

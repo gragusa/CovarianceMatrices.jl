@@ -122,6 +122,21 @@ Third-party estimators should implement the following methods:
 - `CovarianceMatrices.hessian_objective(model)`: Return the objective Hessian (k × k matrix) - required for the Misspecified form with GMM
 - `CovarianceMatrices.jacobian_momentfunction(model)`: Return the Jacobian of the moment function (m × k matrix) - required for GMM
 
+### Regression Models
+
+A model that subtypes `StatsBase.RegressionModel` works with `vcov(k, model)` and the
+finite-sample corrections (`HC1`–`HC5`, `CR1`–`CR3`) when it implements:
+
+- `StatsAPI.coef(model)` and `StatsAPI.modelmatrix(model)` (`n × k`)
+- `CovarianceMatrices.bread(model)`: the `k × k` bread, e.g. `inv(X'X)`
+- `CovarianceMatrices.momentresiduals(model)`: residuals `u` such that `X .* u` are the
+  score contributions; falls back to `StatsAPI.residuals(model)`, which is right only
+  for unweighted least squares
+- `CovarianceMatrices.leverage(model)`: hat-matrix diagonal, needed by `HC2`–`HC5`;
+  falls back to `StatsAPI.leverage(model)`
+- `CovarianceMatrices.mask(model)`: estimable coefficients; defaults to all `true`
+- `StatsAPI.weights(model)`: observation weights (empty if none), needed by `CR2`/`CR3`
+
 ### Important: Scaling Convention
 
 **The `hessian_objective()` and `jacobian_momentfunction()` methods should return unscaled matrices**, i.e., sums over observations.
@@ -223,7 +238,7 @@ y = Int.(y_latent .> 0)
 model = SimpleProbit(y, X)
 
 # Now you can use both variance forms:
-vcov_info = vcov(HC1(), Information(), model)          # Fisher Information-based
+vcov_info = vcov(Information(), model)                # Fisher Information-based
 vcov_robust = vcov(Bartlett(3), Misspecified(), model) # Robust sandwich estimator
 ```
 

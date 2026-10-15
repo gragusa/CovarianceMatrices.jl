@@ -42,11 +42,55 @@ and work with any RegressionModel.
 - Scalar or vector of adjustment factors
 """
 function residual_adjustment end
-function numobs end
-function mask end
-function leverage end
-function _residuals end
+
+# Regression-model protocol. `vcov(k, model)` and `aVar(k, model)` on a
+# `RegressionModel` use `coef`, `modelmatrix`, `bread`, `momentresiduals`, `mask`,
+# `leverage` (HC2–HC5) and `weights` (CR2/CR3).
+
+"""
+    bread(model::RegressionModel) -> AbstractMatrix
+
+Return the `k × k` bread of the sandwich, scaled so that
+`vcov(k, model) = n · bread(model) · aVar(k, model) · bread(model)` with `n` the number of
+rows of `modelmatrix(model)`. For least squares this is `inv(X'X)`; for a GLM it is
+`inv(X'WX)` times the dispersion. Rows and columns of non-estimable coefficients (see
+[`mask`](@ref CovarianceMatrices.mask)) are ignored. Required: there is no fallback.
+"""
 function bread end
+
+"""
+    momentresiduals(model::RegressionModel) -> AbstractVector
+
+Return the per-observation residuals `u` for which `modelmatrix(model) .* u` is the
+matrix of score (moment) contributions. For unweighted least squares these are the
+ordinary residuals; with weights `w` they are `w .* residuals(model)`; for a GLM they are
+the working residuals times the working weights, divided by the dispersion.
+
+The fallback calls `StatsAPI.residuals(model)`, which is correct only for unweighted least
+squares. Models that define the internal `_residuals` instead are still supported.
+"""
+momentresiduals(m) = _residuals(m)
+_residuals(m) = StatsAPI.residuals(m)
+
+"""
+    mask(model::RegressionModel) -> AbstractVector{Bool}
+
+Return a vector with one entry per coefficient, `true` for estimable coefficients and
+`false` for coefficients dropped because the design is rank deficient. The variance of a
+dropped coefficient is reported as `NaN`. The fallback marks every coefficient estimable.
+"""
+mask(m) = trues(size(modelmatrix(m), 2))
+
+"""
+    leverage(model::RegressionModel) -> AbstractVector
+
+Return the diagonal of the hat matrix, one entry per observation. Needed only by the
+leverage-based estimators `HC2`–`HC5` (`HR2`–`HR5`). The fallback calls
+`StatsAPI.leverage(model)`.
+"""
+leverage(m) = StatsAPI.leverage(m)
+
+numobs(m) = size(modelmatrix(m), 1)
 
 @noinline residual_adjustment(k::HAC, r::RegressionModel) = 1.0
 @noinline residual_adjustment(k::EWC, r::RegressionModel) = 1.0
@@ -244,7 +288,7 @@ function aVar(
     # Get moment matrix with residual adjustment
     a = residual_adjustment(k, m)
     X = modelmatrix(m)
-    u = _residuals(m)
+    u = momentresiduals(m)
     if length(a) == 1
         M = X .* (a[1] * u)
     else
@@ -274,7 +318,7 @@ function aVar(
     _checkprewhite(k, prewhite)
     H = residual_adjustment(k, m)
     X = modelmatrix(m)
-    u = _residuals(m)
+    u = momentresiduals(m)
     M = map(h->X .* (h*u), H)
     V = avar_tuple(k, M)
     # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
@@ -495,7 +539,7 @@ function aVar(
     cache = k.cache
     H = residual_adjustment(k, m)
     X = modelmatrix(m)
-    u = _residuals(m)
+    u = momentresiduals(m)
 
     # Compute moment matrices using cached leverage adjustments
     M = map(h -> X .* (h * u), H)
