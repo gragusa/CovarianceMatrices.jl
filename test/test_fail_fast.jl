@@ -117,14 +117,13 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
 
     @testset "model-only corrections on a matrix" begin
         for k in (HC1(), HC2(), HC3(), HC4(), HC4m(), HC5())
-            V = @test_deprecated r"HR0" aVar(k, X)
-            @test V ≈ aVar(HC0(), X)
+            @test_throws "use `HR0` (`HC0`) on a matrix" aVar(k, X)
         end
         for k in (CR1(df.g), CR2(df.g), CR3(df.g))
-            V = @test_deprecated r"CR0" aVar(k, X)
-            @test V ≈ aVar(CR0(df.g), X)
+            @test_throws "use `CR0` or `Cluster` on a matrix" aVar(k, X)
         end
-        @test_deprecated r"CR0" aVar(CachedCR(CR1(df.g), size(X, 2)), X)
+        @test_throws "use `CR0` or `Cluster` on a matrix" aVar(
+            CachedCR(CR1(df.g), size(X, 2)), X)
         # Estimators whose result on a matrix is the intended one, and the model path.
         for k in (HC0(), Uncorrelated(), CR0(df.g), Cluster(df.g),
             CachedCR(CR0(df.g), size(X, 2)))
@@ -142,11 +141,12 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
     end
 
     @testset "prewhite" begin
-        V = @test_deprecated aVar(HC0(), X; prewhite = true)
-        @test V ≈ aVar(HC0(), X)
-        @test_deprecated aVar(CR0(df.g), X; prewhite = true)
-        @test_deprecated vcov(CR1(df.g), model; prewhite = true)
-        @test_deprecated aVar(VARHAC(), X; prewhite = true)
+        @test_throws "not supported by HR0" aVar(HC0(), X; prewhite = true)
+        @test_throws "not supported by CR0" aVar(CR0(df.g), X; prewhite = true)
+        @test_throws "not supported by CR1" vcov(CR1(df.g), model; prewhite = true)
+        @test_throws "not supported by CachedCR" vcov(
+            CachedCR(CR1(df.g), model), model; prewhite = true)
+        @test_throws "not supported by VARHAC" aVar(VARHAC(), X; prewhite = true)
         @test_nowarn aVar(HC0(), X; prewhite = false)
 
         # Estimators that prewhiten receive the request.
@@ -203,15 +203,17 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
 
         @test (@test_deprecated VARHAC(FixedSelector(), FixedLags(3))) ==
               VARHAC(FixedLags(3))
-        @test (@test_deprecated r"will throw" VARHAC(BICSelector(), FixedLags(3))) ==
-              VARHAC(FixedLags(3))
+        @test_throws "takes no selector. Use `VARHAC(FixedLags(3))`" VARHAC(
+            BICSelector(), FixedLags(3))
+        @test_throws "takes no selector" VARHAC(AICSelector(), FixedLags(3))
         @test (@test_deprecated VARHAC(; T = Float32)) isa
               VARHAC{AICSelector, SameLags, Float32}
 
-        @test (@test_deprecated FixedLags(5.7)).maxlag == 6
-        @test (@test_deprecated SameLags(5.7)).maxlag == 6
-        @test (@test_deprecated DifferentOwnLags((2.6, 1))).maxlags == [3, 1]
+        @test_throws "a lag order must be an integer, got 5.7" FixedLags(5.7)
+        @test_throws "a lag order must be an integer, got 5.7" SameLags(5.7)
+        @test_throws "a lag order must be an integer, got 2.6" DifferentOwnLags((2.6, 1))
         @test (@test_nowarn FixedLags(5.0)).maxlag == 5
+        @test (@test_nowarn DifferentOwnLags((2.0, 1))).maxlags == [2, 1]
 
         @test_throws "at least 1, got -1" FixedLags(-1)
         @test_throws "at least 1, got 0" FixedLags(0)
@@ -223,7 +225,8 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
     end
 
     @testset "VARHAC keywords and fallbacks" begin
-        @test_deprecated r"does not use the keyword\(s\) foo" aVar(VARHAC(), X; foo = 1)
+        @test_throws "does not accept the keyword(s) foo, bar" aVar(
+            VARHAC(), X; foo = 1, bar = 2)
         @test_nowarn aVar(VARHAC(), X)
 
         # Collinear columns make the lag regressions and `I - ΣAⱼ` singular.

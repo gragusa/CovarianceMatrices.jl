@@ -4,7 +4,7 @@
 ##     both matrices and models. It now behaves like HC0/HR0 (White's estimator).
 ##  2. `Cluster` is the clustering counterpart of `Uncorrelated` and equals `CR0`
 ##     on both matrices and models. On a bare matrix the CR variants carry no
-##     finite-sample correction; passing `CR1`–`CR3` with a matrix is deprecated.
+##     finite-sample correction, so passing `CR1`–`CR3` with a matrix throws.
 ##  3. `VARHAC` and the smoothed-moment estimators (`UniformSmoother`,
 ##     `TriangularSmoother`) had no `residual_adjustment(::_, ::RegressionModel)`
 ##     method and errored when used with a fitted model.
@@ -49,7 +49,7 @@ const CM = CovarianceMatrices
     end
 
     # -----------------------------------------------------------------
-    # 2. `Cluster` equals `CR0`; CR1/CR2/CR3 on a matrix are deprecated
+    # 2. `Cluster` equals `CR0`; CR1/CR2/CR3 on a matrix throw
     # -----------------------------------------------------------------
     @testset "Cluster estimator and CR-on-matrix guard" begin
         Z = randn(StableRNG(2), n, 2)
@@ -61,12 +61,11 @@ const CM = CovarianceMatrices
         # Multi-way clustering works via the same inclusion-exclusion machinery.
         @test size(aVar(Cluster((clusters, clusters2)), Z)) == (2, 2)
 
-        # On a bare matrix there is no design matrix, so the CR variants apply no
-        # finite-sample correction and all reduce to the same raw cluster sum as
-        # `Cluster` (their DOF/leverage factors take effect on the model path).
+        # On a bare matrix there is no design matrix, so the CR1–CR3 corrections
+        # cannot be applied; they take effect on the model path.
         @test aVar(CR0(clusters), Z) ≈ aVar(Cluster(clusters), Z)
         for k in (CR1(clusters), CR2(clusters), CR3(clusters))
-            @test (@test_deprecated aVar(k, Z)) ≈ aVar(Cluster(clusters), Z)
+            @test_throws ArgumentError aVar(k, Z)
         end
 
         # On a fitted model `Cluster` equals `CR0`.

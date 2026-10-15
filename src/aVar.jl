@@ -16,11 +16,11 @@ where `X̄` is the sample mean of the observations in `m` (averaged along `dims`
 - The element type of `m` must be `Real`.
 - `prewhite = true` _prewhitens_ the matrix with a VAR(1) model. It applies to `HAC`,
   `EWC` and `MomentSmoother` estimators, and to `DriscollKraay`, which prewhitens the
-  series of period sums; other estimators do not prewhiten and emit a deprecation
-  warning when it is requested.
-- On a matrix, `HR1`–`HR5`/`HC1`–`HC5` and `CR1`–`CR3` apply no finite-sample
-  correction and equal `HR0` and `CR0`. Their corrections need a fitted model; passing
-  them with a matrix is deprecated.
+  series of period sums; other estimators do not prewhiten and throw an
+  `ArgumentError` when it is requested.
+- `HR1`–`HR5`/`HC1`–`HC5` and `CR1`–`CR3` need a fitted model to form their
+  finite-sample corrections, so passing them with a matrix throws an `ArgumentError`;
+  use `HR0` or `CR0` on a matrix.
 - `scale` selects whether the variance is divided by the number of observations.
 - `scaleby` divides the variance by an explicit positive divisor instead, which is
   convenient for a degrees-of-freedom correction. It takes precedence over `scale`.
@@ -43,12 +43,9 @@ _check_matrix_path(k::CachedCR) = _check_matrix_path(k.estimator)
 function _check_matrix_path(k::_ModelOnlyAdjustment)
     name = nameof(typeof(k))
     base = k isa HR ? "`HR0` (`HC0`)" : "`CR0` or `Cluster`"
-    Base.depwarn(
-        "`aVar` with `$name` on a matrix applies no finite-sample correction, so it " *
-        "equals $base. Passing `$name` with a matrix is deprecated and will throw an " *
-        "error in a future release: use $base on a matrix, or pass a fitted model.",
-        :aVar)
-    return nothing
+    throw(ArgumentError(
+        "`aVar` with `$name` on a matrix cannot apply its finite-sample correction, " *
+        "which needs a fitted model: use $base on a matrix, or pass a fitted model."))
 end
 
 # Matrix-path computation shared by `aVar(k, X)` and the generic model path, which
@@ -94,10 +91,10 @@ _prewhitens(::MomentSmoother) = true
 
 function _checkprewhite(k, prewhite::Bool)
     prewhite && !_prewhitens(k) &&
-        Base.depwarn(
-            "`prewhite = true` is deprecated for $(nameof(typeof(k))), which does not " *
-            "prewhiten: it has no effect and will throw an error in a future release.", :aVar)
-    return prewhite && _prewhitens(k)
+        throw(ArgumentError(
+            "`prewhite = true` is not supported by $(nameof(typeof(k))), which does " *
+            "not prewhiten."))
+    return prewhite
 end
 
 function _checkscale(scale)
@@ -140,9 +137,8 @@ function _aVar(
     Base.require_one_based_indexing(m)
     _checkscale(scale)
     _checkprewhite(k, prewhite)
-    isempty(kwargs) || Base.depwarn(
-        "`aVar(::VARHAC, X)` does not use the keyword(s) $(join(keys(kwargs), ", ")); " *
-        "passing them is deprecated and will throw an error in a future release.", :aVar)
+    isempty(kwargs) || throw(ArgumentError(
+        "`aVar(::VARHAC, X)` does not accept the keyword(s) $(join(keys(kwargs), ", "))."))
     X = demean ? demeaner(m; means = means, dims = dims) : m
     Shat, info = avar_with_info(k, X)
     # VARHAC estimates the spectral density at frequency zero, which is already on the

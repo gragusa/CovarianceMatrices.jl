@@ -63,8 +63,8 @@ aVar(CR0(grunfeld.Firm), moments)
 
 On a data or moment matrix there is no design matrix, so no small-sample
 adjustment can be formed: use `CR0` or [`Cluster`](@ref), which give the same
-result. `CR1`, `CR2` and `CR3` take a fitted model; passing them with a matrix is
-deprecated.
+result. `CR1`, `CR2` and `CR3` take a fitted model; passing them with a matrix
+throws an `ArgumentError`.
 
 ### CR1: Degrees-of-Freedom Correction
 

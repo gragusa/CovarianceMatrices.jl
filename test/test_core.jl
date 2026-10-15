@@ -216,10 +216,13 @@ df.y = Y;
           -6.709834054283887e-5 -0.00615707811722861 0.07184846516936118]
 
     @testset "Heteroskedasticity Robust (HR) Estimators ✅" begin
-        # On a matrix every HR estimator equals HR0; the others are deprecated there.
+        # On a matrix only HR0 applies; the other corrections need a fitted model.
         for 𝒦 in kernels
-            Σ = 𝒦 isa HR0 ? aVar(𝒦, X) : (@test_deprecated aVar(𝒦, X))
-            @test Σ ≈ Σ₀ rtol=1e-6
+            if 𝒦 isa HR0
+                @test aVar(𝒦, X) ≈ Σ₀ rtol=1e-6
+            else
+                @test_throws ArgumentError aVar(𝒦, X)
+            end
         end
     end
 
@@ -297,20 +300,20 @@ df.y = Y;
         # Test CR1
         k1 = CR1(cl)
         cached_k1 = CachedCR(k1, size(X_test, 2))
-        @test (@test_deprecated aVar(k1, X_test)) ≈
-              (@test_deprecated aVar(cached_k1, X_test)) rtol = 1e-12
+        @test_throws ArgumentError aVar(k1, X_test)
+        @test_throws ArgumentError aVar(cached_k1, X_test)
 
         # Test CR2
         k2 = CR2(cl)
         cached_k2 = CachedCR(k2, size(X_test, 2))
-        @test (@test_deprecated aVar(k2, X_test)) ≈
-              (@test_deprecated aVar(cached_k2, X_test)) rtol = 1e-12
+        @test_throws ArgumentError aVar(k2, X_test)
+        @test_throws ArgumentError aVar(cached_k2, X_test)
 
         # Test CR3
         k3 = CR3(cl)
         cached_k3 = CachedCR(k3, size(X_test, 2))
-        @test (@test_deprecated aVar(k3, X_test)) ≈
-              (@test_deprecated aVar(cached_k3, X_test)) rtol = 1e-12
+        @test_throws ArgumentError aVar(k3, X_test)
+        @test_throws ArgumentError aVar(cached_k3, X_test)
     end
 
     @testset "CachedCR - Cache Dimension Validation ✅" begin

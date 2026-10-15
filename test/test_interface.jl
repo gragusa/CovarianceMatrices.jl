@@ -466,9 +466,14 @@ end
         hr_estimators = [HR0(), HR1(), HR2(), HR3(), HR4(), HR4m(), HR5()]
 
         for est in [hc_estimators; hr_estimators]
-            V = est isa HR0 ? aVar(est, X) : (@test_deprecated aVar(est, X))
-            @test size(V) == (4, 4)
-            @test isposdef(Symmetric(V))
+            if est isa HR0
+                V = aVar(est, X)
+                @test size(V) == (4, 4)
+                @test isposdef(Symmetric(V))
+            else
+                # The finite-sample corrections need a fitted model.
+                @test_throws ArgumentError aVar(est, X)
+            end
         end
     end
 
@@ -488,9 +493,13 @@ end
         for cluster in clusters, CRType in cr_types
 
             est = CRType(cluster)
-            V = CRType === CR0 ? aVar(est, X) : (@test_deprecated aVar(est, X))
-            @test size(V) == (3, 3)
-            @test isposdef(Symmetric(V))
+            if CRType === CR0
+                V = aVar(est, X)
+                @test size(V) == (3, 3)
+                @test isposdef(Symmetric(V))
+            else
+                @test_throws ArgumentError aVar(est, X)
+            end
         end
     end
 

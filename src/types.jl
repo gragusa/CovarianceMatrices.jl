@@ -1149,11 +1149,9 @@ abstract type LagStrategy end
 
 # Lag orders are integers; an integer-valued `Real` converts silently.
 function _lag_integer(x::Real, name::Symbol)
-    isinteger(x) && return Int(x)
-    Base.depwarn(
-        "`$name($x)`: a non-integer lag order is deprecated and will throw in a future " *
-        "release; it is rounded to $(round(Int, x)).", name)
-    return round(Int, x)
+    isinteger(x) ||
+        throw(ArgumentError("`$name($x)`: a lag order must be an integer, got $x"))
+    return Int(x)
 end
 
 """
@@ -1320,8 +1318,9 @@ clearly and lets you choose the selector.
   - `DifferentOwnLags([own, cross])`: search own and cross lag orders separately
 
 A VAR of fixed order, with no selection, is `VARHAC(FixedLags(k))`; it takes no
-selector. Passing a selector together with `FixedLags`, passing `FixedSelector`, the
-alias `VARHAC(:fixed)`, and the `T` keyword are deprecated.
+selector: passing `AICSelector` or `BICSelector` together with `FixedLags` throws an
+`ArgumentError`. Passing `FixedSelector`, the alias `VARHAC(:fixed)`, and the `T`
+keyword are deprecated.
 
 The selected orders are reported by [`order`](@ref) on the result and always come from
 the criterion the estimator is configured with.
@@ -1393,12 +1392,14 @@ _varhac_fixed(f::FixedLags, T) = VARHAC{FixedSelector, FixedLags, T}(FixedSelect
 
 function _varhac(selector::LagSelector, strategy::LagStrategy, T)
     if strategy isa FixedLags
+        msg = "`FixedLags` fits a VAR of fixed order and selects nothing, so it takes " *
+              "no selector. Use `VARHAC($(sprint(show, strategy)))`."
+        selector isa FixedSelector ||
+            throw(ArgumentError("`VARHAC($(sprint(show, selector)), $(sprint(show, strategy)))`: " *
+                                msg))
         Base.depwarn(
-            "`VARHAC($(sprint(show, selector)), $(sprint(show, strategy)))` is " *
-            "deprecated: `FixedLags` fits a VAR of fixed order and selects nothing, so " *
-            "the selector is ignored. Use `VARHAC($(sprint(show, strategy)))`." *
-            (selector isa FixedSelector ? "" :
-             " This combination will throw in a future release."), :VARHAC)
+            "`VARHAC(FixedSelector(), $(sprint(show, strategy)))` is deprecated: " * msg,
+            :VARHAC)
         return _varhac_fixed(strategy, T)
     elseif selector isa FixedSelector
         Base.depwarn(

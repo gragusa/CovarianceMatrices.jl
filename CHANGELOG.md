@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- Inputs that 0.32.1 accepted with a deprecation warning now throw an
+  `ArgumentError`:
+  - `aVar` with `HR1`–`HR5`, `HR4m` (and their `HC` aliases) or `CR1`–`CR3`,
+    alone or inside `CachedCR`, on a matrix. Their finite-sample corrections
+    need a fitted model; use `HR0`/`HC0` or `CR0`/`Cluster` on a matrix. This
+    includes the `vcov(ve, form, model)` methods for `MLikeModel` and
+    `GMMLikeModel`, which pass a moment matrix.
+  - `prewhite = true` with an estimator that does not prewhiten (anything other
+    than HAC kernels, `EWC`, the smoothers, and `DriscollKraay` with a HAC
+    kernel).
+  - Keywords that `aVar(::VARHAC, X)` does not use.
+  - `VARHAC(AICSelector(), FixedLags(k))` and `VARHAC(BICSelector(), FixedLags(k))`;
+    use `VARHAC(FixedLags(k))`.
+  - Non-integer lag orders in `FixedLags`, `SameLags` and `DifferentOwnLags`.
+    Integer-valued numbers such as `3.0` are still accepted.
+
 ### Removed
 
 - The forms deprecated in 0.32.0:

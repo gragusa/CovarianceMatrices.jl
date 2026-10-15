@@ -44,10 +44,13 @@ CovarianceMatrices.hessian_objective(m::ResultPathsGMM) = m.H
     ]
 
     @testset "matrix path: $(repr(k))" for k in families
-        V = k isa CovarianceMatrices._ModelOnlyAdjustment ? (@test_deprecated aVar(k, X)) :
-            aVar(k, X)
-        @test V isa CovarianceMatrix
-        @test estimator(V) == k
+        if k isa CovarianceMatrices._ModelOnlyAdjustment
+            @test_throws ArgumentError aVar(k, X)
+        else
+            V = aVar(k, X)
+            @test V isa CovarianceMatrix
+            @test estimator(V) == k
+        end
     end
 
     @testset "model path: $(repr(k))" for k in families
@@ -102,7 +105,7 @@ CovarianceMatrices.hessian_objective(m::ResultPathsGMM) = m.H
                 if K === CR0
                     @test aVar(c, X) ≈ aVar(k, X)
                 else
-                    @test (@test_deprecated aVar(c, X)) ≈ (@test_deprecated aVar(k, X))
+                    @test_throws ArgumentError aVar(c, X)
                 end
                 @test aVar(c, m) ≈ aVar(k, m)
                 @test vcov(c, m) ≈ vcov(k, m)
