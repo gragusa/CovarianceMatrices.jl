@@ -25,17 +25,17 @@ StatsAPI.leverage(m::ProtocolOLS) = diag(m.X * inv(m.X' * m.X) * m.X')
 StatsAPI.weights(m::ProtocolOLS) = Float64[]
 CMRP.bread(m::ProtocolOLS) = inv(m.X' * m.X)
 
-# Implements the residuals through the internal `_residuals` and nothing optional.
-struct LegacyOLS <: StatsBase.RegressionModel
+# Implements the required methods and nothing optional.
+struct MinimalOLS <: StatsBase.RegressionModel
     X::Matrix{Float64}
     y::Vector{Float64}
     β::Vector{Float64}
 end
-LegacyOLS(X, y) = LegacyOLS(X, y, X \ y)
-StatsAPI.coef(m::LegacyOLS) = m.β
-StatsAPI.modelmatrix(m::LegacyOLS) = m.X
-CMRP._residuals(m::LegacyOLS) = m.y - m.X * m.β
-CMRP.bread(m::LegacyOLS) = inv(m.X' * m.X)
+MinimalOLS(X, y) = MinimalOLS(X, y, X \ y)
+StatsAPI.coef(m::MinimalOLS) = m.β
+StatsAPI.modelmatrix(m::MinimalOLS) = m.X
+CMRP.momentresiduals(m::MinimalOLS) = m.y - m.X * m.β
+CMRP.bread(m::MinimalOLS) = inv(m.X' * m.X)
 
 struct ProtocolMLE <: MLikeModel
     Z::Matrix{Float64}
@@ -83,11 +83,12 @@ CMRP.hessian_objective(m::ProtocolMLE) = m.H
     end
 
     @testset "model with only the required methods" begin
-        legacy = LegacyOLS(X, df.y)
-        @test vcov(HC1(), legacy) ≈ vcov(HC1(), glmfit)
-        @test vcov(CR1(df.g), legacy) ≈ vcov(CR1(df.g), glmfit)
+        minimal = MinimalOLS(X, df.y)
+        @test vcov(HC1(), minimal) ≈ vcov(HC1(), glmfit)
+        @test vcov(CR1(df.g), minimal) ≈ vcov(CR1(df.g), glmfit)
         # The leverage-based estimators need `leverage`.
-        @test_throws MethodError vcov(HC3(), legacy)
+        @test_throws MethodError vcov(HC3(), minimal)
+        @test !isdefined(CovarianceMatrices, :_residuals)
     end
 
     @testset "GLM fits use the weighted working residuals" begin

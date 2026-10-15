@@ -7,6 +7,7 @@ Expected values are pre-computed from R's sandwich package.
 
 using Test
 using CovarianceMatrices
+using CovarianceMatrices: momentmatrix
 using CategoricalArrays
 using DataFrames
 using GLM

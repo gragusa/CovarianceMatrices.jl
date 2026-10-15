@@ -2,7 +2,7 @@
     rng = StableRNG(1234)
     df = DataFrame(X1 = randn(rng, 10), X2 = randn(rng, 10), Y = randn(rng, 10))
     m = lm(@formula(Y~X1 + X2), df)
-    M = momentmatrix(m)
+    M = CovarianceMatrices.momentmatrix(m)
     @test M ≈ [-0.44514751 -0.23125171 0.391807752;
            -0.04562477 -0.04129679 -0.076279862;
            -0.71538836 1.19874849 0.104035222;
@@ -60,7 +60,7 @@ end
     Mr <- sandwich::estfun(m) # working residuals
     """
     @rget Mr
-    M = momentmatrix(m)
+    M = CovarianceMatrices.momentmatrix(m)
     @test M ≈ Mr
 
     R"""
@@ -111,7 +111,7 @@ end
     Σ3 = vcov(HC3(), glmD93)
     Σ4 = vcov(HC4(), glmD93)
     Σ5 = vcov(HC5(), glmD93)
-    @test momentmatrix(glmD93)≈Mr atol=1e-6
+    @test CovarianceMatrices.momentmatrix(glmD93)≈Mr atol=1e-6
     @test Σ0≈V0 rtol=1e-6
     @test Σ1≈V1 rtol=1e-6
     @test Σ2≈V2 rtol=1e-6
@@ -142,7 +142,7 @@ end
     Σ3 = vcov(HC3(), glmD93)
     Σ4 = vcov(HC4(), glmD93)
     Σ5 = vcov(HC5(), glmD93)
-    @test momentmatrix(glmD93)≈Mr atol=1e-6
+    @test CovarianceMatrices.momentmatrix(glmD93)≈Mr atol=1e-6
     @test Σ0≈V0 rtol=1e-6
     @test Σ1≈V1 rtol=1e-6
     @test Σ2≈V2 rtol=1e-6
@@ -206,7 +206,7 @@ end
     MM <- sandwich::estfun(m)
     """
     @rget Vr bwr Mr MM
-    @test MM≈momentmatrix(GAMMA) atol=1e-08
+    @test MM≈CovarianceMatrices.momentmatrix(GAMMA) atol=1e-08
     @test bwr≈bw atol=1e-04
     @test M≈Mr atol=1e-08
 

@@ -37,6 +37,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `VARHAC` has two type parameters, `VARHAC{S<:LagSelector, L<:LagStrategy}`;
   the third, `T`, and the `T` keyword are gone (the estimate always took the
   element type of the data). `FixedSelector` is no longer exported.
+- `momentmatrix`, `cross_score`, `jacobian_momentfunction`, `hessian_objective`
+  and `weight_matrix` are no longer exported; they are `public`. Define methods
+  as `CovarianceMatrices.momentmatrix(m::MyModel) = ...` and call them qualified,
+  or import them with `using CovarianceMatrices: momentmatrix`.
+- `CRCache` and `CRModelCache` are internal (no longer `public`). Build caches
+  with `CachedCR(k, ncols)` or `CachedCR(k, model)`. `CRModelCache` no longer
+  stores the model's bread matrix and has one type parameter.
+- `momentresiduals(model)` falls back to `StatsAPI.residuals(model)` directly.
+  A model that defines only the internal `_residuals` must define
+  `CovarianceMatrices.momentresiduals` instead; otherwise its plain residuals
+  are used, which is wrong for weighted models.
 
 ### Removed
 

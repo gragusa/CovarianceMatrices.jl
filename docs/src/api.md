@@ -92,11 +92,6 @@ The cluster-robust estimators [`CR0`](@ref), [`CR1`](@ref), [`CR2`](@ref), and
 [`CR3`](@ref), and the cached estimator [`CachedCR`](@ref), are documented on the
 [Clustered Robust (CR) Estimators](@ref) page.
 
-```@docs
-CRCache
-CRModelCache
-```
-
 ## Advanced Estimator Reference
 
 ### VARHAC
@@ -182,11 +177,13 @@ the result and estimator accessors documented above. `BartlettKernel`,
 `TukeyHanningKernel` are the kernel struct names; the exported [`Bartlett`](@ref),
 [`Parzen`](@ref), [`QuadraticSpectral`](@ref), [`Truncated`](@ref) and
 [`TukeyHanning`](@ref) are aliases for them, and these are the names that appear
-when a kernel is displayed. [`CRCache`](@ref) and [`CRModelCache`](@ref) are the
-cluster caches. `BandwidthType`, `LagSelector` and `LagStrategy` are abstract
+when a kernel is displayed. `BandwidthType`, `LagSelector` and `LagStrategy` are abstract
 supertypes available for dispatch. `Clustering` is the grouping stored in the `g`
 field of cluster estimators. `bread`, `momentresiduals`, `leverage` and `mask` are the
 protocol a `RegressionModel` implements to work with `vcov(k, model)`.
+`momentmatrix`, `cross_score`, `hessian_objective`, `jacobian_momentfunction` and
+`weight_matrix` are the protocol an `MLikeModel` or `GMMLikeModel` implements; they are
+documented under [Model Interface Functions](@ref).
 
 ```@docs
 nclusters

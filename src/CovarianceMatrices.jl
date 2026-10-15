@@ -102,11 +102,6 @@ export AbstractAsymptoticVarianceEstimator,
        VarianceForm,
        MLikeModel,
        GMMLikeModel,
-       momentmatrix,
-       cross_score,
-       jacobian_momentfunction,
-       hessian_objective,
-       weight_matrix,
 # VcovSpec
        VcovSpec
 
@@ -120,12 +115,12 @@ public AICs, BICs, maxlags, nclusters, order, order_aic, order_bic,
 # that appear when a kernel's type is displayed.
        BartlettKernel, ParzenKernel, QuadraticSpectralKernel, TruncatedKernel,
        TukeyHanningKernel,
-# Cluster caches
-       CRCache, CRModelCache,
 # Abstract supertypes available for dispatch
        BandwidthType, LagSelector, LagStrategy,
 # Cluster identifiers stored in the `g` field of cluster estimators
        Clustering,
 # Regression-model protocol
-       bread, leverage, mask, momentresiduals
+       bread, leverage, mask, momentresiduals,
+# Moment-model protocol (`MLikeModel`, `GMMLikeModel`)
+       momentmatrix, cross_score, jacobian_momentfunction, hessian_objective, weight_matrix
 end

@@ -67,10 +67,9 @@ ordinary residuals; with weights `w` they are `w .* residuals(model)`; for a GLM
 the working residuals times the working weights, divided by the dispersion.
 
 The fallback calls `StatsAPI.residuals(model)`, which is correct only for unweighted least
-squares. Models that define the internal `_residuals` instead are still supported.
+squares.
 """
-momentresiduals(m) = _residuals(m)
-_residuals(m) = StatsAPI.residuals(m)
+momentresiduals(m) = StatsAPI.residuals(m)
 
 """
     mask(model::RegressionModel) -> AbstractVector{Bool}
@@ -463,8 +462,8 @@ function CachedCR(k::CR, m::RegressionModel)
     XX = bread(m)
     grouped_arrays, cluster_indices, signs = _cluster_combinations(k.g)
     H = _compute_leverage_adjustments(k, X, XX, weights(m), grouped_arrays, cluster_indices)
-    cache = CRModelCache{eltype(X), typeof(H)}(
-        grouped_arrays, cluster_indices, signs, XX, H, size(X, 2), numobs(m))
+    cache = CRModelCache{typeof(H)}(
+        grouped_arrays, cluster_indices, signs, H, size(X, 2), numobs(m))
     return CachedCR(k, cache)
 end
 

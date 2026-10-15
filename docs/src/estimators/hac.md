@@ -147,7 +147,7 @@ stderror(Bartlett{Andrews}(), model; prewhite=true)
 `optimalbw` returns the bandwidth a rule selects for a given moment matrix, without forming the covariance:
 
 ```@example hac
-g = momentmatrix(model)
+g = CovarianceMatrices.momentmatrix(model)
 optimalbw(Bartlett{Andrews}(), g)
 ```
 

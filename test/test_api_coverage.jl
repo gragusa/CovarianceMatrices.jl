@@ -302,9 +302,10 @@ end
         :AICs, :BICs, :maxlags, :nclusters, :order, :order_aic, :order_bic,
         :BartlettKernel, :ParzenKernel, :QuadraticSpectralKernel,
         :TruncatedKernel, :TukeyHanningKernel,
-        :CRCache, :CRModelCache,
         :BandwidthType, :LagSelector, :LagStrategy, :Clustering,
-        :bread, :leverage, :mask, :momentresiduals]
+        :bread, :leverage, :mask, :momentresiduals,
+        :momentmatrix, :cross_score, :jacobian_momentfunction, :hessian_objective,
+        :weight_matrix]
 
     @testset "public names resolve" begin
         for name in public_names

@@ -41,6 +41,11 @@ Most of this tutorial concerns surface 2, the model protocol.
 
 ## The Core Interface
 
+The package's protocol functions (`momentmatrix`, `cross_score`, `hessian_objective`,
+`jacobian_momentfunction`, `weight_matrix`) are `public` but not exported: extend them as
+`CovarianceMatrices.momentmatrix(model::MyModel) = ...`, or bring them into scope with
+`using CovarianceMatrices: momentmatrix`.
+
 ### Required Methods
 
 Every model must implement:
@@ -279,13 +284,13 @@ aVar(HC0(), CovarianceMatrices.momentmatrix(qr))
 ```julia
 # ✅ Correct: unscaled cross-product
 function CovarianceMatrices.cross_score(model)
-    g = momentmatrix(model)
+    g = CovarianceMatrices.momentmatrix(model)
     return g' * g  # Sum, not mean
 end
 
 # ❌ Wrong: scaled by sample size
 function CovarianceMatrices.cross_score(model)
-    g = momentmatrix(model)
+    g = CovarianceMatrices.momentmatrix(model)
     T = nobs(model)
     return (g' * g) / T  # Don't do this!
 end

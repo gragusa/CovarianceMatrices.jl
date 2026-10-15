@@ -986,7 +986,7 @@ function CRCache(k::CR, ncols::Int, ::Type{T} = Float64) where {T}
 end
 
 """
-    CRModelCache{T, H}
+    CRModelCache{H}
 
 Cache for cluster-robust variance calculations on a `RegressionModel`. Built by
 `CachedCR(k, model)`. Stores the leverage adjustments, which depend only on the model
@@ -995,14 +995,12 @@ variance calculations (e.g., wild bootstrap) where only residuals change between
 iterations.
 
 # Type Parameters
-- `T`: Element type (e.g., Float64)
 - `H`: Type of leverage adjustments (Vector of BlockDiagonal for CR2/CR3, Vector of scalars for CR0/CR1)
 
 # Fields
 - `grouped_arrays`: Precomputed Clusterings for each clustering combination
 - `cluster_indices`: Precomputed observation indices [combination][cluster] -> obs indices
 - `signs`: Precomputed signs for inclusion-exclusion formula
-- `bread_matrix`: (X'X)^-1 of the model the cache was built from
 - `leverage_adjustments`: Precomputed leverage adjustments (BlockDiagonal for CR2/CR3)
 - `ncols`: Number of model coefficients (for validation)
 - `nobs`: Number of observations (for validation)
@@ -1011,11 +1009,10 @@ iterations.
 Using this cache makes the variance calculation non-differentiable with AD.
 For AD compatibility, use the standard non-cached CR estimators.
 """
-struct CRModelCache{T <: Real, H}
+struct CRModelCache{H}
     grouped_arrays::Vector{Clustering}
     cluster_indices::Vector{Vector{Vector{Int}}}
     signs::Vector{Int}
-    bread_matrix::Matrix{T}
     leverage_adjustments::H
     ncols::Int
     nobs::Int
@@ -1059,8 +1056,7 @@ for b in 1:1000
 end
 ```
 
-See also: [`CR0`](@ref), [`CR1`](@ref), [`CR2`](@ref), [`CR3`](@ref), [`CRCache`](@ref),
-[`CRModelCache`](@ref)
+See also: [`CR0`](@ref), [`CR1`](@ref), [`CR2`](@ref), [`CR3`](@ref)
 """
 struct CachedCR{K <: CR, C <: Union{CRCache, CRModelCache}} <: CR
     estimator::K
