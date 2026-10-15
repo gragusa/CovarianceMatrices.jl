@@ -248,13 +248,6 @@ end
 
 _kernelweights(k::AbstractAsymptoticVarianceEstimator, X) = nothing
 
-function kernelweights(k::AbstractAsymptoticVarianceEstimator, X)
-    Base.depwarn(
-        "`kernelweights(k, X)` is deprecated: `kernelweights` reads the weights from " *
-        "a result. Use `kernelweights(aVar(k, X))`.", :kernelweights)
-    return _kernelweights(k, X)
-end
-
 # -----------------------------------------------------------------------------
 # Optimal bandwidth
 # -----------------------------------------------------------------------------

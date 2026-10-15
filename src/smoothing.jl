@@ -119,13 +119,6 @@ optimalbw(TriangularSmoother(0), G)   # 1.5 * 1000^(1/5)
 """
 optimalbw(k::MomentSmoother, G::AbstractMatrix) = _ratebw(k, size(G, 1))
 
-function optimalbw(k::MomentSmoother, T::Integer)
-    Base.depwarn(
-        "`optimalbw(k, T::Integer)` is deprecated: `optimalbw` takes the moment " *
-        "matrix. Use `optimalbw(k, G)`.", :optimalbw)
-    return _ratebw(k, T)
-end
-
 # Optimal rate T^(1/3) for the uniform kernel
 _ratebw(::UniformSmoother, T::Integer) = 2.0 * T^(1.0 / 3.0)
 # Optimal rate T^(1/5) for the triangular kernel

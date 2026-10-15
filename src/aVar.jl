@@ -147,5 +147,3 @@ function _aVar(
     unscalevar!(Shat, scale, scaleby, size(X, dims))
     return CovarianceMatrix(Shat, k, info)
 end
-
-Base.@deprecate_binding a𝕍ar aVar

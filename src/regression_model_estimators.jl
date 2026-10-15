@@ -400,20 +400,15 @@ coefficients, `T` time periods). The options reproduce the scalar `type` options
   correction.
 
 `dofadjust = false` leaves out `c`. The leverage-based `:HC2`/`:HC3`/`:HC4` options of
-`plm::vcovSCC` are not supported. The keyword form `vcov(k, model; type = :HC1)` is
-deprecated in favor of `DriscollKraay(...; correction = :HC1)`.
+`plm::vcovSCC` are not supported. The correction is set only on the estimator;
+`vcov` throws an `ArgumentError` if it is given a `type` keyword.
 """
 function StatsAPI.vcov(k::DriscollKraay, m::RegressionModel; type = nothing, kwargs...)
-    if type !== nothing
-        Base.depwarn(
-            "`vcov(k::DriscollKraay, model; type = $(repr(type)))` is deprecated; " *
-            "construct the estimator with `DriscollKraay(...; correction = $(repr(type)))`.",
-            :vcov)
-        k.correction === :HC0 || k.correction === type ||
-            throw(ArgumentError(
-                "`type = $(repr(type))` conflicts with the estimator's correction $(repr(k.correction))"))
-        k = DriscollKraay{typeof(k.K), typeof(k.tis), typeof(k.iis)}(k.K, k.tis, k.iis, type)
-    end
+    # The generic method ignores unknown keywords; a `type` passed here would
+    # otherwise be dropped and the uncorrected matrix returned.
+    type === nothing || throw(ArgumentError(
+        "`vcov` takes no `type` keyword for a Driscoll-Kraay estimator; construct it " *
+        "with `DriscollKraay(...; correction = $(repr(type)))`"))
     return invoke(StatsAPI.vcov,
         Tuple{AbstractAsymptoticVarianceEstimator, RegressionModel}, k, m; kwargs...)
 end

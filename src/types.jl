@@ -1068,8 +1068,6 @@ function CachedCR(k::CR, ncols::Integer, ::Type{T} = Float64) where {T}
     return CachedCR(k, CRCache(k, Int(ncols), T))
 end
 
-Base.@deprecate_binding CachedCRModel CachedCR
-
 # Forward nclusters to underlying estimator
 nclusters(k::CachedCR) = nclusters(k.estimator)
 
@@ -1659,38 +1657,6 @@ Alias for `HR5`. Heteroskedasticity-robust estimator with maximum leverage corre
 See [`HR5`](@ref) for details.
 """
 const HC5 = HR5
-
-# Names returned by the deprecated `String(::Type)` methods below.
-_legacy_string(::Type{T}) where {T <: Truncated} = "Truncated"
-_legacy_string(::Type{T}) where {T <: Parzen} = "Parzen"
-_legacy_string(::Type{T}) where {T <: TukeyHanning} = "Tukey-Hanning"
-_legacy_string(::Type{T}) where {T <: Bartlett} = "Bartlett"
-_legacy_string(::Type{T}) where {T <: QuadraticSpectral} = "Quadratic Spectral"
-_legacy_string(::Type{T}) where {T <: HR0} = "HR0"
-_legacy_string(::Type{T}) where {T <: HR1} = "HR1"
-_legacy_string(::Type{T}) where {T <: HR2} = "HR2"
-_legacy_string(::Type{T}) where {T <: HR3} = "HR3"
-_legacy_string(::Type{T}) where {T <: HR4} = "HR4"
-_legacy_string(::Type{T}) where {T <: HR4m} = "HR4m"
-_legacy_string(::Type{T}) where {T <: HR5} = "HR5"
-_legacy_string(::Type{T}) where {T <: CR0} = "CR0"
-_legacy_string(::Type{T}) where {T <: CR1} = "CR1"
-_legacy_string(::Type{T}) where {T <: CR2} = "CR2"
-_legacy_string(::Type{T}) where {T <: CR3} = "CR3"
-_legacy_string(::Type{T}) where {T <: EWC} = "EWC"
-_legacy_string(::Type{T}) where {T <: DriscollKraay} = "Driscoll-Kraay"
-_legacy_string(::Type{T}) where {T <: VARHAC} = "VARHAC"
-
-const _LegacyStringTypes = Union{
-    Truncated, Parzen, TukeyHanning, Bartlett, QuadraticSpectral,
-    HR0, HR1, HR2, HR3, HR4, HR4m, HR5, CR0, CR1, CR2, CR3, EWC, DriscollKraay, VARHAC}
-
-function Base.String(T::Type{<:_LegacyStringTypes})
-    Base.depwarn(
-        "`String(::Type)` for estimator types is deprecated and will be removed in a " *
-        "future release.", :String)
-    return _legacy_string(T)
-end
 
 #=========
 Display

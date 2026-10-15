@@ -48,7 +48,8 @@ For correctly specified models, this is more efficient than the sandwich form.
 # Usage
 ```julia
 using CovarianceMatrices
-vcov_info = vcov(HC3(), Information(), model)
+vcov(Information(), model)          # an MLikeModel
+vcov(HR0(), Information(), model)   # a GMMLikeModel
 ```
 """
 struct Information <: VarianceForm end

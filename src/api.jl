@@ -20,8 +20,7 @@ For MLikeModel + Information:
 - If hessian_objective available: V = inv(H) where H is the Hessian
 - Otherwise: V = inv(G) where G is the cross_score matrix
 
-No variance estimator is involved: the result depends only on the model. The form
-`vcov(ve, Information(), model)` is deprecated, because it ignores `ve`.
+No variance estimator is involved: the result depends only on the model.
 
 # Arguments
 - `form::Information`: Information form (assumes correct specification)
@@ -66,15 +65,6 @@ function StatsAPI.vcov(
     end
 
     return CovarianceMatrix(V, form)
-end
-
-function StatsAPI.vcov(
-        ve::AbstractAsymptoticVarianceEstimator, form::Information, model::MLikeModel;
-        kwargs...)
-    Base.depwarn(
-        "`vcov(ve, Information(), model)` is deprecated for an `MLikeModel` because it " *
-        "does not use `ve`; call `vcov(Information(), model)`.", :vcov)
-    return StatsAPI.vcov(form, model; kwargs...)
 end
 
 """

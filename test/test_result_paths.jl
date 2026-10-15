@@ -133,9 +133,8 @@ CovarianceMatrices.hessian_objective(m::ResultPathsGMM) = m.H
             cm, msub)
     end
 
-    @testset "CachedCRModel is a deprecated alias of CachedCR" begin
-        @test Base.isdeprecated(CovarianceMatrices, :CachedCRModel)
-        @test CovarianceMatrices.CachedCRModel === CachedCR
+    @testset "CachedCRModel is not defined" begin
+        @test !isdefined(CovarianceMatrices, :CachedCRModel)
     end
 
     @testset "M- and GMM-like models" begin

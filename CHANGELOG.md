@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0]
+
 ### Breaking
 
 - Inputs that 0.32.1 accepted with a deprecation warning now throw an
@@ -59,6 +61,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     passed as `scaleby`.
   - `optimal_bandwidth(k::MomentSmoother, T)`; use `optimalbw(k, G)` with the
     moment matrix `G`.
+- The forms deprecated in 0.32.1:
+  - `vcov(k::DriscollKraay, model; type = ...)`; use
+    `DriscollKraay(...; correction = ...)`. Passing `type` throws an
+    `ArgumentError`.
+  - `optimalbw(k::MomentSmoother, T::Integer)`; use `optimalbw(k, G)` with the
+    moment matrix `G`.
+  - `kernelweights(k, X)` on an estimator; use `kernelweights(aVar(k, X))`.
+  - `vcov(ve, Information(), model)` and `stderror(ve, Information(), model)`
+    for an `MLikeModel`; use `vcov(Information(), model)`.
+  - `String(T)` for estimator types such as `String(Bartlett)`.
+  - The `a𝕍ar` binding; use `aVar`.
+  - The `CachedCRModel` alias; use `CachedCR`.
 
 ## [0.32.1]
 

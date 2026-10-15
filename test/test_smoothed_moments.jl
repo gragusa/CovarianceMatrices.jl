@@ -780,21 +780,21 @@ end
 
         @testset "UniformSmoother optimalbw" begin
             # Formula: 2.0 * T^(1/3)
-            @test CovarianceMatrices.optimalbw(CovarianceMatrices.UniformSmoother(0), 100) ≈
+            @test CovarianceMatrices.optimalbw(CovarianceMatrices.UniformSmoother(0), ones(100, 1)) ≈
                   2.0 * 100^(1/3)
-            @test CovarianceMatrices.optimalbw(CovarianceMatrices.UniformSmoother(0), 1000) ≈
+            @test CovarianceMatrices.optimalbw(CovarianceMatrices.UniformSmoother(0), ones(1000, 1)) ≈
                   2.0 * 1000^(1/3)
-            @test CovarianceMatrices.optimalbw(CovarianceMatrices.UniformSmoother(5), 500) ≈
+            @test CovarianceMatrices.optimalbw(CovarianceMatrices.UniformSmoother(5), ones(500, 1)) ≈
                   2.0 * 500^(1/3)
         end
 
         @testset "TriangularSmoother optimalbw" begin
             # Formula: 1.5 * T^(1/5)
-            @test CovarianceMatrices.optimalbw(CovarianceMatrices.TriangularSmoother(0), 100) ≈
+            @test CovarianceMatrices.optimalbw(CovarianceMatrices.TriangularSmoother(0), ones(100, 1)) ≈
                   1.5 * 100^(1/5)
-            @test CovarianceMatrices.optimalbw(CovarianceMatrices.TriangularSmoother(0), 1000) ≈
+            @test CovarianceMatrices.optimalbw(CovarianceMatrices.TriangularSmoother(0), ones(1000, 1)) ≈
                   1.5 * 1000^(1/5)
-            @test CovarianceMatrices.optimalbw(CovarianceMatrices.TriangularSmoother(5), 500) ≈
+            @test CovarianceMatrices.optimalbw(CovarianceMatrices.TriangularSmoother(5), ones(500, 1)) ≈
                   1.5 * 500^(1/5)
         end
     end

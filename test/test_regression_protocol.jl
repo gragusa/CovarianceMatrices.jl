@@ -106,8 +106,6 @@ CMRP.hessian_objective(m::ProtocolMLE) = m.H
         @test estimator(V) == Information()
         @test V ≈ inv(Z' * Z)
         @test stderror(Information(), mle) ≈ sqrt.(diag(V))
-        Vold = @test_deprecated r"does not use `ve`" vcov(HC0(), Information(), mle)
-        @test Vold == V
-        @test (@test_deprecated stderror(HC0(), Information(), mle)) ≈ sqrt.(diag(V))
+        @test_throws MethodError vcov(HC0(), Information(), mle)
     end
 end

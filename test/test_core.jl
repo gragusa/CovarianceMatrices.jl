@@ -572,10 +572,9 @@ df.y = Y;
         @test vcov(dk(:sss), model) ≈ Σ_sss rtol=1e-6
         @test vcov(dk(:sss), model; dofadjust = false) ≈ Σ_ssc rtol=1e-6
 
-        # The `type` keyword maps to the estimator's correction.
-        @test (@test_deprecated vcov(𝒦, model; type = :HC1)) ≈ Σ_hc1 rtol=1e-6
-        @test (@test_deprecated vcov(dk(:sss), model; type = :sss)) ≈ Σ_sss rtol=1e-6
-        @test_throws "conflicts with the estimator's correction" vcov(dk(:sss), model; type = :HC1)
+        # The correction belongs to the estimator; `vcov` takes no `type` keyword.
+        @test_throws "construct it with `DriscollKraay(...; correction = :HC1)`" vcov(
+            𝒦, model; type = :HC1)
         @test_throws "unsupported Driscoll-Kraay correction" dk(:HC3)
 
         # The matrix path cannot apply a correction: it needs the number of coefficients.

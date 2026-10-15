@@ -90,10 +90,8 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
     @testset "kernelweights and optimalbw signatures" begin
         V = aVar(Bartlett{Andrews}(), [ones(n) randn(rng, n, 2)])
         @test kernelweights(V) == [0.0, 1.0, 1.0]
-        @test (@test_deprecated kernelweights(Bartlett{Andrews}(), X)) == ones(size(X, 2))
-        @test (@test_deprecated kernelweights(HC0(), X)) === nothing
-        @test (@test_deprecated optimalbw(UniformSmoother(0), 1000)) ≈ 2.0 * 1000^(1 / 3)
-        @test (@test_deprecated optimalbw(TriangularSmoother(0), 1000)) ≈ 1.5 * 1000^(1 / 5)
+        @test_throws MethodError kernelweights(Bartlett{Andrews}(), X)
+        @test_throws MethodError optimalbw(UniformSmoother(0), 1000)
         @test_throws "selects its bandwidth from the data" bandwidth(Bartlett{Andrews}())
     end
 
@@ -139,8 +137,7 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
     @testset "export tiers" begin
         @test Base.isexported(CovarianceMatrices, :CR)
         @test Cluster <: CR
-        @test Base.isdeprecated(CovarianceMatrices, :a𝕍ar)
-        @test CovarianceMatrices.a𝕍ar === aVar
+        @test !isdefined(CovarianceMatrices, :a𝕍ar)
     end
 
     @testset "prewhite" begin
@@ -179,9 +176,7 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
     end
 
     @testset "String on estimator types" begin
-        @test (@test_deprecated String(QuadraticSpectral)) == "Quadratic Spectral"
-        @test (@test_deprecated String(HC0)) == "HR0"
-        @test (@test_deprecated String(DriscollKraay)) == "Driscoll-Kraay"
+        @test_throws MethodError String(HC0)
     end
 
     @testset "VARHAC selector and lag strategy" begin
