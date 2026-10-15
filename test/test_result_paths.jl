@@ -44,7 +44,8 @@ CovarianceMatrices.hessian_objective(m::ResultPathsGMM) = m.H
     ]
 
     @testset "matrix path: $(repr(k))" for k in families
-        V = aVar(k, X)
+        V = k isa CovarianceMatrices._ModelOnlyAdjustment ? (@test_deprecated aVar(k, X)) :
+            aVar(k, X)
         @test V isa CovarianceMatrix
         @test estimator(V) == k
     end
@@ -59,7 +60,7 @@ CovarianceMatrices.hessian_objective(m::ResultPathsGMM) = m.H
 
     @testset "cluster counts" begin
         k = CR1((df.firm, df.year))
-        @test information(aVar(k, X)).nclusters == (12, 10)
+        @test information(aVar(CR0((df.firm, df.year)), X)).nclusters == (12, 10)
         @test information(aVar(k, m)).nclusters == (12, 10)
         @test information(vcov(CR0(df.firm), m)).nclusters == (12,)
     end
@@ -98,7 +99,11 @@ CovarianceMatrices.hessian_objective(m::ResultPathsGMM) = m.H
             cx = CachedCR(k, size(X, 2))   # cache built for moment matrices
             @test cm isa CovarianceMatrices.CR && cx isa CovarianceMatrices.CR
             for c in (cm, cx)
-                @test aVar(c, X) ≈ aVar(k, X)
+                if K === CR0
+                    @test aVar(c, X) ≈ aVar(k, X)
+                else
+                    @test (@test_deprecated aVar(c, X)) ≈ (@test_deprecated aVar(k, X))
+                end
                 @test aVar(c, m) ≈ aVar(k, m)
                 @test vcov(c, m) ≈ vcov(k, m)
                 @test vcov(c, m) isa CovarianceMatrix

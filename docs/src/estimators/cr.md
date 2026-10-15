@@ -61,6 +61,11 @@ moments = reshape(grunfeld.Inv .- mean(grunfeld.Inv), :, 1)
 aVar(CR0(grunfeld.Firm), moments)
 ```
 
+On a data or moment matrix there is no design matrix, so no small-sample
+adjustment can be formed: use `CR0` or [`Cluster`](@ref), which give the same
+result. `CR1`, `CR2` and `CR3` take a fitted model; passing them with a matrix is
+deprecated.
+
 ### CR1: Degrees-of-Freedom Correction
 
 ```math
@@ -74,7 +79,8 @@ aVar(CR0(grunfeld.Firm), moments)
 
 **Usage:**
 ```@example cr
-aVar(CR1(grunfeld.Firm), moments)
+model = lm(@formula(Inv ~ Value + Capital), grunfeld)
+stderror(CR1(grunfeld.Firm), model)
 ```
 
 ### CR2 and CR3: Leverage-Based Corrections
@@ -101,7 +107,7 @@ where $h_g$ represents cluster-level leverage values.
 The package supports multi-way clustering with intersection corrections:
 
 ```@example cr
-aVar(CR1((grunfeld.Firm, grunfeld.Year)), moments)
+aVar(CR0((grunfeld.Firm, grunfeld.Year)), moments)
 ```
 
 The estimator automatically applies the inclusion-exclusion principle:
@@ -113,11 +119,9 @@ The estimator automatically applies the inclusion-exclusion principle:
 
 ### Panel Data Example
 
-Fitting the Grunfeld investment equation and comparing clustering dimensions:
+Comparing clustering dimensions for the Grunfeld investment equation:
 
 ```@example cr
-model = lm(@formula(Inv ~ Value + Capital), grunfeld)
-
 DataFrame(
     coef = coefnames(model),
     classical = stderror(model),

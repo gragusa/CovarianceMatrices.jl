@@ -18,6 +18,9 @@ where `X̄` is the sample mean of the observations in `m` (averaged along `dims`
   `EWC` and `MomentSmoother` estimators, and to `DriscollKraay`, which prewhitens the
   series of period sums; other estimators do not prewhiten and emit a deprecation
   warning when it is requested.
+- On a matrix, `HR1`–`HR5`/`HC1`–`HC5` and `CR1`–`CR3` apply no finite-sample
+  correction and equal `HR0` and `CR0`. Their corrections need a fitted model; passing
+  them with a matrix is deprecated.
 - `scale` selects whether the variance is divided by the number of observations.
 - `scaleby` divides the variance by an explicit positive divisor instead, which is
   convenient for a degrees-of-freedom correction. It takes precedence over `scale`.
@@ -26,7 +29,31 @@ where `X̄` is the sample mean of the observations in `m` (averaged along `dims`
   so `scale = false` multiplies it by the number of observations rather than leaving it
   untouched.
 """
-function aVar(
+function aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix{<:Real}; kwargs...)
+    _check_matrix_path(_check_resolved(k))
+    return _aVar(k, m; kwargs...)
+end
+
+# The finite-sample adjustments of these estimators are formed from a fitted model's
+# design matrix. On a bare matrix they apply none, so the result equals `HR0` or `CR0`.
+const _ModelOnlyAdjustment = Union{HR1, HR2, HR3, HR4, HR4m, HR5, CR1, CR2, CR3}
+
+_check_matrix_path(k) = nothing
+_check_matrix_path(k::CachedCR) = _check_matrix_path(k.estimator)
+function _check_matrix_path(k::_ModelOnlyAdjustment)
+    name = nameof(typeof(k))
+    base = k isa HR ? "`HR0` (`HC0`)" : "`CR0` or `Cluster`"
+    Base.depwarn(
+        "`aVar` with `$name` on a matrix applies no finite-sample correction, so it " *
+        "equals $base. Passing `$name` with a matrix is deprecated and will throw an " *
+        "error in a future release: use $base on a matrix, or pass a fitted model.",
+        :aVar)
+    return nothing
+end
+
+# Matrix-path computation shared by `aVar(k, X)` and the generic model path, which
+# applies the model-based adjustment to the moments before calling it.
+function _aVar(
         k::AbstractAsymptoticVarianceEstimator,
         m::AbstractMatrix{T};
         demean::Bool = true,
@@ -98,7 +125,7 @@ function unscalevar!(Shat, scale::Bool, scaleby, n)
 end
 unscalevar!(Shat, scale::Bool, ::Nothing, n) = scale ? Shat : rmul!(Shat, n)
 
-function aVar(
+function _aVar(
         k::VARHAC,
         m::AbstractMatrix{T};
         demean::Bool = true,
@@ -125,4 +152,4 @@ function aVar(
     return CovarianceMatrix(Shat, k, info)
 end
 
-const a𝕍ar = aVar
+Base.@deprecate_binding a𝕍ar aVar

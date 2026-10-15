@@ -1,16 +1,17 @@
 """
-Smith's Smoothed Moments Variance Estimation
+    MomentSmoother
 
-This implementation follows Smith (2005, 2011) for smoothed moments variance estimation.
-The method smooths moments first, then takes outer products to get automatically p.s.d. HAC estimators.
+Abstract supertype for Smith's smoothed-moments estimators, [`UniformSmoother`](@ref)
+and [`TriangularSmoother`](@ref). They smooth the moments first and then take outer
+products, which gives a positive semidefinite HAC estimate.
 
-References
-----------
- Smith, R. J. (2005). "AUTOMATIC POSITIVE SEMIDEFINITE HAC COVARIANCE MATRIX AND GMM ESTIMATION." Econometric Theory, 21, 158-170.
+`MomentSmoother` is a direct subtype of `AbstractAsymptoticVarianceEstimator`, not of
+`Correlated`.
 
+# References
+Smith, R. J. (2005). "Automatic positive semidefinite HAC covariance matrix and GMM
+estimation." Econometric Theory, 21, 158-170.
 """
-
-# Kernel functions for smoothing (on observation scale)
 abstract type MomentSmoother <: AbstractAsymptoticVarianceEstimator end
 
 """

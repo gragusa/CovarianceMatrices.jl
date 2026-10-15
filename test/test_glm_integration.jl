@@ -14,15 +14,15 @@
            -0.12131377 0.17616015 0.007348568;
            0.23411525 -0.44659979 0.012371195]
     K = Bartlett{NeweyWest}()
-    Σ = a𝕍ar(K, m)
+    Σ = aVar(K, m)
     @test CovarianceMatrices.bandwidth(Σ)≈1.737626 atol=1e-06
-    ## Notice that using Σ = a𝕍ar(K, M) give a different bandwidth
-    Σ_M = a𝕍ar(K, M)
+    ## Notice that using Σ = aVar(K, M) give a different bandwidth
+    Σ_M = aVar(K, M)
     @test CovarianceMatrices.bandwidth(Σ_M)≈0.3638178431924936 atol=1e-06
     ## The reason is the weights are all one
     @test CovarianceMatrices.kernelweights(Σ_M) == [1.0, 1.0, 1.0]
     ## This can be overridden by passing the weights explicitly
-    Σ_M = a𝕍ar(K, M; weights = [0.0, 1.0, 1.0])
+    Σ_M = aVar(K, M; weights = [0.0, 1.0, 1.0])
     @test CovarianceMatrices.bandwidth(Σ_M)≈1.737626 atol=1e-06
 end
 

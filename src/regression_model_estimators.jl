@@ -105,16 +105,6 @@ numobs(m) = size(modelmatrix(m), 1)
 # `Uncorrelated` behaves like HC0/HR0 on a fitted model (White's estimator).
 @noinline residual_adjustment(k::Uncorrelated, r::RegressionModel) = 1.0
 
-# `Cluster` is the matrix/mean-case cluster estimator; for regression it would need
-# the design matrix to form the (optional) finite-sample corrections, so route users
-# to the CR family instead of silently returning an uncorrected result.
-@noinline function residual_adjustment(k::Cluster, r::RegressionModel)
-    throw(ArgumentError(
-        "`Cluster` is the mean/matrix-interface cluster estimator. For cluster-robust " *
-        "regression standard errors use `CR0`, `CR1`, `CR2`, or `CR3` with the model, " *
-        "e.g. `vcov(CR1(groups), model)`."))
-end
-
 # HC0/HR0: No adjustment
 @noinline residual_adjustment(k::HR0, r::RegressionModel) = 1.0
 
@@ -194,7 +184,7 @@ end
 
 Compute residual adjustment for basic cluster-robust estimators.
 
-    - CR0: No adjustment (returns 1.0)
+    - CR0, Cluster: No adjustment (returns 1.0)
     - CR1: DOF adjustment √((N-1)/(N-K)) * (G/(G-1))
     - CR2:
     - CR3:
@@ -202,7 +192,7 @@ Compute residual adjustment for basic cluster-robust estimators.
 
 #residual_adjustment(k::CR, m::GLMTableModel) = residual_adjustment(k, m.model)
 
-function residual_adjustment(k::CR0, m::RegressionModel)
+function residual_adjustment(k::Union{CR0, Cluster}, m::RegressionModel)
     # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
     combs = Iterators.filter(!isempty, combinations(1:length(k.g)))
     [1 for x in combs]
@@ -302,7 +292,7 @@ function aVar(
     # the moment matrix is not constant.
     kw = _kernelweights(k, X)
     kw === nothing || (kw = kw[midx])
-    return aVar(k, Mm; demean = demean, prewhite = prewhite, scale = scale,
+    return _aVar(k, Mm; demean = demean, prewhite = prewhite, scale = scale,
         scaleby = scaleby, weights = kw)
 end
 
@@ -479,7 +469,8 @@ function CachedCR(k::CR, m::RegressionModel)
 end
 
 # Dispatch on CR type to compute appropriate leverage adjustments
-function _compute_leverage_adjustments(k::CR0, X, XX, wts, grouped_arrays, cluster_indices)
+function _compute_leverage_adjustments(
+        k::Union{CR0, Cluster}, X, XX, wts, grouped_arrays, cluster_indices)
     # CR0: No adjustment, just return vector of 1s (one per combination)
     [1 for _ in grouped_arrays]
 end

@@ -1,11 +1,10 @@
 """
     Clustering
 
-Lightweight internal struct for grouping observations into clusters.
+Grouping of observations into clusters. Cluster estimators (`CR0`–`CR3`,
+`Cluster`) store one `Clustering` per clustering dimension in their `g` field.
 
 Maps arbitrary cluster identifiers to contiguous integer indices 1:ngroups.
-This is a minimal replacement for GroupedArrays.jl, providing only the subset
-of functionality needed by CovarianceMatrices.jl.
 
 # Fields
 - `groups::Vector{Int}`: Integer cluster assignments for each observation (1:ngroups)

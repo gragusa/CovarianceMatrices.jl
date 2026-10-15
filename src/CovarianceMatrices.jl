@@ -52,6 +52,7 @@ export AbstractAsymptoticVarianceEstimator,
        QuadraticSpectral,
        Truncated,
        TukeyHanning,
+       CR,
        CR0,
        CR1,
        CR2,
@@ -75,7 +76,6 @@ export AbstractAsymptoticVarianceEstimator,
        HAC,
        EWC,
        aVar,
-       a𝕍ar,
        optimalbw,
        CovarianceMatrix,
        estimator,
@@ -124,7 +124,9 @@ public AICs, BICs, maxlags, nclusters, order, order_aic, order_bic,
 # Cluster caches
        CRCache, CRModelCache,
 # Abstract supertypes available for dispatch
-       BandwidthType, CR, LagSelector,
+       BandwidthType, LagSelector, LagStrategy,
+# Cluster identifiers stored in the `g` field of cluster estimators
+       Clustering,
 # Regression-model protocol
        bread, leverage, mask, momentresiduals
 end

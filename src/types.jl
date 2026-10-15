@@ -19,8 +19,7 @@ AbstractAsymptoticVarianceEstimator (abstract)
   * HR (abstract): HR0/HC0, HR1/HC1, HR2/HC2, HR3/HC3, HR4/HC4, HR4m/HC4m, HR5/HC5
   * Correlated (abstract)
       - HAC{G} (abstract): Bartlett, Parzen, QuadraticSpectral, TukeyHanning, Truncated
-      - CR (abstract): CR0, CR1, CR2, CR3, CachedCR
-      - Cluster
+      - CR (abstract): CR0, CR1, CR2, CR3, Cluster, CachedCR
       - EWC
       - VARHAC
       - DriscollKraay
@@ -70,31 +69,40 @@ This encompasses all estimators that handle:
 - Cluster correlation (CR estimators)
 - Spatial and temporal correlation (DriscollKraay)
 - Other specialized correlation patterns (EWC, VARHAC)
+
+The smoothed-moments estimators ([`MomentSmoother`](@ref)) also handle serial
+correlation but are not subtypes of `Correlated`.
 """
 abstract type Correlated <: AbstractAsymptoticVarianceEstimator end
 
 abstract type HAC{G} <: Correlated end
 
 abstract type HR <: AbstractAsymptoticVarianceEstimator end
+"""
+    CR
+
+Abstract supertype for the cluster-robust estimators [`CR0`](@ref), [`CR1`](@ref),
+[`CR2`](@ref), [`CR3`](@ref), [`Cluster`](@ref) and [`CachedCR`](@ref).
+"""
 abstract type CR <: Correlated end
 
 """
 `Cluster`
 
-Cluster-robust estimator of the asymptotic variance of a **sample mean**, for the
-matrix / moment interface. Given a `T × k` data or moment matrix and a vector of
-group identifiers, `aVar(Cluster(groups), X)` returns the cluster long-run variance
+Cluster-robust estimator without finite-sample correction. `Cluster(g)` gives the
+same result as [`CR0`](@ref)`(g)` on a data or moment matrix and on a fitted model.
+
+Given a `T × k` data or moment matrix and a vector of group identifiers,
+`aVar(Cluster(groups), X)` returns the cluster long-run variance
 
 ```math
 \\hat{\\Omega} = \\sum_{g=1}^{G} \\hat{u}_g \\hat{u}_g', \\qquad \\hat{u}_g = \\sum_{t \\in g} \\tilde{X}_t,
 ```
 
 treating observations as correlated within groups and independent across groups.
-
-`Cluster` is the clustering analogue of [`Uncorrelated`](@ref): it carries **no**
-finite-sample (degrees-of-freedom or leverage) correction, because those require a
-fitted model's design matrix. For cluster-robust *regression* standard errors use
-[`CR0`](@ref), [`CR1`](@ref), [`CR2`](@ref), or [`CR3`](@ref) with a fitted model.
+`Cluster` is the clustering counterpart of [`Uncorrelated`](@ref), which equals `HC0`.
+For degrees-of-freedom or leverage corrections on a fitted model use [`CR1`](@ref),
+[`CR2`](@ref) or [`CR3`](@ref).
 
 # Usage
 ```julia
@@ -106,7 +114,7 @@ clusters = [1, 1, 2, 2, 3, 3, 4, 4]
 Ω = aVar(Cluster((firm_ids, year_ids)), X)
 ```
 """
-struct Cluster{G} <: Correlated
+struct Cluster{G} <: CR
     g::G
     function Cluster(g::G) where {G <: AbstractVector}
         t = (Clustering(g),)
@@ -744,7 +752,7 @@ Basic cluster-robust covariance estimator without small-sample adjustments.
 # Mathematical Formula
 
 ```math
-\\hat{\\Omega}_{CR0} = \\frac{G}{G-1} \\sum_{g=1}^G \\hat{u}_g \\hat{u}_g'
+\\hat{\\Omega}_{CR0} = \\sum_{g=1}^G \\hat{u}_g \\hat{u}_g'
 ```
 
 where ``\\hat{u}_g = \\sum_{t \\in g} g_t`` is the cluster-level sum of moment conditions.
@@ -1082,6 +1090,12 @@ end
 #=========
 VARHAC
 =========#
+"""
+    LagSelector
+
+Abstract supertype for the lag-order criteria of [`VARHAC`](@ref): `AICSelector` and
+`BICSelector`.
+"""
 abstract type LagSelector end
 
 """
@@ -1124,6 +1138,13 @@ selects nothing. Passing it to `VARHAC` directly is deprecated: use
 `VARHAC(FixedLags(k))` for a fixed order and `BICSelector()` for BIC selection.
 """
 struct FixedSelector <: LagSelector end
+
+"""
+    LagStrategy
+
+Abstract supertype for the lag specifications of [`VARHAC`](@ref): `FixedLags`,
+`SameLags`, `DifferentOwnLags` and `AutoLags`.
+"""
 abstract type LagStrategy end
 
 # Lag orders are integers; an integer-valued `Real` converts silently.

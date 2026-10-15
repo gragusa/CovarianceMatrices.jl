@@ -31,87 +31,87 @@ df.y = Y;
     @testset "Optimal Bandwidth - NeweyWest ✅" begin
         ## --
         𝒦 = Bartlett{NeweyWest}()
-        Σ = a𝕍ar(𝒦, X)
+        Σ = aVar(𝒦, X)
         @test CM.bandwidth(Σ) ≈ 5.326955 atol=1e-6
         @test optimalbw(𝒦, X; prewhite = false, demean = true) ≈ CM.bandwidth(Σ) rtol=1e-9
 
         𝒦 = Parzen{NeweyWest}()
-        Σ = a𝕍ar(𝒦, X)
+        Σ = aVar(𝒦, X)
         @test CM.bandwidth(Σ) ≈ 9.72992 atol=1e-6
         @test optimalbw(𝒦, X; prewhite = false, demean = true) ≈ CM.bandwidth(Σ) rtol=1e-9
 
         𝒦 = QuadraticSpectral{NeweyWest}()
-        Σ = a𝕍ar(𝒦, X)
+        Σ = aVar(𝒦, X)
         @test CM.bandwidth(Σ) ≈ 4.833519 atol=1e-6
         @test optimalbw(𝒦, X; prewhite = false, demean = true) ≈ CM.bandwidth(Σ) rtol=1e-9
         ## ---
         𝒦 = Bartlett{NeweyWest}()
-        Σ = a𝕍ar(𝒦, X; prewhite = true)
+        Σ = aVar(𝒦, X; prewhite = true)
         @test CM.bandwidth(Σ) ≈ 1.946219 rtol=1e-7
         @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = Parzen{NeweyWest}()
-        Σ = a𝕍ar(𝒦, X; prewhite = true)
+        Σ = aVar(𝒦, X; prewhite = true)
         @test CM.bandwidth(Σ) ≈ 6.409343 rtol=1e-7
         @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = QuadraticSpectral{NeweyWest}()
-        Σ = a𝕍ar(𝒦, X; prewhite = true)
+        Σ = aVar(𝒦, X; prewhite = true)
         @test CM.bandwidth(Σ) ≈ 3.183961 atol=1e-6
         @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
     end
 
     @testset "Optimal Bandwidth - Andrews ✅" begin
         𝒦 = Bartlett{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = false)
+        Σ = aVar(𝒦, X; prewhite = false)
         @test CM.bandwidth(Σ) ≈ 2.329739 rtol=1e-6
         @test optimalbw(𝒦, X; prewhite = false, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = Parzen{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = false)
+        Σ = aVar(𝒦, X; prewhite = false)
         @test CM.bandwidth(Σ) ≈ 4.81931 rtol=1e-6
         @test CovarianceMatrices.optimalbw(𝒦, X; prewhite = false, demean = true) ==
               CM.bandwidth(Σ)
 
         𝒦 = QuadraticSpectral{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = false)
+        Σ = aVar(𝒦, X; prewhite = false)
         @test CM.bandwidth(Σ) ≈ 2.394082 atol=1e-6
         @test optimalbw(𝒦, X; prewhite = false, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = TukeyHanning{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = false)
+        Σ = aVar(𝒦, X; prewhite = false)
         @test CM.bandwidth(Σ) ≈ 3.162049 rtol=1e-6
         @test optimalbw(𝒦, X; prewhite = false, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = Truncated{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = false)
+        Σ = aVar(𝒦, X; prewhite = false)
         @test CM.bandwidth(Σ) ≈ 1.197131 rtol=1e-6
         @test optimalbw(𝒦, X; prewhite = false, demean = true) == CM.bandwidth(Σ)
 
         ## --
         𝒦 = Bartlett{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = true)
+        Σ = aVar(𝒦, X; prewhite = true)
         @test CM.bandwidth(Σ) ≈ 0.3836096 rtol=1e-6
         @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = Parzen{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = true)
+        Σ = aVar(𝒦, X; prewhite = true)
         @test CM.bandwidth(Σ) ≈ 1.380593 rtol=1e-6
         @test CovarianceMatrices.optimalbw(𝒦, X; prewhite = true, demean = true) ==
               CM.bandwidth(Σ)
 
         𝒦 = QuadraticSpectral{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = true)
+        Σ = aVar(𝒦, X; prewhite = true)
         @test CM.bandwidth(Σ) ≈ 0.6858351 atol=1e-6
         @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = TukeyHanning{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = true)
+        Σ = aVar(𝒦, X; prewhite = true)
         @test CM.bandwidth(Σ) ≈ 0.9058356 rtol=1e-6
         @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
 
         𝒦 = Truncated{Andrews}()
-        Σ = a𝕍ar(𝒦, X; prewhite = true)
+        Σ = aVar(𝒦, X; prewhite = true)
         @test CM.bandwidth(Σ) ≈ 0.3429435 rtol=1e-6
         @test optimalbw(𝒦, X; prewhite = true, demean = true) == CM.bandwidth(Σ)
     end
@@ -204,7 +204,7 @@ df.y = Y;
 
     @testset "HAC Variance Computations ✅" begin
         for ((𝒦, prewhite), Σ₀) in zip(Iterators.product(kernels, pre), Σ₀₀)
-            Σ = a𝕍ar(𝒦, X; prewhite = prewhite)
+            Σ = aVar(𝒦, X; prewhite = prewhite)
             @test Σ ≈ Σ₀ rtol=1e-6
         end
     end
@@ -216,8 +216,9 @@ df.y = Y;
           -6.709834054283887e-5 -0.00615707811722861 0.07184846516936118]
 
     @testset "Heteroskedasticity Robust (HR) Estimators ✅" begin
+        # On a matrix every HR estimator equals HR0; the others are deprecated there.
         for 𝒦 in kernels
-            Σ = a𝕍ar(𝒦, X)
+            Σ = 𝒦 isa HR0 ? aVar(𝒦, X) : (@test_deprecated aVar(𝒦, X))
             @test Σ ≈ Σ₀ rtol=1e-6
         end
     end
@@ -225,7 +226,7 @@ df.y = Y;
     @testset "Cluster Robust HC ✅" begin
         cl = repeat(1:5, inner = 20)
         𝒦 = CR0(cl)
-        Σ = a𝕍ar(𝒦, X)
+        Σ = aVar(𝒦, X)
         ## sandwich package uses HC0 but always scales by G/(G-1)
         ## below is the result of
         ## v = vcovCL(lm(X~1), cl, type="HC0")
@@ -233,7 +234,7 @@ df.y = Y;
               0.0001411950613289987 0.0004985361461159058 -0.00039126414097571385;
               4.6345925014758175e-5 -0.00039126414097571385 0.00033308110226548546]
         @test Σ*5/(5-1) ≈ Σ₀*100 rtol = 1e-8
-        ## Since a𝕍ar is scaled by (G/n^2), this is equivalent to  dividing by (1/G) to get the
+        ## Since aVar is scaled by (G/n^2), this is equivalent to  dividing by (1/G) to get the
         ## standard error and then multiply by G/(G-1) to apply the correction.
     end
 
@@ -296,17 +297,20 @@ df.y = Y;
         # Test CR1
         k1 = CR1(cl)
         cached_k1 = CachedCR(k1, size(X_test, 2))
-        @test aVar(k1, X_test) ≈ aVar(cached_k1, X_test) rtol = 1e-12
+        @test (@test_deprecated aVar(k1, X_test)) ≈
+              (@test_deprecated aVar(cached_k1, X_test)) rtol = 1e-12
 
         # Test CR2
         k2 = CR2(cl)
         cached_k2 = CachedCR(k2, size(X_test, 2))
-        @test aVar(k2, X_test) ≈ aVar(cached_k2, X_test) rtol = 1e-12
+        @test (@test_deprecated aVar(k2, X_test)) ≈
+              (@test_deprecated aVar(cached_k2, X_test)) rtol = 1e-12
 
         # Test CR3
         k3 = CR3(cl)
         cached_k3 = CachedCR(k3, size(X_test, 2))
-        @test aVar(k3, X_test) ≈ aVar(cached_k3, X_test) rtol = 1e-12
+        @test (@test_deprecated aVar(k3, X_test)) ≈
+              (@test_deprecated aVar(cached_k3, X_test)) rtol = 1e-12
     end
 
     @testset "CachedCR - Cache Dimension Validation ✅" begin
@@ -530,7 +534,7 @@ df.y = Y;
         T = length(unique(df.Year))
         bw = 5
         𝒦 = CovarianceMatrices.DriscollKraay(Bartlett(bw), tis = df.Year, iis = df.Firm)
-        Σ = a𝕍ar(𝒦, m; scale = false)
+        Σ = aVar(𝒦, m; scale = false)
         F = inv(cholesky(X'X))
         Σ₀ = F*Σ*F
         #library(Ecdat)
@@ -603,7 +607,7 @@ df.y = Y;
         # Test smoothed moment estimators
         X = randn(StableRNG(12322), 100, 3)
         k = UniformSmoother(3)
-        Σₛ = a𝕍ar(k, X; demean = true)
+        Σₛ = aVar(k, X; demean = true)
         @test size(Σₛ) == (3, 3)
         @test issymmetric(Σₛ)
     end
@@ -1114,16 +1118,16 @@ end # Core Functionality Tests
 
         for (kernel1, kernel2) in test_kernels
             # Test variance computation produces identical results
-            Σ1 = a𝕍ar(kernel1, X)
-            Σ2 = a𝕍ar(kernel2, X)
+            Σ1 = aVar(kernel1, X)
+            Σ2 = aVar(kernel2, X)
             @test Σ1 ≈ Σ2 rtol=1e-14
 
             # Test bandwidth values are identical
             @test CM.bandwidth(Σ1) ≈ CM.bandwidth(Σ2) rtol=1e-14
 
             # Test with prewhitening as well
-            Σ1_pre = a𝕍ar(kernel1, X; prewhite = true)
-            Σ2_pre = a𝕍ar(kernel2, X; prewhite = true)
+            Σ1_pre = aVar(kernel1, X; prewhite = true)
+            Σ2_pre = aVar(kernel2, X; prewhite = true)
             @test Σ1_pre ≈ Σ2_pre rtol=1e-14
         end
 

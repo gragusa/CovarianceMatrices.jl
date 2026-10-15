@@ -56,7 +56,9 @@ optimalbw
 AbstractAsymptoticVarianceEstimator
 Uncorrelated
 Correlated
+CR
 Cluster
+MomentSmoother
 ```
 
 ## HAC Estimator Reference
@@ -181,12 +183,16 @@ the result and estimator accessors documented above. `BartlettKernel`,
 [`Parzen`](@ref), [`QuadraticSpectral`](@ref), [`Truncated`](@ref) and
 [`TukeyHanning`](@ref) are aliases for them, and these are the names that appear
 when a kernel is displayed. [`CRCache`](@ref) and [`CRModelCache`](@ref) are the
-cluster caches. `BandwidthType`, `CR` and `LagSelector` are abstract supertypes
-available for dispatch. `bread`, `momentresiduals`, `leverage` and `mask` are the
+cluster caches. `BandwidthType`, `LagSelector` and `LagStrategy` are abstract
+supertypes available for dispatch. `Clustering` is the grouping stored in the `g`
+field of cluster estimators. `bread`, `momentresiduals`, `leverage` and `mask` are the
 protocol a `RegressionModel` implements to work with `vcov(k, model)`.
 
 ```@docs
 nclusters
+CovarianceMatrices.LagSelector
+CovarianceMatrices.LagStrategy
+CovarianceMatrices.Clustering
 CovarianceMatrices.bread
 CovarianceMatrices.momentresiduals
 CovarianceMatrices.leverage

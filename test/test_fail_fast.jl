@@ -115,6 +115,32 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
         @test_throws DomainError CovarianceMatrices._check_coef(FailFastThrowingCoef())
     end
 
+    @testset "model-only corrections on a matrix" begin
+        for k in (HC1(), HC2(), HC3(), HC4(), HC4m(), HC5())
+            V = @test_deprecated r"HR0" aVar(k, X)
+            @test V ≈ aVar(HC0(), X)
+        end
+        for k in (CR1(df.g), CR2(df.g), CR3(df.g))
+            V = @test_deprecated r"CR0" aVar(k, X)
+            @test V ≈ aVar(CR0(df.g), X)
+        end
+        @test_deprecated r"CR0" aVar(CachedCR(CR1(df.g), size(X, 2)), X)
+        # Estimators whose result on a matrix is the intended one, and the model path.
+        for k in (HC0(), Uncorrelated(), CR0(df.g), Cluster(df.g),
+            CachedCR(CR0(df.g), size(X, 2)))
+            @test_nowarn aVar(k, X)
+        end
+        @test_nowarn vcov(HC3(), model)
+        @test_nowarn vcov(CR2(df.g), model)
+    end
+
+    @testset "export tiers" begin
+        @test Base.isexported(CovarianceMatrices, :CR)
+        @test Cluster <: CR
+        @test Base.isdeprecated(CovarianceMatrices, :a𝕍ar)
+        @test CovarianceMatrices.a𝕍ar === aVar
+    end
+
     @testset "prewhite" begin
         V = @test_deprecated aVar(HC0(), X; prewhite = true)
         @test V ≈ aVar(HC0(), X)

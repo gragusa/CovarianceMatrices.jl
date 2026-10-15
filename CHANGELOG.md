@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The `CR0` docstring showed a `G/(G-1)` factor that `CR0` does not apply.
+
 - `aVar`, `vcov`, `stderror`, `nclusters`, `CachedCR` and `CachedCRModel` throw
   an `ArgumentError` explaining that column names must be resolved by a
   modeling package when given a column-named cluster estimator such as
@@ -137,6 +139,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `vcov(Information(), model)` and `stderror(Information(), model)` for an
   `MLikeModel`.
 
+- `Cluster` is a subtype of `CR` and works on fitted models, where it equals
+  `CR0`, as `Uncorrelated` equals `HC0`. Its results record
+  `information(V).nclusters`, and it can be wrapped in `CachedCR`.
+
+- `CR` is exported. `LagStrategy` and `Clustering` (the type stored in the `g`
+  field of cluster estimators) are `public`.
+
 ### Deprecated
 
 - `vcov(k::DriscollKraay, model; type = ...)`; use
@@ -169,6 +178,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `CachedCRModel` is a deprecated alias of `CachedCR`; `CachedCRModel(k, model)`
   returns `CachedCR(k, model)`, which prints as `CachedCR(...)`.
+
+- `aVar(k, X)` on a matrix with `HC1`–`HC5`, `HC4m`, `HR1`–`HR5`, `HR4m` or
+  `CR1`–`CR3`. Their corrections are formed from a fitted model, so on a matrix
+  they equal `HC0` or `CR0`. Use `HC0`, `CR0` or `Cluster` with a matrix, or pass
+  a fitted model; this form will throw in a future release.
+
+- `a𝕍ar`; use `aVar`.
 
 ### Removed
 

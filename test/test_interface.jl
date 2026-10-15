@@ -257,7 +257,7 @@ end
         gmm_model = _create_linear_gmm(data)
 
         # Test GMM with both forms
-        estimators = [HR0(), HR1(), Bartlett(2)]
+        estimators = [HR0(), Uncorrelated(), Bartlett(2)]
         forms = [Information(), Misspecified()]
 
         for est in estimators
@@ -466,7 +466,7 @@ end
         hr_estimators = [HR0(), HR1(), HR2(), HR3(), HR4(), HR4m(), HR5()]
 
         for est in [hc_estimators; hr_estimators]
-            V = aVar(est, X)
+            V = est isa HR0 ? aVar(est, X) : (@test_deprecated aVar(est, X))
             @test size(V) == (4, 4)
             @test isposdef(Symmetric(V))
         end
@@ -488,7 +488,7 @@ end
         for cluster in clusters, CRType in cr_types
 
             est = CRType(cluster)
-            V = aVar(est, X)
+            V = CRType === CR0 ? aVar(est, X) : (@test_deprecated aVar(est, X))
             @test size(V) == (3, 3)
             @test isposdef(Symmetric(V))
         end

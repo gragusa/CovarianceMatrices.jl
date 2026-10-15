@@ -303,7 +303,7 @@ end
         :BartlettKernel, :ParzenKernel, :QuadraticSpectralKernel,
         :TruncatedKernel, :TukeyHanningKernel,
         :CRCache, :CRModelCache,
-        :BandwidthType, :CR, :LagSelector,
+        :BandwidthType, :LagSelector, :LagStrategy, :Clustering,
         :bread, :leverage, :mask, :momentresiduals]
 
     @testset "public names resolve" begin
