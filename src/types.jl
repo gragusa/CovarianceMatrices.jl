@@ -1133,9 +1133,8 @@ struct BICSelector <: LagSelector end
 """
 `FixedSelector`
 
-Selector stored by `VARHAC(FixedLags(k))`, which fits a VAR of fixed order and
-selects nothing. Passing it to `VARHAC` directly is deprecated: use
-`VARHAC(FixedLags(k))` for a fixed order and `BICSelector()` for BIC selection.
+Internal selector stored by `VARHAC(FixedLags(k))`, which fits a VAR of fixed order
+and selects nothing. `VARHAC` rejects it as an explicit argument.
 """
 struct FixedSelector <: LagSelector end
 
@@ -1275,7 +1274,7 @@ DifferentOwnLags(x::Tuple) = DifferentOwnLags(collect(x))
 DifferentOwnLags() = DifferentOwnLags([5, 5])
 
 """
-    VARHAC{S<:LagSelector, L<:LagStrategy, T<:Real} <: Correlated
+    VARHAC{S<:LagSelector, L<:LagStrategy} <: Correlated
 
 Vector Autoregression HAC (VARHAC) estimator for robust covariance estimation.
 
@@ -1319,8 +1318,7 @@ clearly and lets you choose the selector.
 
 A VAR of fixed order, with no selection, is `VARHAC(FixedLags(k))`; it takes no
 selector: passing `AICSelector` or `BICSelector` together with `FixedLags` throws an
-`ArgumentError`. Passing `FixedSelector`, the alias `VARHAC(:fixed)`, and the `T`
-keyword are deprecated.
+`ArgumentError`. The estimate takes the element type of the data.
 
 The selected orders are reported by [`order`](@ref) on the result and always come from
 the criterion the estimator is configured with.
@@ -1349,65 +1347,38 @@ ve5 = VARHAC(:bic)   # BICSelector(), SameLags(8)
 ve6 = VARHAC(12)     # AICSelector(), SameLags(12)
 ```
 """
-struct VARHAC{S <: LagSelector, L <: LagStrategy, T <: Real} <: Correlated
+struct VARHAC{S <: LagSelector, L <: LagStrategy} <: Correlated
     selector::S
     strategy::L
+    # Inner constructor: suppresses the default `VARHAC(selector, strategy)`, which
+    # would bypass the checks in `_varhac`.
+    VARHAC{S, L}(selector, strategy) where {S, L} = new{S, L}(selector, strategy)
 end
 
-function VARHAC(selector = AICSelector(), strategy = SameLags(8); T = nothing)
-    return _varhac(selector, strategy, _varhac_eltype(T))
-end
+VARHAC(selector = AICSelector(), strategy = SameLags(8)) = _varhac(selector, strategy)
 
-VARHAC(f::FixedLags; T = nothing) = _varhac_fixed(f, _varhac_eltype(T))
+VARHAC(f::FixedLags) = VARHAC{FixedSelector, FixedLags}(FixedSelector(), f)
 
 # Quick selector construction: VARHAC(:aic) or VARHAC(:bic)
-function VARHAC(selector_symbol::Symbol; T = nothing)
-    if selector_symbol === :fixed
-        Base.depwarn(
-            "`VARHAC(:fixed)` is deprecated: it selects the lag order by BIC. " *
-            "Use `VARHAC(:bic)`, or `VARHAC(FixedLags(k))` for a fixed order.",
-            :VARHAC)
-        return VARHAC{FixedSelector, SameLags, _varhac_eltype(T)}(
-            FixedSelector(), SameLags(8))
-    end
-    return VARHAC(_symbol_to_selector(selector_symbol), SameLags(8); T)
-end
+VARHAC(selector_symbol::Symbol) = VARHAC(_symbol_to_selector(selector_symbol), SameLags(8))
 
 # Quick max lags construction: VARHAC(12)
-VARHAC(max_lags::Integer; T = nothing) = VARHAC(AICSelector(), SameLags(max_lags); T)
+VARHAC(max_lags::Integer) = VARHAC(AICSelector(), SameLags(max_lags))
 
 # Auto-selection constructor: VARHAC(Val(:auto))
-VARHAC(::Val{:auto}; T = nothing) = VARHAC(AICSelector(), AutoLags(); T)
+VARHAC(::Val{:auto}) = VARHAC(AICSelector(), AutoLags())
 
-_varhac_eltype(::Nothing) = Float64
-function _varhac_eltype(T::Type{<:Real})
-    Base.depwarn(
-        "The `T` keyword of `VARHAC` is deprecated and has no effect: the " *
-        "estimate takes the element type of the data.",
-        :VARHAC)
-    return T
-end
-
-_varhac_fixed(f::FixedLags, T) = VARHAC{FixedSelector, FixedLags, T}(FixedSelector(), f)
-
-function _varhac(selector::LagSelector, strategy::LagStrategy, T)
+function _varhac(selector::LagSelector, strategy::LagStrategy)
     if strategy isa FixedLags
-        msg = "`FixedLags` fits a VAR of fixed order and selects nothing, so it takes " *
-              "no selector. Use `VARHAC($(sprint(show, strategy)))`."
-        selector isa FixedSelector ||
-            throw(ArgumentError("`VARHAC($(sprint(show, selector)), $(sprint(show, strategy)))`: " *
-                                msg))
-        Base.depwarn(
-            "`VARHAC(FixedSelector(), $(sprint(show, strategy)))` is deprecated: " * msg,
-            :VARHAC)
-        return _varhac_fixed(strategy, T)
+        throw(ArgumentError("`VARHAC($(sprint(show, selector)), $(sprint(show, strategy)))`: " *
+                            "`FixedLags` fits a VAR of fixed order and selects nothing, so " *
+                            "it takes no selector. Use `VARHAC($(sprint(show, strategy)))`."))
     elseif selector isa FixedSelector
-        Base.depwarn(
-            "`FixedSelector` with $(nameof(typeof(strategy))) is deprecated: it selects " *
-            "the lag order by BIC. Use `BICSelector()`, or `VARHAC(FixedLags(k))` for " *
-            "a fixed order.", :VARHAC)
+        throw(ArgumentError("`FixedSelector` is not a lag-order criterion. Use " *
+                            "`AICSelector()` or `BICSelector()`, or " *
+                            "`VARHAC(FixedLags(k))` for a fixed order."))
     end
-    return VARHAC{typeof(selector), typeof(strategy), T}(selector, strategy)
+    return VARHAC{typeof(selector), typeof(strategy)}(selector, strategy)
 end
 
 function _symbol_to_strategy(s::Symbol)
@@ -1429,7 +1400,8 @@ function _symbol_to_selector(s::Symbol)
     elseif s === :bic
         return BICSelector()
     else
-        throw(ArgumentError("Invalid selector symbol: $s. Use :aic or :bic"))
+        throw(ArgumentError("Invalid selector symbol: $s. Use :aic or :bic, or " *
+                            "`VARHAC(FixedLags(k))` for a fixed order."))
     end
 end
 
@@ -1454,18 +1426,18 @@ varhac = VARHAC(BICSelector(), DifferentOwnLags([3, 5]))
 max_lags = maxlags(varhac)  # Returns [3, 5]
 ```
 """
-maxlags(k::VARHAC{S, L, T}) where {S <: LagSelector, L <: SameLags, T} = k.strategy.maxlag
-function maxlags(k::VARHAC{S, L, T}) where {S <: LagSelector, L <: DifferentOwnLags, T}
+maxlags(k::VARHAC{S, L}) where {S <: LagSelector, L <: SameLags} = k.strategy.maxlag
+function maxlags(k::VARHAC{S, L}) where {S <: LagSelector, L <: DifferentOwnLags}
     k.strategy.maxlags
 end
-maxlags(k::VARHAC{S, L, T}) where {S <: LagSelector, L <: FixedLags, T} = k.strategy.maxlag
+maxlags(k::VARHAC{S, L}) where {S <: LagSelector, L <: FixedLags} = k.strategy.maxlag
 
 # For AutoLags, we need the data dimensions to compute optimal lag length
-function maxlags(k::VARHAC{S, AutoLags, T}, T_data::Int, N::Int) where {S <: LagSelector, T}
+function maxlags(k::VARHAC{S, AutoLags}, T_data::Int, N::Int) where {S <: LagSelector}
     return compute_auto_maxlag(T_data, N)
 end
 # Fallback that throws informative error if AutoLags used without dimensions
-function maxlags(k::VARHAC{S, AutoLags, T}) where {S <: LagSelector, T}
+function maxlags(k::VARHAC{S, AutoLags}) where {S <: LagSelector}
     throw(ArgumentError("AutoLags requires data dimensions. Use maxlags(estimator, T, N) where T is sample size and N is number of variables."))
 end
 
@@ -1523,14 +1495,13 @@ order(V)
 """
 order(V::CovarianceMatrix) = V.info.order
 
-function Base.show(io::IO, k::VARHAC{S, L, T}) where {S, L, T}
+function Base.show(io::IO, k::VARHAC)
     print(io, "VARHAC(")
     if !(k.strategy isa FixedLags)
         show(io, k.selector)
         print(io, ", ")
     end
     show(io, k.strategy)
-    T === Float64 || print(io, "; T = ", T)
     return print(io, ")")
 end
 

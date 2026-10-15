@@ -78,7 +78,6 @@ The lag length $p$ is typically selected using information criteria:
 ```@docs
 AICSelector
 BICSelector
-FixedSelector
 ```
 
 **AIC vs BIC Trade-offs:**

@@ -21,7 +21,7 @@ using Distributions
     @testset "Constructor and Default Behavior" begin
         # Test default constructor
         vh_default = VARHAC()
-        @test vh_default isa VARHAC{AICSelector, SameLags, Float64}
+        @test vh_default isa VARHAC{AICSelector, SameLags}
         @test vh_default.selector isa AICSelector
         @test vh_default.strategy isa SameLags
         @test vh_default.strategy.maxlag == 8
@@ -38,10 +38,6 @@ using Distributions
 
         # Test error handling
         @test_throws ArgumentError VARHAC(:invalid)
-
-        # Test type parameter
-        vh_float32 = @test_deprecated VARHAC(; T = Float32)
-        @test vh_float32 isa VARHAC{AICSelector, SameLags, Float32}
     end
 
     @testset "aVar API Compatibility" begin
@@ -598,13 +594,12 @@ using Distributions
         X = randn(n, k)
 
         # Test type stability
-        vh = VARHAC(; T = Float64)
+        vh = VARHAC()
         S1 = aVar(vh, X)
         @test eltype(S1) == Float64
 
-        vh32 = VARHAC(; T = Float32)
         X32 = Float32.(X)
-        S2 = aVar(vh32, X32)
+        S2 = aVar(vh, X32)
         @test eltype(S2) == Float32
 
         # Basic performance test - should complete without errors

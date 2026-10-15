@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     use `VARHAC(FixedLags(k))`.
   - Non-integer lag orders in `FixedLags`, `SameLags` and `DifferentOwnLags`.
     Integer-valued numbers such as `3.0` are still accepted.
+  - `VARHAC(FixedSelector(), strategy)` and `VARHAC(:fixed)`; use
+    `VARHAC(BICSelector(), strategy)`/`VARHAC(:bic)` for BIC selection, or
+    `VARHAC(FixedLags(k))` for a fixed order.
+- `VARHAC` has two type parameters, `VARHAC{S<:LagSelector, L<:LagStrategy}`;
+  the third, `T`, and the `T` keyword are gone (the estimate always took the
+  element type of the data). `FixedSelector` is no longer exported.
 
 ### Removed
 

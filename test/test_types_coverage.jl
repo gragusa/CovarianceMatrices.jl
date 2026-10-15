@@ -69,7 +69,7 @@ using Random
 
         # FixedLags constructor
         vf = VARHAC(FixedLags(5))
-        @test vf.selector isa FixedSelector
+        @test vf.selector isa CovarianceMatrices.FixedSelector
         @test vf.strategy.maxlag == 5
 
         # Full constructor
@@ -173,6 +173,6 @@ using Random
     @testset "LagSelector types" begin
         @test AICSelector() isa CovarianceMatrices.LagSelector
         @test BICSelector() isa CovarianceMatrices.LagSelector
-        @test FixedSelector() isa CovarianceMatrices.LagSelector
+        @test CovarianceMatrices.FixedSelector() isa CovarianceMatrices.LagSelector
     end
 end

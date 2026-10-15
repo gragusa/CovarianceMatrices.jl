@@ -146,26 +146,16 @@ Convert FORTRAN VARHAC parameters to Julia VARHAC constructor.
 Returns (varhac_estimator, demean_flag)
 """
 function fortran_params_to_julia(imodel, imax, imean)
-    # Convert IMODEL to selector
-    selector = if imodel == 1
-        AICSelector()
+    # IMODEL 1 and 2 select the order by AIC and BIC; IMODEL 3 fixes it at IMAX
+    varhac_est = if imodel == 1
+        VARHAC(AICSelector(), SameLags(imax))
     elseif imodel == 2
-        BICSelector()
+        VARHAC(BICSelector(), SameLags(imax))
     elseif imodel == 3
-        FixedSelector()
+        VARHAC(FixedLags(imax))
     else
         error("Unknown IMODEL=$imodel")
     end
-
-    # Convert IMAX to strategy
-    strategy = if imodel == 3
-        FixedLags(imax)
-    else
-        SameLags(imax)
-    end
-
-    # Create VARHAC estimator
-    varhac_est = VARHAC(selector, strategy)
 
     # Convert IMEAN to demean flag
     demean_flag = (imean == 1)
@@ -344,16 +334,13 @@ end
 
         # Test all VARHAC configurations with Float32
         vh_configs = [
-            (AICSelector(), SameLags(4), "AIC+SameLags"),
-            (BICSelector(), SameLags(4), "BIC+SameLags"),
-            (FixedSelector(), FixedLags(4), "Fixed+FixedLags"),
-            (AICSelector(), AutoLags(), "AIC+AutoLags")
+            (VARHAC(AICSelector(), SameLags(4)), "AIC+SameLags"),
+            (VARHAC(BICSelector(), SameLags(4)), "BIC+SameLags"),
+            (VARHAC(FixedLags(4)), "FixedLags"),
+            (VARHAC(AICSelector(), AutoLags()), "AIC+AutoLags")
         ]
 
-        for (selector, strategy, desc) in vh_configs
-            # Create VARHAC with explicit Float32 type
-            vh_f32 = VARHAC{typeof(selector), typeof(strategy), Float32}(
-                selector, strategy)
+        for (vh_f32, desc) in vh_configs
 
             # Test aVar with Float32 data
             result_f32 = aVar(vh_f32, fortran_data_f32; demean = true)
@@ -369,14 +356,8 @@ end
             println("✅ $desc: Type stable Float32 ✓")
         end
 
-        # Test VARHAC constructor with type parameter
         vh_default_f64 = VARHAC()
-        @test vh_default_f64 isa VARHAC{AICSelector, SameLags, Float64}
-
-        vh_explicit_f32 = VARHAC(; T = Float32)
-        @test vh_explicit_f32 isa VARHAC{AICSelector, SameLags, Float32}
-
-        println("✅ Constructor type parameters working correctly")
+        @test vh_default_f64 isa VARHAC{AICSelector, SameLags}
 
         # Test type promotion behavior
         result_f64 = aVar(vh_default_f64, fortran_data; demean = true)

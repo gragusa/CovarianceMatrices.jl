@@ -194,20 +194,17 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
         V = aVar(@test_nowarn(VARHAC(FixedLags(2))), X)
         @test sel(V) == [2]
 
-        # `FixedSelector` with a searching strategy selects by BIC and reports that order.
-        kf = @test_deprecated VARHAC(FixedSelector(), SameLags(3))
-        Vf = aVar(kf, X)
-        @test Vf ≈ aVar(VARHAC(BICSelector(), SameLags(3)), X)
-        @test sel(Vf) == CovarianceMatrices.order_bic(Vf)
-        @test (@test_deprecated VARHAC(:fixed)) isa VARHAC{FixedSelector, SameLags}
-
-        @test (@test_deprecated VARHAC(FixedSelector(), FixedLags(3))) ==
-              VARHAC(FixedLags(3))
+        FS = CovarianceMatrices.FixedSelector
+        @test :FixedSelector ∉ names(CovarianceMatrices)
+        @test_throws "`FixedSelector` is not a lag-order criterion" VARHAC(FS(), SameLags(3))
+        @test_throws "Use :aic or :bic, or `VARHAC(FixedLags(k))`" VARHAC(:fixed)
+        @test_throws "takes no selector. Use `VARHAC(FixedLags(3))`" VARHAC(
+            FS(), FixedLags(3))
         @test_throws "takes no selector. Use `VARHAC(FixedLags(3))`" VARHAC(
             BICSelector(), FixedLags(3))
         @test_throws "takes no selector" VARHAC(AICSelector(), FixedLags(3))
-        @test (@test_deprecated VARHAC(; T = Float32)) isa
-              VARHAC{AICSelector, SameLags, Float32}
+        @test_throws MethodError VARHAC(; T = Float32)
+        @test_throws "too many parameters" VARHAC{AICSelector, SameLags, Float32}
 
         @test_throws "a lag order must be an integer, got 5.7" FixedLags(5.7)
         @test_throws "a lag order must be an integer, got 5.7" SameLags(5.7)

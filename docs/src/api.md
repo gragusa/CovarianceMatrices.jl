@@ -102,7 +102,7 @@ CRModelCache
 ### VARHAC
 
 [`VARHAC`](@ref) and its lag selectors and strategies ([`AICSelector`](@ref),
-[`BICSelector`](@ref), [`FixedSelector`](@ref), [`SameLags`](@ref),
+[`BICSelector`](@ref), [`SameLags`](@ref),
 [`FixedLags`](@ref), [`AutoLags`](@ref), [`DifferentOwnLags`](@ref)) are
 documented on the [VARHAC: Vector Autoregression HAC Estimation](@ref) page.
 
