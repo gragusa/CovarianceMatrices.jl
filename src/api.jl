@@ -33,7 +33,7 @@ For MLikeModel + Information:
 - `warn::Bool=true`: Issue warnings for potential issues
 
 # Returns
-- `Matrix{Float64}`: Variance-covariance matrix (Fisher Information inverse)
+- `CovarianceMatrix`: Variance-covariance matrix (Fisher Information inverse); `estimator` returns `form`, since `ve` is not used
 """
 function StatsAPI.vcov(
         ve::AbstractAsymptoticVarianceEstimator,
@@ -64,7 +64,8 @@ function StatsAPI.vcov(
             cond_rtol = cond_rtol, debug = debug, warn = warn)
     end
 
-    return V
+    # `ve` takes no part in this computation, so the result records the form.
+    return CovarianceMatrix(V, form)
 end
 
 """
@@ -88,7 +89,7 @@ Both hessian_objective (H) and cross_score (G) are required.
 - `warn::Bool=true`: Issue warnings for potential issues
 
 # Returns
-- `Matrix{Float64}`: Robust sandwich variance-covariance matrix
+- `CovarianceMatrix`: Robust sandwich variance-covariance matrix
 """
 function StatsAPI.vcov(
         ve::AbstractAsymptoticVarianceEstimator,
@@ -119,7 +120,7 @@ function StatsAPI.vcov(
     V = _compute_mle_misspecified(H, Ω; cond_atol = cond_atol,
         cond_rtol = cond_rtol, debug = debug, warn = warn)
 
-    return V
+    return CovarianceMatrix(V, ve, information(Ω))
 end
 
 # ============================================================================
@@ -147,7 +148,7 @@ This is the efficient GMM variance formula.
 - `warn::Bool=true`: Issue warnings for potential issues
 
 # Returns
-- `Matrix{Float64}`: Efficient GMM variance-covariance matrix
+- `CovarianceMatrix`: Efficient GMM variance-covariance matrix
 """
 function StatsAPI.vcov(
         ve::AbstractAsymptoticVarianceEstimator,
@@ -191,7 +192,7 @@ function StatsAPI.vcov(
             cond_rtol = cond_rtol, debug = debug, warn = warn)
     end
 
-    return V
+    return CovarianceMatrix(V, ve, information(Ω))
 end
 
 """
@@ -217,7 +218,7 @@ Requires both hessian_objective (H) and cross_score (G).
 - `warn::Bool=true`: Issue warnings for potential issues
 
 # Returns
-- `Matrix{Float64}`: Robust GMM variance-covariance matrix
+- `CovarianceMatrix`: Robust GMM variance-covariance matrix
 """
 function StatsAPI.vcov(
         ve::AbstractAsymptoticVarianceEstimator,
@@ -258,7 +259,7 @@ function StatsAPI.vcov(
     V = _compute_gmm_misspecified(H, G, Ω, W_eff; cond_atol = cond_atol,
         cond_rtol = cond_rtol, debug = debug, warn = warn)
 
-    return V
+    return CovarianceMatrix(V, ve, information(Ω))
 end
 
 """

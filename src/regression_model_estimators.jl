@@ -281,7 +281,7 @@ function aVar(
         (-1)^(length(c) - 1)*v
     end
     scalevar!(Σ, scale, scaleby, numobs(m))
-    return CovarianceMatrix(Σ, k)
+    return CovarianceMatrix(Σ, k, (; nclusters = nclusters(k)))
 end
 
 """
@@ -391,7 +391,7 @@ function StatsAPI.vcov(
         Vo = V
     end
 
-    return Vo
+    return CovarianceMatrix(Vo, k, information(A))
 end
 
 """
@@ -563,7 +563,8 @@ function aVar(
         sign * v
     end
 
-    return scalevar!(Σ, scale, scaleby, numobs(m))
+    scalevar!(Σ, scale, scaleby, numobs(m))
+    return CovarianceMatrix(Σ, k, (; nclusters = nclusters(k)))
 end
 
 """
@@ -648,5 +649,5 @@ function StatsAPI.vcov(
     # Apply DOF correction if requested
     dofadjust && dofcorrect!(Vo, k.estimator, m)
 
-    return Vo
+    return CovarianceMatrix(Vo, k, information(A))
 end

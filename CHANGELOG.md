@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DriscollKraay(Bartlett(3.0), tis = [...], iis = [...])`. Cluster assignments
   print as integer group codes. `CachedCRModel` prints a summary of its cache.
 
+- Every `aVar` and `vcov` method returns a `CovarianceMatrix`, as 0.32.0
+  announced. `aVar`/`vcov` with a `CachedCRModel`, `vcov` with a
+  `DriscollKraay` estimator on a model, and the four `vcov` methods for
+  `MLikeModel` and `GMMLikeModel` returned a plain `Matrix`.
+  - `aVar` with a `DriscollKraay` estimator reports the inner kernel's
+    bandwidth and kernel weights, so `bandwidth(V)` works for a data-driven
+    kernel inside it.
+  - Cluster-robust estimates record the number of clusters in each dimension
+    in `information(V).nclusters`.
+  - `vcov(ve, Information(), ::MLikeModel)` does not use `ve`; its result
+    records `Information()` as the estimator.
+
 ### Removed
 
 - The forms deprecated in 0.32.0:

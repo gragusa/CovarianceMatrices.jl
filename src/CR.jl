@@ -133,6 +133,11 @@ function avar(k::CR, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <: Real
     return _avar_impl(f, X)
 end
 
+function avar_with_info(k::CR, X; weights = nothing, kwargs...)
+    V = avar(k, X; kwargs...)
+    return V, (; nclusters = nclusters(k))
+end
+
 # `Cluster`: the mean/matrix-interface cluster estimator. It reuses the same
 # cluster-sum machinery as the CR family but is a distinct, explicitly named type
 # for the raw (uncorrected) cluster covariance of a data/moment matrix.
