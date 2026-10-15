@@ -304,46 +304,6 @@ function triangular_sum(G::AbstractMatrix{T}, m_T) where {T <: Real}
     return triangular_sum!(dest, G, m_T)
 end
 
-# One column, O(T) using two prefix sum arrays
-function _col_triangular_sum!(
-        dest::AbstractVector{T}, col::AbstractVector{T}, m_T, P, W) where {T <: Real}
-    n = length(col)
-    mT = Int(m_T)
-    scale = 2.0 / (2 * mT + 1)
-
-    # Build prefix sums: P for values, W for index-weighted values
-    P[1] = zero(T)
-    W[1] = zero(T)
-    @inbounds for i in 1:n
-        P[i + 1] = P[i] + col[i]
-        W[i + 1] = W[i] + i * col[i]
-    end
-
-    # Compute windowed triangular sums
-    @inbounds for t in 1:n
-        a = max(1, t - mT)
-        b = min(n, t + mT)
-        # Left part: indices [a, t-1] with weights (1 - scale*(t-i))
-        # sum_{i=a}^{t-1} (1 - scale*(t-i)) * G[i]
-        # = sum G[i] - scale * sum (t-i)*G[i]
-        # = sum G[i] - scale * (t*sum(G[i]) - sum(i*G[i]))
-        left_sum = P[t] - P[a]
-        left_weighted = t * left_sum - (W[t] - W[a])
-        left_contrib = left_sum - scale * left_weighted
-        # Center: index t with weight 1
-        center_contrib = col[t]
-        # Right part: indices [t+1, b] with weights (1 - scale*(i-t))
-        # sum_{i=t+1}^{b} (1 - scale*(i-t)) * G[i]
-        # = sum G[i] - scale * sum (i-t)*G[i]
-        # = sum G[i] - scale * (sum(i*G[i]) - t*sum(G[i]))
-        right_sum = P[b + 1] - P[t + 1]
-        right_weighted = (W[b + 1] - W[t + 1]) - t * right_sum
-        right_contrib = right_sum - scale * right_weighted
-        dest[t] = left_contrib + center_contrib + right_contrib
-    end
-    return dest
-end
-
 function _col_triangular_sum_fma!(
         dest::AbstractVector{T}, col::AbstractVector{T}, m_T, P, W) where {T <: Real}
     n = length(col)
@@ -460,72 +420,4 @@ function avar(
     end
 
     return V
-end
-
-"""
-    smooth_uniform(G, m_T)
-
-Smooth a T×k matrix G using uniform kernel weights.
-
-Arguments:
-- G: T×k matrix to be smoothed
-- m_T: positive integer controlling the smoothing window size
-
-Returns:
-- G_smooth: smoothed matrix with uniform kernel weights
-"""
-function smooth_uniform(G::Matrix{Float64}, m_T::Int)
-    T, k = size(G)
-    G_smooth = zeros(T, k)
-
-    for t in 1:T
-        for j in 1:k
-            # Only sum where kernel is non-zero: |s| <= m_T
-            s_min = max(t - T, -m_T)
-            s_max = min(t - 1, m_T)
-
-            for s in s_min:s_max
-                idx = t - s
-                # Uniform kernel weight is 1 (no need to check condition)
-                G_smooth[t, j] += G[idx, j]
-            end
-        end
-    end
-
-    return G_smooth
-end
-
-"""
-    smooth_triangular(G, m_T)
-
-Smooth a T×k matrix G using triangular kernel weights.
-
-Arguments:
-- G: T×k matrix to be smoothed
-- m_T: positive integer controlling the smoothing window size
-
-Returns:
-- G_smooth: smoothed matrix with triangular kernel weights
-"""
-function smooth_triangular(G::Matrix{Float64}, m_T::Int)
-    T, k = size(G)
-    G_smooth = zeros(T, k)
-
-    for t in 1:T
-        for j in 1:k
-            # Only sum where kernel is non-zero: |s| <= m_T
-            s_min = max(t - T, -m_T)
-            s_max = min(t - 1, m_T)
-
-            for s in s_min:s_max
-                idx = t - s
-                # Triangular kernel weight
-                x = 2 * s / (2 * m_T + 1)
-                weight = 1.0 - abs(x)
-                G_smooth[t, j] += weight * G[idx, j]
-            end
-        end
-    end
-
-    return G_smooth
 end

@@ -69,10 +69,6 @@ vcov_robust = vcov(HC3(), Misspecified(), model)
 """
 struct Misspecified <: VarianceForm end
 
-# Convenience type unions for dispatch
-const MLikeForm = Union{Information, Misspecified}
-const GMMLikeForm = Union{Information, Misspecified}
-
 """
     momentmatrix(model) -> AbstractMatrix
     momentmatrix(model, θ::AbstractVector) -> AbstractMatrix

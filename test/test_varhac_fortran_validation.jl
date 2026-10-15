@@ -24,7 +24,27 @@ per-observation scale `aVar` returns under its default `scale = true`.
 
 using CovarianceMatrices
 using LinearAlgebra
+using Statistics
 using Test
+
+# Covariance of the rows without NaN, the reference for `CovarianceMatrices.nancov`.
+function nancov_slow(X::AbstractMatrix{T}; corrected::Bool = true) where {T <: Real}
+    # Remove rows with any NaN values
+    complete_rows = .!any(isnan.(X), dims = 2)
+    if !any(complete_rows)
+        # All rows have NaN, return NaN matrix
+        return fill(T(NaN), size(X, 2), size(X, 2))
+    end
+
+    X_clean = X[vec(complete_rows), :]
+    if size(X_clean, 1) <= 1
+        # Not enough observations for covariance
+        return fill(T(NaN), size(X, 2), size(X, 2))
+    end
+
+    return cov(X_clean; corrected = corrected)
+end
+
 import DelimitedFiles
 
 # FORTRAN reference data directory
@@ -409,7 +429,7 @@ end
     rng = StableRNG(1234)
     data = randn(rng, 100, 10)
     C1 = CovarianceMatrices.nancov(data)  # Should run without error
-    C0 = CovarianceMatrices.nancov_slow(data)
+    C0 = nancov_slow(data)
     C2 = cov(data)
     @test C1≈C0 atol=1e-10 rtol=1e-10
     @test C1≈C2 atol=1e-10 rtol=1e-10
@@ -418,10 +438,10 @@ end
     data[24:25, 4] .= NaN
     data[98:100, 7:9] .= NaN
     C1_nan = CovarianceMatrices.nancov(data)  # Should run without error
-    C0_nan = CovarianceMatrices.nancov_slow(data)
+    C0_nan = nancov_slow(data)
     @test C1_nan≈C0_nan atol=1e-10 rtol=1e-10
     C1_nan = CovarianceMatrices.nancov(data; corrected = false)  # Should run without error
-    C0_nan = CovarianceMatrices.nancov_slow(data; corrected = false)
+    C0_nan = nancov_slow(data; corrected = false)
     @test C1_nan≈C0_nan atol=1e-10 rtol=1e-10
 end
 

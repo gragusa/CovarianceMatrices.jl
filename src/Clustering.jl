@@ -68,12 +68,12 @@ function Clustering(v::AbstractVector)
 end
 
 """
-    Clustering(v1::AbstractVector, vs::AbstractVector...; sort=nothing)
+    Clustering(v1::AbstractVector, vs::AbstractVector...)
 
 Create a Clustering from multiple vectors (multi-way clustering).
 
 Combines multiple clustering dimensions by creating a unique group for each
-combination of values. The `sort` keyword is accepted for compatibility but ignored.
+combination of values.
 
 # Example
 ```julia
@@ -83,7 +83,7 @@ cl = Clustering(firm_ids, year_ids)
 cl.ngroups # 4 (one for each firm-year combination)
 ```
 """
-function Clustering(v1::AbstractVector, vs::AbstractVector...; sort = nothing)
+function Clustering(v1::AbstractVector, vs::AbstractVector...)
     # Delegate to single-vector constructors and merge for type stability
     # This avoids NTuple{N, Any} keys in the Dict
     c1 = Clustering(v1)
@@ -92,15 +92,15 @@ function Clustering(v1::AbstractVector, vs::AbstractVector...; sort = nothing)
 end
 
 # Pass-through constructor: if already a Clustering, return as-is
-Clustering(c::Clustering; sort = nothing) = c
+Clustering(c::Clustering) = c
 
 """
-    Clustering(c1::Clustering, cs::Clustering...; sort=nothing)
+    Clustering(c1::Clustering, cs::Clustering...)
 
 Merge multiple Clustering objects into a single Clustering (multi-way clustering).
 
 Creates a unique group for each combination of group assignments across the
-input Clustering objects. The `sort` keyword is accepted for compatibility but ignored.
+input Clustering objects.
 
 # Example
 ```julia
@@ -110,7 +110,7 @@ cl = Clustering(firms, years)
 cl.ngroups # 4 (one for each firm-year combination)
 ```
 """
-function Clustering(c1::Clustering, cs::Clustering...; sort = nothing)
+function Clustering(c1::Clustering, cs::Clustering...)
     n = length(c1.groups)
     # Verify all Clustering objects have the same length
     for c in cs

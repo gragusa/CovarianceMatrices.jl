@@ -628,6 +628,10 @@ end # Core Functionality Tests
 
     ## Test GLM Interface
     andrews_kernels = [:Truncated, :Parzen, :TukeyHanning, :QuadraticSpectral, :Bartlett]
+    # Kernel names as they appear in the R reference files.
+    kernel_names = Dict(:Truncated => "Truncated", :Parzen => "Parzen",
+        :TukeyHanning => "Tukey-Hanning", :QuadraticSpectral => "Quadratic Spectral",
+        :Bartlett => "Bartlett")
     neweywest_kernels = [:Parzen, :QuadraticSpectral, :Bartlett]
 
     reg = JSON.parse(read(joinpath(datadir, "testdata/regression.json"), String))
@@ -657,7 +661,7 @@ end # Core Functionality Tests
                     )
                     𝒦 = ($k){Andrews}()
                     tmp = CM.vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
-                    da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" =>
+                    da[$(kernel_names[k])] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" =>
                         tmp)
                 end,
                 )
@@ -669,7 +673,7 @@ end # Core Functionality Tests
                     𝒦 = ($k){NeweyWest}()
                     ## To get the same results of R, the weights given to the intercept should be 0
                     tmp = CM.vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
-                    dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" =>
+                    dn[$(kernel_names[k])] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" =>
                         tmp)
                 end,
                 )
@@ -684,7 +688,7 @@ end # Core Functionality Tests
                 𝒦 = ($k)()
                 ## To get the same results of R, the weights given to the intercept should be 0
                 tmp = CM.vcov(𝒦, ols; dofadjust = false)
-                hr_glm[String($k)] = Dict{String, Any}("V" => tmp)
+                hr_glm[$(replace(string(k), "HC" => "HR"))] = Dict{String, Any}("V" => tmp)
             end)
             eval(
                 quote
@@ -696,7 +700,7 @@ end # Core Functionality Tests
                 )
                 ## To get the same results of R, the weights given to the intercept should be 0
                 tmp = CM.vcov(𝒦, ols; dofadjust = false)
-                hr_lm[String($k)] = Dict{String, Any}("V" => tmp)
+                hr_lm[$(replace(string(k), "HC" => "HR"))] = Dict{String, Any}("V" => tmp)
             end,
             )
         end
@@ -724,7 +728,7 @@ end # Core Functionality Tests
                     )
                     𝒦 = ($k)(3)
                     tmp = vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
-                    da[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" =>
+                    da[$(kernel_names[k])] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" =>
                         tmp)
                 end,
                 )
@@ -735,7 +739,7 @@ end # Core Functionality Tests
                     𝒦 = ($k)(3)
                     ## To get the same results of R, the weights given to the intercept should be 0
                     tmp = vcov(𝒦, ols; prewhite = $pre, dofadjust = false)
-                    dn[String($k)] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" =>
+                    dn[$(kernel_names[k])] = Dict{String, Any}("bw" => CM.bandwidth(tmp), "V" =>
                         tmp)
                 end,
                 )

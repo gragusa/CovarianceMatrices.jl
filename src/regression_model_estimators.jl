@@ -221,7 +221,7 @@ function _residual_adjustment_cr(k::Union{CR2, CR3}, m::RegressionModel)
             if length(c) == 1
                 g = Clustering(f[c[1]])
             else
-                g = Clustering((f[i] for i in c)...; sort = nothing)
+                g = Clustering((f[i] for i in c)...)
             end
             cluster_indices = precompute_cluster_indices(g)
             blocks = Vector{Matrix{eltype(X)}}(undef, g.ngroups)
@@ -488,7 +488,7 @@ function CachedCRModel(k::CR, m::RegressionModel)
         if length(c) == 1
             g = Clustering(f[c[1]])
         else
-            g = Clustering((f[i] for i in c)...; sort = nothing)
+            g = Clustering((f[i] for i in c)...)
         end
         push!(grouped_arrays, g)
         push!(signs, (-1)^(length(c) - 1))

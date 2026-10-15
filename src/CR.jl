@@ -318,18 +318,3 @@ function _total_num_clusters(f::NTuple{N, Clustering}) where {N}
         end,
         combs)
 end
-
-rescale!(k::T, S::Matrix) where {T <: CR0} = nothing
-
-function rescale!(k::T, S::AbstractMatrix) where {T <: CR1}
-    # scale total vcov estimate by ((N-1)/(N-K)) * (G/(G-1))
-    nc = nclusters(k)
-    G = minimum(nc)
-    N = length(k.g[1])
-    K = size(S, 1)
-    c = ((N - 1) / _residual_dof(N, K)) * (G / _cluster_dof(G))
-    @. S *= c
-end
-
-rescale!(k::T, S::AbstractMatrix) where {T <: CR2} = nothing
-rescale!(k::T, S::AbstractMatrix) where {T <: CR3} = nothing

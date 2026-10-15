@@ -15,6 +15,75 @@ using Statistics
 using StableRNGs
 using Random
 
+# Direct O(T·m_T) smoothers, the reference for the prefix-sum implementations.
+"""
+    smooth_uniform(G, m_T)
+
+Smooth a T×k matrix G using uniform kernel weights.
+
+Arguments:
+- G: T×k matrix to be smoothed
+- m_T: positive integer controlling the smoothing window size
+
+Returns:
+- G_smooth: smoothed matrix with uniform kernel weights
+"""
+function smooth_uniform(G::Matrix{Float64}, m_T::Int)
+    T, k = size(G)
+    G_smooth = zeros(T, k)
+
+    for t in 1:T
+        for j in 1:k
+            # Only sum where kernel is non-zero: |s| <= m_T
+            s_min = max(t - T, -m_T)
+            s_max = min(t - 1, m_T)
+
+            for s in s_min:s_max
+                idx = t - s
+                # Uniform kernel weight is 1 (no need to check condition)
+                G_smooth[t, j] += G[idx, j]
+            end
+        end
+    end
+
+    return G_smooth
+end
+
+"""
+    smooth_triangular(G, m_T)
+
+Smooth a T×k matrix G using triangular kernel weights.
+
+Arguments:
+- G: T×k matrix to be smoothed
+- m_T: positive integer controlling the smoothing window size
+
+Returns:
+- G_smooth: smoothed matrix with triangular kernel weights
+"""
+function smooth_triangular(G::Matrix{Float64}, m_T::Int)
+    T, k = size(G)
+    G_smooth = zeros(T, k)
+
+    for t in 1:T
+        for j in 1:k
+            # Only sum where kernel is non-zero: |s| <= m_T
+            s_min = max(t - T, -m_T)
+            s_max = min(t - 1, m_T)
+
+            for s in s_min:s_max
+                idx = t - s
+                # Triangular kernel weight
+                x = 2 * s / (2 * m_T + 1)
+                weight = 1.0 - abs(x)
+                G_smooth[t, j] += weight * G[idx, j]
+            end
+        end
+    end
+
+    return G_smooth
+end
+
 @testset "Smoothed Moments Tests" begin
     # Set up stable RNG for reproducible tests
     rng = StableRNG(123456)
@@ -239,13 +308,13 @@ using Random
                 # Test UniformSmoother
                 k_uniform = CovarianceMatrices.UniformSmoother(params.m_T)
                 G_fast_uniform = CovarianceMatrices.smooth_moments(G, k_uniform)
-                G_plain_uniform = CovarianceMatrices.smooth_uniform(G, params.m_T)
+                G_plain_uniform = smooth_uniform(G, params.m_T)
                 @test G_fast_uniform ≈ G_plain_uniform rtol = 1e-10
 
                 # Test TriangularSmoother
                 k_triangular = CovarianceMatrices.TriangularSmoother(params.m_T)
                 G_fast_triangular = CovarianceMatrices.smooth_moments(G, k_triangular)
-                G_plain_triangular = CovarianceMatrices.smooth_triangular(
+                G_plain_triangular = smooth_triangular(
                     G, params.m_T)
                 @test G_fast_triangular ≈ G_plain_triangular rtol = 1e-10
             end

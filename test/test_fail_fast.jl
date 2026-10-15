@@ -92,6 +92,12 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
         end
     end
 
+    @testset "String on estimator types" begin
+        @test (@test_deprecated String(QuadraticSpectral)) == "Quadratic Spectral"
+        @test (@test_deprecated String(HC0)) == "HR0"
+        @test (@test_deprecated String(DriscollKraay)) == "Driscoll-Kraay"
+    end
+
     @testset "VARHAC keywords and fallbacks" begin
         @test_deprecated r"does not use the keyword\(s\) foo" aVar(VARHAC(), X; foo = 1)
         @test_nowarn aVar(VARHAC(), X)

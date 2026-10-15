@@ -13,32 +13,20 @@ This is the root type of the estimator hierarchy in CovarianceMatrices.jl. All r
 
 # Type Hierarchy
 
+```
 AbstractAsymptoticVarianceEstimator (abstract)
-  * Correlated (abstract)
-      - HAC{G} (Heteroskedasticity and Autocorrelation Consistent)
-          . Bartlett
-          . Parzen
-          . QuadraticSpectral
-          . TukeyHanning
-          . Truncated
-      - CR (Cluster-Robust)
-          . CR0
-          . CR1
-          . CR2
-          . CR3
-      - Specialized
-          . VARHAC
-          . EWC
-          . DriscollKraay
-          . SmoothedMoments
   * Uncorrelated
-      - HR (Heteroskedasticity-Robust)
-          . HR0 / HC0
-          . HR1 / HC1
-          . HR2 / HC2
-          . HR3 / HC3
-          . HR4 / HC4
-          . HR5 / HC5
+  * HR (abstract): HR0/HC0, HR1/HC1, HR2/HC2, HR3/HC3, HR4/HC4, HR4m/HC4m, HR5/HC5
+  * Correlated (abstract)
+      - HAC{G} (abstract): Bartlett, Parzen, QuadraticSpectral, TukeyHanning, Truncated
+      - CR (abstract): CR0, CR1, CR2, CR3, CachedCR
+      - Cluster
+      - EWC
+      - VARHAC
+      - DriscollKraay
+  * MomentSmoother (abstract): UniformSmoother, TriangularSmoother
+```
+
 # Interface
 
 All subtypes implement the core interface:
@@ -81,7 +69,7 @@ This encompasses all estimators that handle:
 - Serial correlation (HAC estimators)
 - Cluster correlation (CR estimators)
 - Spatial and temporal correlation (DriscollKraay)
-- Other specialized correlation patterns (EWC, VARHAC, SmoothedMoments)
+- Other specialized correlation patterns (EWC, VARHAC)
 """
 abstract type Correlated <: AbstractAsymptoticVarianceEstimator end
 
@@ -518,7 +506,7 @@ end
 EWC
 =========#
 """
-    EWC <: AVarEstimator
+    EWC <: Correlated
 
 Equal Weighted Cosine (EWC) covariance matrix estimator.
 
@@ -944,7 +932,7 @@ function CRCache(k::CR, ncols::Int, ::Type{T} = Float64) where {T}
         if length(c) == 1
             g = Clustering(f[c[1]])
         else
-            g = Clustering((f[i] for i in c)...; sort = nothing)
+            g = Clustering((f[i] for i in c)...)
         end
         push!(grouped_arrays, g)
         push!(signs, (-1)^(length(c) - 1))
@@ -1296,7 +1284,7 @@ end
 DifferentOwnLags() = DifferentOwnLags([5, 5])
 
 """
-    VARHAC{S<:LagSelector, L<:LagStrategy, T<:Real} <: AVarEstimator
+    VARHAC{S<:LagSelector, L<:LagStrategy, T<:Real} <: Correlated
 
 Vector Autoregression HAC (VARHAC) estimator for robust covariance estimation.
 
@@ -1520,7 +1508,7 @@ end
 ##DriscollKraay
 =========#
 """
-    DriscollKraay{K, D, I} <: AVarEstimator
+    DriscollKraay{K, D, I} <: Correlated
 
 Driscoll-Kraay estimator for panel data with cross-sectional and temporal dependence.
 
@@ -1680,25 +1668,37 @@ See [`HR5`](@ref) for details.
 """
 const HC5 = HR5
 
-Base.String(::Type{T}) where {T <: Truncated} = "Truncated"
-Base.String(::Type{T}) where {T <: Parzen} = "Parzen"
-Base.String(::Type{T}) where {T <: TukeyHanning} = "Tukey-Hanning"
-Base.String(::Type{T}) where {T <: Bartlett} = "Bartlett"
-Base.String(::Type{T}) where {T <: QuadraticSpectral} = "Quadratic Spectral"
-Base.String(::Type{T}) where {T <: HR0} = "HR0"
-Base.String(::Type{T}) where {T <: HR1} = "HR1"
-Base.String(::Type{T}) where {T <: HR2} = "HR2"
-Base.String(::Type{T}) where {T <: HR3} = "HR3"
-Base.String(::Type{T}) where {T <: HR4} = "HR4"
-Base.String(::Type{T}) where {T <: HR4m} = "HR4m"
-Base.String(::Type{T}) where {T <: HR5} = "HR5"
-Base.String(::Type{T}) where {T <: CR0} = "CR0"
-Base.String(::Type{T}) where {T <: CR1} = "CR1"
-Base.String(::Type{T}) where {T <: CR2} = "CR2"
-Base.String(::Type{T}) where {T <: CR3} = "CR3"
-Base.String(::Type{T}) where {T <: EWC} = "EWC"
-Base.String(::Type{T}) where {T <: DriscollKraay} = "Driscoll-Kraay"
-Base.String(::Type{T}) where {T <: VARHAC} = "VARHAC"
+# Names returned by the deprecated `String(::Type)` methods below.
+_legacy_string(::Type{T}) where {T <: Truncated} = "Truncated"
+_legacy_string(::Type{T}) where {T <: Parzen} = "Parzen"
+_legacy_string(::Type{T}) where {T <: TukeyHanning} = "Tukey-Hanning"
+_legacy_string(::Type{T}) where {T <: Bartlett} = "Bartlett"
+_legacy_string(::Type{T}) where {T <: QuadraticSpectral} = "Quadratic Spectral"
+_legacy_string(::Type{T}) where {T <: HR0} = "HR0"
+_legacy_string(::Type{T}) where {T <: HR1} = "HR1"
+_legacy_string(::Type{T}) where {T <: HR2} = "HR2"
+_legacy_string(::Type{T}) where {T <: HR3} = "HR3"
+_legacy_string(::Type{T}) where {T <: HR4} = "HR4"
+_legacy_string(::Type{T}) where {T <: HR4m} = "HR4m"
+_legacy_string(::Type{T}) where {T <: HR5} = "HR5"
+_legacy_string(::Type{T}) where {T <: CR0} = "CR0"
+_legacy_string(::Type{T}) where {T <: CR1} = "CR1"
+_legacy_string(::Type{T}) where {T <: CR2} = "CR2"
+_legacy_string(::Type{T}) where {T <: CR3} = "CR3"
+_legacy_string(::Type{T}) where {T <: EWC} = "EWC"
+_legacy_string(::Type{T}) where {T <: DriscollKraay} = "Driscoll-Kraay"
+_legacy_string(::Type{T}) where {T <: VARHAC} = "VARHAC"
+
+const _LegacyStringTypes = Union{
+    Truncated, Parzen, TukeyHanning, Bartlett, QuadraticSpectral,
+    HR0, HR1, HR2, HR3, HR4, HR4m, HR5, CR0, CR1, CR2, CR3, EWC, DriscollKraay, VARHAC}
+
+function Base.String(T::Type{<:_LegacyStringTypes})
+    Base.depwarn(
+        "`String(::Type)` for estimator types is deprecated and will be removed in a " *
+        "future release.", :String)
+    return _legacy_string(T)
+end
 
 #=========
 Display

@@ -96,6 +96,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that `aVar(::VARHAC, X)` does not use. Both are ignored with a deprecation
   warning and will throw in a future release.
 
+- `String(T)` for estimator types such as `String(Bartlett)`.
+
 ### Removed
 
 - The forms deprecated in 0.32.0:

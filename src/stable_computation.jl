@@ -7,6 +7,14 @@ instead of explicit matrix inversions for numerical stability.
 
 using LinearAlgebra
 
+# Tolerances for `ipinv`: `cond_atol` defaults to 0 and `cond_rtol` to
+# `eps * min(size(A)...)` in the element type of `A`.
+function _inversion_tolerances(A::AbstractMatrix, cond_atol, cond_rtol)
+    atol = cond_atol === nothing ? 0.0 : cond_atol
+    rtol = cond_rtol === nothing ? eps(real(float(eltype(A)))) * min(size(A)...) : cond_rtol
+    return atol, rtol
+end
+
 # ============================================================================
 # MLikeModel Computations
 # ============================================================================
@@ -27,16 +35,13 @@ function _compute_mle_information(
         debug::Bool = false,
         warn::Bool = true
 )
-    # Set default tolerances
-    atol = cond_atol === nothing ? 0.0 : cond_atol
-    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(M)))) * min(size(M)...)) :
-               cond_rtol
+    atol, rtol = _inversion_tolerances(M, cond_atol, cond_rtol)
 
     # Force warn=true when debug=true
     warn = debug || warn
 
     # V = inv(M)
-    Minv, flag, svals = ipinv(M; atol = atol, rtol = rtol_val)
+    Minv, flag, svals = ipinv(M; atol, rtol)
     _debug_report_inversion("Fisher Information Matrix", flag, svals, "$(size(M))", debug,
         warn)
 
@@ -62,16 +67,13 @@ function _compute_mle_misspecified(
         debug::Bool = false,
         warn::Bool = true
 )
-    # Set default tolerances
-    atol = cond_atol === nothing ? 0.0 : cond_atol
-    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
-               cond_rtol
+    atol, rtol = _inversion_tolerances(Ω, cond_atol, cond_rtol)
 
     # Force warn=true when debug=true
     warn = debug || warn
 
     # Invert H
-    Hinv, flag_h, svals_h = ipinv(H; atol = atol, rtol = rtol_val)
+    Hinv, flag_h, svals_h = ipinv(H; atol, rtol)
     _debug_report_inversion("H (Hessian)", flag_h, svals_h, "$(size(H))", debug, warn)
 
     # Compute V = Hinv' * Ω * Hinv
@@ -101,23 +103,20 @@ function _compute_gmm_information(
         debug::Bool = false,
         warn::Bool = true
 )
-    # Set default tolerances
-    atol = cond_atol === nothing ? 0.0 : cond_atol
-    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
-               cond_rtol
+    atol, rtol = _inversion_tolerances(Ω, cond_atol, cond_rtol)
 
     # Force warn=true when debug=true
     warn = debug || warn
 
     # Invert Ω
-    Ωinv, flag_omega, svals_omega = ipinv(Ω; atol = atol, rtol = rtol_val)
+    Ωinv, flag_omega, svals_omega = ipinv(Ω; atol, rtol)
     _debug_report_inversion("Omega", flag_omega, svals_omega, "$(size(Ω))", debug, warn)
 
     # Compute G' * Ωinv * G
     G_omega_G = G' * Ωinv * G
 
     # Invert to get variance
-    V, flag_v, svals_v = ipinv(G_omega_G; atol = atol, rtol = rtol_val)
+    V, flag_v, svals_v = ipinv(G_omega_G; atol, rtol)
     _debug_report_inversion("G'Omega^(-1)G", flag_v, svals_v, "$(size(G_omega_G))", debug,
         warn)
 
@@ -149,17 +148,14 @@ function _compute_gmm_information_weighted(
         debug::Bool = false,
         warn::Bool = true
 )
-    # Set default tolerances
-    atol = cond_atol === nothing ? 0.0 : cond_atol
-    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
-               cond_rtol
+    atol, rtol = _inversion_tolerances(Ω, cond_atol, cond_rtol)
 
     # Force warn=true when debug=true
     warn = debug || warn
 
     # Compute and invert G'WG (the "bread")
     GWG = G' * W * G
-    GWGinv, flag_gwg, svals_gwg = ipinv(GWG; atol = atol, rtol = rtol_val)
+    GWGinv, flag_gwg, svals_gwg = ipinv(GWG; atol, rtol)
     _debug_report_inversion("G'WG", flag_gwg, svals_gwg, "$(size(GWG))", debug, warn)
 
     # Compute the "meat": G'WΩWG
@@ -192,10 +188,7 @@ function _compute_gmm_misspecified(
         debug::Bool = false,
         warn::Bool = true
 )
-    # Set default tolerances
-    atol = cond_atol === nothing ? 0.0 : cond_atol
-    rtol_val = cond_rtol === nothing ? (eps(real(float(eltype(Ω)))) * min(size(Ω)...)) :
-               cond_rtol
+    atol, rtol = _inversion_tolerances(Ω, cond_atol, cond_rtol)
 
     # Force warn=true when debug=true
     warn = debug || warn
@@ -203,7 +196,7 @@ function _compute_gmm_misspecified(
     # Compute the "meat" B of the sandwich
     if W === nothing
         # Efficient GMM (W = inv(Ω)): B = G'W Ω W G = G' inv(Ω) G
-        Ωinv, flag_omega, svals_omega = ipinv(Ω; atol = atol, rtol = rtol_val)
+        Ωinv, flag_omega, svals_omega = ipinv(Ω; atol, rtol)
         _debug_report_inversion("Ω", flag_omega, svals_omega, "$(size(Ω))", debug, warn)
         B = G' * Ωinv * G
     else
@@ -212,7 +205,7 @@ function _compute_gmm_misspecified(
     end
 
     # Invert H
-    Hinv, flag_h, svals_h = ipinv(H; atol = atol, rtol = rtol_val)
+    Hinv, flag_h, svals_h = ipinv(H; atol, rtol)
     _debug_report_inversion("H (Hessian)", flag_h, svals_h, "$(size(H))", debug, warn)
 
     # Compute V = inv(H) * B * inv(H)
