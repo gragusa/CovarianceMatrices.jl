@@ -14,14 +14,5 @@ using Aqua
 using CovarianceMatrices
 
 @testset "Aqua.jl" begin
-    Aqua.test_all(
-        CovarianceMatrices;
-        deps_compat = true,
-        stale_deps = true,
-        unbound_args = false, ## This fails for version < 1.12
-        undefined_exports = true,
-        ambiguities = true,
-        piracies = true,
-        persistent_tasks = true
-    )
+    Aqua.test_all(CovarianceMatrices)
 end

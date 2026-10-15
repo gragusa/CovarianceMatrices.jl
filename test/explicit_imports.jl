@@ -1,11 +1,15 @@
 ## ExplicitImports.jl checks
 ##
-## Guards against implicit imports, stale explicit imports, and import/access
-## ownership regressions.
+## Guards against implicit imports, stale explicit imports, import/access
+## ownership regressions, and reliance on non-public names.
 ##
-## The two public-ness checks are disabled: the SparseArrays extension
-## legitimately reaches into CovarianceMatrices' own internals (`Clustering`,
-## `clusterize`, `fit_var`), which are deliberately non-public.
+## Allowed non-public names:
+## - `Clustering`, `clusterize`, `fit_var`: the SparseArrays extension imports
+##   this internal type and adds methods to these internal functions of
+##   CovarianceMatrices itself.
+## - `Base.print_matrix`: `show(::IO, ::MIME"text/plain", ::CovarianceMatrix)`
+##   uses it to print the matrix body without the `Matrix{T}` header line;
+##   Base has no public equivalent.
 ##
 ## Reference: https://ericphanson.github.io/ExplicitImports.jl/stable/
 
@@ -16,7 +20,9 @@ using CovarianceMatrices
 @testset "ExplicitImports" begin
     test_explicit_imports(
         CovarianceMatrices;
-        all_explicit_imports_are_public = false,
-        all_qualified_accesses_are_public = false
+        all_explicit_imports_are_public = (; ignore = (:Clustering,)),
+        all_qualified_accesses_are_public = (;
+            ignore = (:print_matrix, :clusterize, :fit_var)
+        )
     )
 end
