@@ -21,7 +21,7 @@ roundtrip(x) = Core.eval(ShowRoundTrip, Meta.parse(repr(x)))
             CR3([1, 2, 3]), CR0(:firm), CR2((:a, :b)),
             Cluster([1, 1, 2]), Cluster((:a, :b)), Cluster(([1, 2], [3, 3])),
             VARHAC(), VARHAC(FixedLags(3)), VARHAC(BICSelector(), DifferentOwnLags([1, 2])),
-            VARHAC(AICSelector(), AutoLags()), VARHAC(AICSelector(), SameLags(2); T = Float32),
+            VARHAC(AICSelector(), AutoLags()),
             DriscollKraay(Bartlett(3), tis = [1, 2, 1, 2], iis = [1, 1, 2, 2]),
             DriscollKraay(Parzen{Andrews}(), tis = [1, 2, 1, 2], iis = [1, 1, 2, 2]),
             UniformSmoother(3), TriangularSmoother(0)
@@ -37,6 +37,7 @@ roundtrip(x) = Core.eval(ShowRoundTrip, Meta.parse(repr(x)))
         @test repr(CR0([1, 1, 2, 2])) == "CR0([1, 1, 2, 2])"
         @test repr(VARHAC(AICSelector(), SameLags(4))) ==
               "VARHAC(AICSelector(), SameLags(4))"
+        @test repr(VARHAC(FixedLags(3))) == "VARHAC(FixedLags(3))"
         @test "k = $(EWC(4))" == "k = EWC(4)"
     end
 

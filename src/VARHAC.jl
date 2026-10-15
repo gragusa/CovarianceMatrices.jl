@@ -54,13 +54,15 @@ function avar(k::VARHAC, X::AbstractMatrix; kwargs...)
     return Ω
 end
 
-_lagstrategy(k::VARHAC) = isa(k.selector, AICSelector) ? :aic : :bic
+# The criterion that selects the lag order: AIC for `AICSelector`, BIC for any other
+# selector. `FixedLags` selects nothing and reports its order under both.
+_lagstrategy(k::VARHAC) = k.selector isa AICSelector ? :aic : :bic
 
-# `order` is the selection the configured criterion actually made; the per-criterion
-# orders and the criterion tables are reported alongside it.
-_selected_order(k::VARHAC{AICSelector}, order_aic, order_bic) = order_aic
-_selected_order(k::VARHAC{BICSelector}, order_aic, order_bic) = order_bic
-_selected_order(k::VARHAC, order_aic, order_bic) = order_aic
+# `order` is the selection the estimate was computed from; the per-criterion orders
+# and the criterion tables are reported alongside it.
+function _selected_order(k::VARHAC, order_aic, order_bic)
+    return _lagstrategy(k) === :aic ? order_aic : order_bic
+end
 
 function _varhac_info(k::VARHAC, AICs, BICs, order_aic, order_bic)
     return (AICs = AICs, BICs = BICs, order_aic = order_aic, order_bic = order_bic,

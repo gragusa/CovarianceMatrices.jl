@@ -115,6 +115,47 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
         @test (@test_deprecated String(DriscollKraay)) == "Driscoll-Kraay"
     end
 
+    @testset "VARHAC selector and lag strategy" begin
+        sel = CovarianceMatrices.order
+        for s in (AICSelector(), BICSelector()),
+            l in (SameLags(3), DifferentOwnLags([2, 1]), AutoLags())
+
+            k = @test_nowarn VARHAC(s, l)
+            V = aVar(k, X)
+            @test sel(V) == (s isa AICSelector ? CovarianceMatrices.order_aic(V) :
+                   CovarianceMatrices.order_bic(V))
+        end
+        V = aVar(@test_nowarn(VARHAC(FixedLags(2))), X)
+        @test sel(V) == [2]
+
+        # `FixedSelector` with a searching strategy selects by BIC and reports that order.
+        kf = @test_deprecated VARHAC(FixedSelector(), SameLags(3))
+        Vf = aVar(kf, X)
+        @test Vf ≈ aVar(VARHAC(BICSelector(), SameLags(3)), X)
+        @test sel(Vf) == CovarianceMatrices.order_bic(Vf)
+        @test (@test_deprecated VARHAC(:fixed)) isa VARHAC{FixedSelector, SameLags}
+
+        @test (@test_deprecated VARHAC(FixedSelector(), FixedLags(3))) ==
+              VARHAC(FixedLags(3))
+        @test (@test_deprecated r"will throw" VARHAC(BICSelector(), FixedLags(3))) ==
+              VARHAC(FixedLags(3))
+        @test (@test_deprecated VARHAC(; T = Float32)) isa
+              VARHAC{AICSelector, SameLags, Float32}
+
+        @test (@test_deprecated FixedLags(5.7)).maxlag == 6
+        @test (@test_deprecated SameLags(5.7)).maxlag == 6
+        @test (@test_deprecated DifferentOwnLags((2.6, 1))).maxlags == [3, 1]
+        @test (@test_nowarn FixedLags(5.0)).maxlag == 5
+
+        @test_throws "at least 1, got -1" FixedLags(-1)
+        @test_throws "at least 1, got 0" FixedLags(0)
+        @test_throws "at least 1, got -2" SameLags(-2)
+        @test_throws "must be non-negative" DifferentOwnLags([-1, 2])
+        @test_throws "got 3 entries" DifferentOwnLags([2, 1, 1])
+        @test_throws "got 1 entries" DifferentOwnLags((1,))
+        @test DifferentOwnLags([0, 2]).maxlags == [0, 2]
+    end
+
     @testset "VARHAC keywords and fallbacks" begin
         @test_deprecated r"does not use the keyword\(s\) foo" aVar(VARHAC(), X; foo = 1)
         @test_nowarn aVar(VARHAC(), X)

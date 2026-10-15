@@ -40,7 +40,7 @@ using Distributions
         @test_throws ArgumentError VARHAC(:invalid)
 
         # Test type parameter
-        vh_float32 = VARHAC(; T = Float32)
+        vh_float32 = @test_deprecated VARHAC(; T = Float32)
         @test vh_float32 isa VARHAC{AICSelector, SameLags, Float32}
     end
 
@@ -224,7 +224,7 @@ using Distributions
         strategies = [
             (VARHAC(AICSelector(), SameLags(6)), "AIC SameLags"),
             (VARHAC(BICSelector(), SameLags(6)), "BIC SameLags"),
-            (VARHAC(FixedSelector(), FixedLags(3)), "Fixed Lags")
+            (VARHAC(FixedLags(3)), "Fixed Lags")
         ]
 
         for (vh, name) in strategies

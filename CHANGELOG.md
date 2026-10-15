@@ -85,6 +85,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CR0`–`CR3` and `Cluster` accept any `AbstractVector` or `AbstractMatrix`,
   including sparse matrices and views. Sparse input took no path through
   `aVar`, although the `SparseArrays` extension implements it.
+- `VARHAC(FixedSelector(), strategy)` and `VARHAC(:fixed)` select the lag
+  order by BIC, but `order` reported the AIC selection; it now reports the BIC
+  orders the estimate is computed from. `VARHAC(FixedLags(3))` prints as
+  `VARHAC(FixedLags(3))`.
+- `FixedLags` and `SameLags` throw for an order below 1, and
+  `DifferentOwnLags` throws for a negative order or a vector that is not
+  `[own, cross]`, at construction. These inputs previously failed inside
+  `aVar` or were accepted silently. The `DifferentOwnLags` docstring described
+  the vector as one lag per variable.
 
 ### Added
 
@@ -108,6 +117,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   warning and will throw in a future release.
 
 - `String(T)` for estimator types such as `String(Bartlett)`.
+
+- VARHAC: `FixedSelector` and `VARHAC(:fixed)` (use `BICSelector()`/`:bic`, or
+  `VARHAC(FixedLags(k))` for a fixed order); a selector passed together with
+  `FixedLags`; non-integer lag orders, which are rounded; and the `T` keyword,
+  which has no effect. A selector with `FixedLags` and non-integer lags will
+  throw in a future release.
 
 ### Removed
 

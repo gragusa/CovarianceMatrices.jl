@@ -60,9 +60,10 @@ aliases that expand to this explicit form:
 | `VARHAC(8)` | `VARHAC(AICSelector(), SameLags(8))` |
 | `VARHAC(:aic)` | `VARHAC(AICSelector(), SameLags(8))` |
 | `VARHAC(:bic)` | `VARHAC(BICSelector(), SameLags(8))` |
-| `VARHAC(:fixed)` | `VARHAC(FixedSelector(), SameLags(8))` |
-| `VARHAC(FixedLags(5))` | `VARHAC(FixedSelector(), FixedLags(5))` |
 | `VARHAC(Val(:auto))` | `VARHAC(AICSelector(), AutoLags())` |
+
+A VAR of fixed order, with no lag selection, is `VARHAC(FixedLags(5))`; it takes no
+selector.
 
 For sample-size-driven lag selection, prefer the explicit
 `VARHAC(AICSelector(), AutoLags())` over `VARHAC(Val(:auto))`: it reads more
@@ -83,7 +84,10 @@ FixedSelector
 **AIC vs BIC Trade-offs:**
 - **AIC**: Tends to select longer lags, captures more dynamics
 - **BIC**: Tends to select shorter lags, more parsimonious
-- **Fixed**: Use when you have strong prior knowledge
+- **`FixedLags`**: no selection; use when you have strong prior knowledge of the order
+
+`order` on the result reports the orders selected by the configured criterion,
+which are the orders the estimate is computed from.
 
 ### Lag Strategies
 
@@ -137,7 +141,8 @@ reducing the estimate to the contemporaneous covariance.
 ### Different Lag Strategies
 
 A strategy sets the search range; the selector picks within it. `FixedLags` skips
-selection altogether, so it pairs with `FixedSelector` automatically.
+selection altogether and takes no selector. `DifferentOwnLags([own, cross])` searches
+each equation's own lags up to `own` and the other variables' lags up to `cross`.
 
 ```@example varhac
 strategies = [

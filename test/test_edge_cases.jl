@@ -262,7 +262,7 @@ using GLM
         # Automatic lag selection is spelled `Val(:auto)`; a bare symbol names a
         # selector, so `:auto` is rejected with the list of valid selectors.
         @test VARHAC(Val(:auto)) == VARHAC(AICSelector(), AutoLags())
-        @test_throws "Use :aic, :bic, or :fixed" VARHAC(:auto)
+        @test_throws "Use :aic or :bic" VARHAC(:auto)
     end
 
     @testset "DriscollKraay identifier types" begin

@@ -1187,39 +1187,46 @@ struct BICSelector <: LagSelector end
 """
 `FixedSelector`
 
-Fixed lag selector for VARHAC estimation.
-
-Uses a pre-specified number of lags without data-driven selection.
-
-# Usage
-```julia
-using CovarianceMatrices
-varhac_fixed = VARHAC(FixedSelector(), FixedLags(5))
-```
+Selector stored by `VARHAC(FixedLags(k))`, which fits a VAR of fixed order and
+selects nothing. Passing it to `VARHAC` directly is deprecated: use
+`VARHAC(FixedLags(k))` for a fixed order and `BICSelector()` for BIC selection.
 """
 struct FixedSelector <: LagSelector end
 abstract type LagStrategy end
 
+# Lag orders are integers; an integer-valued `Real` converts silently.
+function _lag_integer(x::Real, name::Symbol)
+    isinteger(x) && return Int(x)
+    Base.depwarn(
+        "`$name($x)`: a non-integer lag order is deprecated and will throw in a future " *
+        "release; it is rounded to $(round(Int, x)).", name)
+    return round(Int, x)
+end
+
 """
 `FixedLags`
 
-Fixed lag strategy that uses the same number of lags for all variables.
+Lag strategy that fits a VAR of fixed order, without lag selection.
 
 # Fields
-- `maxlag::Int`: Maximum number of lags to use
+- `maxlag::Int`: the VAR order, at least 1
 
 # Usage
 ```julia
 using CovarianceMatrices
-fixed_lags = FixedLags(8)
-varhac = VARHAC(AICSelector(), fixed_lags)
+varhac = VARHAC(FixedLags(8))
 ```
 """
 struct FixedLags <: LagStrategy
     maxlag::Int
+    function FixedLags(maxlag::Integer)
+        maxlag >= 1 || throw(ArgumentError(
+            "FixedLags: the VAR order must be at least 1, got $maxlag"))
+        return new(maxlag)
+    end
 end
 
-FixedLags(x::Real) = FixedLags(round(Int, x))
+FixedLags(x::Real) = FixedLags(_lag_integer(x, :FixedLags))
 FixedLags() = FixedLags(5)
 
 """
@@ -1230,7 +1237,7 @@ Lag strategy that uses the same maximum number of lags for all variables.
 Similar to `FixedLags` but with different default behavior in VARHAC.
 
 # Fields
-- `maxlag::Int`: Maximum number of lags to use
+- `maxlag::Int`: Maximum number of lags to search, at least 1
 
 # Usage
 ```julia
@@ -1241,9 +1248,14 @@ varhac = VARHAC(BICSelector(), same_lags)
 """
 struct SameLags <: LagStrategy
     maxlag::Int
+    function SameLags(maxlag::Integer)
+        maxlag >= 1 || throw(ArgumentError(
+            "SameLags: the maximum lag order must be at least 1, got $maxlag"))
+        return new(maxlag)
+    end
 end
 
-SameLags(x::Real) = SameLags(round(Int, x))
+SameLags(x::Real) = SameLags(_lag_integer(x, :SameLags))
 SameLags() = SameLags(8)  # Better default based on practical experience
 
 """
@@ -1275,15 +1287,17 @@ end
 """
 `DifferentOwnLags`
 
-Lag strategy that allows different maximum lags for different variables.
+Lag strategy that searches the lags of a variable's own series and the lags of the
+other series separately. For each equation of the VAR, the selector picks an own
+order in `0:own` and a cross order in `0:cross`, applied to every other variable.
 
 # Fields
-- `maxlags::Vector{Int}`: Vector of maximum lags for each variable
+- `maxlags::Vector{Int}`: `[own, cross]`, the maximum own and cross lag orders
 
 # Usage
 ```julia
 using CovarianceMatrices
-diff_lags = DifferentOwnLags([3, 5])  # 3 lags for first variable, 5 for second
+diff_lags = DifferentOwnLags([3, 5])  # own lags up to 3, cross lags up to 5
 varhac = VARHAC(AICSelector(), diff_lags)
 
 # Alternative constructors
@@ -1293,12 +1307,20 @@ diff_lags = DifferentOwnLags()        # Default: [5, 5]
 """
 struct DifferentOwnLags <: LagStrategy
     maxlags::Vector{Int}
+    function DifferentOwnLags(maxlags::AbstractVector{<:Integer})
+        length(maxlags) == 2 || throw(ArgumentError(
+            "DifferentOwnLags takes the maximum own and cross lag orders, " *
+            "`DifferentOwnLags([own, cross])`; got $(length(maxlags)) entries"))
+        all(>=(0), maxlags) || throw(ArgumentError(
+            "DifferentOwnLags: lag orders must be non-negative, got $maxlags"))
+        return new(Vector{Int}(maxlags))
+    end
 end
 
-DifferentOwnLags(x::Tuple{Int, Int}) = DifferentOwnLags([x[1], x[2]])
-function DifferentOwnLags(x::Tuple{A, A}) where {A <: Real}
-    DifferentOwnLags([round(Int, x[1]), round(Int, x[2])])
+function DifferentOwnLags(x::AbstractVector{<:Real})
+    return DifferentOwnLags(map(v -> _lag_integer(v, :DifferentOwnLags), x))
 end
+DifferentOwnLags(x::Tuple) = DifferentOwnLags(collect(x))
 DifferentOwnLags() = DifferentOwnLags([5, 5])
 
 """
@@ -1316,7 +1338,7 @@ without requiring bandwidth selection.
 
 The recommended form supplies a selector and a lag strategy explicitly:
 
-    VARHAC(selector=AICSelector(), strategy=SameLags(8); T::Type{<:Real}=Float64)
+    VARHAC(selector=AICSelector(), strategy=SameLags(8))
 
 `VARHAC()` uses the defaults (AIC, `SameLags(8)`) and is the headline form for
 routine use. Spell out both arguments — `VARHAC(BICSelector(), AutoLags())` —
@@ -1327,8 +1349,6 @@ The following convenience aliases expand to that explicit form:
     - `VARHAC(8)`           => `VARHAC(AICSelector(), SameLags(8))`
     - `VARHAC(:aic)`        => `VARHAC(AICSelector(), SameLags(8))`
     - `VARHAC(:bic)`        => `VARHAC(BICSelector(), SameLags(8))`
-    - `VARHAC(:fixed)`      => `VARHAC(FixedSelector(), SameLags(8))`
-    - `VARHAC(FixedLags(5))`=> `VARHAC(FixedSelector(), FixedLags(5))`
     - `VARHAC(Val(:auto))`  => `VARHAC(AICSelector(), AutoLags())`
 
 For sample-size-driven lag selection, prefer the explicit
@@ -1340,13 +1360,18 @@ clearly and lets you choose the selector.
 - `selector::LagSelector`: Method for selecting optimal lag length
   - `AICSelector()`: Use Akaike Information Criterion (default)
   - `BICSelector()`: Use Bayesian Information Criterion
-  - `FixedSelector()`: Use fixed lag length (automatically set with FixedLags)
 
 - `strategy::LagStrategy`: Strategy for lag specification
-  - `SameLags(k)`: Same lag length k for all variables (default: k=8)
-  - `FixedLags(k)`: Fixed lag length k (forces FixedSelector)
-  - `AutoLags()`: Automatic lag selection based on sample size
-  - `DifferentOwnLags([k1,k2])`: Different own lag lengths for bivariate case
+  - `SameLags(k)`: search orders `1:k`, the same for all variables (default: k=8)
+  - `AutoLags()`: search range set from the sample size
+  - `DifferentOwnLags([own, cross])`: search own and cross lag orders separately
+
+A VAR of fixed order, with no selection, is `VARHAC(FixedLags(k))`; it takes no
+selector. Passing a selector together with `FixedLags`, passing `FixedSelector`, the
+alias `VARHAC(:fixed)`, and the `T` keyword are deprecated.
+
+The selected orders are reported by [`order`](@ref) on the result and always come from
+the criterion the estimator is configured with.
 
 # References
 
@@ -1377,26 +1402,59 @@ struct VARHAC{S <: LagSelector, L <: LagStrategy, T <: Real} <: Correlated
     strategy::L
 end
 
-function VARHAC(selector = AICSelector(), strategy = SameLags(8); T::Type{<:Real} = Float64)
-    isa(strategy, FixedLags) && (selector = FixedSelector())
-    return VARHAC{typeof(selector), typeof(strategy), T}(selector, strategy)
+function VARHAC(selector = AICSelector(), strategy = SameLags(8); T = nothing)
+    return _varhac(selector, strategy, _varhac_eltype(T))
 end
 
-# Convenient constructors for common usage patterns
-VARHAC(f::FixedLags; T::Type{<:Real} = Float64) = VARHAC(FixedSelector(), f; T = T)
+VARHAC(f::FixedLags; T = nothing) = _varhac_fixed(f, _varhac_eltype(T))
 
 # Quick selector construction: VARHAC(:aic) or VARHAC(:bic)
-function VARHAC(selector_symbol::Symbol; T::Type{<:Real} = Float64)
-    VARHAC(_symbol_to_selector(selector_symbol), SameLags(8); T = T)
+function VARHAC(selector_symbol::Symbol; T = nothing)
+    if selector_symbol === :fixed
+        Base.depwarn(
+            "`VARHAC(:fixed)` is deprecated: it selects the lag order by BIC. " *
+            "Use `VARHAC(:bic)`, or `VARHAC(FixedLags(k))` for a fixed order.",
+            :VARHAC)
+        return VARHAC{FixedSelector, SameLags, _varhac_eltype(T)}(
+            FixedSelector(), SameLags(8))
+    end
+    return VARHAC(_symbol_to_selector(selector_symbol), SameLags(8); T)
 end
 
 # Quick max lags construction: VARHAC(12)
-function VARHAC(max_lags::Integer; T::Type{<:Real} = Float64)
-    VARHAC(AICSelector(), SameLags(max_lags); T = T)
-end
+VARHAC(max_lags::Integer; T = nothing) = VARHAC(AICSelector(), SameLags(max_lags); T)
 
 # Auto-selection constructor: VARHAC(Val(:auto))
-VARHAC(::Val{:auto}; T::Type{<:Real} = Float64) = VARHAC(AICSelector(), AutoLags(); T = T)
+VARHAC(::Val{:auto}; T = nothing) = VARHAC(AICSelector(), AutoLags(); T)
+
+_varhac_eltype(::Nothing) = Float64
+function _varhac_eltype(T::Type{<:Real})
+    Base.depwarn(
+        "The `T` keyword of `VARHAC` is deprecated and has no effect: the " *
+        "estimate takes the element type of the data.",
+        :VARHAC)
+    return T
+end
+
+_varhac_fixed(f::FixedLags, T) = VARHAC{FixedSelector, FixedLags, T}(FixedSelector(), f)
+
+function _varhac(selector::LagSelector, strategy::LagStrategy, T)
+    if strategy isa FixedLags
+        Base.depwarn(
+            "`VARHAC($(sprint(show, selector)), $(sprint(show, strategy)))` is " *
+            "deprecated: `FixedLags` fits a VAR of fixed order and selects nothing, so " *
+            "the selector is ignored. Use `VARHAC($(sprint(show, strategy)))`." *
+            (selector isa FixedSelector ? "" :
+             " This combination will throw in a future release."), :VARHAC)
+        return _varhac_fixed(strategy, T)
+    elseif selector isa FixedSelector
+        Base.depwarn(
+            "`FixedSelector` with $(nameof(typeof(strategy))) is deprecated: it selects " *
+            "the lag order by BIC. Use `BICSelector()`, or `VARHAC(FixedLags(k))` for " *
+            "a fixed order.", :VARHAC)
+    end
+    return VARHAC{typeof(selector), typeof(strategy), T}(selector, strategy)
+end
 
 function _symbol_to_strategy(s::Symbol)
     if s === :auto
@@ -1416,10 +1474,8 @@ function _symbol_to_selector(s::Symbol)
         return AICSelector()
     elseif s === :bic
         return BICSelector()
-    elseif s === :fixed
-        return FixedSelector()
     else
-        throw(ArgumentError("Invalid selector symbol: $s. Use :aic, :bic, or :fixed"))
+        throw(ArgumentError("Invalid selector symbol: $s. Use :aic or :bic"))
     end
 end
 
@@ -1430,7 +1486,7 @@ Return the maximum number of lags used in VARHAC estimation.
 
 The return type depends on the lag strategy:
 - `FixedLags`/`SameLags`: Returns a single integer
-- `DifferentOwnLags`: Returns a vector of integers (one per variable)
+- `DifferentOwnLags`: Returns `[own, cross]`, the maximum own and cross lag orders
 - `AutoLags`: Requires calling with data dimensions `maxlags(k, T, N)`
 
 # Usage
@@ -1515,8 +1571,10 @@ order(V::CovarianceMatrix) = V.info.order
 
 function Base.show(io::IO, k::VARHAC{S, L, T}) where {S, L, T}
     print(io, "VARHAC(")
-    show(io, k.selector)
-    print(io, ", ")
+    if !(k.strategy isa FixedLags)
+        show(io, k.selector)
+        print(io, ", ")
+    end
     show(io, k.strategy)
     T === Float64 || print(io, "; T = ", T)
     return print(io, ")")
