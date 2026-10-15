@@ -236,17 +236,19 @@ using GLM
     end
 
     @testset "optimalbw covers moment smoothers" begin
-        # Bandwidth selection is spelled `optimalbw` for every estimator family.
-        # A smoother's bandwidth follows a rate in the sample size, so the method
-        # takes `T` rather than a moment matrix.
-        @test optimalbw(UniformSmoother(0), 1000) ≈ 2.0 * 1000^(1 / 3)
-        @test optimalbw(TriangularSmoother(0), 1000) ≈ 1.5 * 1000^(1 / 5)
-        @test optimalbw(UniformSmoother(5), 500) ≈ optimalbw(UniformSmoother(0), 500)
+        # Bandwidth selection is spelled `optimalbw` for every estimator family, and
+        # always takes the moment matrix. A smoother's rate rule depends on it only
+        # through the number of rows.
+        G1000 = randn(1000, 2)
+        @test optimalbw(UniformSmoother(0), G1000) ≈ 2.0 * 1000^(1 / 3)
+        @test optimalbw(TriangularSmoother(0), G1000) ≈ 1.5 * 1000^(1 / 5)
+        @test optimalbw(UniformSmoother(5), G1000) ≈ optimalbw(UniformSmoother(0), G1000)
 
         # Both families answer the same generic function: the HAC and smoother
         # methods resolve through one binding, not two look-alike names.
-        @test which(optimalbw, Tuple{UniformSmoother, Int}).module === CovarianceMatrices
-        @test length(methods(optimalbw, Tuple{MomentSmoother, Int})) == 2
+        @test which(optimalbw, Tuple{UniformSmoother, Matrix{Float64}}).module ===
+              CovarianceMatrices
+        @test length(methods(optimalbw, Tuple{MomentSmoother, AbstractMatrix})) == 1
         @test !isempty(methods(optimalbw, Tuple{HAC, AbstractMatrix}))
     end
 

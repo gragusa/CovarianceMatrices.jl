@@ -118,13 +118,13 @@ These rates are theoretically optimal for the respective kernels.
 ### Usage Examples
 
 `optimalbw` applies the rate rule for a smoother. It takes a smoother instance and
-the sample size, since the bandwidth depends only on `T`:
+the moment matrix; the bandwidth depends only on its number of rows `T`:
 
 ```@example smooth
 T = size(X, 1)
 
-bw_uniform = optimalbw(UniformSmoother(0), T)
-bw_triangular = optimalbw(TriangularSmoother(0), T)
+bw_uniform = optimalbw(UniformSmoother(0), X)
+bw_triangular = optimalbw(TriangularSmoother(0), X)
 
 (T = T, uniform = bw_uniform, triangular = bw_triangular)
 ```

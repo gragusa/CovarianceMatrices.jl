@@ -44,7 +44,7 @@ function avar_with_info(
         weights = nothing) where {K <: HAC, F <: Real}
     Z, D = finalize_prewhite(X, Val(prewhite))
     T, p = size(Z)
-    kw = weights === nothing ? kernelweights(k, X) : weights
+    kw = weights === nothing ? _kernelweights(k, X) : weights
     bw = _optimalbandwidth(k, Z, kw, prewhite)
     V = zeros(F, p, p)
     Q = similar(V)
@@ -229,21 +229,16 @@ where z = 6πx/5. This kernel has infinite support.
     return 3 * (sz / z - cos(z)) / (z * z)
 end
 
-"""
-    kernelweights(k::HAC{Union{Andrews,NeweyWest}}, X::AbstractMatrix)
-
-Per-column weights entering the data-driven bandwidth selection for `X`.
-
-A column that is constant carries no information about serial correlation and gets
-weight `0`; every other column gets weight `1`.
-"""
-function kernelweights(k::HAC{T}, m::RegressionModel) where {T <:
-                                                             Union{Andrews, NeweyWest}}
-    return kernelweights(k, modelmatrix(m))
+# Per-column weights entering the data-driven bandwidth selection for `X`. A constant
+# column carries no information about serial correlation and gets weight 0; every other
+# column gets weight 1. Estimators that select no bandwidth from the data use none.
+function _kernelweights(k::HAC{T}, m::RegressionModel) where {T <:
+                                                              Union{Andrews, NeweyWest}}
+    return _kernelweights(k, modelmatrix(m))
 end
 
-function kernelweights(k::HAC{T}, X::AbstractMatrix) where {T <:
-                                                            Union{Andrews, NeweyWest}}
+function _kernelweights(k::HAC{T}, X::AbstractMatrix) where {T <:
+                                                             Union{Andrews, NeweyWest}}
     w = Vector{WFLOAT}(undef, size(X, 2))
     for (i, col) in zip(eachindex(w), eachcol(X))
         w[i] = allequal(col) ? 0.0 : 1.0
@@ -251,14 +246,14 @@ function kernelweights(k::HAC{T}, X::AbstractMatrix) where {T <:
     return w
 end
 
-"""
-    kernelweights(k::HAC{Fixed}, X)
-    kernelweights(k::AbstractAsymptoticVarianceEstimator, X)
+_kernelweights(k::AbstractAsymptoticVarianceEstimator, X) = nothing
 
-Estimators that do not select a bandwidth from the data use no kernel weights.
-"""
-kernelweights(k::HAC{T}, X) where {T <: Fixed} = nothing
-kernelweights(k::AbstractAsymptoticVarianceEstimator, X) = nothing
+function kernelweights(k::AbstractAsymptoticVarianceEstimator, X)
+    Base.depwarn(
+        "`kernelweights(k, X)` is deprecated: `kernelweights` reads the weights from " *
+        "a result. Use `kernelweights(aVar(k, X))`.", :kernelweights)
+    return _kernelweights(k, X)
+end
 
 # -----------------------------------------------------------------------------
 # Optimal bandwidth
@@ -277,7 +272,7 @@ function workingoptimalbw(
         prewhite::Bool = false
 ) where {T <: Union{Andrews, NeweyWest}}
     X, D = prewhiter(A, prewhite)
-    kw = kernelweights(k, X)
+    kw = _kernelweights(k, X)
     bw = _optimalbandwidth(k, X, kw, prewhite)
     return X, D, bw
 end

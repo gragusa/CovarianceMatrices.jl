@@ -52,6 +52,46 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
         # Data-driven kernels store an unused bandwidth.
         @test Bartlett{Andrews}() isa Bartlett
         @test QuadraticSpectral{NeweyWest}() isa QuadraticSpectral
+        @test_throws "needs a bandwidth, as in `Bartlett(5.0)`" Bartlett{Fixed}()
+    end
+
+    @testset "Fixed bandwidth values" begin
+        for K in (Bartlett, Parzen, CovarianceMatrices.Truncated, TukeyHanning, QuadraticSpectral)
+            @test K(Fixed(5.0)) == K(5.0)
+            @test K(Fixed(5)) isa HAC{Fixed}
+            @test bandwidth(K(Fixed(3))) == 3.0
+        end
+        @test bandwidth(Fixed(4)) == 4.0
+        @test eval(Meta.parse(repr(Fixed(2.5)))) == Fixed(2.5)
+        @test_throws "a fixed bandwidth must be finite and nonnegative, got -1" Fixed(-1)
+        @test_throws ArgumentError Fixed(NaN)
+        @test_throws ArgumentError Fixed(Inf)
+        @test_throws "must be finite and positive, got 0.0" QuadraticSpectral(Fixed(0))
+        @test aVar(Bartlett(Fixed(3)), X) == aVar(Bartlett(3), X)
+    end
+
+    @testset "Newey-West rule on Truncated and TukeyHanning" begin
+        msg = "the Newey-West (1994) bandwidth rule is defined only for the Bartlett, Parzen and QuadraticSpectral kernels"
+        for K in (CovarianceMatrices.Truncated, TukeyHanning)
+            @test_throws msg K{NeweyWest}()
+            @test_throws msg K(NeweyWest)
+            @test_throws msg K{NeweyWest}(1.0)
+        end
+    end
+
+    @testset "Bandwidth given to a data-driven kernel" begin
+        @test (@test_deprecated r"will throw" Bartlett{Andrews}(5.0)) == Bartlett{Andrews}()
+        @test (@test_deprecated Parzen{NeweyWest}(2)) == Parzen{NeweyWest}()
+    end
+
+    @testset "kernelweights and optimalbw signatures" begin
+        V = aVar(Bartlett{Andrews}(), [ones(n) randn(rng, n, 2)])
+        @test kernelweights(V) == [0.0, 1.0, 1.0]
+        @test (@test_deprecated kernelweights(Bartlett{Andrews}(), X)) == ones(size(X, 2))
+        @test (@test_deprecated kernelweights(HC0(), X)) === nothing
+        @test (@test_deprecated optimalbw(UniformSmoother(0), 1000)) ≈ 2.0 * 1000^(1 / 3)
+        @test (@test_deprecated optimalbw(TriangularSmoother(0), 1000)) ≈ 1.5 * 1000^(1 / 5)
+        @test_throws "selects its bandwidth from the data" bandwidth(Bartlett{Andrews}())
     end
 
     @testset "Degrees-of-freedom corrections" begin

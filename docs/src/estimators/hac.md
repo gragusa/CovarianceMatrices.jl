@@ -127,10 +127,11 @@ DataFrame(
 )
 ```
 
-A fixed bandwidth is set by passing an integer to the kernel constructor:
+A fixed bandwidth is set by passing a [`Fixed`](@ref) value, or simply a number, to
+the kernel constructor; `Bartlett(Fixed(6))` and `Bartlett(6)` are the same kernel:
 
 ```@example hac
-stderror(Bartlett(6), model)
+stderror(Bartlett(Fixed(6)), model)
 ```
 
 ### Prewhitening

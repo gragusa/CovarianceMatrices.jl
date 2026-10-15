@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     records `Information()` as the estimator.
 
 - Invalid inputs throw errors that name the problem:
+  - `Truncated{NeweyWest}(bw)` and `TukeyHanning{NeweyWest}(bw)` throw, as the
+    forms without a bandwidth already did; the message names the kernels the
+    Newey-West rule supports.
+  - `Bartlett{Fixed}()` and the other kernels with `Fixed` and no bandwidth
+    throw an `ArgumentError` instead of a `MethodError`.
   - A cluster variable whose length differs from the number of observations
     throws a `DimensionMismatch` on every cluster path. On the model path it
     read out of bounds.
@@ -107,6 +112,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The interface tutorial documents column-named cluster estimators and
   `VcovSpec` for modeling packages.
 
+- `Fixed(bw)` is a bandwidth value: `Bartlett(Fixed(5.0))` is the same kernel
+  as `Bartlett(5.0)`, and `bandwidth(Fixed(5.0)) == 5.0`.
+
+- `optimalbw(k::MomentSmoother, G)` takes the moment matrix, as for HAC
+  kernels.
+
 ### Deprecated
 
 - `vcov(k::DriscollKraay, model; type = ...)`; use
@@ -123,6 +134,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `FixedLags`; non-integer lag orders, which are rounded; and the `T` keyword,
   which has no effect. A selector with `FixedLags` and non-integer lags will
   throw in a future release.
+
+- A bandwidth given to a data-driven kernel, as in `Bartlett{Andrews}(5.0)`.
+  The value is ignored (the kernel equals `Bartlett{Andrews}()`); this form
+  will throw in a future release.
+
+- `kernelweights(k, X)` on an estimator; `kernelweights` reads the weights
+  from a result, `kernelweights(aVar(k, X))`.
+
+- `optimalbw(k::MomentSmoother, T::Integer)`; use `optimalbw(k, G)` with the
+  moment matrix `G`.
 
 ### Removed
 

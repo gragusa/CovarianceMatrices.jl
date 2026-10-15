@@ -36,4 +36,4 @@ _prewhitens(k::DriscollKraay) = _prewhitens(k.K)
 
 # Bandwidth selection weights come from the model matrix, as for the inner kernel
 # applied directly: the intercept column gets weight 0.
-kernelweights(k::DriscollKraay, X::AbstractMatrix) = kernelweights(k.K, X)
+_kernelweights(k::DriscollKraay, X::AbstractMatrix) = _kernelweights(k.K, X)

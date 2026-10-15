@@ -43,7 +43,8 @@ StatsBase.stderror
 ### Bandwidth Selection
 
 `optimalbw` is the single entry point for bandwidth selection. HAC kernels select
-from the moment matrix; moment smoothers follow a rate rule in the sample size.
+from the moment matrix; moment smoothers follow a rate rule in its number of rows.
+Every method takes the moment matrix.
 
 ```@docs
 optimalbw

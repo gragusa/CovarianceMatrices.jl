@@ -272,7 +272,7 @@ function aVar(
     # Bandwidth selection weights come from the model matrix, not from the moment
     # matrix: they must give the intercept weight 0, and the intercept column of
     # the moment matrix is not constant.
-    kw = kernelweights(k, X)
+    kw = _kernelweights(k, X)
     kw === nothing || (kw = kw[midx])
     return aVar(k, Mm; demean = demean, prewhite = prewhite, scale = scale,
         scaleby = scaleby, weights = kw)

@@ -101,29 +101,34 @@ kernel_k2(::TriangularSmoother) = 2 / 3  # ∫k(a)² da = 2/3
 kernel_k3(::TriangularSmoother) = 1 / 2  # ∫k(a) da = 1/2
 
 """
-    optimalbw(kernel::MomentSmoother, T::Int) -> Float64
+    optimalbw(kernel::MomentSmoother, G::AbstractMatrix) -> Float64
 
-Return the bandwidth the smoothing kernel's rate rule selects for a sample of size `T`.
+Return the bandwidth the smoothing kernel's rate rule selects for the moment matrix `G`
+(observations in rows).
 
-Unlike the HAC kernel methods of `optimalbw`, which read the bandwidth off the data,
-a moment smoother's bandwidth follows a closed-form rate in the sample size alone, so
-this method takes `T` rather than a moment matrix.
+Unlike the HAC kernel methods of `optimalbw`, a moment smoother's rate rule depends on
+the data only through the number of observations `T = size(G, 1)`.
 
 # Examples
 ```julia
-optimalbw(UniformSmoother(0), 1000)      # 2 * 1000^(1/3)
-optimalbw(TriangularSmoother(0), 1000)   # 1.5 * 1000^(1/5)
+G = randn(1000, 2)
+optimalbw(UniformSmoother(0), G)      # 2 * 1000^(1/3)
+optimalbw(TriangularSmoother(0), G)   # 1.5 * 1000^(1/5)
 ```
 """
-function optimalbw(::UniformSmoother, T::Int)
-    # Optimal rate T^(1/3) for uniform kernel
-    return 2.0 * T^(1.0 / 3.0)
+optimalbw(k::MomentSmoother, G::AbstractMatrix) = _ratebw(k, size(G, 1))
+
+function optimalbw(k::MomentSmoother, T::Integer)
+    Base.depwarn(
+        "`optimalbw(k, T::Integer)` is deprecated: `optimalbw` takes the moment " *
+        "matrix. Use `optimalbw(k, G)`.", :optimalbw)
+    return _ratebw(k, T)
 end
 
-function optimalbw(::TriangularSmoother, T::Int)
-    # Optimal rate T^(1/5) for triangular kernel
-    return 1.5 * T^(1.0 / 5.0)
-end
+# Optimal rate T^(1/3) for the uniform kernel
+_ratebw(::UniformSmoother, T::Integer) = 2.0 * T^(1.0 / 3.0)
+# Optimal rate T^(1/5) for the triangular kernel
+_ratebw(::TriangularSmoother, T::Integer) = 1.5 * T^(1.0 / 5.0)
 
 """
     smooth_moments(G::AbstractMatrix, kernel::MomentSmoother) -> AbstractMatrix
