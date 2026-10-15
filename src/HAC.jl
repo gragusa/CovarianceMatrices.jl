@@ -283,7 +283,7 @@ end
 For fixed bandwidth kernels, return data and pre-set bandwidth.
 """
 function workingoptimalbw(k::HAC{T}, m::AbstractMatrix; kwargs...) where {T <: Fixed}
-    return (m, Matrix{eltype(m)}(undef, 0, 0), k.bw)
+    return (m, Matrix{eltype(m)}(undef, 0, 0), bandwidth(k))
 end
 
 """
@@ -339,7 +339,7 @@ optimalbw(Bartlett(4), X)   # 4.0
 ```
 """
 function optimalbw(k::HAC{T}, m::AbstractMatrix; kwargs...) where {T <: Fixed}
-    return k.bw
+    return bandwidth(k)
 end
 
 function _optimalbandwidth(k::HAC{T}, mm, w, prewhite) where {T <: NeweyWest}
@@ -350,7 +350,7 @@ function _optimalbandwidth(k::HAC{T}, mm, w, prewhite) where {T <: Andrews}
     return bwAndrews(k, mm, w, prewhite)
 end
 
-_optimalbandwidth(k::HAC{T}, mm, w, prewhite) where {T <: Fixed} = k.bw
+_optimalbandwidth(k::HAC{T}, mm, w, prewhite) where {T <: Fixed} = bandwidth(k)
 
 """
     bwAndrews(k::HAC, mm::AbstractMatrix, w, prewhite::Bool)

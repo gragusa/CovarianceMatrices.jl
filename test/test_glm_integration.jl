@@ -195,8 +195,8 @@ end
     )
     k = Parzen{Andrews}()
     V = vcov(k, GAMMA)
-    bw = k.bw[1]
     M = aVar(k, GAMMA)
+    bw = bandwidth(M)
     @rput clotting
     R"""
     m <- glm(lot1~u, data=clotting, family=Gamma, weights=clotting$w)

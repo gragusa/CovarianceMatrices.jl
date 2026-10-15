@@ -49,9 +49,11 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
         for K in (Bartlett, Parzen, CovarianceMatrices.Truncated, TukeyHanning)
             @test aVar(K(0), X) ≈ aVar(HC0(), X)
         end
-        # Data-driven kernels store an unused bandwidth.
+        # A data-driven kernel carries no bandwidth.
         @test Bartlett{Andrews}() isa Bartlett
         @test QuadraticSpectral{NeweyWest}() isa QuadraticSpectral
+        @test sizeof(Bartlett{Andrews}()) == 0
+        @test sizeof(QuadraticSpectral{NeweyWest}()) == 0
         @test_throws "needs a bandwidth, as in `Bartlett(5.0)`" Bartlett{Fixed}()
     end
 
@@ -80,8 +82,9 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
     end
 
     @testset "Bandwidth given to a data-driven kernel" begin
-        @test (@test_deprecated r"will throw" Bartlett{Andrews}(5.0)) == Bartlett{Andrews}()
-        @test (@test_deprecated Parzen{NeweyWest}(2)) == Parzen{NeweyWest}()
+        @test_throws "`Bartlett{Andrews}` selects its bandwidth from the data and takes no bandwidth, got 5.0" Bartlett{Andrews}(5.0)
+        @test_throws "or `Parzen(2)` for a fixed bandwidth" Parzen{NeweyWest}(2)
+        @test_throws ArgumentError Bartlett{Andrews}(Fixed(5.0))
     end
 
     @testset "kernelweights and optimalbw signatures" begin

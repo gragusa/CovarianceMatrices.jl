@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `VARHAC(FixedSelector(), strategy)` and `VARHAC(:fixed)`; use
     `VARHAC(BICSelector(), strategy)`/`VARHAC(:bic)` for BIC selection, or
     `VARHAC(FixedLags(k))` for a fixed order.
+  - A bandwidth given to a data-driven kernel, as in `Bartlett{Andrews}(5.0)`;
+    use `Bartlett{Andrews}()`, or `Bartlett(5.0)` for a fixed bandwidth.
+- HAC kernels store their bandwidth value in a field `bandwidth`: `Fixed(5.0)`
+  for `Bartlett(5.0)`, `Andrews()` for `Bartlett{Andrews}()`. The `bw` field is
+  gone, so a data-driven kernel no longer carries a number. Use `bandwidth(k)`
+  for the bandwidth of a fixed-bandwidth kernel and `bandwidth(aVar(k, X))` for
+  the bandwidth an estimate used.
 - `VARHAC` has two type parameters, `VARHAC{S<:LagSelector, L<:LagStrategy}`;
   the third, `T`, and the `T` keyword are gone (the estimate always took the
   element type of the data). `FixedSelector` is no longer exported.

@@ -242,32 +242,27 @@ end
 
 bandwidth(f::Fixed) = f.bw
 
-# A fixed bandwidth must be finite and nonnegative. Zero means no lags (the HC0
-# estimate) for every kernel except `QuadraticSpectral`, whose weights at all lags are
-# undefined for a zero bandwidth. Data-driven kernels store an unused zero; a
-# bandwidth given to one is ignored. `bw === nothing` means no bandwidth was given.
+# The bandwidth value a kernel stores. A fixed bandwidth must be finite and nonnegative.
+# Zero means no lags (the HC0 estimate) for every kernel except `QuadraticSpectral`,
+# whose weights at all lags are undefined for a zero bandwidth. A data-driven kernel
+# takes no bandwidth. `bw === nothing` means no bandwidth was given.
 function _checkbw(::Type{Fixed}, K, bw)
     bw === nothing &&
         throw(ArgumentError("a fixed-bandwidth $(_kernelname(K)) needs a bandwidth, as in `$(_kernelname(K))(5.0)`"))
+    b = bw isa Fixed ? bandwidth(bw) : bw
     lo = K <: QuadraticSpectralKernel ? "positive" : "nonnegative"
-    ok = isfinite(bw) && (K <: QuadraticSpectralKernel ? bw > 0 : bw >= 0)
+    ok = isfinite(b) && (K <: QuadraticSpectralKernel ? b > 0 : b >= 0)
     ok ||
-        throw(ArgumentError("the bandwidth of a $(nameof(K)) must be finite and $lo, got $bw"))
-    return bw
+        throw(ArgumentError("the bandwidth of a $(nameof(K)) must be finite and $lo, got $b"))
+    return Fixed(b)
 end
 function _checkbw(::Type{G}, K, bw) where {G}
     if G <: NeweyWest && K <: Union{TruncatedKernel, TukeyHanningKernel}
         throw(ArgumentError("the Newey-West (1994) bandwidth rule is defined only for the Bartlett, Parzen and QuadraticSpectral kernels; use `$(_kernelname(K)){Andrews}()` or a fixed bandwidth such as `$(_kernelname(K))(5.0)`"))
     end
-    if bw !== nothing
-        Base.depwarn(
-            "`$(_kernelname(K)){$(nameof(G))}($bw)` is deprecated: the kernel selects " *
-            "its bandwidth from the data and ignores the value given. Use " *
-            "`$(_kernelname(K)){$(nameof(G))}()`, or `$(_kernelname(K))($bw)` for a " *
-            "fixed bandwidth. This form will throw in a future release.",
-            nameof(K))
-    end
-    return zero(WFLOAT)
+    bw === nothing ||
+        throw(ArgumentError("`$(_kernelname(K)){$(nameof(G))}` selects its bandwidth from the data and takes no bandwidth, got $bw. Use `$(_kernelname(K)){$(nameof(G))}()`, or `$(_kernelname(K))($bw)` for a fixed bandwidth."))
+    return G()
 end
 
 """
@@ -302,7 +297,7 @@ Truncated(Andrews)              # Andrews bandwidth selection (alternative synta
 **Note**: Provides consistent but not necessarily positive semi-definite estimates. `NeweyWest` bandwidth selection is not supported for Truncated kernel.
 """
 struct TruncatedKernel{G <: BandwidthType} <: HAC{G}
-    bw::WFLOAT
+    bandwidth::G
     TruncatedKernel{G}(bw = nothing) where {G} = new{G}(_checkbw(G, TruncatedKernel, bw))
 end
 
@@ -344,7 +339,7 @@ Bartlett(NeweyWest)            # Newey-West bandwidth selection (alternative syn
 - Equivalent to Newey-West estimator
 """
 struct BartlettKernel{G <: BandwidthType} <: HAC{G}
-    bw::WFLOAT
+    bandwidth::G
     BartlettKernel{G}(bw = nothing) where {G} = new{G}(_checkbw(G, BartlettKernel, bw))
 end
 
@@ -383,7 +378,7 @@ Parzen(NeweyWest)              # Newey-West bandwidth selection (alternative syn
 
 """
 struct ParzenKernel{G <: BandwidthType} <: HAC{G}
-    bw::WFLOAT
+    bandwidth::G
     ParzenKernel{G}(bw = nothing) where {G} = new{G}(_checkbw(G, ParzenKernel, bw))
 end
 
@@ -423,7 +418,7 @@ TukeyHanning(Andrews)           # Andrews bandwidth selection (alternative synta
 `NeweyWest` bandwidth selection is not supported for TukeyHanning kernel.
 """
 struct TukeyHanningKernel{G <: BandwidthType} <: HAC{G}
-    bw::WFLOAT
+    bandwidth::G
     function TukeyHanningKernel{G}(bw = nothing) where {G}
         new{G}(_checkbw(G, TukeyHanningKernel, bw))
     end
@@ -464,7 +459,7 @@ QuadraticSpectral(NeweyWest)   # Newey-West bandwidth selection (alternative syn
 
 """
 struct QuadraticSpectralKernel{G <: BandwidthType} <: HAC{G}
-    bw::WFLOAT
+    bandwidth::G
     function QuadraticSpectralKernel{G}(bw = nothing) where {G}
         new{G}(_checkbw(G, QuadraticSpectralKernel, bw))
     end
@@ -488,7 +483,7 @@ const kernels = [:Bartlett, :Parzen, :QuadraticSpectral, :Truncated, :TukeyHanni
 
 for kerneltype in kernels
     @eval ($kerneltype(x::Number)) = ($kerneltype){Fixed}(x)
-    @eval ($kerneltype(f::Fixed)) = ($kerneltype){Fixed}(f.bw)
+    @eval ($kerneltype(f::Fixed)) = ($kerneltype){Fixed}(f)
     # Data-driven bandwidth given as a type: Bartlett(NeweyWest)
     @eval ($kerneltype(::Type{G}) where {G <:
                                          Union{Andrews, NeweyWest}}) = ($kerneltype){G}()
@@ -505,7 +500,7 @@ function Base.show(io::IO, x::HAC{T}) where {T <: Union{Andrews, NeweyWest}}
 end
 function Base.show(io::IO, x::HAC{Fixed})
     print(io, _kernelname(x), "(")
-    show(io, x.bw)
+    show(io, bandwidth(x))
     return print(io, ")")
 end
 ## Makes the default bandwidth selection
@@ -532,7 +527,7 @@ bandwidth(V)                            # the selected bandwidth
 optimalbw(Bartlett{Andrews}(), X)       # the same value, computed on its own
 ```
 """
-bandwidth(k::HAC{Fixed}) = k.bw
+bandwidth(k::HAC{Fixed}) = bandwidth(k.bandwidth)
 
 function bandwidth(k::HAC{T}) where {T <: Union{Andrews, NeweyWest}}
     throw(ArgumentError("`$(nameof(typeof(k))){$(nameof(T))}` selects its bandwidth from the data, so the estimator does not carry one. Read it from a result with `bandwidth(aVar(k, X))`, or compute it with `optimalbw(k, X)`."))
