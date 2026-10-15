@@ -304,7 +304,7 @@ function aVar(
         prewhite::Bool = false,
         kwargs...)
     _check_resolved(k)
-    _checkscale(scale)
+    scale, scaleby = _scale_arguments(scale, scaleby)
     _checkprewhite(k, prewhite)
     H = residual_adjustment(k, m)
     X = modelmatrix(m)
@@ -525,7 +525,7 @@ function aVar(
         scaleby::Union{Nothing, Real} = nothing,
         prewhite::Bool = false,
         kwargs...)
-    _checkscale(scale)
+    scale, scaleby = _scale_arguments(scale, scaleby)
     _checkprewhite(k, prewhite)
     cache = k.cache
     H = residual_adjustment(k, m)

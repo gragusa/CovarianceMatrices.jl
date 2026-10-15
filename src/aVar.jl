@@ -66,7 +66,7 @@ function _aVar(
 ) where {T <: Real}
     _check_resolved(k)
     Base.require_one_based_indexing(m)
-    _checkscale(scale)
+    scale, scaleby = _scale_arguments(scale, scaleby)
     X = demean ? demeaner(m; means = means, dims = dims) : m
     Shat, info = avar_with_info(k, X; prewhite = _checkprewhite(k, prewhite), weights)
     scalevar!(Shat, scale, scaleby, size(X, dims))
@@ -100,9 +100,22 @@ function _checkprewhite(k, prewhite::Bool)
     return prewhite && _prewhitens(k)
 end
 
-function _checkscale(scale)
-    scale isa Bool ||
+"""
+    _scale_arguments(scale, scaleby) -> (scale::Bool, scaleby)
+
+Normalize the scaling keywords to a `Bool` switch and an optional divisor, accepting
+the deprecated numeric `scale` as a divisor.
+"""
+function _scale_arguments(scale, scaleby)
+    scale isa Bool && return scale, scaleby
+    scale isa Real ||
         throw(ArgumentError("`scale` must be a `Bool`, got $(repr(scale)); pass a divisor as `scaleby`."))
+    scaleby === nothing ||
+        throw(ArgumentError("`scale` was given a divisor and `scaleby` was also given; pass the divisor as `scaleby` alone."))
+    Base.depwarn(
+        "`scale=$scale` as a divisor is deprecated: use `scaleby=$scale` to divide by an explicit value.",
+        :aVar)
+    return true, scale
 end
 
 function _checkdivisor(d)
@@ -138,7 +151,7 @@ function _aVar(
         kwargs...
 ) where {T <: Real}
     Base.require_one_based_indexing(m)
-    _checkscale(scale)
+    scale, scaleby = _scale_arguments(scale, scaleby)
     _checkprewhite(k, prewhite)
     isempty(kwargs) || Base.depwarn(
         "`aVar(::VARHAC, X)` does not use the keyword(s) $(join(keys(kwargs), ", ")); " *

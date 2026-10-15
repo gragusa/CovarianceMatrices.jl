@@ -250,6 +250,31 @@ using GLM
               CovarianceMatrices
         @test length(methods(optimalbw, Tuple{MomentSmoother, AbstractMatrix})) == 1
         @test !isempty(methods(optimalbw, Tuple{HAC, AbstractMatrix}))
+
+        # `optimal_bandwidth` is the deprecated spelling: it returns the rate-rule
+        # value for the sample size and warns.
+        @test (@test_deprecated CovarianceMatrices.optimal_bandwidth(
+            UniformSmoother(0), 1000)) ≈ optimalbw(UniformSmoother(0), G1000)
+        @test (@test_deprecated CovarianceMatrices.optimal_bandwidth(
+            TriangularSmoother(0), 1000)) ≈ optimalbw(TriangularSmoother(0), G1000)
+        @static if VERSION >= v"1.11"
+            @test !Base.ispublic(CovarianceMatrices, :optimal_bandwidth)
+        end
+    end
+
+    @testset "estimator-side fit results (deprecated)" begin
+        # Fit results live on the `CovarianceMatrix`; the old reads from the
+        # estimator warn and return empty values.
+        k = Bartlett{Andrews}()
+        @test (@test_deprecated k.kw) == Float64[]
+        @test (@test_deprecated k.wlock) == [false]
+        @test Bartlett(3).bw == 3.0
+        vh = VARHAC()
+        for f in (CovarianceMatrices.AICs, CovarianceMatrices.BICs,
+            CovarianceMatrices.order, CovarianceMatrices.order_aic,
+            CovarianceMatrices.order_bic)
+            @test (@test_deprecated f(vh)) === nothing
+        end
     end
 
     @testset "demeaner" begin
@@ -364,7 +389,14 @@ end
         @test_throws ArgumentError aVar(HC0(), X; scaleby = NaN)
         # `scale` is a switch; a divisor goes in `scaleby`.
         @test_throws "`scale` must be a `Bool`" aVar(HC0(), X; scale = :yes)
-        @test_throws "pass a divisor as `scaleby`" aVar(HC0(), X; scale = 97)
+        @test_throws "pass the divisor as `scaleby` alone" aVar(
+            HC0(), X; scale = 97, scaleby = 5)
+    end
+
+    @testset "deprecated numeric scale" begin
+        # The deprecated numeric form divides by the value it is given.
+        deprecated = @test_deprecated aVar(HC0(), X; scale = 97)
+        @test parent(deprecated) * 97 ≈ unscaled
     end
 
     @testset "regression entry points" begin
@@ -376,7 +408,7 @@ end
             ref = parent(aVar(k, model; scale = false))
             @test parent(aVar(k, model)) * nobs(model) ≈ ref
             @test parent(aVar(k, model; scaleby = 43)) * 43 ≈ ref
-            @test_throws "pass a divisor as `scaleby`" aVar(k, model; scale = 43)
+            @test parent(@test_deprecated aVar(k, model; scale = 43)) * 43 ≈ ref
         end
     end
 
@@ -396,7 +428,9 @@ end
               parent(aVar(vh, X; scaleby = 97))
 
         @test_throws "must be a positive finite number" aVar(vh, X; scaleby = 0)
-        @test_throws "pass a divisor as `scaleby`" aVar(vh, X; scale = 97)
+        @test_throws "`scale` must be a `Bool`" aVar(vh, X; scale = :yes)
+        deprecated = @test_deprecated aVar(vh, X; scale = 97)
+        @test parent(deprecated) ≈ scaled * n / 97
     end
 
     @testset "VARHAC matches the per-observation scale of other estimators" begin
