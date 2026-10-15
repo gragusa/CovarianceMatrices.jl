@@ -6,6 +6,7 @@ using LinearAlgebra: LinearAlgebra, Symmetric, qr!
 using SparseArrays: SparseArrays, AbstractSparseMatrix, nonzeros, nzrange, rowvals
 
 function CovarianceMatrices.clusterize(X::AbstractSparseMatrix, g::Clustering)
+    CovarianceMatrices._checkclusterlength(X, g)
     m, n = size(X)
     X2 = zeros(eltype(X), g.ngroups, n)
 

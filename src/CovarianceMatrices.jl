@@ -11,7 +11,7 @@ module CovarianceMatrices
 
 using BlockDiagonals: BlockDiagonals, BlockDiagonal
 using Combinatorics: Combinatorics, combinations
-using LinearAlgebra: LinearAlgebra, BLAS, Diagonal, I, Symmetric,
+using LinearAlgebra: LinearAlgebra, BLAS, Diagonal, I, PosDefException, Symmetric,
                      UniformScaling, axpy!, cholesky, cholesky!, diag, dot, isdiag,
                      ldiv!, lmul!, mul!, pinv, rdiv!, rmul!, svd
 using NaNStatistics: NaNStatistics

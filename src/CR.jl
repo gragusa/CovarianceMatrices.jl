@@ -1,4 +1,12 @@
+# The scatter loops below index `g.groups` by row under `@inbounds`.
+function _checkclusterlength(X, g::Clustering)
+    length(g.groups) == size(X, 1) || throw(DimensionMismatch(
+        "the cluster variable has $(length(g.groups)) observations but the moment matrix has $(size(X, 1)) rows"))
+    return nothing
+end
+
 function clusterize(X::Matrix, g::Clustering)
+    _checkclusterlength(X, g)
     X2 = zeros(eltype(X), g.ngroups, size(X, 2))
     idx = 0
     for j in axes(X, 2)
@@ -23,6 +31,7 @@ Aggregates observations to cluster level and computes X2'X2.
 - `g`: Clustering defining cluster assignments
 """
 function clusterize!(X2::Matrix{T}, S::Matrix{T}, X::Matrix{T}, g::Clustering) where {T}
+    _checkclusterlength(X, g)
     # Zero the aggregation buffer
     fill!(X2, zero(T))
 
@@ -53,6 +62,7 @@ Used for multi-way clustering with inclusion-exclusion.
 """
 function clusterize_add!(
         X2::Matrix{T}, S::Matrix{T}, X::Matrix{T}, g::Clustering, sign::Int) where {T}
+    _checkclusterlength(X, g)
     fill!(X2, zero(T))
 
     for j in axes(X, 2)
@@ -109,6 +119,7 @@ function clusterize_gather_add!(X2::Matrix{T}, S::Matrix{T}, X::Matrix{T},
 end
 
 function clusterize_mean(X::Matrix, g::Clustering)
+    _checkclusterlength(X, g)
     X2 = zeros(eltype(X), g.ngroups, size(X, 2))
     idx = 0
     for j in axes(X, 2)
@@ -126,6 +137,17 @@ end
 @inline _get_lengths(f::Tuple{
     Clustering, Clustering, Clustering}) = (length(f[1]), length(f[2]), length(f[3]))
 @inline _get_lengths(f::NTuple{N, Clustering}) where {N} = ntuple(i -> length(f[i]), Val(N))
+
+function _checkclusters(lens, X)
+    allequal(lens) || throw(DimensionMismatch(
+        "all cluster variables must have the same length, got lengths $(lens)"))
+    n = first(lens)
+    size(X, 1) == n || throw(DimensionMismatch(
+        "the cluster variables have $n observations but the moment matrix has $(size(X, 1)) rows"))
+    n > 1 || throw(ArgumentError(
+        "clustering needs at least 2 observations, got $n"))
+    return nothing
+end
 
 # Single-cluster fast path (most common case) - fully type-stable
 function avar(k::CR, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <: Real}
@@ -154,19 +176,14 @@ end
 # Dispatch on tuple length for type stability
 @inline function _avar_impl(f::Tuple{Clustering}, X::Union{
         Matrix{F}, Vector{F}}) where {F <: Real}
-    n = length(f[1])
-    @assert n > 1 "All groups must have at least 2 observations"
-    @assert size(X, 1) == n "X must have the same number of observations as the groups"
+    _checkclusters(_get_lengths(f), X)
     return clusterize(parent(X), f[1])
 end
 
 # Two-way clustering - type-stable
 @inline function _avar_impl(f::Tuple{Clustering, Clustering}, X::Union{
         Matrix{F}, Vector{F}}) where {F <: Real}
-    n1, n2 = length(f[1]), length(f[2])
-    @assert n1 == n2 "All groups must have the same size"
-    @assert n1 > 1 "All groups must have at least 2 observations"
-    @assert size(X, 1) == n1 "X must have the same number of observations as the groups"
+    _checkclusters(_get_lengths(f), X)
 
     Xp = parent(X)
     # Inclusion-exclusion: S = S1 + S2 - S12
@@ -180,11 +197,7 @@ end
 # General N-way clustering fallback
 function _avar_impl(f::NTuple{N, Clustering}, X::Union{
         Matrix{F}, Vector{F}}) where {N, F <: Real}
-    lens = _get_lengths(f)
-    gmin, gmax = minimum(lens), maximum(lens)
-    @assert gmin == gmax "All groups must have the same size"
-    @assert gmin > 1 "All groups must have at least 2 observations"
-    @assert size(X, 1) == gmin "X must have the same number of observations as the groups"
+    _checkclusters(_get_lengths(f), X)
 
     # Multi-way clustering: use inclusion-exclusion
     S = zeros(eltype(X), (size(X, 2), size(X, 2)))
@@ -219,8 +232,9 @@ function avar(k::CachedCR, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <
     ncols = size(X, 2)
 
     # Validate cache dimensions
-    @assert ncols == cache.ncols "Moment matrix columns ($ncols) must match cache columns ($(cache.ncols))"
-    @assert size(X, 1) == length(k.g[1]) "X must have the same number of observations as the groups"
+    ncols == cache.ncols || throw(DimensionMismatch(
+        "the moment matrix has $ncols columns but the cache was built for $(cache.ncols)"))
+    _checkclusters(_get_lengths(k.g), X)
 
     # Zero the output buffer
     S = cache.S_buffer
@@ -318,7 +332,8 @@ function rescale!(k::T, S::AbstractMatrix) where {T <: CR1}
     G = minimum(nc)
     N = length(k.g[1])
     K = size(S, 1)
-    @. S *= ((N - 1) / (N - K)) * (G / (G - 1))
+    c = ((N - 1) / _residual_dof(N, K)) * (G / _cluster_dof(G))
+    @. S *= c
 end
 
 rescale!(k::T, S::AbstractMatrix) where {T <: CR2} = nothing

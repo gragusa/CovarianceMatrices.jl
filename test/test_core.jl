@@ -321,7 +321,7 @@ df.y = Y;
 
         # Should error with mismatched dimensions
         X_wrong = randn(100, 3)  # Different number of columns
-        @test_throws AssertionError aVar(cached_k, X_wrong)
+        @test_throws DimensionMismatch aVar(cached_k, X_wrong)
     end
 
     @testset "Cluster Robust - R sandwich validation ✅" begin

@@ -14,7 +14,9 @@ where `X̄` is the sample mean of the observations in `m` (averaged along `dims`
 ## Note
 
 - The element type of `m` must be `Real`.
-- `prewhite` argument is only relevant for `HAC` estimator in which case the matrix is _prewhitened_ using a VAR(1) model.
+- `prewhite = true` _prewhitens_ the matrix with a VAR(1) model. It applies to `HAC`,
+  `EWC` and `MomentSmoother` estimators; other estimators do not prewhiten and emit a
+  deprecation warning when it is requested.
 - `scale` selects whether the variance is divided by the number of observations.
 - `scaleby` divides the variance by an explicit positive divisor instead, which is
   convenient for a degrees-of-freedom correction. It takes precedence over `scale`.
@@ -37,7 +39,7 @@ function aVar(
     Base.require_one_based_indexing(m)
     _checkscale(scale)
     X = demean ? demeaner(m; means = means, dims = dims) : m
-    Shat, info = avar_with_info(k, X; prewhite = isa(k, HAC) ? prewhite : false, weights)
+    Shat, info = avar_with_info(k, X; prewhite = _checkprewhite(k, prewhite), weights)
     scalevar!(Shat, scale, scaleby, size(X, dims))
     return CovarianceMatrix(Shat, k, info)
 end
@@ -53,6 +55,20 @@ lag orders and information criteria.
 """
 function avar_with_info(k, X; weights = nothing, kwargs...)
     return avar(k, X; kwargs...), NamedTuple()
+end
+
+# Estimators that implement VAR(1) prewhitening.
+_prewhitens(k) = false
+_prewhitens(::HAC) = true
+_prewhitens(::EWC) = true
+_prewhitens(::MomentSmoother) = true
+
+function _checkprewhite(k, prewhite::Bool)
+    prewhite && !_prewhitens(k) &&
+        Base.depwarn(
+            "`prewhite = true` is deprecated for $(nameof(typeof(k))), which does not " *
+            "prewhiten: it has no effect and will throw an error in a future release.", :aVar)
+    return prewhite && _prewhitens(k)
 end
 
 function _checkscale(scale)
@@ -88,10 +104,16 @@ function aVar(
         means::Union{Nothing, AbstractArray} = nothing,
         scale = true,
         scaleby::Union{Nothing, Real} = nothing,
+        prewhite::Bool = false,
+        weights = nothing,
         kwargs...
 ) where {T <: Real}
     Base.require_one_based_indexing(m)
     _checkscale(scale)
+    _checkprewhite(k, prewhite)
+    isempty(kwargs) || Base.depwarn(
+        "`aVar(::VARHAC, X)` does not use the keyword(s) $(join(keys(kwargs), ", ")); " *
+        "passing them is deprecated and will throw an error in a future release.", :aVar)
     X = demean ? demeaner(m; means = means, dims = dims) : m
     Shat, info = avar_with_info(k, X)
     # VARHAC estimates the spectral density at frequency zero, which is already on the

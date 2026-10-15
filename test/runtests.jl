@@ -26,6 +26,7 @@ include("test_api_coverage.jl")
 include("test_issue_fixes.jl")
 include("test_show.jl")
 include("test_result_paths.jl")
+include("test_fail_fast.jl")
 
 println("\n" * "="^70)
 println("✅ All CovarianceMatrices.jl tests completed successfully!")

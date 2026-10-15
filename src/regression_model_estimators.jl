@@ -77,9 +77,22 @@ end
 # HC1/HR1: Degrees of freedom adjustment
 @noinline function residual_adjustment(k::HR1, r::RegressionModel)
     n = numobs(r)
-    #dof = dof_residual(r)
-    dof = n - length(coef(r))
+    dof = _residual_dof(n, length(coef(r)))
     return √(n / dof)
+end
+
+# Degrees-of-freedom corrections divide by `n - k` and by `G - 1`; a nonpositive
+# divisor would produce an infinite or complex variance.
+function _residual_dof(n, k)
+    n > k || throw(ArgumentError(
+        "the degrees-of-freedom correction needs more observations than coefficients, got n = $n and k = $k"))
+    return n - k
+end
+
+function _cluster_dof(G)
+    G > 1 || throw(ArgumentError(
+        "the CR1 degrees-of-freedom correction needs at least 2 clusters, got $G"))
+    return G - 1
 end
 
 # HC2/HR2: Leverage adjustment
@@ -171,7 +184,8 @@ function residual_adjustment(k::CR1, m::RegressionModel)
     G = total_num_clusters(k)
     N = numobs(m)
     K = length(coef(m))
-    map(g -> sqrt.((N - 1) / (N - K)) * (g / (g - 1)), G)
+    dof = _residual_dof(N, K)
+    map(g -> sqrt((N - 1) / dof) * (g / _cluster_dof(g)), G)
 end
 
 # Leverage transform dispatch for CR2/CR3
@@ -268,8 +282,10 @@ function aVar(
         m::RegressionModel;
         scale = true,
         scaleby::Union{Nothing, Real} = nothing,
+        prewhite::Bool = false,
         kwargs...)
     _checkscale(scale)
+    _checkprewhite(k, prewhite)
     H = residual_adjustment(k, m)
     X = modelmatrix(m)
     u = _residuals(m)
@@ -418,9 +434,8 @@ Only `HAC` estimators apply DOF correction by default. Other estimators
 dofcorrect!(V, k::AbstractAsymptoticVarianceEstimator, m) = nothing
 
 function dofcorrect!(V, k::HAC, m::RegressionModel)
-    k = length(coef(m))
     n = numobs(m)
-    dof = n - k
+    dof = _residual_dof(n, length(coef(m)))
     rmul!(V, n / dof)
 end
 
@@ -505,7 +520,8 @@ function _compute_leverage_adjustments(k::CR1, X, XX, wts, grouped_arrays, clust
     # CR1: DOF adjustment - scalar per combination
     N = size(X, 1)
     K = size(X, 2)
-    map(g -> sqrt((N - 1) / (N - K)) * (g.ngroups / (g.ngroups - 1)), grouped_arrays)
+    dof = _residual_dof(N, K)
+    map(g -> sqrt((N - 1) / dof) * (g.ngroups / _cluster_dof(g.ngroups)), grouped_arrays)
 end
 
 function _compute_leverage_adjustments(
@@ -545,8 +561,10 @@ function aVar(
         m::RegressionModel;
         scale = true,
         scaleby::Union{Nothing, Real} = nothing,
+        prewhite::Bool = false,
         kwargs...)
     _checkscale(scale)
+    _checkprewhite(k, prewhite)
     cache = k.cache
     H = cache.leverage_adjustments
     X = modelmatrix(m)

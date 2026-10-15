@@ -30,6 +30,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `vcov(ve, Information(), ::MLikeModel)` does not use `ve`; its result
     records `Information()` as the estimator.
 
+- Invalid inputs throw errors that name the problem:
+  - A cluster variable whose length differs from the number of observations
+    throws a `DimensionMismatch` on every cluster path. On the model path it
+    read out of bounds.
+  - Cluster checks on the matrix path throw `DimensionMismatch` or
+    `ArgumentError` instead of `AssertionError`.
+  - A fixed bandwidth that is `NaN`, infinite or negative throws an
+    `ArgumentError` at construction, and so does a zero bandwidth for
+    `QuadraticSpectral`. A zero bandwidth for the other kernels uses no lags.
+  - `CR1` with a single cluster, and `HC1`/`HR1` or the HAC degrees-of-freedom
+    correction with no more observations than coefficients, throw an
+    `ArgumentError` instead of returning an infinite variance.
+  - `maxlags` on a `VARHAC` with `AutoLags` and no data dimensions throws an
+    `ArgumentError`.
+  - The model-interface checks report a missing `coef`, `nobs` or
+    `momentmatrix` method, and let errors raised inside an implemented
+    method propagate unchanged.
+
+- `prewhite = true` reaches `EWC` and the moment smoothers, which implement
+  prewhitening; `aVar` ignored it for them.
+
+- `VARHAC` warns when a lag regression or `I - ΣAⱼ` is singular and a
+  pseudo-inverse is used in its place.
+
+### Deprecated
+
+- `prewhite = true` with an estimator that does not prewhiten, and keywords
+  that `aVar(::VARHAC, X)` does not use. Both are ignored with a deprecation
+  warning and will throw in a future release.
+
 ### Removed
 
 - The forms deprecated in 0.32.0:

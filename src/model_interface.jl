@@ -208,27 +208,28 @@ function weight_matrix(x) end
 # StatsAPI.coef should already be implemented by most statistical models
 # But we can provide a helpful error message if it's missing
 function _check_coef(model)
-    try
-        StatsAPI.coef(model)
-    catch MethodError
-        t = typeof(model)
-        error(
-            "coef not implemented for type $t. " *
-            "Please implement: StatsAPI.coef(::$(t)) -> AbstractVector",
-        )
-    end
+    t = typeof(model)
+    _probe(StatsAPI.coef, model,
+        "coef not implemented for type $t. " *
+        "Please implement: StatsAPI.coef(::$(t)) -> AbstractVector")
 end
 
 # StatsAPI.nobs should be implemented by all statistical models
 function _check_nobs(model)
+    t = typeof(model)
+    _probe(StatsAPI.nobs, model,
+        "nobs not implemented for type $t. " *
+        "Please implement: StatsAPI.nobs(::$(t)) -> Integer")
+end
+
+# Call `f(model)`. A `MethodError` for `f` itself means the model does not implement
+# it and becomes an error naming the missing method; any other exception propagates.
+function _probe(f, model, msg)
     try
-        StatsAPI.nobs(model)
-    catch MethodError
-        t = typeof(model)
-        error(
-            "nobs not implemented for type $t. " *
-            "Please implement: StatsAPI.nobs(::$(t)) -> Integer",
-        )
+        return f(model)
+    catch e
+        (e isa MethodError && e.f === f) || rethrow()
+        error(msg)
     end
 end
 
@@ -239,12 +240,8 @@ Verify that a model implements the minimum required interface.
 """
 function _check_model_interface(model)
     # Check required methods
-    try
-        momentmatrix(model)
-    catch MethodError
-        t = typeof(model)
-        error("Model type $t must implement CovarianceMatrices.momentmatrix")
-    end
+    _probe(momentmatrix, model,
+        "Model type $(typeof(model)) must implement CovarianceMatrices.momentmatrix")
 
     _check_coef(model)
     _check_nobs(model)
@@ -268,7 +265,7 @@ function _check_dimensions(form::VarianceForm, model::MLikeModel)
 
     # For MLE models, we require m = k (exactly identified)
     if m != k
-        throw(ArgumentError("MLikeModel requires exactly identified system: m=$m parameters but k=$k moment conditions"))
+        throw(ArgumentError("MLikeModel requires exactly identified system: m=$m moment conditions but k=$k parameters"))
     end
 
     # cross_score is always available via default implementation

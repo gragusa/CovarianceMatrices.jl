@@ -230,6 +230,18 @@ See also [`Andrews`](@ref) and [`NeweyWest`](@ref) for data-driven bandwidth sel
 """
 struct Fixed <: BandwidthType end
 
+# A fixed bandwidth must be finite and nonnegative. Zero means no lags (the HC0
+# estimate) for every kernel except `QuadraticSpectral`, whose weights at all lags are
+# undefined for a zero bandwidth. Data-driven kernels store an unused value.
+function _checkbw(::Type{Fixed}, K, bw)
+    lo = K <: QuadraticSpectralKernel ? "positive" : "nonnegative"
+    ok = isfinite(bw) && (K <: QuadraticSpectralKernel ? bw > 0 : bw >= 0)
+    ok ||
+        throw(ArgumentError("the bandwidth of a $(nameof(K)) must be finite and $lo, got $bw"))
+    return bw
+end
+_checkbw(::Type, K, bw) = bw
+
 """
 `TruncatedKernel`
 
@@ -262,6 +274,7 @@ Truncated(Andrews)              # Andrews bandwidth selection (alternative synta
 """
 struct TruncatedKernel{G <: BandwidthType} <: HAC{G}
     bw::WFLOAT
+    TruncatedKernel{G}(bw) where {G} = new{G}(_checkbw(G, TruncatedKernel, bw))
 end
 
 """
@@ -302,6 +315,7 @@ Bartlett(NeweyWest)            # Newey-West bandwidth selection (alternative syn
 """
 struct BartlettKernel{G <: BandwidthType} <: HAC{G}
     bw::WFLOAT
+    BartlettKernel{G}(bw) where {G} = new{G}(_checkbw(G, BartlettKernel, bw))
 end
 
 """
@@ -339,6 +353,7 @@ Parzen(NeweyWest)              # Newey-West bandwidth selection (alternative syn
 """
 struct ParzenKernel{G <: BandwidthType} <: HAC{G}
     bw::WFLOAT
+    ParzenKernel{G}(bw) where {G} = new{G}(_checkbw(G, ParzenKernel, bw))
 end
 
 """
@@ -377,6 +392,7 @@ TukeyHanning(Andrews)           # Andrews bandwidth selection (alternative synta
 """
 struct TukeyHanningKernel{G <: BandwidthType} <: HAC{G}
     bw::WFLOAT
+    TukeyHanningKernel{G}(bw) where {G} = new{G}(_checkbw(G, TukeyHanningKernel, bw))
 end
 
 """
@@ -414,6 +430,9 @@ QuadraticSpectral(NeweyWest)   # Newey-West bandwidth selection (alternative syn
 """
 struct QuadraticSpectralKernel{G <: BandwidthType} <: HAC{G}
     bw::WFLOAT
+    function QuadraticSpectralKernel{G}(bw) where {G}
+        new{G}(_checkbw(G, QuadraticSpectralKernel, bw))
+    end
 end
 
 """
@@ -1431,7 +1450,7 @@ function maxlags(k::VARHAC{S, AutoLags, T}, T_data::Int, N::Int) where {S <: Lag
 end
 # Fallback that throws informative error if AutoLags used without dimensions
 function maxlags(k::VARHAC{S, AutoLags, T}) where {S <: LagSelector, T}
-    error("AutoLags requires data dimensions. Use maxlags(estimator, T, N) where T is sample size and N is number of variables.")
+    throw(ArgumentError("AutoLags requires data dimensions. Use maxlags(estimator, T, N) where T is sample size and N is number of variables."))
 end
 
 """

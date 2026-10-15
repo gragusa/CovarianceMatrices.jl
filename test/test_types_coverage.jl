@@ -80,7 +80,7 @@ using Random
 
         # AutoLags
         v_auto = VARHAC(AICSelector(), AutoLags())
-        @test_throws ErrorException CovarianceMatrices.maxlags(v_auto)  # Needs data dimensions
+        @test_throws ArgumentError CovarianceMatrices.maxlags(v_auto)  # Needs data dimensions
         @test CovarianceMatrices.maxlags(v_auto, 100, 2) > 0
         @test CovarianceMatrices.maxlags(v_auto, 1000, 5) > 0
     end

@@ -571,12 +571,12 @@ using Distributions
             X = [X X[:, 1] .+ 1e-8 .* randn(n)]  # Nearly collinear third column
 
             vh = VARHAC()
-            S = aVar(vh, X)
+            S = @test_logs (:warn, r"singular cross-product matrix") match_mode=:any aVar(
+                vh, X)
 
             @test size(S) == (k, k)
             @test S ≈ S'  # Check numerical symmetry
             @test all(isfinite.(S))
-            # Should handle near-singularity gracefully
         end
 
         @testset "Missing Data Handling" begin
@@ -630,7 +630,7 @@ using Distributions
             vh_auto = VARHAC(AICSelector(), AutoLags())
 
             # Should error when trying to get maxlags without dimensions
-            @test_throws ErrorException CovarianceMatrices.maxlags(vh_auto)
+            @test_throws ArgumentError CovarianceMatrices.maxlags(vh_auto)
 
             # Should work when dimensions provided
             @test CovarianceMatrices.maxlags(vh_auto, 100, 3) isa Int

@@ -122,6 +122,7 @@ function _var_selection_samelag(
     𝕏𝕏 = Matrix{R}(undef, max_size, max_size)
     𝕏𝕐 = Vector{R}(undef, max_size)
     β = Vector{R}(undef, max_size)
+    nsingular = 0
 
     ## ---------------------------------------------------------
     ## Calculate AIC & BIC for each variable at lags 1,2,...,K
@@ -143,7 +144,8 @@ function _var_selection_samelag(
             try
                 ldiv!(β_k, cholesky!(Symmetric(𝕏𝕏_k)), 𝕏𝕐_k)
             catch e
-                # Handle near-singular matrices using pseudo-inverse
+                e isa PosDefException || rethrow()
+                nsingular += 1
                 β_k .= pinv(𝕏𝕏_k) * 𝕏𝕐_k
             end
             ## -----------------------
@@ -166,6 +168,8 @@ function _var_selection_samelag(
             BIC_ < BIC[j] && (BIC[j] = BIC_; order_bic[j] = k)
         end
     end
+    nsingular > 0 &&
+        @warn "VARHAC: $nsingular of the $(K * m) lag-order regressions have a singular cross-product matrix; their coefficients, and the AIC/BIC values computed from them, use a pseudo-inverse"
     ## Estimate VAR with the order selected by AIC and BIC
     if lagstrategy == :aic
         order = order_aic
@@ -193,7 +197,7 @@ function _var_selection_samelag(
     # Use robust pseudo-inverse for numerical stability
     A_sum = dropdims(sum(A; dims = 3); dims = 3)
     I_minus_A = I - A_sum
-    Γ, _, _ = ipinv(I_minus_A)
+    Γ = _varhac_inv(I_minus_A)
     B = nancov(ε; corrected = false)
     # Ensure symmetry: S(0) = Γ * B * Γ'
     S0 = Γ * B * Γ'
@@ -315,7 +319,7 @@ function _var_selection_ownlag(
     # Use robust pseudo-inverse for numerical stability
     A_sum = dropdims(sum(𝔸; dims = 3); dims = 3)
     I_minus_A = I - A_sum
-    Γ, _, _ = ipinv(I_minus_A)
+    Γ = _varhac_inv(I_minus_A)
     B = nancov(ε; corrected = false)
     # Ensure symmetry: S(0) = Γ * B * Γ'
     S0 = Γ * B * Γ'
@@ -358,7 +362,7 @@ function _var_fixed(X::AbstractMatrix{R}, K; demean::Bool = false) where {R <: R
     # Use robust pseudo-inverse for numerical stability
     A_sum = dropdims(sum(𝔸; dims = 3); dims = 3)
     I_minus_A = I - A_sum
-    Γ, _, _ = ipinv(I_minus_A)
+    Γ = _varhac_inv(I_minus_A)
     B = nancov(ε; corrected = false)
     # Ensure symmetry: S(0) = Γ * B * Γ'
     S0 = Γ * B * Γ'
@@ -541,4 +545,13 @@ function nancov_slow(X::AbstractMatrix{T}; corrected::Bool = true) where {T <: R
     end
 
     return cov(X_clean; corrected = corrected)
+end
+
+# `I - ΣAⱼ` is singular when the fitted VAR has a unit root; the pseudo-inverse then
+# drops the singular directions, and the warning reports how many.
+function _varhac_inv(I_minus_A)
+    Γ, flag, svals = ipinv(I_minus_A)
+    _debug_report_inversion("I - ΣAⱼ (VARHAC lag polynomial at 1)", flag, svals,
+        "$(size(I_minus_A, 1))×$(size(I_minus_A, 2))", false, true)
+    return Γ
 end
