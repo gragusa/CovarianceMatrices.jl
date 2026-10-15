@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- The forms deprecated in 0.32.0:
+  - `k.kw` and `k.wlock` on a HAC kernel; use `kernelweights(aVar(k, X))`.
+  - `AICs`, `BICs`, `order`, `order_aic` and `order_bic` on a `VARHAC`
+    estimator; call them on the result of `aVar(k, X)`.
+  - A numeric `scale` keyword; `scale` accepts only a `Bool`, and a divisor is
+    passed as `scaleby`.
+  - `optimal_bandwidth(k::MomentSmoother, T)`; use `optimalbw(k, G)` with the
+    moment matrix `G`.
+
 ## [0.32.1]
 
 ### Fixed
