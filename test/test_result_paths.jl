@@ -72,8 +72,9 @@ CovarianceMatrices.hessian_objective(m::ResultPathsGMM) = m.H
         @test bandwidth(vcov(k, m)) == bandwidth(aVar(k, m; scale = false))
         @test bandwidth(aVar(DriscollKraay(Bartlett(2), tis = df.year, iis = df.firm), X)) ==
               2
-        for type in (:HC0, :HC1, :sss)
-            @test vcov(k, m; type) isa CovarianceMatrix
+        for correction in (:HC0, :HC1, :sss)
+            kc = DriscollKraay(Bartlett{Andrews}(), tis = df.year, iis = df.firm; correction)
+            @test vcov(kc, m) isa CovarianceMatrix
         end
     end
 

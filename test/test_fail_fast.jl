@@ -85,7 +85,9 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
 
         # Estimators that prewhiten receive the request.
         Z = randn(rng, 200, 2)
-        for k in (EWC(4), UniformSmoother(5), TriangularSmoother(5))
+        dk = DriscollKraay(Bartlett(3), tis = repeat(1:50, inner = 4),
+            iis = repeat(1:4, outer = 50))
+        for k in (EWC(4), UniformSmoother(5), TriangularSmoother(5), dk)
             @test !(aVar(k, Z; prewhite = true) ≈ aVar(k, Z))
         end
     end

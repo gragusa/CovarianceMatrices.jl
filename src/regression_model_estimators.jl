@@ -345,69 +345,63 @@ end
 
 # Finite-sample correction factor for Driscoll-Kraay, matching the scalar
 # `type` options of plm::vcovSCC. `n` is the number of observations, `k` the
-# number of estimated coefficients, `T` the number of time periods (the cluster
-# dimension). The leverage-based HC2/HC3/HC4 corrections are not supported.
-function _dk_correction(type::Symbol, n::Int, k::Int, T::Int)
-    if type === :HC0
-        return 1.0
-    elseif type === :HC1
-        return n / (n - k)
-    elseif type === :sss
-        return (n - 1) / (n - k) * T / (T - 1)
-    else
-        throw(ArgumentError("unsupported Driscoll-Kraay correction `type = :$type`; use :HC0, :HC1, or :sss"))
-    end
+# number of estimated coefficients, `T` the number of time periods.
+function _dk_correction(correction::Symbol, n::Int, k::Int, T::Int)
+    correction === :HC0 && return 1.0
+    dof = _residual_dof(n, k)
+    correction === :HC1 && return n / dof
+    T > 1 || throw(ArgumentError(
+        "the Driscoll-Kraay :sss correction needs at least 2 time periods, got $T"))
+    return (n - 1) / dof * T / (T - 1)
+end
+
+# The correction is a `vcov` factor, so the meat on the model path is uncorrected;
+# the result still records the estimator as given.
+function aVar(k::DriscollKraay, m::RegressionModel; kwargs...)
+    k0 = DriscollKraay{typeof(k.K), typeof(k.tis), typeof(k.iis)}(k.K, k.tis, k.iis)
+    V = invoke(aVar, Tuple{AbstractAsymptoticVarianceEstimator, RegressionModel}, k0, m;
+        kwargs...)
+    return CovarianceMatrix(parent(V), k, information(V))
 end
 
 """
-    vcov(k::DriscollKraay, model; type::Symbol = :HC0)
+    vcov(k::DriscollKraay, model::RegressionModel; dofadjust = true)
 
 Driscoll-Kraay variance-covariance matrix for a `RegressionModel`.
 
-Driscoll-Kraay aggregates the `n` observation-level moments into `T` period
-sums, so the sandwich scales by the number of time periods `T`, not by `n`.
-With bread `B = (X'X)^-1` and `aVar(k, m; scale=false) = (1/T) Σ_t ĝ_t ĝ_t'`,
-this gives `V = c · T · B · aVar(k, m; scale=false) · B`, where `c` is the
-finite-sample factor selected by `type`.
-
-`type` reproduces the scalar `type` options of `plm::vcovSCC` (`k` = number of
-coefficients):
+With bread `B = (X'X)^-1` and `A = aVar(k, model)`, the sandwich is
+`V = c · n · B · A · B`: the generic sandwich times the finite-sample factor `c`
+selected by the `correction` of `k` (`n` observations, `p` estimable
+coefficients, `T` time periods). The options reproduce the scalar `type` options of
+`plm::vcovSCC`:
 
 - `:HC0` (default): `c = 1`, no correction.
-- `:HC1`: `c = n / (n - k)`.
-- `:sss`: `c = (n - 1) / (n - k) · T / (T - 1)`, the Stata-style small-sample
+- `:HC1`: `c = n / (n - p)`.
+- `:sss`: `c = (n - 1) / (n - p) · T / (T - 1)`, the Stata-style small-sample
   correction.
 
-The leverage-based `:HC2`/`:HC3`/`:HC4` options of `plm::vcovSCC` are not
-supported.
+`dofadjust = false` leaves out `c`. The leverage-based `:HC2`/`:HC3`/`:HC4` options of
+`plm::vcovSCC` are not supported. The keyword form `vcov(k, model; type = :HC1)` is
+deprecated in favor of `DriscollKraay(...; correction = :HC1)`.
 """
-function StatsAPI.vcov(
-        k::DriscollKraay,
-        m::RegressionModel;
-        type::Symbol = :HC0,
-        kwargs...
-)
-    T = k.tis.ngroups
-    A = aVar(k, m; scale = false, kwargs...)
-
-    B = bread(m)
-    p = size(B, 2)
-    midx = mask(m)
-    Bm = sum(midx) < p ? B[midx, midx] : B
-
-    c = _dk_correction(type, numobs(m), size(Bm, 2), T)
-    V = (c * T) .* Bm * A * Bm
-
-    if sum(midx) < p
-        Vo = similar(A, (p, p))
-        Vo[midx, midx] .= V
-        Vo[.!midx, :] .= NaN
-        Vo[:, .!midx] .= NaN
-    else
-        Vo = V
+function StatsAPI.vcov(k::DriscollKraay, m::RegressionModel; type = nothing, kwargs...)
+    if type !== nothing
+        Base.depwarn(
+            "`vcov(k::DriscollKraay, model; type = $(repr(type)))` is deprecated; " *
+            "construct the estimator with `DriscollKraay(...; correction = $(repr(type)))`.",
+            :vcov)
+        k.correction === :HC0 || k.correction === type ||
+            throw(ArgumentError(
+                "`type = $(repr(type))` conflicts with the estimator's correction $(repr(k.correction))"))
+        k = DriscollKraay{typeof(k.K), typeof(k.tis), typeof(k.iis)}(k.K, k.tis, k.iis, type)
     end
+    return invoke(StatsAPI.vcov,
+        Tuple{AbstractAsymptoticVarianceEstimator, RegressionModel}, k, m; kwargs...)
+end
 
-    return CovarianceMatrix(Vo, k, information(A))
+function dofcorrect!(V, k::DriscollKraay, m::RegressionModel)
+    c = _dk_correction(k.correction, numobs(m), sum(mask(m)), k.tis.ngroups)
+    return rmul!(V, c)
 end
 
 """

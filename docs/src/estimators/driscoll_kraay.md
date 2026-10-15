@@ -14,8 +14,10 @@ and then applies a HAC kernel to the time series $h_1, \dots, h_T$:
 
 ```math
 \hat{\Omega}_{DK} = \hat{\Gamma}_0 + \sum_{j=1}^{T-1} k\!\left(\frac{j}{S_T}\right)\left[\hat{\Gamma}_j + \hat{\Gamma}_j'\right],
-\qquad \hat{\Gamma}_j = \frac{1}{T}\sum_{t=j+1}^{T} h_t h_{t-j}'.
+\qquad \hat{\Gamma}_j = \frac{1}{n}\sum_{t=j+1}^{T} h_t h_{t-j}',
 ```
+
+where $n$ is the number of observations. `aVar(dk, X)` returns $\hat{\Omega}_{DK}$: dividing by $n$ rather than $T$ puts it on the same per-observation scale as every other estimator, so the sandwich `vcov` is the same as for them. The moments are demeaned before the period sums are formed (unless `demean = false`), and periods are ordered by sorting the time identifiers.
 
 Summing over units within a period leaves the cross-sectional correlation unrestricted, so the estimator is robust to arbitrary spatial dependence at each date. Only a single (temporal) kernel and bandwidth are needed.
 
@@ -53,21 +55,23 @@ DataFrame(
 
 ## Finite-Sample Corrections
 
-For a `RegressionModel`, `vcov(::DriscollKraay, model)` accepts a `type` argument that selects a finite-sample correction, reproducing the scalar `type` options of R's `plm::vcovSCC`. With `n` observations, `k` coefficients, and `T` time periods:
+The `correction` keyword of `DriscollKraay` selects a finite-sample correction that `vcov(dk, model)` applies for a `RegressionModel`, reproducing the scalar `type` options of R's `plm::vcovSCC`. With `n` observations, `k` coefficients, and `T` time periods:
 
-| `type` | Factor $c$ | Description |
+| `correction` | Factor $c$ | Description |
 |--------|------------|-------------|
 | `:HC0` (default) | $1$ | No correction |
 | `:HC1` | $n/(n-k)$ | Degrees-of-freedom correction |
 | `:sss` | $\dfrac{n-1}{n-k}\cdot\dfrac{T}{T-1}$ | Stata-style small-sample correction |
 
+The correction needs the number of coefficients, so `aVar` on a bare moment matrix throws an `ArgumentError` for an estimator with a correction other than `:HC0`.
+
 ```@example dk
-fixed = DriscollKraay(Bartlett(5), tis=grunfeld.Year, iis=grunfeld.Firm)
+dk_fixed(correction) = DriscollKraay(Bartlett(5), tis=grunfeld.Year, iis=grunfeld.Firm; correction)
 DataFrame(
     coef = coefnames(model),
-    HC0 = sqrt.(diag(vcov(fixed, model))),
-    HC1 = sqrt.(diag(vcov(fixed, model; type=:HC1))),
-    sss = sqrt.(diag(vcov(fixed, model; type=:sss))),
+    HC0 = stderror(dk_fixed(:HC0), model),
+    HC1 = stderror(dk_fixed(:HC1), model),
+    sss = stderror(dk_fixed(:sss), model),
 )
 ```
 

@@ -9,6 +9,8 @@ using CovarianceMatrices
 using LinearAlgebra
 using StatsAPI
 using Random
+using StableRNGs
+using Statistics
 using DataFrames
 using GLM
 
@@ -287,6 +289,49 @@ using GLM
         # Both index arrays are required; the estimator has no meaning without them.
         @test_throws "requires time indices" DriscollKraay(Bartlett(2))
         @test_throws "requires entity indices" DriscollKraay(Bartlett(2), tis = tis)
+    end
+
+    @testset "DriscollKraay period sums" begin
+        rng = StableRNG(42)
+        tis = repeat(1:6, inner = 3)
+        iis = repeat(1:3, outer = 6)
+        X = randn(rng, 18, 2)
+        k = DriscollKraay(Bartlett(3), tis = tis, iis = iis)
+
+        # Reference: the Bartlett kernel applied to the period sums of the demeaned
+        # moments, without further demeaning, divided by the number of observations.
+        g = zeros(6, 2)
+        Xd = X .- mean(X, dims = 1)
+        for i in axes(X, 1)
+            g[tis[i], :] .+= Xd[i, :]
+        end
+        S = g'g
+        for j in 1:2
+            S .+= (1 - j / 3) .* (g[(j + 1):end, :]'g[1:(end - j), :] .+
+                   g[1:(end - j), :]'g[(j + 1):end, :])
+        end
+        @test aVar(k, X) ≈ S ./ 18
+        @test aVar(k, X; scale = false) ≈ S
+
+        # `demean = false` is honored: the period sums are not demeaned either.
+        Y = X .+ 3.0
+        @test aVar(k, Xd; demean = false) ≈ aVar(k, X)
+        @test !(aVar(k, Y; demean = false) ≈ aVar(k, Y))
+
+        # Periods follow the sort order of `tis`, not the row order.
+        perm = randperm(rng, 18)
+        kp = DriscollKraay(Bartlett(3), tis = tis[perm], iis = iis[perm])
+        @test aVar(kp, X[perm, :]) ≈ aVar(k, X)
+
+        # Any AbstractMatrix is accepted.
+        @test aVar(k, view(X, :, 1:2)) ≈ aVar(k, X)
+
+        # Inconsistent panel indices fail at construction or at aVar time.
+        @test_throws "occur more than once" DriscollKraay(
+            Bartlett(3), tis = [1, 1, 2], iis = [1, 1, 2])
+        @test_throws DimensionMismatch DriscollKraay(
+            Bartlett(3), tis = [1, 2], iis = [1, 1, 2])
+        @test_throws "the moment matrix has 10 rows" aVar(k, randn(rng, 10, 2))
     end
 end
 

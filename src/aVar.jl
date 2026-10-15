@@ -15,8 +15,9 @@ where `X̄` is the sample mean of the observations in `m` (averaged along `dims`
 
 - The element type of `m` must be `Real`.
 - `prewhite = true` _prewhitens_ the matrix with a VAR(1) model. It applies to `HAC`,
-  `EWC` and `MomentSmoother` estimators; other estimators do not prewhiten and emit a
-  deprecation warning when it is requested.
+  `EWC` and `MomentSmoother` estimators, and to `DriscollKraay`, which prewhitens the
+  series of period sums; other estimators do not prewhiten and emit a deprecation
+  warning when it is requested.
 - `scale` selects whether the variance is divided by the number of observations.
 - `scaleby` divides the variance by an explicit positive divisor instead, which is
   convenient for a degrees-of-freedom correction. It takes precedence over `scale`.

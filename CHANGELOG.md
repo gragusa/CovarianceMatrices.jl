@@ -54,7 +54,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `VARHAC` warns when a lag regression or `I - ΣAⱼ` is singular and a
   pseudo-inverse is used in its place.
 
+- `DriscollKraay`:
+  - `aVar(k, X)` is on the same per-observation scale as every other
+    estimator: it divided the kernel sum over period sums by `n·T` (by `T`
+    with `scale = false`) instead of by `n`. Values from `aVar` change by a
+    factor `T`; `vcov(k, model)` results are unchanged.
+  - Periods are ordered by sorting `tis`. They were ordered by first
+    appearance in the data, so rows not sorted by time gave a wrong estimate.
+  - `demean = false` is honored; the period sums were always demeaned.
+  - With a data-driven kernel on a model, the bandwidth selection gives the
+    intercept weight 0, as for the kernel used directly. This changes the
+    selected bandwidth.
+  - `prewhite = true` prewhitens the series of period sums.
+  - Any `AbstractMatrix` is accepted. A `tis` whose length differs from the
+    number of rows, `tis` and `iis` of different lengths, and a repeated
+    (period, unit) pair throw.
+
+### Added
+
+- `DriscollKraay(K; tis, iis, correction)` carries the finite-sample
+  correction (`:HC0`, `:HC1` or `:sss`), which `vcov(k, model)` applies.
+  `aVar` on a moment matrix throws for a correction other than `:HC0`.
+
 ### Deprecated
+
+- `vcov(k::DriscollKraay, model; type = ...)`; use
+  `DriscollKraay(...; correction = ...)`.
 
 - `prewhite = true` with an estimator that does not prewhiten, and keywords
   that `aVar(::VARHAC, X)` does not use. Both are ignored with a deprecation

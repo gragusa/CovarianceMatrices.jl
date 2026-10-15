@@ -532,7 +532,7 @@ df.y = Y;
         𝒦 = CovarianceMatrices.DriscollKraay(Bartlett(bw), tis = df.Year, iis = df.Firm)
         Σ = a𝕍ar(𝒦, m; scale = false)
         F = inv(cholesky(X'X))
-        Σ₀ = F*Σ*F .* T
+        Σ₀ = F*Σ*F
         #library(Ecdat)
         #library(plm)
         #data("Grunfeld")
@@ -549,21 +549,54 @@ df.y = Y;
         # References from plm 2.6.7, vcovSCC(zz, maxlag = 4, type = ...) on the
         # pooling model Inv ~ Value + Capital.
         model = lm(@formula(Inv ~ Value + Capital), df)
-        # type = :HC0 is the no-correction reference Σ_ssc above.
+        dk(correction) = DriscollKraay(Bartlett(bw), tis = df.Year, iis = df.Firm; correction)
+        # type = "HC0" is the no-correction reference Σ_ssc above.
         @test vcov(𝒦, model) ≈ Σ_ssc rtol=1e-6
-        @test vcov(𝒦, model; type = :HC0) ≈ Σ_ssc rtol=1e-6
+        @test vcov(dk(:HC0), model) ≈ Σ_ssc rtol=1e-6
 
         Σ_hc1 = [150.867608050409103 -0.068307218768127939 -0.32888118769457686;
                  -0.068307218768128 0.000183275684885632 -0.00036204110225066;
                  -0.328881187694577 -0.000362041102250660 0.00246830440970711]
-        @test vcov(𝒦, model; type = :HC1) ≈ Σ_hc1 rtol=1e-6
+        @test vcov(dk(:HC1), model) ≈ Σ_hc1 rtol=1e-6
 
         Σ_sss = [158.0139684317442459 -0.071542823867670829 -0.344459770269582910;
                  -0.0715428238676709 0.000191957164696004 -0.000379190417620428;
                  -0.3444597702695831 -0.000379190417620428 0.002585224092272187]
-        @test vcov(𝒦, model; type = :sss) ≈ Σ_sss rtol=1e-6
+        @test vcov(dk(:sss), model) ≈ Σ_sss rtol=1e-6
+        @test vcov(dk(:sss), model; dofadjust = false) ≈ Σ_ssc rtol=1e-6
 
-        @test_throws "unsupported Driscoll-Kraay correction" vcov(𝒦, model; type = :HC3)
+        # The `type` keyword maps to the estimator's correction.
+        @test (@test_deprecated vcov(𝒦, model; type = :HC1)) ≈ Σ_hc1 rtol=1e-6
+        @test (@test_deprecated vcov(dk(:sss), model; type = :sss)) ≈ Σ_sss rtol=1e-6
+        @test_throws "conflicts with the estimator's correction" vcov(dk(:sss), model; type = :HC1)
+        @test_throws "unsupported Driscoll-Kraay correction" dk(:HC3)
+
+        # The matrix path cannot apply a correction: it needs the number of coefficients.
+        @test_throws "needs the number of coefficients" aVar(dk(:HC1), m)
+        @test aVar(dk(:sss), model) ≈ aVar(𝒦, model)
+        @test CovarianceMatrices.estimator(aVar(dk(:sss), model)) == dk(:sss)
+
+        # Unbalanced panel with rows in random order: firm 1 before 1940 and firm 3
+        # in 1950 are dropped. References from plm 2.6.7,
+        # vcovSCC(plm(inv ~ value + capital, model = "pooling"), maxlag = 4, type = ...).
+        drop = ((df.Firm .== 1) .& (df.Year .< 1940)) .|
+               ((df.Firm .== 3) .& (df.Year .== 1950))
+        du = df[.!drop, :]
+        du = du[randperm(StableRNG(7), nrow(du)), :]
+        mu = lm(@formula(Inv ~ Value + Capital), du)
+        Σu_hc0 = [125.698071414727877482 -0.03939710197282136894 -0.34130862599832512139;
+                  -0.039397101972821411 0.00012607595674992366 -0.00023122069477190987;
+                  -0.341308625998324955 -0.00023122069477191003 0.00197137827423021035]
+        Σu_sss = [133.699243775378789678 -0.04190488112843494817 -0.36303425085520385496;
+                  -0.041904881128434976 0.00013410118298558978 -0.00024593879355733607;
+                  -0.363034250855203744 -0.00024593879355733623 0.00209686418807622336]
+        dku(correction) = DriscollKraay(Bartlett(bw), tis = du.Year, iis = du.Firm; correction)
+        @test vcov(dku(:HC0), mu) ≈ Σu_hc0 rtol=1e-8
+        @test vcov(dku(:sss), mu) ≈ Σu_sss rtol=1e-8
+        Xu = modelmatrix(mu)
+        Fu = inv(cholesky(Xu'Xu))
+        Σu = aVar(dku(:HC0), Xu .* residuals(mu); scale = false)
+        @test Fu*Σu*Fu ≈ Σu_hc0 rtol=1e-8
     end
 
     @testset "Smoothed HAC ✅" begin

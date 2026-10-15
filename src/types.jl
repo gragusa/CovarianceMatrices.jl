@@ -1524,38 +1524,41 @@ end
 
 Driscoll-Kraay estimator for panel data with cross-sectional and temporal dependence.
 
-It extends HAC estimation to panel data settings, accounting for both serial correlation within panels and spatial correlation
-across panels. This estimator is particularly useful for macro panels, regional data, and other applications where both dimensions of dependence are relevant.
+The moments of all units observed in the same period are summed, and the HAC kernel
+`K` is applied to the resulting series of period sums. Any correlation across units
+within a period is absorbed by the sum, and the kernel accounts for serial correlation
+across periods. The estimator is consistent as the number of periods grows,
+irrespective of the number of units.
 
 # Constructor
-    DriscollKraay(K::HAC; tis=nothing, iis=nothing)
-    DriscollKraay(K::HAC, tis::AbstractArray, iis::AbstractArray)
+    DriscollKraay(K::HAC; tis, iis, correction = :HC0)
+    DriscollKraay(K::HAC, tis::AbstractVector, iis::AbstractVector; correction = :HC0)
 
 where
 
 - `K::HAC`: HAC kernel for temporal dependence (Bartlett, Parzen, etc.)
-- `tis`: Time dimension indices (panel identifier for time)
-- `iis`: Cross-section dimension indices (panel identifier for units)
+- `tis`: time index of each observation. Periods are ordered by `sort(unique(tis))`, so
+  the identifiers must sort chronologically (numbers, `Date`s, or zero-padded strings).
+- `iis`: unit index of each observation. It does not enter the estimate; it is used to
+  check that each (period, unit) pair occurs at most once.
+- `correction`: finite-sample correction applied by `vcov(k, model)` for a
+  `RegressionModel`; one of `:HC0` (none), `:HC1` or `:sss`. See
+  [`vcov(::DriscollKraay, ::RegressionModel)`](@ref).
 
-Both index arrays are required and may hold identifiers of any type; they are
-mapped internally to contiguous group numbers. The two arrays need not share an
-element type.
+Both index arrays are required, must have the same length, and may hold identifiers
+of any sortable type; the two arrays need not share an element type.
 
 # Mathematical Foundation
-The Driscoll-Kraay estimator computes:
-```
-Ω̂ = Σ_{h=-H}^H Σ_{g=-G}^G K₁(h/H₁) K₂(g/G₁) Σ̂(h,g)
-```
-where:
-- K₁ is the temporal kernel (with bandwidth H₁)
-- K₂ is the spatial kernel (with bandwidth G₁)
-- Σ̂(h,g) are the space-time autocovariances
+With ``g_t`` the sum of the moments of the observations in period ``t = 1, …, T``
+(after demeaning the moments), the estimator computes
 
-# Properties
-- Handles both serial correlation (within panels) and spatial correlation (across panels)
-- Consistent for large T and/or large N
-- Automatic positive semi-definiteness (when using appropriate kernels)
+```math
+\\hat{S} = \\sum_{t=1}^{T} \\sum_{s=1}^{T} w\\!\\left(\\frac{t - s}{b}\\right) g_t g_s'
+```
 
+where ``w`` is the kernel of `K` and ``b`` its bandwidth. `aVar` divides ``\\hat{S}`` by
+the number of observations `n` (with `scale = true`), the same per-observation scale as
+every other estimator.
 
 # References
 - Driscoll, J.C. and Kraay, A.C. (1998). "Consistent Covariance Matrix Estimation
@@ -1566,31 +1569,59 @@ where:
 # Basic panel setup
 ve = DriscollKraay(Bartlett{Andrews}(), tis=time_ids, iis=unit_ids)
 
-# With fixed bandwidth
-ve = DriscollKraay(Parzen(4), tis=years, iis=countries)
+# With fixed bandwidth and the Stata-style small-sample correction
+ve = DriscollKraay(Parzen(4), tis=years, iis=countries, correction=:sss)
 ```
 """
 struct DriscollKraay{K, D, I} <: Correlated
     K::K
     tis::D
     iis::I
+    correction::Symbol
 
-    function DriscollKraay{K, D, I}(kernel, tis, iis) where {K, D, I}
-        return new{K, D, I}(kernel, tis, iis)
+    function DriscollKraay{K, D, I}(kernel, tis, iis, correction = :HC0) where {K, D, I}
+        _check_dk_correction(correction)
+        _check_dk_panel(tis, iis)
+        return new{K, D, I}(kernel, tis, iis, correction)
     end
 end
 
-function DriscollKraay(K::HAC; tis = nothing, iis = nothing)
-    return DriscollKraay(K, tis, iis)
+function DriscollKraay(K::HAC; tis = nothing, iis = nothing, correction = :HC0)
+    return DriscollKraay(K, tis, iis; correction)
 end
 
-function DriscollKraay(K::HAC, tis, iis)
+function DriscollKraay(K::HAC, tis, iis; correction = :HC0)
     tis === nothing &&
         throw(ArgumentError("DriscollKraay requires time indices; pass `tis`."))
     iis === nothing &&
         throw(ArgumentError("DriscollKraay requires entity indices; pass `iis`."))
-    ct, ci = Clustering(tis), Clustering(iis)
-    return DriscollKraay{typeof(K), typeof(ct), typeof(ci)}(K, ct, ci)
+    ct, ci = _sorted_clustering(tis), Clustering(iis)
+    return DriscollKraay{typeof(K), typeof(ct), typeof(ci)}(K, ct, ci, correction)
+end
+
+# Group codes follow the sort order of the identifiers, so that code `t` is the
+# `t`-th period in time: the kernel weights depend on the distance between codes.
+function _sorted_clustering(v::AbstractVector)
+    u = sort!(unique(v))
+    return Clustering(Int[searchsortedfirst(u, x) for x in v], length(u))
+end
+_sorted_clustering(c::Clustering) = c
+
+const _DK_CORRECTIONS = (:HC0, :HC1, :sss)
+
+function _check_dk_correction(correction)
+    correction in _DK_CORRECTIONS || throw(ArgumentError(
+        "unsupported Driscoll-Kraay correction $(repr(correction)); use :HC0, :HC1, or :sss"))
+    return nothing
+end
+
+function _check_dk_panel(tis::Clustering, iis::Clustering)
+    length(tis.groups) == length(iis.groups) || throw(DimensionMismatch(
+        "DriscollKraay: `tis` has $(length(tis.groups)) observations but `iis` has $(length(iis.groups))"))
+    Clustering(tis, iis).ngroups == length(tis.groups) || throw(ArgumentError(
+        "DriscollKraay: some (period, unit) pairs in `tis` and `iis` occur more than once; " *
+        "each unit can be observed at most once per period"))
+    return nothing
 end
 
 """
@@ -1707,6 +1738,7 @@ function Base.show(io::IO, k::DriscollKraay)
     _show_groups(io, k.tis)
     print(io, ", iis = ")
     _show_groups(io, k.iis)
+    k.correction === :HC0 || print(io, ", correction = ", repr(k.correction))
     return print(io, ")")
 end
 
