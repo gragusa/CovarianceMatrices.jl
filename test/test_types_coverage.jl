@@ -78,12 +78,6 @@ using Random
         @test v2.strategy isa SameLags
         @test CovarianceMatrices.maxlags(v2) == 10
 
-        # Accessors before fitting
-        @test CovarianceMatrices.AICs(v) === nothing
-        @test CovarianceMatrices.BICs(v) === nothing
-        @test CovarianceMatrices.order_aic(v) === nothing
-        @test CovarianceMatrices.order_bic(v) === nothing
-
         # AutoLags
         v_auto = VARHAC(AICSelector(), AutoLags())
         @test_throws ErrorException CovarianceMatrices.maxlags(v_auto)  # Needs data dimensions

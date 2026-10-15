@@ -4,134 +4,105 @@
 CurrentModule = CovarianceMatrices
 ```
 
-This page develops the theory behind [CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl/)
-from the ground up and shows how each mathematical object maps onto a function
-call. It is organised around two problems that look different but share a single
-computational core.
+This page develops the theory behind [CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl/) and shows how different mathematical objects map onto function call. 
 
-**Part I — the sample mean.** We observe a sequence $\{X_t\}$ and want the
-asymptotic variance of its average $\bar{X}_T$. When the observations are
-dependent — serially (a time series) or in blocks (clusters) — that variance is
-a *long-run variance*, not a plain covariance. The workhorse
-[`aVar`](@ref) estimates it. This part fixes the estimand, walks through the
-uncorrelated, time-correlated, and cluster-correlated cases, and pins down the
-`scale` keyword precisely, because its meaning is the source of most confusion.
+## The sample mean
 
-**Part II — an estimated parameter.** Most estimators are not sample means; they
-solve an estimating equation $\frac{1}{T}\sum_t g(z_t,\hat\theta)=0$. We show that
-the variance of $\hat\theta$ is a *sandwich* whose filling is exactly the
-long-run variance of Part I, now applied to the moment (score) vectors. The
-linear model is the leading special case. We then explain how the GLM.jl
-extension supplies that filling automatically, and how you can teach the package
-about a new estimator of your own.
-
-Throughout, code blocks marked `@example` are executed when the documentation is
-built, so every printed number below is produced by the package itself.
-
----
-
-# Part I — The asymptotic variance of a sample mean
-
-## The estimand
-
-Let $\{X_t : 1 \le t \le T\}$ be a sequence of $k$-dimensional random vectors with
-common mean $\mu = \mathbb{E}(X_t)$, and let
+We observe realiations from a random vector process $\{X_t\}$ of size $K$ and want the asymptotic variance of its average
 
 ```math
-\bar{X}_T = \frac{1}{T}\sum_{t=1}^{T} X_t
+  \bar{X}_T = \frac{1}{T}\sum_{i=1}^T X_t.
 ```
 
-be the sample mean. Under regularity conditions (stationarity or a suitable
-heterogeneity condition, plus a mixing/weak-dependence restriction and moment
-bounds — see Newey and West, 1987; Andrews, 1991), $\bar{X}_T$ is asymptotically
-normal:
+Under various regularity conditions, it holds that
 
 ```math
-\sqrt{T}\,\Sigma^{-1/2}\left(\bar{X}_T - \mu\right) \xrightarrow{d} N(0, I_k),
+\sqrt{T}\Sigma_T^{-1/2}(\bar{X}_T - \mu_T) \xrightarrow{d} N(0, I)
 ```
 
-where $\Sigma$ is the **asymptotic (long-run) variance** of the normalised sum,
+where $\xrightarrow{d}$ denotes convergence in probability. The matrix $\Sigma_T$ is the **asymptotic variance** of $\bar{X}_T$.
 
+### Uncorrelated sequences
+
+For uncorrelated sequences, the asymtptoic variance is
 ```math
-\Sigma
-= \operatorname{a\mathbb{V}ar}\!\left(\frac{1}{\sqrt{T}}\sum_{t=1}^{T} X_t\right)
-= \lim_{T\to\infty}\operatorname{Var}\!\left(\frac{1}{\sqrt{T}}\sum_{t=1}^{T} X_t\right).
+\Sigma_T = E[(X_t-\mu_T)(X_t-\mu_T)'].
+```
+A **consistent** (under regularity conditions) **estimator** of $\Sigma_T$ is 
+```math
+\hat{\Sigma}_T = \frac{1}{T}\sum_{t=1}^T (X_t - \bar{X}_T)(X_t - \bar{X}_T)'.
 ```
 
-Expanding the variance of the sum and collecting terms by the lag $\tau = t-s$
-gives the fundamental identity
+### Correlated sequences
+
+When the observations are correlated the asymptotic variance takes a more complicated form. 
 
 ```math
 \Sigma
 = \underbrace{\frac{1}{T}\sum_{t=1}^{T}\mathbb{E}\!\left(X_t-\mu\right)\left(X_t-\mu\right)'}_{\text{contemporaneous variance}}
-+ \underbrace{\frac{1}{T}\sum_{\tau=1}^{T-1}\sum_{t=\tau+1}^{T}\left[\mathbb{E}\!\left(X_t-\mu\right)\left(X_{t-\tau}-\mu\right)' + \mathbb{E}\!\left(X_{t-\tau}-\mu\right)\left(X_t-\mu\right)'\right]}_{\text{contribution of all autocovariances}} .
++ \underbrace{\frac{1}{T}\sum_{\tau=1}^{T-1}\sum_{t=\tau+1}^{T}\left[\mathbb{E}\!\left(X_t-\mu\right)\left(X_{t-\tau}-\mu\right)' + \mathbb{E}\!\left(X_{t-\tau}-\mu\right)\left(X_t-\mu\right)'\right]}_{\text{contribution of all autocovariances}}.
 ```
 
-The asymptotic variance is therefore the average own-variance of $X_t$ **plus** a
-term that accumulates every cross-covariance between $X_t$ and its lags. Writing
-the $\tau$-th autocovariance as
-$\Gamma_\tau = \mathbb{E}\!\left(X_t-\mu\right)\left(X_{t-\tau}-\mu\right)'$, the
-stationary version collapses to the compact form
+The asymptotic variance is therefore the average own-variance of $X_t$ **plus** a term that accumulates every cross-covariance between $X_t$ and its lags. 
+Writing the $\tau$-th autocovariance as $\Gamma_\tau = \mathbb{E}\!\left(X_t-\mu\right)\left(X_{t-\tau}-\mu\right)'$, the stationary version (when the correlation do not depend on $t$) collapses to the compact form
+```math
+\Sigma_T = \Gamma_0 + \sum_{\tau=1}^{\infty}\left(\Gamma_\tau + \Gamma_\tau'\right) = \sum_{\tau=-\infty}^{\infty} \Gamma_\tau.
+```
+
+
+### Group correlateion
+
+A related but distinct dependence structure arises when observations are
+correlated **within groups** but independent **across groups** — firms observed
+over several years, students within schools, repeated measurements on the same
+subject. Index the groups by $g \in \{1,\dots,G\}$ and let each observation belong
+to exactly one group. Because cross-group covariances are zero, the double sum of
+Part I keeps only within-group pairs, and it is cleanest to write $\Sigma$ in
+terms of the **group sums** $u_g = \sum_{t \in g}(X_t-\mu)$:
 
 ```math
-\Sigma = \Gamma_0 + \sum_{\tau=1}^{\infty}\left(\Gamma_\tau + \Gamma_\tau'\right) = \sum_{\tau=-\infty}^{\infty} \Gamma_\tau ,
+\Sigma = = \frac{1}{T}\sum_{g=1}^{G} \mathbb{E}\!\left[\Big(\sum_{t\in g}(X_t-\mu_G)\Big)\Big(\sum_{s\in g}(X_s-\mu_G)\Big)'\right].
 ```
 
-which is $2\pi$ times the spectral density of $\{X_t\}$ at frequency zero. This
-single object — the **spectral density at frequency zero** — is what every
-estimator in the package targets. The methods differ only in how they weight and
-truncate the sample autocovariances $\hat\Gamma_\tau$ that estimate the
-$\Gamma_\tau$. The special cases below correspond to assumptions that switch off
-or restructure parts of the double sum.
+Within a group the correlation pattern is left completely unrestricted (any
+$\Gamma$ across the pair $t,s\in g$ is allowed); only the assumption that
+different groups are independent is used. 
+
+Estimators of $\Sigma$ replace the expectation with the observed cluster sums,
+
+```math
+\hat{\Sigma} = \frac{1}{T}\sum_{g=1}^{G} \Big(\sum_{t\in g}(X_t-\bar{X}_G)\Big)\Big(\sum_{s\in g}(X_s-\bar{X}_G)\Big)'.
+```
+
+
+with a small-sample factor $c$. For the sample-mean (matrix) case the estimator is
+[`Cluster`](@ref), the clustering analogue of [`HC0`](@ref): it takes $c=1$, the
+raw cluster long-run variance with no finite-sample correction. It carries the
+group identifiers, so the same `aVar` call applies. Comparing the cluster-robust
+estimate against the one that ignores grouping:
+
+
+
+
 
 ## The `aVar` function and the `scale` convention
 
-The single entry point for Part I is
+To calculate an _estimate_ of $\Sigma_T$ we use the function
 
 ```julia
 aVar(estimator, X; demean=true, dims=1, means=nothing, prewhite=false, scale=true)
 ```
-
 Here `X` is a $T \times k$ data matrix (observations in rows when `dims=1`), and
-`estimator` selects how the autocovariances are weighted. Every concrete
-estimator is a subtype of [`AbstractAsymptoticVarianceEstimator`](@ref); the ones
-that model dependence ([`HAC`](estimators/hac.md), [`Cluster`](@ref)/[`CR`](@ref CR0),
-[`EWC`](@ref), [`VARHAC`](@ref), [`DriscollKraay`](@ref)) share the abstract supertype
-[`Correlated`](@ref), while the heteroskedasticity-only [HC/HR family](estimators/hc.md)
-([`HC0`](@ref)–[`HC5`](@ref)) targets the contemporaneous term alone.
-
+`estimator` selects the kind of variance estimator. 
 The keywords are:
 
   - `demean` — subtract the column means before forming autocovariances (the
-    $X_t - \mu$ in the formulas). Set `false` if `X` is already centred (for
-    example, it holds residuals or scores that sum to zero).
+    $X_t - \bar{X}_T$ in the formulas). 
   - `dims` — `1` if observations are rows, `2` if columns.
   - `means` — supply known means instead of estimating them.
   - `prewhite` — for [`HAC`](estimators/hac.md) only: fit a VAR(1), apply the kernel to its
-    residuals, then recolour (Andrews and Monahan, 1992).
+    residuals, then recolour.
   - `scale` — the normalisation, explained next.
-
-### What `scale` does
-
-Internally the estimator first forms an **unnormalised** matrix
-
-```math
-\hat{S} = \sum_{t} \hat{\Gamma}_0 \text{-type terms}
-        = \widehat{\operatorname{Var}}\!\left(\sum_{t=1}^{T} X_t\right)
-```
-
-— the weighted double sum of Part I written *without* the leading $1/T$ — and then
-divides it according to `scale`:
-
-| `scale` | returned matrix | interpretation |
-|---|---|---|
-| `true` (default) | $\hat\Sigma = \hat S / T$ | estimate of $\operatorname{a\mathbb{V}ar}\!\big(T^{-1/2}\sum_t X_t\big)$, i.e. the variance of $\sqrt{T}(\bar X_T-\mu)$ |
-| `false` | $\hat S$ | the unnormalised "meat" $\widehat{\operatorname{Var}}(\sum_t X_t)$ used by the sandwich formulas of Part II |
-| `m::Int` | $\hat S / m$ | divide by `m` instead of `T`; use `m = T-k` for a degrees-of-freedom correction |
-
-The default `scale=true` returns $\hat\Sigma$, the estimate of the $\Sigma$ in the
-central limit theorem above. Two consequences are worth stating explicitly,
-because they are the two most common mistakes:
 
 !!! note "From `aVar` to the variance of the mean"
     `aVar(estimator, X)` estimates the variance of the **normalised** sum
@@ -141,19 +112,10 @@ because they are the two most common mistakes:
     \widehat{\operatorname{Var}}(\bar X_T) = \frac{\hat\Sigma}{T} = \frac{1}{T}\,\texttt{aVar(estimator, X)} .
     ```
 
-!!! tip "`scale=false` is for building sandwiches"
-    Pass `scale=false` when the result feeds a sandwich variance (Part II). There
-    the "bread" already carries the compensating factors of $T$, so the meat must
-    be the raw sum $\hat S$. This is exactly what the model-level `vcov` methods
-    request internally.
 
 ### Seeing the convention in numbers
 
-For the uncorrelated case the long-run variance is just the contemporaneous
-variance $\Gamma_0$, and the estimator that targets it at the matrix level is
-[`HC0`](@ref) (equivalently [`HR0`](@ref); the heteroskedasticity-robust "meat").
-With centred data $\hat S = \tilde X'\tilde X$ (the sum of outer products), and the
-three `scale` settings reproduce familiar quantities:
+As we said, for the uncorrelated (independent) case the long-run variance is just the contemporaneous variance $\Gamma_T$, and the estimator that targets it at the matrix level is [`Uncorrelated`](@ref) 
 
 ```@example scale
 using CovarianceMatrices, Statistics, Random, LinearAlgebra
@@ -164,16 +126,16 @@ X = randn(T, k) .* [1.0 2.0 0.5] .+ [0.3 -1.0 4.0]  # heteroskedastic columns, n
 
 Σ̂    = aVar(HC0(), X)                 # scale=true  (default); HC0 = uncorrelated meat
 Ŝ    = aVar(HC0(), X; scale=false)    # unnormalised sum
-Σ̂dof = aVar(HC0(), X; scale=T-1)      # divide by T-1 instead of T
+Σ̂dof = aVar(HC0(), X; scaleby=T-1)    # divide by T-1 instead of T
 
 (; scale_true_over_cov = Σ̂ ./ cov(X; corrected=false),   # ≈ 1: matches the ÷T sample covariance
    sum_over_T           = (Ŝ ./ T) ./ Σ̂,                 # ≈ 1: scale=false is T × scale=true
-   dof_over_cov         = Σ̂dof ./ cov(X))                # ≈ 1: scale=T-1 matches the ÷(T-1) covariance
+   dof_over_cov         = Σ̂dof ./ cov(X))                # ≈ 1: scaleby=T-1 matches the ÷(T-1) covariance
 ```
 
 All three ratio matrices are ones up to floating-point error, confirming that
 `scale=true` gives the (uncorrected) sample covariance, `scale=false` gives its
-$T$-fold sum, and `scale=T-1` reproduces the degrees-of-freedom-corrected
+$T$-fold sum, and `scaleby=T-1` reproduces the degrees-of-freedom-corrected
 covariance. The standard error of each mean then divides by another $\sqrt{T}$:
 
 ```@example scale

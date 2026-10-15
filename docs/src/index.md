@@ -18,13 +18,6 @@ Pkg.add("CovarianceMatrices")
 ```
 
 
-## Main Functions
-
-The three entry points are [`aVar`](@ref), [`vcov`](@ref StatsBase.vcov), and
-[`stderror`](@ref StatsBase.stderror); see the [API Reference](@ref) for full
-documentation.
-
-
 ## Citation
 
 If you use CovarianceMatrices.jl in your research, please cite:

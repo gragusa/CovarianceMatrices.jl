@@ -269,6 +269,7 @@ function aVar(
         scale = true,
         scaleby::Union{Nothing, Real} = nothing,
         kwargs...)
+    _checkscale(scale)
     H = residual_adjustment(k, m)
     X = modelmatrix(m)
     u = _residuals(m)
@@ -279,7 +280,6 @@ function aVar(
     Σ = mapreduce(+, zip(combs, V)) do (c, v)
         (-1)^(length(c) - 1)*v
     end
-    scale, scaleby = _scale_arguments(scale, scaleby)
     scalevar!(Σ, scale, scaleby, numobs(m))
     return CovarianceMatrix(Σ, k)
 end
@@ -546,6 +546,7 @@ function aVar(
         scale = true,
         scaleby::Union{Nothing, Real} = nothing,
         kwargs...)
+    _checkscale(scale)
     cache = k.cache
     H = cache.leverage_adjustments
     X = modelmatrix(m)
@@ -562,7 +563,6 @@ function aVar(
         sign * v
     end
 
-    scale, scaleby = _scale_arguments(scale, scaleby)
     return scalevar!(Σ, scale, scaleby, numobs(m))
 end
 

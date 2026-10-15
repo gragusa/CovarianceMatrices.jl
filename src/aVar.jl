@@ -35,7 +35,7 @@ function aVar(
         weights = nothing
 ) where {T <: Real}
     Base.require_one_based_indexing(m)
-    scale, scaleby = _scale_arguments(scale, scaleby)
+    _checkscale(scale)
     X = demean ? demeaner(m; means = means, dims = dims) : m
     Shat, info = avar_with_info(k, X; prewhite = isa(k, HAC) ? prewhite : false, weights)
     scalevar!(Shat, scale, scaleby, size(X, dims))
@@ -55,24 +55,9 @@ function avar_with_info(k, X; weights = nothing, kwargs...)
     return avar(k, X; kwargs...), NamedTuple()
 end
 
-"""
-    _scale_arguments(scale, scaleby) -> (scale::Bool, scaleby)
-
-Normalize the scaling keywords to a `Bool` switch and an optional divisor, accepting
-the deprecated numeric `scale` as a divisor.
-"""
-function _scale_arguments(scale, scaleby)
-    if !isa(scale, Bool)
-        isa(scale, Real) ||
-            throw(ArgumentError("`scale` must be a `Bool`; pass a divisor as `scaleby`."))
-        Base.depwarn(
-            "`scale=$scale` as a divisor is deprecated: use `scaleby=$scale` to divide by an explicit value.",
-            :aVar)
-        scaleby === nothing ||
-            throw(ArgumentError("`scale` was given a divisor and `scaleby` was also given; pass the divisor as `scaleby` alone."))
-        return true, scale
-    end
-    return scale, scaleby
+function _checkscale(scale)
+    scale isa Bool ||
+        throw(ArgumentError("`scale` must be a `Bool`, got $(repr(scale)); pass a divisor as `scaleby`."))
 end
 
 function _checkdivisor(d)
@@ -106,7 +91,7 @@ function aVar(
         kwargs...
 ) where {T <: Real}
     Base.require_one_based_indexing(m)
-    scale, scaleby = _scale_arguments(scale, scaleby)
+    _checkscale(scale)
     X = demean ? demeaner(m; means = means, dims = dims) : m
     Shat, info = avar_with_info(k, X)
     # VARHAC estimates the spectral density at frequency zero, which is already on the

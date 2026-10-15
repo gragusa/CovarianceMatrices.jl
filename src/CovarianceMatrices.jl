@@ -39,7 +39,6 @@ include("api.jl")
 include("regression_model_estimators.jl")
 # VcovSpec wrapper for model + vcov() syntax
 include("vcov_spec.jl")
-include("deprecated.jl")
 
 export AbstractAsymptoticVarianceEstimator,
        Uncorrelated,

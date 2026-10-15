@@ -15,19 +15,15 @@
            0.23411525 -0.44659979 0.012371195]
     K = Bartlett{NeweyWest}()
     Σ = a𝕍ar(K, m)
-    @test K.bw[1]≈1.737626 atol=1e-06
+    @test CovarianceMatrices.bandwidth(Σ)≈1.737626 atol=1e-06
     ## Notice that using Σ = a𝕍ar(K, M) give a different bandwidth
     Σ_M = a𝕍ar(K, M)
-    @test K.bw[1]≈0.3638178431924936 atol=1e-06
+    @test CovarianceMatrices.bandwidth(Σ_M)≈0.3638178431924936 atol=1e-06
     ## The reason is the weights are all one
-    @test K.kw == [1.0, 1.0, 1.0]
-    ## This can be overridden by setting the weights manually
-    K.kw .= [0.0, 1.0, 1.0]
-    ## and locking the kernel so that the weights are not changed
-    K.wlock .= true
-    Σ_M = a𝕍ar(K, M)
-    @test K.bw[1]≈1.737626 atol=1e-06
-    @test K.wlock[1] === true
+    @test CovarianceMatrices.kernelweights(Σ_M) == [1.0, 1.0, 1.0]
+    ## This can be overridden by passing the weights explicitly
+    Σ_M = a𝕍ar(K, M; weights = [0.0, 1.0, 1.0])
+    @test CovarianceMatrices.bandwidth(Σ_M)≈1.737626 atol=1e-06
 end
 
 @testset "GLM Integration (_residuals)" begin
@@ -181,7 +177,6 @@ end
     vcov1 = vcov(Bartlett{Andrews}(), dum, dofadjust = true)
     k = Bartlett{Andrews}()
     vcov0 = vcov(k, dum, dofadjust = false)
-    k.wlock .= true
     aVar(k, dum)
 
     clotting = DataFrame(
