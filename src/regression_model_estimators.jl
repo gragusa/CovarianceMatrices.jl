@@ -256,6 +256,7 @@ function aVar(
         scale = true,
         scaleby::Union{Nothing, Real} = nothing,
         kwargs...)
+    _check_resolved(k)
     # Get moment matrix with residual adjustment
     a = residual_adjustment(k, m)
     X = modelmatrix(m)
@@ -284,6 +285,7 @@ function aVar(
         scaleby::Union{Nothing, Real} = nothing,
         prewhite::Bool = false,
         kwargs...)
+    _check_resolved(k)
     _checkscale(scale)
     _checkprewhite(k, prewhite)
     H = residual_adjustment(k, m)
@@ -469,6 +471,7 @@ V1 = vcov(cached, model)  # Uses cached leverage adjustments
 For CR2/CR3 with single-cluster, expect 10-50x speedup in bootstrap scenarios.
 """
 function CachedCRModel(k::CR, m::RegressionModel)
+    _check_resolved(k)
     X = modelmatrix(m)
     XX = bread(m)
     wts = weights(m)

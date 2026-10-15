@@ -229,6 +229,16 @@ test_clustering_necessity(model, df.firm_id, df.year_id)
 
 ## Advanced Features
 
+### Clusters Named by Column
+
+`CR1(:firm)` and `CR1(:firm, :year)` name the clusters by column instead of passing
+the group identifiers. CovarianceMatrices has no data table to look the names up in,
+so `vcov`, `stderror` and `aVar` throw an `ArgumentError` for these estimators. They
+are meant for modeling packages that fit models to a data table and resolve the names
+against it (for example `model + vcov(CR1(:firm))`); see
+[For Modeling Packages](../tutorials/interface_tutorial.md#For-Modeling-Packages:-Column-Named-Clusters-and-VcovSpec).
+With GLM.jl, pass the column itself: `vcov(CR1(df.firm), model)`.
+
 ### Unbalanced Clustering
 
 ```julia

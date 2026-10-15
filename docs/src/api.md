@@ -171,8 +171,8 @@ VcovSpec
 
 The names below are part of the API: they are supported and follow the package's
 compatibility guarantees, but they are not exported, so they must be reached
-through the module — `CovarianceMatrices.nclusters(k)`. On Julia 1.11 and later
-they are declared with `public`, so `Base.ispublic` reports them.
+through the module — `CovarianceMatrices.nclusters(k)`. They are declared with
+`public`, so `Base.ispublic` reports them.
 
 `AICs`, `BICs`, `maxlags`, `nclusters`, `order`, `order_aic` and `order_bic` are
 the result and estimator accessors documented above. `BartlettKernel`,

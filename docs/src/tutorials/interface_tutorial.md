@@ -34,9 +34,10 @@ lowest to highest level:
    single argument returns a [`VcovSpec`](@ref) that simply packages the estimator.
    The `+` operator that consumes it is defined by downstream modeling packages
    (e.g. Regress.jl), not by CovarianceMatrices.jl; this package only provides the
-   wrapper so those packages can offer the `model + vcov(...)` idiom.
+   wrapper so those packages can offer the `model + vcov(...)` idiom. See
+   [For Modeling Packages](#For-Modeling-Packages:-Column-Named-Clusters-and-VcovSpec).
 
-The rest of this tutorial concerns surface 2, the model protocol.
+Most of this tutorial concerns surface 2, the model protocol.
 
 ## The Core Interface
 
@@ -371,6 +372,67 @@ V_sandwich = inv(H) * Ω_hat * inv(H')
 
 # GMM variance
 V_gmm = inv(∇g' * inv(Ω_hat) * ∇g)
+```
+
+## For Modeling Packages: Column-Named Clusters and `VcovSpec`
+
+A modeling package that fits models to a data table can let its users name
+clusters by column and attach an estimator with `model + vcov(estimator)`. Both
+features rely on the package that owns the data; CovarianceMatrices only supplies
+the values.
+
+### Column-named cluster estimators
+
+`CR0(:firm)`, `CR1(:firm, :year)`, `Cluster(:firm)` and `Cluster((:firm, :year))`
+are cluster estimators whose clusters are given by column name rather than by group
+identifiers. The field `g` holds the names as a tuple of `Symbol`s: `CR1(:firm,
+:year).g == (:firm, :year)`. One name means one-way clustering, and several names mean
+multi-way clustering, exactly as the corresponding tuple of vectors would.
+
+CovarianceMatrices has no data table, so it cannot look up the names. `aVar`, `vcov`,
+`stderror`, `nclusters`, `CachedCR` and `CachedCRModel` throw an `ArgumentError` on a
+column-named estimator. The modeling package resolves it first by rebuilding the same
+estimator type from the columns:
+
+```julia
+using CovarianceMatrices: CR0, CR1, CR2, CR3, Cluster
+using Tables
+
+resolve(k, data) = k
+for E in (:CR0, :CR1, :CR2, :CR3, :Cluster)
+    @eval function resolve(k::$E{<:Tuple{Vararg{Symbol}}}, data)
+        return $E(map(name -> Tables.getcolumn(data, name), k.g))
+    end
+end
+```
+
+`resolve(CR1(:firm, :year), df)` is then `CR1((df.firm, df.year))`, which every
+entry point accepts. The rows of the columns must line up with the rows of the model's
+moment matrix, so a package that drops rows (for missing values, say) must drop the
+same rows from the cluster columns.
+
+A package can also accept column-named estimators directly in `vcov` by dispatching
+on them:
+
+```julia
+function StatsAPI.vcov(k::CR1{<:Tuple{Vararg{Symbol}}}, m::MyModel)
+    return vcov(resolve(k, m.data), m)
+end
+```
+
+### `vcov(estimator)` and `VcovSpec`
+
+With a single argument, `vcov(estimator)` computes nothing: it returns a
+[`VcovSpec`](@ref) whose `source` field is the estimator. CovarianceMatrices defines no
+operation on a `VcovSpec`. A package that supports `model + vcov(estimator)` defines
+the `+` method, reads `v.source`, resolves column names against its own data, and
+attaches the result to the model:
+
+```julia
+function Base.:+(m::MyModel, v::VcovSpec)
+    k = resolve(v.source, m.data)
+    return with_vcov_estimator(m, k)   # package-specific
+end
 ```
 
 ## Testing Your Implementation

@@ -856,11 +856,28 @@ struct CR3{G} <: CR
     end
 end
 
-for k in [:CR0, :CR1, :CR2, :CR3]
+for k in [:CR0, :CR1, :CR2, :CR3, :Cluster]
     # Single symbol: wrap in tuple for consistent representation
     @eval $(k)(g::Symbol) = $(k)((g,))
     # Varargs for 2+ args: multi-way clustering CR0(a, b, ...) -> CR0((a, b, ...))
     @eval $(k)(g1, g2, gs...) = $(k)((g1, g2, gs...))
+end
+
+# Cluster estimators that name their clusters by column. A package that owns the data
+# table replaces the names with the group vectors before any variance is computed.
+const _UnresolvedClusterEstimator = Union{
+    CR0{<:Tuple{Vararg{Symbol}}}, CR1{<:Tuple{Vararg{Symbol}}},
+    CR2{<:Tuple{Vararg{Symbol}}}, CR3{<:Tuple{Vararg{Symbol}}},
+    Cluster{<:Tuple{Vararg{Symbol}}}}
+
+_check_resolved(k) = k
+function _check_resolved(k::_UnresolvedClusterEstimator)
+    E = nameof(typeof(k))
+    throw(ArgumentError(
+        "$(sprint(show, k)) names its clusters by column ($(join(repr.(k.g), ", "))), " *
+        "which CovarianceMatrices cannot look up. Pass the group identifiers instead, " *
+        "e.g. `$E(df.$(first(k.g)))`, or use a modeling package that resolves column " *
+        "names against its data."))
 end
 
 #=========
@@ -1020,6 +1037,7 @@ S = aVar(cached_k, X)      # Fast calculation using cache
 ```
 """
 function CachedCR(k::CR, ncols::Int, ::Type{T} = Float64) where {T}
+    _check_resolved(k)
     cache = CRCache(k, ncols, T)
     return CachedCR(k, cache)
 end

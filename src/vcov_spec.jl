@@ -9,17 +9,21 @@
 """
     VcovSpec{T}
 
-Wrapper for variance-covariance specifications.
-Enables `model + vcov(estimator)` syntax.
+A variance estimator packaged for a modeling package, built by the one-argument
+`vcov(estimator)`. The `source` field holds the estimator unchanged.
+
+CovarianceMatrices defines no operation that consumes a `VcovSpec`. A modeling package
+that supports the `model + vcov(estimator)` idiom defines `Base.:+(m::MyModel,
+v::VcovSpec)`, reads the estimator from `v.source`, and returns the model with that
+estimator attached. If the estimator names its clusters by column (`CR1(:firm)`), the
+modeling package replaces the names with the group vectors from its data before
+computing the variance; see the "For Modeling Packages" section of the interface
+tutorial.
 
 # Examples
 ```julia
-# Create VcovSpec for heteroskedasticity-robust inference
-v = vcov(HC3())
-
-# Use with + operator (requires package-specific implementation)
-model = lm(@formula(y ~ x), df)
-model_hc3 = model + vcov(HC3())
+spec = vcov(CR1(:firm))   # VcovSpec(CR1(:firm))
+spec.source               # CR1(:firm)
 ```
 """
 struct VcovSpec{T}
@@ -34,31 +38,18 @@ end
 """
     vcov(estimator::AbstractAsymptoticVarianceEstimator) -> VcovSpec
 
-Create a VcovSpec for use with `model + vcov(...)` syntax.
+Wrap `estimator` in a [`VcovSpec`](@ref) without computing anything. Modeling
+packages consume the result through `model + vcov(estimator)`; this package does not
+define that operator.
 
-This single-argument form wraps the variance estimator in a VcovSpec,
-which can then be added to a fitted model using the `+` operator.
-
-# Arguments
-- `estimator`: A variance estimator (HC0, HC1, CR1, etc.)
-
-# Returns
-- `VcovSpec{V}`: A wrapper containing the estimator
+`vcov(vcov(estimator)) == vcov(estimator)`.
 
 # Examples
 ```julia
-# Create VcovSpec for heteroskedasticity-robust inference
-v = vcov(HC3())
-
-# Use with + operator
-model = ols(df, @formula(y ~ x))
-model_hc3 = model + vcov(HC3())
-
-# Cluster-robust
-model_cr1 = model + vcov(CR1(:firm))
+vcov(HC3())            # VcovSpec(HC3())
+vcov(CR1(:firm))       # cluster names are resolved by the modeling package
 ```
 """
 StatsAPI.vcov(v::AbstractAsymptoticVarianceEstimator) = VcovSpec(v)
 
-# Idempotent: vcov(vcov(x)) == vcov(x)
 StatsAPI.vcov(v::VcovSpec) = v

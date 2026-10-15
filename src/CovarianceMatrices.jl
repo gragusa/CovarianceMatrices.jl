@@ -117,13 +117,13 @@ export AbstractAsymptoticVarianceEstimator,
 # and may change in any release.
 # Result and estimator accessors
 public AICs, BICs, maxlags, nclusters, order, order_aic, order_bic,
-       # Kernel struct names; the exported `Bartlett`, `Parzen`, `QuadraticSpectral`,
-       # `Truncated` and `TukeyHanning` are aliases for these, and these are the names
-       # that appear when a kernel's type is displayed.
+# Kernel struct names; the exported `Bartlett`, `Parzen`, `QuadraticSpectral`,
+# `Truncated` and `TukeyHanning` are aliases for these, and these are the names
+# that appear when a kernel's type is displayed.
        BartlettKernel, ParzenKernel, QuadraticSpectralKernel, TruncatedKernel,
        TukeyHanningKernel,
-       # Cluster caches
+# Cluster caches
        CRCache, CRModelCache,
-       # Abstract supertypes available for dispatch
+# Abstract supertypes available for dispatch
        BandwidthType, CR, LagSelector
 end

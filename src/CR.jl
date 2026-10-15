@@ -285,7 +285,7 @@ nclusters(CR0(firm))         # (n_firms,)
 nclusters(CR0(firm, year))   # (n_firms, n_years)
 ```
 """
-nclusters(k::CR) = _nclusters(k.g)
+nclusters(k::CR) = _nclusters(_check_resolved(k).g)
 @inline _nclusters(f::Tuple{Clustering}) = (f[1].ngroups,)
 @inline _nclusters(f::Tuple{Clustering, Clustering}) = (f[1].ngroups, f[2].ngroups)
 @inline _nclusters(f::Tuple{

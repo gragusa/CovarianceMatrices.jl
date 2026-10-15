@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `aVar`, `vcov`, `stderror`, `nclusters`, `CachedCR` and `CachedCRModel` throw
+  an `ArgumentError` explaining that column names must be resolved by a
+  modeling package when given a column-named cluster estimator such as
+  `CR1(:firm)`, instead of a `MethodError` from an internal function.
+
 - Estimators print to the given `IO` stream, so `repr`, `string` and
   interpolation capture the whole output, and the header of a displayed
   `CovarianceMatrix` is no longer split across streams. Estimators print as
@@ -86,6 +91,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DriscollKraay(K; tis, iis, correction)` carries the finite-sample
   correction (`:HC0`, `:HC1` or `:sss`), which `vcov(k, model)` applies.
   `aVar` on a moment matrix throws for a correction other than `:HC0`.
+
+- `Cluster(:firm)` and `Cluster(a, b, ...)`, matching the `CR0`–`CR3`
+  constructors.
+
+- The interface tutorial documents column-named cluster estimators and
+  `VcovSpec` for modeling packages.
 
 ### Deprecated
 

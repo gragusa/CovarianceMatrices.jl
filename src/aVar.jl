@@ -37,6 +37,7 @@ function aVar(
         scaleby::Union{Nothing, Real} = nothing,
         weights = nothing
 ) where {T <: Real}
+    _check_resolved(k)
     Base.require_one_based_indexing(m)
     _checkscale(scale)
     X = demean ? demeaner(m; means = means, dims = dims) : m

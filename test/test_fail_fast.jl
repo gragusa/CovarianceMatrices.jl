@@ -92,6 +92,23 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
         end
     end
 
+    @testset "cluster estimators named by column" begin
+        msg = "names its clusters by column"
+        for k in (CR0(:g), CR1(:g, :h), CR2(:g), CR3(:g), Cluster(:g), Cluster(:g, :h))
+            @test_throws msg aVar(k, X)
+            @test_throws msg vcov(k, model)
+            @test_throws msg stderror(k, model)
+            @test vcov(k) isa VcovSpec
+        end
+        @test_throws "e.g. `CR1(df.g)`" aVar(CR1(:g), X)
+        @test_throws msg aVar(CR0(:g), model)
+        @test_throws msg CovarianceMatrices.nclusters(CR0(:g))
+        @test_throws msg CovarianceMatrices.CachedCR(CR0(:g), 2)
+        @test_throws msg CovarianceMatrices.CachedCRModel(CR1(:g), model)
+        @test Cluster(:g) == Cluster((:g,))
+        @test Cluster(:g, :h) == Cluster((:g, :h))
+    end
+
     @testset "String on estimator types" begin
         @test (@test_deprecated String(QuadraticSpectral)) == "Quadratic Spectral"
         @test (@test_deprecated String(HC0)) == "HR0"
