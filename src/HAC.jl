@@ -507,7 +507,7 @@ Base.@propagate_inbounds function fit_var(A::AbstractMatrix{T}) where {T}
     li = lastindex(A, 1)
     Y = view(A, (fi + 1):li, :)
     X = view(A, fi:(li - 1), :)
-    B = cholesky(X'X) \ X'Y
+    B = cholesky(Symmetric(X'X)) \ X'Y
     E = Y - X * B
     return E, B
 end

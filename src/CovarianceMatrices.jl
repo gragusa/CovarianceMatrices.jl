@@ -13,7 +13,7 @@ using BlockDiagonals: BlockDiagonals, BlockDiagonal
 using Combinatorics: Combinatorics, combinations
 using LinearAlgebra: LinearAlgebra, BLAS, Diagonal, I, PosDefException, Symmetric,
                      UniformScaling, axpy!, cholesky, cholesky!, diag, dot, isdiag,
-                     ldiv!, lmul!, mul!, pinv, rdiv!, rmul!, svd
+                     ldiv!, lmul!, lu, mul!, pinv, rdiv!, rmul!, svd
 using NaNStatistics: NaNStatistics
 using Statistics: Statistics
 using StatsAPI: StatsAPI, vcov, stderror

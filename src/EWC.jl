@@ -16,7 +16,7 @@ function Λ!(L::AbstractVector{F}, j::Integer, m::AbstractMatrix{F}) where {F <:
 end
 
 # Non-mutating version
-function Λ(j::Integer, m::AbstractMatrix{F}) where {F <: AbstractFloat}
+function Λ(j::Integer, m::AbstractMatrix{F}) where {F <: Real}
     T, p = size(m)
     L = zeros(F, p)
     return Λ!(L, j, m)
@@ -32,15 +32,12 @@ function avar(k::EWC, X::AbstractMatrix{F}; prewhite = false) where {F <: Real}
 
     inv_B = 1 / B
 
-    @inbounds for j in 1:B
+    for j in 1:B
         Λ!(L, j, Z)
-        # Use BLAS syr! for symmetric rank-1 update: Ω += L * L'
-        # syr!(uplo, alpha, x, A) computes A = A + alpha * x * x'
-        #Ω += inv_B * L * L'
-        BLAS.syr!('U', inv_B, L, Ω)
+        _rank1_upper!(Ω, inv_B, L)
     end
-    # Fill lower triangle from upper (syr! only updates one triangle)
-    @inbounds for i in 1:p, j in 1:(i - 1)
+    # Fill the lower triangle from the upper one.
+    for i in 1:p, j in 1:(i - 1)
 
         Ω[i, j] = Ω[j, i]
     end
@@ -48,4 +45,19 @@ function avar(k::EWC, X::AbstractMatrix{F}; prewhite = false) where {F <: Real}
     # Transform back if prewhitened
     v = inv(one(F) * I - D')
     return v * Ω * v'
+end
+
+# Ω += α·L·L' on the upper triangle. BLAS handles Float32 and Float64; any other
+# `Real` (e.g. `ForwardDiff.Dual`) takes the generic loop.
+function _rank1_upper!(Ω::StridedMatrix{F}, α, L::StridedVector{F}) where {F <: Union{
+        Float32, Float64}}
+    BLAS.syr!('U', F(α), L, Ω)
+end
+
+function _rank1_upper!(Ω, α, L)
+    for j in eachindex(L), i in firstindex(L):j
+
+        Ω[i, j] += α * L[i] * L[j]
+    end
+    return Ω
 end

@@ -549,9 +549,13 @@ end
 
 # `I - ΣAⱼ` is singular when the fitted VAR has a unit root; the pseudo-inverse then
 # drops the singular directions, and the warning reports how many.
-function _varhac_inv(I_minus_A)
+function _varhac_inv(I_minus_A::AbstractMatrix{<:Union{Float32, Float64}})
     Γ, flag, svals = ipinv(I_minus_A)
     _debug_report_inversion("I - ΣAⱼ (VARHAC lag polynomial at 1)", flag, svals,
         "$(size(I_minus_A, 1))×$(size(I_minus_A, 2))", false, true)
     return Γ
 end
+
+# Element types without an SVD (e.g. `ForwardDiff.Dual`) use an LU inverse, which
+# throws `SingularException` instead of dropping singular directions.
+_varhac_inv(I_minus_A) = inv(lu(I_minus_A))

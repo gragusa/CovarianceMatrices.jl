@@ -2,7 +2,7 @@ module SparseArraysExt
 
 using CovarianceMatrices
 using CovarianceMatrices: Clustering
-using LinearAlgebra: LinearAlgebra, Symmetric, qr!
+using LinearAlgebra: LinearAlgebra, qr!
 using SparseArrays: SparseArrays, AbstractSparseMatrix, nonzeros, nzrange, rowvals
 
 function CovarianceMatrices.clusterize(X::AbstractSparseMatrix, g::Clustering)
@@ -21,7 +21,7 @@ function CovarianceMatrices.clusterize(X::AbstractSparseMatrix, g::Clustering)
         end
     end
 
-    return Symmetric(X2' * X2)
+    return X2' * X2
 end
 
 Base.@propagate_inbounds function CovarianceMatrices.fit_var(

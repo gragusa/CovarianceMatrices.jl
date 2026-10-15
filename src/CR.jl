@@ -5,14 +5,13 @@ function _checkclusterlength(X, g::Clustering)
     return nothing
 end
 
-function clusterize(X::Matrix, g::Clustering)
+function clusterize(X::AbstractVecOrMat, g::Clustering)
+    Base.require_one_based_indexing(X)
     _checkclusterlength(X, g)
     X2 = zeros(eltype(X), g.ngroups, size(X, 2))
-    idx = 0
     for j in axes(X, 2)
-        idx += 1
         @inbounds @simd for i in axes(X, 1)
-            X2[g.groups[i], idx] += X[i, j]
+            X2[g.groups[i], j] += X[i, j]
         end
     end
     return X2' * X2
@@ -150,7 +149,7 @@ function _checkclusters(lens, X)
 end
 
 # Single-cluster fast path (most common case) - fully type-stable
-function avar(k::CR, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <: Real}
+function avar(k::CR, X::AbstractVecOrMat{F}; kwargs...) where {F <: Real}
     f = k.g
     return _avar_impl(f, X)
 end
@@ -169,47 +168,43 @@ end
 # same raw cluster sum (the DOF/leverage factors are formed on the model path via
 # `residual_adjustment`, and are relied on there and by `CachedCR`). `Cluster` is
 # the recommended way to request that raw cluster covariance for the mean case.
-function avar(k::Cluster, X::Union{Matrix{F}, Vector{F}}; kwargs...) where {F <: Real}
+function avar(k::Cluster, X::AbstractVecOrMat{F}; kwargs...) where {F <: Real}
     return _avar_impl(k.g, X)
 end
 
 # Dispatch on tuple length for type stability
-@inline function _avar_impl(f::Tuple{Clustering}, X::Union{
-        Matrix{F}, Vector{F}}) where {F <: Real}
+@inline function _avar_impl(f::Tuple{Clustering}, X::AbstractVecOrMat{F}) where {F <: Real}
     _checkclusters(_get_lengths(f), X)
-    return clusterize(parent(X), f[1])
+    return clusterize(X, f[1])
 end
 
 # Two-way clustering - type-stable
-@inline function _avar_impl(f::Tuple{Clustering, Clustering}, X::Union{
-        Matrix{F}, Vector{F}}) where {F <: Real}
+@inline function _avar_impl(f::Tuple{Clustering, Clustering}, X::AbstractVecOrMat{F}) where {F <:
+                                                                                             Real}
     _checkclusters(_get_lengths(f), X)
 
-    Xp = parent(X)
     # Inclusion-exclusion: S = S1 + S2 - S12
-    S1 = clusterize(Xp, f[1])
-    S2 = clusterize(Xp, f[2])
+    S1 = clusterize(X, f[1])
+    S2 = clusterize(X, f[2])
     g12 = Clustering(f[1], f[2])
-    S12 = clusterize(Xp, g12)
+    S12 = clusterize(X, g12)
     return S1 + S2 - S12
 end
 
 # General N-way clustering fallback
-function _avar_impl(f::NTuple{N, Clustering}, X::Union{
-        Matrix{F}, Vector{F}}) where {N, F <: Real}
+function _avar_impl(f::NTuple{N, Clustering}, X::AbstractVecOrMat{F}) where {N, F <: Real}
     _checkclusters(_get_lengths(f), X)
 
     # Multi-way clustering: use inclusion-exclusion
     S = zeros(eltype(X), (size(X, 2), size(X, 2)))
-    Xp = parent(X)
-    @inbounds for c in combinations(1:N)
+    for c in combinations(1:N)
         isempty(c) && continue
         if length(c) == 1
             g = f[c[1]]
         else
             g = _merge_clusterings(f, c)
         end
-        S += (-1)^(length(c) - 1) * clusterize(Xp, g)
+        S += (-1)^(length(c) - 1) * clusterize(X, g)
     end
     return S
 end

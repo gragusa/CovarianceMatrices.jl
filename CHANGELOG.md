@@ -70,6 +70,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     number of rows, `tis` and `iis` of different lengths, and a repeated
     (period, unit) pair throw.
 
+- Automatic differentiation with `ForwardDiff` through `aVar`:
+  - `EWC` returned an estimate scaled by `1/√T` for `Dual` input, so
+    gradients were wrong, and failed with `prewhite = true`. `EWC` now uses
+    the same code for every element type; the separate `ForwardDiff`
+    extension is gone.
+  - `VARHAC` with a nonzero lag order failed for `Dual` input.
+  - Prewhitening failed for `Dual` input.
+- `CR0`–`CR3` and `Cluster` accept any `AbstractVector` or `AbstractMatrix`,
+  including sparse matrices and views. Sparse input took no path through
+  `aVar`, although the `SparseArrays` extension implements it.
+
 ### Added
 
 - `DriscollKraay(K; tis, iis, correction)` carries the finite-sample
