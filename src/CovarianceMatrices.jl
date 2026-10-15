@@ -122,7 +122,7 @@ export AbstractAsymptoticVarianceEstimator,
         :AICs, :BICs, :maxlags, :nclusters, :order, :order_aic, :order_bic,
         # Kernel struct names; the exported `Bartlett`, `Parzen`,
         # `QuadraticSpectral`, `Truncated` and `TukeyHanning` are aliases for these,
-        # and these are the names that appear when a kernel is displayed.
+        # and these are the names that appear when a kernel's type is displayed.
         :BartlettKernel, :ParzenKernel, :QuadraticSpectralKernel, :TruncatedKernel,
         :TukeyHanningKernel,
         # Cluster caches

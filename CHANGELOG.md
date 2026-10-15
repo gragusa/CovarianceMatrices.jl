@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Estimators print to the given `IO` stream, so `repr`, `string` and
+  interpolation capture the whole output, and the header of a displayed
+  `CovarianceMatrix` is no longer split across streams. Estimators print as
+  constructor syntax that rebuilds an equal estimator, for example
+  `Bartlett(5.0)`, `Bartlett{Andrews}()`, `CR0([1, 1, 2, 2])`,
+  `VARHAC(AICSelector(), SameLags(4))` and
+  `DriscollKraay(Bartlett(3.0), tis = [...], iis = [...])`. Cluster assignments
+  print as integer group codes. `CachedCRModel` prints a summary of its cache.
+
 ### Removed
 
 - The forms deprecated in 0.32.0:

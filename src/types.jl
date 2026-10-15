@@ -452,11 +452,18 @@ for kerneltype in kernels
     end
 end
 
-function Base.show(io::IO, x::HAC{T}) where {T <: Union{Andrews, NeweyWest}}
-    return print(typeof(x).name, "{", T, "}")
+# Kernels print under their exported alias, as constructor syntax: `Bartlett(5.0)`,
+# `Bartlett{Andrews}()`.
+for kerneltype in kernels
+    @eval _kernelname(::$kerneltype) = $(string(kerneltype))
 end
-function Base.show(io::IO, x::HAC{T}) where {T <: Fixed}
-    return print(typeof(x).name, "{", T, "}(", x.bw, ")")
+function Base.show(io::IO, x::HAC{T}) where {T <: Union{Andrews, NeweyWest}}
+    return print(io, _kernelname(x), "{", T, "}()")
+end
+function Base.show(io::IO, x::HAC{Fixed})
+    print(io, _kernelname(x), "(")
+    show(io, x.bw)
+    return print(io, ")")
 end
 ## Makes the default bandwidth selection
 #Optimal() = Optimal{Andrews}()
@@ -1481,9 +1488,13 @@ order(V)
 """
 order(V::CovarianceMatrix) = V.info.order
 
-## Show method for VARHAC
-function Base.show(io::IO, k::VARHAC)
-    println(io, "VARHAC{", k.selector, ", ", k.strategy, "}")
+function Base.show(io::IO, k::VARHAC{S, L, T}) where {S, L, T}
+    print(io, "VARHAC(")
+    show(io, k.selector)
+    print(io, ", ")
+    show(io, k.strategy)
+    T === Float64 || print(io, "; T = ", T)
+    return print(io, ")")
 end
 
 #========
@@ -1638,3 +1649,59 @@ Base.String(::Type{T}) where {T <: CR3} = "CR3"
 Base.String(::Type{T}) where {T <: EWC} = "EWC"
 Base.String(::Type{T}) where {T <: DriscollKraay} = "Driscoll-Kraay"
 Base.String(::Type{T}) where {T <: VARHAC} = "VARHAC"
+
+#=========
+Display
+
+Estimators print as constructor syntax that rebuilds an equal estimator. Cluster
+assignments print as their integer group codes, which define the same partition as
+the identifiers they were built from.
+=========#
+
+_show_groups(io::IO, g::Clustering) = show(io, g.groups)
+_show_groups(io::IO, g) = show(io, g)
+
+function _show_clusterspec(io::IO, g::Tuple)
+    if length(g) == 1
+        _show_groups(io, only(g))
+    else
+        print(io, "(")
+        for (i, gi) in enumerate(g)
+            i > 1 && print(io, ", ")
+            _show_groups(io, gi)
+        end
+        print(io, ")")
+    end
+    return nothing
+end
+
+function Base.show(io::IO, k::Union{CR0, CR1, CR2, CR3, Cluster})
+    print(io, nameof(typeof(k)), "(")
+    _show_clusterspec(io, k.g)
+    return print(io, ")")
+end
+
+function Base.show(io::IO, k::DriscollKraay)
+    print(io, "DriscollKraay(")
+    show(io, k.K)
+    print(io, ", tis = ")
+    _show_groups(io, k.tis)
+    print(io, ", iis = ")
+    _show_groups(io, k.iis)
+    return print(io, ")")
+end
+
+function Base.show(io::IO, k::CachedCR{<:CR, <:CRCache{T}}) where {T}
+    print(io, "CachedCR(")
+    show(io, k.estimator)
+    return print(io, ", ", k.cache.ncols, ", ", T, ")")
+end
+
+# The cache is built from a fitted model, which the estimator does not retain, so
+# this form is a summary rather than constructor syntax.
+function Base.show(io::IO, k::CachedCRModel)
+    print(io, "CachedCRModel(")
+    show(io, k.estimator)
+    c = getfield(k, :cache)
+    return print(io, ", <cache: nobs = ", c.nobs, ", ncols = ", c.ncols, ">)")
+end

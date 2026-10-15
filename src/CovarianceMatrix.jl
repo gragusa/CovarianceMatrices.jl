@@ -105,6 +105,8 @@ function CovarianceMatrix(V::AbstractMatrix, estimator, info::NamedTuple = Named
 end
 
 function Base.show(io::IO, ::MIME"text/plain", V::CovarianceMatrix)
-    println(io, size(V, 1), "×", size(V, 2), " CovarianceMatrix from ", V.estimator, ":")
+    # `:limit` truncates long cluster or index vectors in the estimator's printed form.
+    println(IOContext(io, :limit => true), size(V, 1), "×", size(V, 2),
+        " CovarianceMatrix from ", V.estimator, ":")
     return Base.print_matrix(io, V.V)
 end
