@@ -488,9 +488,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   periods `T`.
 
 - GMM variance formulas for suboptimal weight matrix:
-  - `_compute_gmm_information_weighted` was computing `inv(G'WΩ⁻¹WG)` instead of the correct sandwich `(G'WG)⁻¹ G'WΩWG (G'WG)⁻¹`. 
+  - `_compute_gmm_information_weighted` was computing `inv(G'WΩ⁻¹WG)` instead of the correct sandwich `(G'WG)⁻¹ G'WΩWG (G'WG)⁻¹`.
   - `_compute_gmm_misspecified` with explicit W used `Ω⁻¹` in the meat instead of `Ω`. The efficient GMM paths (W=nothing) were already correct.
-- Sign handling in multi-way cluster variance 
+- Sign handling in multi-way cluster variance
   - Removed incorrect `(-1)^(len-1)` sign factors from `_avar_tuple_impl` in `CR.jl`
 - Corrected the `UniformSmoother`/`TriangularSmoother` bandwidth validation
   messages: negative `m_T` now reports "must be non-negative" (the contract is
@@ -498,11 +498,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- GMM API 
+- GMM API
   - Weight matrix is now resolved via `weight_matrix(model)` before dispatching to compute functions; simplified Misspecified GMM path
-- CR2/CR3 leverage adjustments 
+- CR2/CR3 leverage adjustments
   - Deduplicated code via `_leverage_transform` dispatch, unifying `residual_adjustment` and `_compute_leverage_adjustments` for CR2/CR3
-- Multi-vector Clustering constructor 
+- Multi-vector Clustering constructor
   - Delegates to single-vector constructors and merge, avoiding `NTuple{N, Any}` dict keys
 - Removed unused `ncombinations` variable from `CRCache`
 - Improves smoothing functions
@@ -516,13 +516,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Simplified documentation index page
-- Expanded asymptotic variance theory in introduction 
+- Expanded asymptotic variance theory in introduction
 - Updated GMM docstrings to reflect corrected formulas
 - Documented the layered API: the `aVar(k, matrix)` matrix core, the
   `vcov(k, model)` model protocol, and the `model + vcov(estimator)` wrapper
 - Documented the recommended VARHAC construction form and its convenience aliases
 
-###  CI/Infrastructure
+### CI/Infrastructure
 
 - Added CompatHelper, TagBot, and benchmark GitHub workflows
 - Updated CI workflow configuration
@@ -532,7 +532,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Tests
 
 - Added analytical tests for all four GMM variance formulas
-- Added two-way cluster variance regression test 
+- Added two-way cluster variance regression test
 - Added more tests for smoothed moments
 - Added VARHAC tests
 
@@ -547,17 +547,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Internal Clustering Implementation (#72): Lightweight `Clustering` struct replacing `GroupedArrays.jl` dependency.
 
   Changed
-
   - CR estimators (`CR0`, `CR1`, `CR2`, `CR3`) now use internal Clustering type instead of GroupedArray.
 
   Fixed
-
   - Implicit Imports (#77): Fixed implicit import issues for cleaner namespace management.
 
   Tests
-
   - Improved test coverage (#76).
-
 
 ## [0.30.3]
 
@@ -565,8 +561,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add more tests for `EWC`
 
-- Added symbol constructor for `CR` type variance. E.g., `CR0(:state)` which gives a type `CR0{Tuple{Symbol}}`. Useful for specifying cluster variables using symbols, allowing models that support it to materialize the actual type later. 
-
+- Added symbol constructor for `CR` type variance. E.g., `CR0(:state)` which gives a type `CR0{Tuple{Symbol}}`. Useful for specifying cluster variables using symbols, allowing models that support it to materialize the actual type later.
 
 ## [0.30.2]
 
@@ -593,13 +588,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Smith's Smoothed Moments Implementation**: Full, optimized implementation with kernel-based approach
-  
 - **Alternative Constructor Syntax for HAC Kernels**: Support both `Kernel(BandwidthType)` and `Kernel{BandwidthType}()` syntax
   - `Bartlett(Andrews)` and `Bartlett{Andrews}()` are now functionally equivalent
 - **Comprehensive Documentation**:
   - Complete docstrings for all major estimator types with LaTeX-formatted mathematical foundations
-  
-  
+
 ### Changed
 
 - **Type Hierarchy Refactoring**: Fundamental restructuring to improve semantic clarity
