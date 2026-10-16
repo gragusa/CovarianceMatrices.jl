@@ -7,6 +7,107 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0]
+
+### Breaking
+
+- `vcov(Uncorrelated(), model)` on a `RegressionModel` is the iid variance
+  `s² · bread(model)`, as the `Uncorrelated` docstring describes, instead of
+  White's HC0. For least squares `s² = RSS / (n - K)`, which equals R's
+  `vcov(lm(...))`, with or without weights; for a GLM the result equals R's
+  `vcov(glm(...))`. `dofadjust = false` divides by `n` instead of `n - K`.
+  `aVar(Uncorrelated(), model)` returns the matching meat. On a matrix,
+  `aVar(Uncorrelated(), X)` is unchanged.
+- `vcov` on a `RegressionModel` multiplies the `EWC`, `VARHAC`,
+  `UniformSmoother` and `TriangularSmoother` variances by `n / (n - K)`, as it
+  already did for the HAC kernels; `dofadjust = false` leaves the factor out.
+- Inputs that 0.32.1 accepted with a deprecation warning now throw an
+  `ArgumentError`:
+  - `aVar` with `HR1`–`HR5`, `HR4m` (and their `HC` aliases) or `CR1`–`CR3`,
+    alone or inside `CachedCR`, on a matrix. Their finite-sample corrections
+    need a fitted model; use `HR0`/`HC0` or `CR0`/`Cluster` on a matrix. This
+    includes the `vcov(ve, form, model)` methods for `MLikeModel` and
+    `GMMLikeModel`, which pass a moment matrix.
+  - `prewhite = true` with an estimator that does not prewhiten (anything other
+    than HAC kernels, `EWC`, the smoothers, and `DriscollKraay` with a HAC
+    kernel).
+  - Keywords that `aVar(::VARHAC, X)` does not use.
+  - `VARHAC(AICSelector(), FixedLags(k))` and `VARHAC(BICSelector(), FixedLags(k))`;
+    use `VARHAC(FixedLags(k))`.
+  - Non-integer lag orders in `FixedLags`, `SameLags` and `DifferentOwnLags`.
+    Integer-valued numbers such as `3.0` are still accepted.
+  - `VARHAC(FixedSelector(), strategy)` and `VARHAC(:fixed)`; use
+    `VARHAC(BICSelector(), strategy)`/`VARHAC(:bic)` for BIC selection, or
+    `VARHAC(FixedLags(k))` for a fixed order.
+  - A bandwidth given to a data-driven kernel, as in `Bartlett{Andrews}(5.0)`;
+    use `Bartlett{Andrews}()`, or `Bartlett(5.0)` for a fixed bandwidth.
+- HAC kernels store their bandwidth value in a field `bandwidth`: `Fixed(5.0)`
+  for `Bartlett(5.0)`, `Andrews()` for `Bartlett{Andrews}()`. The `bw` field is
+  gone, so a data-driven kernel no longer carries a number. Use `bandwidth(k)`
+  for the bandwidth of a fixed-bandwidth kernel and `bandwidth(aVar(k, X))` for
+  the bandwidth an estimate used.
+- `VARHAC` has two type parameters, `VARHAC{S<:LagSelector, L<:LagStrategy}`;
+  the third, `T`, and the `T` keyword are gone (the estimate always took the
+  element type of the data). `FixedSelector` is no longer exported.
+- `momentmatrix`, `cross_score`, `jacobian_momentfunction`, `hessian_objective`
+  and `weight_matrix` are no longer exported; they are `public`. Define methods
+  as `CovarianceMatrices.momentmatrix(m::MyModel) = ...` and call them qualified,
+  or import them with `using CovarianceMatrices: momentmatrix`.
+- `CRCache` is internal (no longer `public`). Build caches with
+  `CachedCR(k, ncols)` or `CachedCR(k, model)`. `CRModelCache` no longer stores
+  the model's bread matrix and has one type parameter.
+- `momentresiduals(model)` falls back to `StatsAPI.residuals(model)` directly.
+  A model that defines only the internal `_residuals` must define
+  `CovarianceMatrices.momentresiduals` instead; otherwise its plain residuals
+  are used, which is wrong for weighted models.
+
+### Removed
+
+- The forms deprecated in 0.32.0:
+  - `k.kw` and `k.wlock` on a HAC kernel; use `kernelweights(aVar(k, X))`.
+  - `AICs`, `BICs`, `order`, `order_aic` and `order_bic` on a `VARHAC`
+    estimator; call them on the result of `aVar(k, X)`.
+  - A numeric `scale` keyword; `scale` accepts only a `Bool`, and a divisor is
+    passed as `scaleby`.
+  - `optimal_bandwidth(k::MomentSmoother, T)`; use `optimalbw(k, G)` with the
+    moment matrix `G`.
+- The forms deprecated in 0.32.1:
+  - `vcov(k::DriscollKraay, model; type = ...)`; use
+    `DriscollKraay(...; correction = ...)`. Passing `type` throws an
+    `ArgumentError`.
+  - `optimalbw(k::MomentSmoother, T::Integer)`; use `optimalbw(k, G)` with the
+    moment matrix `G`.
+  - `kernelweights(k, X)` on an estimator; use `kernelweights(aVar(k, X))`.
+  - `vcov(ve, Information(), model)` and `stderror(ve, Information(), model)`
+    for an `MLikeModel`; use `vcov(Information(), model)`.
+  - `String(T)` for estimator types such as `String(Bartlett)`.
+  - The `a𝕍ar` binding; use `aVar`.
+  - The `CachedCRModel` alias; use `CachedCR`.
+
+### Changed
+
+- `UniformSmoother` and `TriangularSmoother` are faster. At `T = 200,000`,
+  `k = 10`, `aVar` takes 3.6 ms (uniform, `m_T = 117`) and 4.8 ms (triangular,
+  `m_T = 17`), compared with 4.9 ms and 9.1 ms before.
+
+- `CR2` and `CR3` compute each cluster's adjustment from `k × k` matrices
+  (`k` coefficients) instead of an `n_g × n_g` one: an eigendecomposition for
+  CR2, a Cholesky factorization for CR3, and the leverage itself for a
+  single-row cluster. Their cost grows linearly in the cluster sizes. With 150
+  clusters of 100 observations and 6 coefficients, `vcov(CR2(cl), model)` is
+  about 110× faster and allocates about 19× less memory; two-way clustering of
+  the same panel is about 100× faster.
+- `QuadraticSpectral` computes `Z' K Z` with the Toeplitz matrix of kernel
+  weights `K` instead of summing all `T - 1` lags one at a time. For `Float32`
+  and `Float64` data `K Z` is computed with FFTs in `O(T log T)` time; other
+  element types use a blocked matrix product. At `T = 15000`, `k = 6` this
+  takes 1.4 ms, compared with 640 ms before.
+- `VARHAC` forms the cross products of its lag-search regressions from a
+  single `Z'Z` and `Z'Y`: about 5× faster with `SameLags` and 20× faster with
+  `DifferentOwnLags` at `T = 15000`, `k = 6`.
+- FFTW.jl and AbstractFFTs.jl are dependencies; BlockDiagonals.jl is no longer
+  one.
+
 ### Added
 
 - Public functions for packages that form their own moment matrices, declared
@@ -78,110 +179,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The documentation stated that the quadratic spectral kernel can give an
   estimate that is not positive semidefinite. It cannot; the truncated and
   Tukey-Hanning kernels can.
-
-### Breaking
-
-- `vcov(Uncorrelated(), model)` on a `RegressionModel` is the iid variance
-  `s² · bread(model)`, as the `Uncorrelated` docstring describes, instead of
-  White's HC0. For least squares `s² = RSS / (n - K)`, which equals R's
-  `vcov(lm(...))`, with or without weights; for a GLM the result equals R's
-  `vcov(glm(...))`. `dofadjust = false` divides by `n` instead of `n - K`.
-  `aVar(Uncorrelated(), model)` returns the matching meat. On a matrix,
-  `aVar(Uncorrelated(), X)` is unchanged.
-- `vcov` on a `RegressionModel` multiplies the `EWC`, `VARHAC`,
-  `UniformSmoother` and `TriangularSmoother` variances by `n / (n - K)`, as it
-  already did for the HAC kernels; `dofadjust = false` leaves the factor out.
-
-### Changed
-
-- `UniformSmoother` and `TriangularSmoother` are faster. At `T = 200,000`,
-  `k = 10`, `aVar` takes 3.6 ms (uniform, `m_T = 117`) and 4.8 ms (triangular,
-  `m_T = 17`), compared with 4.9 ms and 9.1 ms before.
-
-- `CR2` and `CR3` compute each cluster's adjustment from `k × k` matrices
-  (`k` coefficients) instead of an `n_g × n_g` one: an eigendecomposition for
-  CR2, a Cholesky factorization for CR3, and the leverage itself for a
-  single-row cluster. Their cost grows linearly in the cluster sizes. With 150
-  clusters of 100 observations and 6 coefficients, `vcov(CR2(cl), model)` is
-  about 110× faster and allocates about 19× less memory; two-way clustering of
-  the same panel is about 100× faster.
-- `QuadraticSpectral` computes `Z' K Z` with the Toeplitz matrix of kernel
-  weights `K` instead of summing all `T - 1` lags one at a time. For `Float32`
-  and `Float64` data `K Z` is computed with FFTs in `O(T log T)` time; other
-  element types use a blocked matrix product. At `T = 15000`, `k = 6` this
-  takes 1.4 ms, compared with 640 ms before.
-- `VARHAC` forms the cross products of its lag-search regressions from a
-  single `Z'Z` and `Z'Y`: about 5× faster with `SameLags` and 20× faster with
-  `DifferentOwnLags` at `T = 15000`, `k = 6`.
-- FFTW.jl and AbstractFFTs.jl are dependencies; BlockDiagonals.jl is no longer
-  one.
-
-## [0.33.0]
-
-### Breaking
-
-- Inputs that 0.32.1 accepted with a deprecation warning now throw an
-  `ArgumentError`:
-  - `aVar` with `HR1`–`HR5`, `HR4m` (and their `HC` aliases) or `CR1`–`CR3`,
-    alone or inside `CachedCR`, on a matrix. Their finite-sample corrections
-    need a fitted model; use `HR0`/`HC0` or `CR0`/`Cluster` on a matrix. This
-    includes the `vcov(ve, form, model)` methods for `MLikeModel` and
-    `GMMLikeModel`, which pass a moment matrix.
-  - `prewhite = true` with an estimator that does not prewhiten (anything other
-    than HAC kernels, `EWC`, the smoothers, and `DriscollKraay` with a HAC
-    kernel).
-  - Keywords that `aVar(::VARHAC, X)` does not use.
-  - `VARHAC(AICSelector(), FixedLags(k))` and `VARHAC(BICSelector(), FixedLags(k))`;
-    use `VARHAC(FixedLags(k))`.
-  - Non-integer lag orders in `FixedLags`, `SameLags` and `DifferentOwnLags`.
-    Integer-valued numbers such as `3.0` are still accepted.
-  - `VARHAC(FixedSelector(), strategy)` and `VARHAC(:fixed)`; use
-    `VARHAC(BICSelector(), strategy)`/`VARHAC(:bic)` for BIC selection, or
-    `VARHAC(FixedLags(k))` for a fixed order.
-  - A bandwidth given to a data-driven kernel, as in `Bartlett{Andrews}(5.0)`;
-    use `Bartlett{Andrews}()`, or `Bartlett(5.0)` for a fixed bandwidth.
-- HAC kernels store their bandwidth value in a field `bandwidth`: `Fixed(5.0)`
-  for `Bartlett(5.0)`, `Andrews()` for `Bartlett{Andrews}()`. The `bw` field is
-  gone, so a data-driven kernel no longer carries a number. Use `bandwidth(k)`
-  for the bandwidth of a fixed-bandwidth kernel and `bandwidth(aVar(k, X))` for
-  the bandwidth an estimate used.
-- `VARHAC` has two type parameters, `VARHAC{S<:LagSelector, L<:LagStrategy}`;
-  the third, `T`, and the `T` keyword are gone (the estimate always took the
-  element type of the data). `FixedSelector` is no longer exported.
-- `momentmatrix`, `cross_score`, `jacobian_momentfunction`, `hessian_objective`
-  and `weight_matrix` are no longer exported; they are `public`. Define methods
-  as `CovarianceMatrices.momentmatrix(m::MyModel) = ...` and call them qualified,
-  or import them with `using CovarianceMatrices: momentmatrix`.
-- `CRCache` and `CRModelCache` are internal (no longer `public`). Build caches
-  with `CachedCR(k, ncols)` or `CachedCR(k, model)`. `CRModelCache` no longer
-  stores the model's bread matrix and has one type parameter.
-- `momentresiduals(model)` falls back to `StatsAPI.residuals(model)` directly.
-  A model that defines only the internal `_residuals` must define
-  `CovarianceMatrices.momentresiduals` instead; otherwise its plain residuals
-  are used, which is wrong for weighted models.
-
-### Removed
-
-- The forms deprecated in 0.32.0:
-  - `k.kw` and `k.wlock` on a HAC kernel; use `kernelweights(aVar(k, X))`.
-  - `AICs`, `BICs`, `order`, `order_aic` and `order_bic` on a `VARHAC`
-    estimator; call them on the result of `aVar(k, X)`.
-  - A numeric `scale` keyword; `scale` accepts only a `Bool`, and a divisor is
-    passed as `scaleby`.
-  - `optimal_bandwidth(k::MomentSmoother, T)`; use `optimalbw(k, G)` with the
-    moment matrix `G`.
-- The forms deprecated in 0.32.1:
-  - `vcov(k::DriscollKraay, model; type = ...)`; use
-    `DriscollKraay(...; correction = ...)`. Passing `type` throws an
-    `ArgumentError`.
-  - `optimalbw(k::MomentSmoother, T::Integer)`; use `optimalbw(k, G)` with the
-    moment matrix `G`.
-  - `kernelweights(k, X)` on an estimator; use `kernelweights(aVar(k, X))`.
-  - `vcov(ve, Information(), model)` and `stderror(ve, Information(), model)`
-    for an `MLikeModel`; use `vcov(Information(), model)`.
-  - `String(T)` for estimator types such as `String(Bartlett)`.
-  - The `a𝕍ar` binding; use `aVar`.
-  - The `CachedCRModel` alias; use `CachedCR`.
 
 ## [0.32.1]
 
