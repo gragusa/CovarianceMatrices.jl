@@ -182,7 +182,8 @@ supertypes available for dispatch.
 
 `Clustering` is the grouping of one clustering dimension; `clusters(k)` returns those
 of a cluster estimator, and `groups` and `nclusters` read a `Clustering`. `cache` and
-the exported [`estimator`](@ref) read a `CachedCR`, and `timekernel`, `timeindex` and
+the exported [`estimator`](@ref) read a `CachedCR`; `CRModelCache` is the type of the
+cache that `CachedCR(k, model)` builds. `timekernel`, `timeindex` and
 `unitindex` read a `DriscollKraay` estimator.
 
 `bread`, `momentresiduals`, `leverage`, `mask` and `numobs` are the protocol a
@@ -202,6 +203,7 @@ CovarianceMatrices.clusters
 CovarianceMatrices.groups
 CovarianceMatrices.estimator(::CachedCR)
 CovarianceMatrices.cache
+CovarianceMatrices.CRModelCache
 CovarianceMatrices.timekernel
 CovarianceMatrices.timeindex
 CovarianceMatrices.unitindex

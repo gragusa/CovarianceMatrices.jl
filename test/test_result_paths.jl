@@ -8,6 +8,7 @@ using LinearAlgebra
 using DataFrames
 using GLM
 using StableRNGs
+using StatsBase: StatsBase
 
 struct ResultPathsMLE <: CovarianceMatrices.MLikeModel
     g::Matrix{Float64}
@@ -15,6 +16,11 @@ struct ResultPathsMLE <: CovarianceMatrices.MLikeModel
 end
 CovarianceMatrices.momentmatrix(m::ResultPathsMLE) = m.g
 CovarianceMatrices.hessian_objective(m::ResultPathsMLE) = m.H
+
+# A modeling package's own cluster-robust method, which a cache built from another
+# model must not make ambiguous.
+struct ResultPathsCRModel <: StatsBase.RegressionModel end
+CovarianceMatrices.aVar(k::CovarianceMatrices.CR, m::ResultPathsCRModel; kwargs...) = :own
 
 struct ResultPathsGMM <: CovarianceMatrices.GMMLikeModel
     g::Matrix{Float64}
@@ -131,6 +137,12 @@ CovarianceMatrices.hessian_objective(m::ResultPathsGMM) = m.H
         cm = CachedCR(CR2(df.firm), m)
         @test_throws "the model has 60 observations and 3 coefficients, but the cache was built for $n and 3" vcov(
             cm, msub)
+    end
+
+    @testset "a model's own aVar(::CR, model) takes a model cache" begin
+        cm = CachedCR(CR1(df.firm), m)
+        @test cm isa CachedCR{<:CR1, <:CovarianceMatrices.CRModelCache}
+        @test aVar(cm, ResultPathsCRModel()) === :own
     end
 
     @testset "CachedCRModel is not defined" begin

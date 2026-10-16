@@ -23,8 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `nclusters(c)` for a `Clustering`; `estimator(k)` and `cache(k)` for a
   `CachedCR`; `timekernel(k)`, `timeindex(k)` and `unitindex(k)` for a
   `DriscollKraay` estimator. The fields themselves remain internal.
+- `CRModelCache`, the type of the cache that `CachedCR(k, model)` builds, is
+  public, for dispatch on `CachedCR{<:CR, <:CRModelCache}`.
 
 ### Fixed
+
+- A package that defines `aVar(k::CR, m::MyModel)` no longer has a method
+  ambiguity with `aVar(::CachedCR, ::RegressionModel)`: a cache built by
+  `CachedCR(k, model)` is now handled inside `aVar(::CR, ::RegressionModel)`,
+  and there is no separate method on `CachedCR`.
 
 - `HC4`, `HC4m` and `HC5` on a `RegressionModel` overwrote the vector returned by
   `leverage(model)`. For a model that returns a stored vector, the next call

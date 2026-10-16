@@ -113,6 +113,8 @@ export AbstractAsymptoticVarianceEstimator,
 # Result and estimator accessors
 public AICs, BICs, maxlags, nclusters, order, order_aic, order_bic,
        clusters, groups, cache, timekernel, timeindex, unitindex,
+# Type of the cache that `CachedCR(k, model)` builds, available for dispatch
+       CRModelCache,
 # Kernel struct names; the exported `Bartlett`, `Parzen`, `QuadraticSpectral`,
 # `Truncated` and `TukeyHanning` are aliases for these, and these are the names
 # that appear when a kernel's type is displayed.

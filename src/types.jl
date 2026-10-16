@@ -1002,6 +1002,10 @@ matrix and the cluster structure, not on the residuals. This enables fast repeat
 variance calculations (e.g., wild bootstrap) where only residuals change between
 iterations.
 
+The type is public so that a modeling package can dispatch on
+`CachedCR{<:CR, <:CRModelCache}`, for example to reject a cache built from a model of
+another type. Its fields are internal.
+
 # Type Parameters
 - `H`: Type of leverage adjustments (Vector of `ClusterLeverage` for CR2/CR3, Vector of scalars for CR0/CR1)
 
@@ -1089,8 +1093,9 @@ estimator(k::CachedCR) = getfield(k, :estimator)
 """
     cache(k::CachedCR)
 
-Return the cache of `k`. Its type is internal; its use is to wrap the same cache with
-another estimator. A cache built by `CachedCR(k, ncols)` depends only on the clusters,
+Return the cache of `k`. Its use is to wrap the same cache with another estimator. Its
+type is internal, except that a cache built from a model is a
+[`CRModelCache`](@ref CovarianceMatrices.CRModelCache). A cache built by `CachedCR(k, ncols)` depends only on the clusters,
 so `CachedCR(CR0(clusters(k)), cache(k))` computes `CR0` on the clusters of `k` with
 the same buffers. A cache built by `CachedCR(k, model)` also holds adjustments for the
 type of `k`, and must stay with an estimator of that type.

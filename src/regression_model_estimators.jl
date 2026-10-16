@@ -409,6 +409,10 @@ function aVar(
         scaleby::Union{Nothing, Real} = nothing,
         prewhite::Bool = false,
         kwargs...)
+    # A model cache is handled here rather than by a method on `CachedCR`, which
+    # would be ambiguous with every `aVar(::CR, ::MyModel)` a modeling package defines.
+    k isa CachedCR && cache(k) isa CRModelCache &&
+        return _cached_model_aVar(k, m; scale, scaleby, prewhite)
     _check_resolved(k)
     _checkscale(scale)
     _checkprewhite(k, prewhite)
@@ -678,19 +682,11 @@ function residual_adjustment(k::CachedCR{<:CR, <:CRModelCache}, m::RegressionMod
     return c.leverage_adjustments
 end
 
-"""
-    aVar(k::CachedCR{<:CR, <:CRModelCache}, m::RegressionModel; scale=true, scaleby=nothing, kwargs...)
-
-Compute asymptotic variance using cached leverage adjustments.
-Only the residual-dependent parts are computed; leverage adjustments are reused from cache.
-"""
-function aVar(
-        k::CachedCR{<:CR, <:CRModelCache},
-        m::RegressionModel;
-        scale = true,
-        scaleby::Union{Nothing, Real} = nothing,
-        prewhite::Bool = false,
-        kwargs...)
+# `aVar(k, m)` for a cache built by `CachedCR(k, model)`: the leverage adjustments
+# come from the cache, and only the residual-dependent parts are computed.
+function _cached_model_aVar(
+        k::CachedCR{<:CR, <:CRModelCache}, m::RegressionModel;
+        scale, scaleby::Union{Nothing, Real}, prewhite::Bool)
     _checkscale(scale)
     _checkprewhite(k, prewhite)
     cache = k.cache
