@@ -146,8 +146,9 @@ Two patterns dominate the cost of HAC estimation:
 
 ## Numerical stability
 
-Some estimators (notably `QuadraticSpectral`) are not guaranteed positive
-semidefinite in finite samples. Check the result when it matters:
+The truncated and Tukey-Hanning kernels can give estimates that are not positive
+semidefinite in finite samples, because their spectral windows take negative values.
+Check the result when it matters:
 
 ```julia
 function stability_check(Ω; tolerance = 1e12)
@@ -158,12 +159,14 @@ function stability_check(Ω; tolerance = 1e12)
     return κ ≤ tolerance && min_eig ≥ -1e-10
 end
 
-Ω = aVar(QuadraticSpectral{Andrews}(), X)
+Ω = aVar(TukeyHanning{Andrews}(), X)
 stability_check(Ω)
 ```
 
-For guaranteed positive semidefinite results, prefer `VARHAC()`, the smoothed
-moment estimators (`UniformSmoother`, `TriangularSmoother`), or `EWC`.
+The Bartlett, Parzen and quadratic spectral kernels give positive semidefinite
+estimates, as do `VARHAC()`, the smoothed moment estimators (`UniformSmoother`,
+`TriangularSmoother`) and `EWC`. A positive semidefinite estimate can still be close to
+singular, so the condition-number check above remains useful.
 
 ## Profiling
 

@@ -54,7 +54,7 @@ k(x) = \begin{cases}
 
 **Properties:**
 
-- Induces Bartlett HAC asymptotically
+- Induces the Bartlett HAC kernel: up to end effects, `UniformSmoother(m_T)` equals `Bartlett(2m_T + 1)`
 - Simple computation
 - Good for moderate serial correlation
 
@@ -86,7 +86,7 @@ k(x) = \begin{cases}
 
 **Properties:**
 
-- Induces Parzen HAC asymptotically
+- Induces approximately the Parzen HAC kernel: `TriangularSmoother(m_T)` is close to `Parzen(2m_T + 1)`
 - Smoother weighting than uniform
 - Better for strong serial correlation
 
@@ -99,21 +99,24 @@ aVar(TriangularSmoother(5), X)
 
 ### Optimal Bandwidth Scaling
 
-The package implements optimal bandwidth scaling for each kernel:
+`optimalbw` returns a rule-of-thumb value for `m_T` that grows at the rate suited to
+each kernel:
 
 **Uniform Kernel:**
 
 ```math
-S_T^* = 2.0 \cdot T^{1/3}
+m_T^* = 2.0 \cdot T^{1/3}
 ```
 
 **Triangular Kernel:**
 
 ```math
-S_T^* = 1.5 \cdot T^{1/5}
+m_T^* = 1.5 \cdot T^{1/5}
 ```
 
-These rates are theoretically optimal for the respective kernels.
+The rates $T^{1/3}$ and $T^{1/5}$ are the mean-squared-error optimal rates for the
+induced Bartlett and Parzen kernels. The constants are fixed; they are not estimated
+from the data.
 
 ### Usage Examples
 
@@ -145,17 +148,20 @@ DataFrame(
 ```
 
 The smallest eigenvalue is positive in both cases: the smoothing construction gives
-a positive semi-definite estimate for any bandwidth, which the kernel HAC estimators
-do not guarantee.
+a positive semi-definite estimate for any bandwidth. Among the HAC kernels, the
+truncated and Tukey-Hanning kernels do not have this property.
 
 ## Comparison with HAC Estimators
 
 ### Theoretical Relationship
 
-Smoothed moments estimators are asymptotically equivalent to their HAC counterparts:
+Smoothing the moments and then taking outer products weights the sample
+autocovariances with the convolution of the smoothing kernel with itself:
 
-- `UniformSmoother(m_T)` ≡ `Bartlett{Andrews}()` (asymptotically)
-- `TriangularSmoother(m_T)` ≡ `Parzen{Andrews}()` (asymptotically)
+- `UniformSmoother(m_T)` equals `Bartlett(2m_T + 1)` up to end effects, which are of
+  order `m_T / T`.
+- `TriangularSmoother(m_T)` is close to `Parzen(2m_T + 1)`; the discrete weights
+  differ slightly from the Parzen weights.
 
 ### Empirical Comparison
 
@@ -420,44 +426,12 @@ bandwidth_diagnostic(X)
 
 ## Implementation Details
 
-### Kernel-Based Computation
-
-The implementation uses efficient kernel-based computation:
-
-```julia
-# Example of the kernel-based approach (conceptual)
-function smooth_moments_conceptual(G, kernel::UniformSmoother, bandwidth, T)
-    T_data, m = size(G)
-    max_lag = floor(Int, bandwidth)
-
-    result = similar(G)
-    for j in 1:m
-        for t in 1:T_data
-            smooth_val = 0.0
-            # Sum over bandwidth window with uniform weights
-            for lag in -max_lag:max_lag
-                source_idx = t - lag
-                if 1 ≤ source_idx ≤ T_data
-                    smooth_val += G[source_idx, j]
-                end
-            end
-            result[t, j] = smooth_val / bandwidth
-        end
-    end
-    return result
-end
-
-# The actual implementation is optimized with prefix sums for O(T) complexity
-```
-
-### Memory Optimization
-
-Key optimizations include:
-
-1. **No weight storage**: Weights computed on-the-fly
-2. **Temporary buffers**: Minimal memory usage
-3. **Column-wise processing**: Cache-friendly access patterns
-4. **In-place operations**: Reduced allocations
+The smoothed moments are computed column by column in O(T) operations, whatever the
+bandwidth. For the uniform kernel, each windowed sum is a difference of two prefix sums.
+For the triangular kernel, the windowed sum at `t + 1` is updated from the one at `t`
+by a combination of five prefix sums, which keeps the rounding error of the same size
+as for the uniform kernel. The smoothed moments are not divided by `S_T`; instead,
+`aVar` divides `G'G` by `∑_{|s|≤m_T} k(s/S_T)²` and by `T`.
 
 ## References
 

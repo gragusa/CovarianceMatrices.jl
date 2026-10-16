@@ -20,7 +20,8 @@ abstract type MomentSmoother <: AbstractAsymptoticVarianceEstimator end
 Uniform kernel smoother for Smith's smoothed moments HAC estimation.
 
 The uniform kernel is defined as k(x) = 1 if |x| ≤ 1, and 0 otherwise.
-This induces a Bartlett HAC kernel in the final variance estimator.
+The induced HAC kernel is Bartlett: up to end effects, `UniformSmoother(m_T)` gives the
+same estimate as `Bartlett(2m_T + 1)`.
 
 # Arguments
 - `m_T::Integer`: Bandwidth parameter (must be a non-negative integer).
@@ -45,7 +46,8 @@ end
 Triangular (Bartlett) kernel smoother for Smith's smoothed moments HAC estimation.
 
 The triangular kernel is defined as k(x) = (1 - |x|) if |x| ≤ 1, and 0 otherwise.
-This induces a Parzen HAC kernel in the final variance estimator.
+The induced HAC kernel is approximately Parzen: `TriangularSmoother(m_T)` gives an
+estimate close to `Parzen(2m_T + 1)`.
 
 # Arguments
 - `m_T::Integer`: Bandwidth parameter (must be a non-negative integer).
@@ -78,28 +80,11 @@ function kernel_func(k::TriangularSmoother, s::T) where {T <: Real}
     abs(x) ≤ one(T) ? one(T) - abs(x) : zero(T)
 end
 
-function k1hat(k::MomentSmoother)
-    mT = k.m_T
-    [kernel_func(k, s) for s in (-mT - 2):(mT + 2)]
-end
-
+# ∑ₛ k(s/S_T)² over the window |s| ≤ m_T, the normalization of the smoothed outer products.
 function k2hat(k::MomentSmoother)
     mT = k.m_T
     sum(abs2, (kernel_func(k, s) for s in (-mT):mT))
 end
-
-function k3hat(k::MomentSmoother)
-    mT = k.m_T
-    sum((kernel_func(k, s)^3 for s in (-mT - 2):(mT + 2)))
-end
-
-# Kernel constants k₂ = ∫ k(x)² dx (precomputed for efficiency)
-kernel_k1(::UniformSmoother) = 2.0     # ∫k(a) da = 2
-kernel_k2(::UniformSmoother) = 2.0     # ∫k(a)² da = 2
-kernel_k3(::UniformSmoother) = 2.0     # ∫k(a)³ da = 2
-kernel_k1(::TriangularSmoother) = 1.0  # ∫k(a) da = 1
-kernel_k2(::TriangularSmoother) = 2 / 3  # ∫k(a)² da = 2/3
-kernel_k3(::TriangularSmoother) = 1 / 2  # ∫k(a) da = 1/2
 
 """
     optimalbw(kernel::MomentSmoother, G::AbstractMatrix) -> Float64
@@ -127,232 +112,127 @@ _ratebw(::TriangularSmoother, T::Integer) = 1.5 * T^(1.0 / 5.0)
 """
     smooth_moments(G::AbstractMatrix, kernel::MomentSmoother) -> AbstractMatrix
 
-Apply kernel-based smoothing to moment matrix G.
+Return the smoothed moments of the T × k moment matrix `G` (observations in rows).
 
-This function implements Smith's (2005, 2011) smoothed moments approach for HAC estimation.
-Each row of G represents moment conditions at time t, and smoothing is applied to produce
-a smoothed moment matrix that automatically yields positive semi-definite variance estimates.
+Row `t` of the result is `∑ₛ k(s/S_T) G[t-s, :]`, summed over `|s| ≤ m_T` with
+`1 ≤ t-s ≤ T`, where `k` is the smoother's kernel and `S_T = (2m_T + 1)/2`. The factor
+`1/S_T` of Smith (2005) is not applied; `avar` normalizes the outer products by
+`∑ₛ k(s/S_T)²` instead.
 
-# Arguments
-- `G::AbstractMatrix`: T × k matrix of moment conditions, where T is sample size and k is
-  the number of moment conditions
-- `kernel::MomentSmoother`: Smoother object (UniformSmoother or TriangularSmoother) with
-  bandwidth parameter m_T
-
-# Returns
-- Smoothed moment matrix of the same size as G
-
-# Note
-The implementation uses prefix sums for O(T) complexity per column, making it efficient
-even for large sample sizes. For very large matrices, consider using the in-place version
-`smooth_moments!` to reduce allocations.
+Each column takes O(T) operations whatever the bandwidth. The result has a floating-point
+element type; `smooth_moments!` writes into a preallocated matrix.
 
 # Examples
 ```julia
-using CovarianceMatrices
-
-# Generate moment data
-T, k = 100, 3
-G = randn(T, k)
-
-# Uniform kernel smoothing
-smoother_u = UniformSmoother(5)
-G_smooth_u = smooth_moments(G, smoother_u)
-
-# Triangular kernel smoothing
-smoother_t = TriangularSmoother(5)
-G_smooth_t = smooth_moments(G, smoother_t)
+G = randn(100, 3)
+smooth_moments(G, UniformSmoother(5))
+smooth_moments(G, TriangularSmoother(5))
 ```
 """
-function smooth_moments(G::AbstractMatrix, kernel::T) where {T <: UniformSmoother}
-    return uniform_sum(G, kernel.m_T)
+function smooth_moments(G::AbstractMatrix, kernel::MomentSmoother)
+    return smooth_moments!(similar(G, float(eltype(G))), G, kernel)
 end
 
 """
-    smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::MomentSmoother) -> AbstractMatrix
+    smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::MomentSmoother) -> dest
 
-In-place version of `smooth_moments`. Stores the result in `dest`.
-
-This function applies kernel-based smoothing to moment matrix G, storing the result in the
-pre-allocated destination matrix `dest`. Use this for performance-critical code to avoid
-allocations.
-
-# Arguments
-- `dest::AbstractMatrix`: Pre-allocated T × k matrix to store the smoothed moments
-- `G::AbstractMatrix`: T × k matrix of moment conditions to be smoothed
-- `kernel::MomentSmoother`: Smoother object with bandwidth parameter m_T
+Store the smoothed moments of `G` in `dest`, which must have the size of `G`. See
+`smooth_moments`.
 
 # Examples
 ```julia
-using CovarianceMatrices
-
-# Generate moment data
-T, k = 100, 3
-G = randn(T, k)
-# Pre-allocate destination
+G = randn(100, 3)
 G_smooth = similar(G)
-# In-place smoothing
-smoother = UniformSmoother(5)
-smooth_moments!(G_smooth, G, smoother)
+smooth_moments!(G_smooth, G, UniformSmoother(5))
 ```
 """
-function smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::T) where {T <:
-                                                                                    UniformSmoother}
-    return uniform_sum!(dest, G, kernel.m_T)
-end
-
-function smooth_moments(G::AbstractMatrix, kernel::T) where {T <: TriangularSmoother}
-    return triangular_sum(G, kernel.m_T)
-end
-
-function smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::T) where {T <:
-                                                                                    TriangularSmoother}
-    return triangular_sum!(dest, G, kernel.m_T)
-end
-
-# ================
-# UNIFORM WINDOW
-# ================
-"""
-    uniform_sum(G::AbstractMatrix, m_T::Integer) -> AbstractMatrix
-
-Computes sum_{s=max(t-T,-m_T)}^{min(t-1,m_T)} G[t-s, j] using prefix sums for O(T) per column.
-"""
-function uniform_sum!(
-        dest::AbstractMatrix{T}, G::AbstractMatrix{<:Int}, m_T) where {T <: Real}
-    uniform_sum!(dest, float.(G), m_T)
-end
-
-function uniform_sum!(dest::AbstractMatrix{T}, G::AbstractMatrix{T}, m_T) where {T <: Real}
-    n, m = size(G)
-    @assert size(dest)==(n, m) "Destination matrix must have the same size as G, ($n, $m)"
-
-    P = Vector{T}(undef, n + 1)  # Single thread: one P vector is sufficient
+function smooth_moments!(dest::AbstractMatrix, G::AbstractMatrix, kernel::MomentSmoother)
+    Base.require_one_based_indexing(dest, G)
+    size(dest) == size(G) || throw(DimensionMismatch(
+        "`dest` has size $(size(dest)) but `G` has size $(size(G))"))
+    n = size(G, 1)
+    n == 0 && return dest
+    R = promote_type(float(eltype(G)), eltype(dest))
+    buffer = Vector{R}(undef, _bufferlength(kernel, n))
     for j in axes(G, 2)
-        _col_uniform_sum!(view(dest, :, j), view(G, :, j), m_T, P)
+        _smooth_column!(view(dest, :, j), view(G, :, j), kernel, buffer)
     end
-
     return dest
 end
 
-function uniform_sum(G::AbstractMatrix{<:Int}, m_T)
-    uniform_sum(float.(G), m_T)
-end
-
-function uniform_sum(G::AbstractMatrix{T}, m_T) where {T <: Real}
-    dest = similar(G)
-    return uniform_sum!(dest, G, m_T)
-end
-
-# One column, O(T) using prefix sums
-function _col_uniform_sum!(
-        dest::AbstractVector{T}, col::AbstractVector{T}, m_T, P) where {T <: Real}
+# Both kernels read the prefix sums P[i] = ∑ col[1:i-1] from a buffer padded with
+# P[i] = 0 for i < 1 and P[i] = P[n+1] for i > n + 1, which treats col as zero outside
+# 1:n. The window half-width is h = min(m, n - 1): a wider window covers no further
+# observations. Without padding, clamping each index to 1:(n + 1) makes the loops
+# several times slower.
+function _prefixsums!(buffer, col, h)
     n = length(col)
-    mT = Int(m_T)
-    # Build prefix sum
-    P[1] = zero(T)
-    @inbounds for i in eachindex(col)
-        P[i + 1] = P[i] + col[i]
+    # buffer[i + h + 1] holds P[i] for i in -h:(length(buffer) - h - 1).
+    o = h + 1
+    fill!(view(buffer, 1:(o + 1)), zero(eltype(buffer)))
+    for i in 1:n
+        buffer[i + o + 1] = buffer[i + o] + col[i]
     end
-    # Compute windowed sums
-    @inbounds for t in eachindex(col)
-        a = max(1, t - mT)
-        b = min(n, t + mT)
-        dest[t] = P[b + 1] - P[a]
-    end
-    return dest
+    fill!(view(buffer, (n + o + 2):length(buffer)), buffer[n + o + 1])
+    return buffer
 end
 
-# ==========================
-# TRIANGULAR (UNSCALED)
-# ==========================
-# Computes sum_{s=max(t-T,-m_T)}^{min(t-1,m_T)} (1 - 2s/D) * G[t-s, j]
-# which equals sum_{k=a}^{b} (1 - 2(t-k)/D) * G[k, j]
-# with D = 2m_T + 1. No outer factor 2/D is applied here.
+# Uniform window: dest[t] = ∑_{|s|≤h} col[t+s] = P[t+h+1] - P[t-h].
+_bufferlength(k::UniformSmoother, n) = n + 2min(k.m_T, n - 1) + 2
 
-"""
-    triangular_sum(G::AbstractMatrix, m_T::Integer) -> AbstractMatrix
-
-Computes triangular kernel smoothing using prefix sums for O(T) per column.
-"""
-function triangular_sum!(
-        dest::AbstractMatrix{T}, G::AbstractMatrix{<:Int}, m_T) where {T <: Real}
-    triangular_sum!(dest, float.(G), m_T)
-end
-
-function triangular_sum!(
-        dest::AbstractMatrix{T}, G::AbstractMatrix{T}, m_T) where {T <: Real}
-    n, m = size(G)
-    @assert size(dest)==(n, m) "Destination matrix must have the same size as G, ($n, $m)"
-
-    P = Vector{T}(undef, n + 1)
-    W = Vector{T}(undef, n + 1)
-    for j in axes(G, 2)
-        _col_triangular_sum_fma!(view(dest, :, j), view(G, :, j), m_T, P, W)
-    end
-
-    return dest
-end
-
-function triangular_sum(G::AbstractMatrix{<:Int}, m_T)
-    triangular_sum(float.(G), m_T)
-end
-
-function triangular_sum(G::AbstractMatrix{T}, m_T) where {T <: Real}
-    dest = similar(G)
-    return triangular_sum!(dest, G, m_T)
-end
-
-function _col_triangular_sum_fma!(
-        dest::AbstractVector{T}, col::AbstractVector{T}, m_T, P, W) where {T <: Real}
+function _smooth_column!(dest, col, kernel::UniformSmoother, buffer)
     n = length(col)
-    mT = Int(m_T)
-    scale = float(2) / float(2 * mT + 1)
-
-    # Build prefix sums
-    P[1] = zero(T)
-    W[1] = zero(T)
-    @inbounds for i in 1:n
-        P[i + 1] = P[i] + col[i]
-        W[i + 1] = W[i] + i * col[i]
+    h = min(kernel.m_T, n - 1)
+    _prefixsums!(buffer, col, h)
+    o = h + 1
+    for t in 1:n
+        dest[t] = buffer[t + h + 1 + o] - buffer[t - h + o]
     end
+    return dest
+end
 
-    @inbounds for t in 1:n
-        a = max(1, t - mT)
-        b = min(n, t + mT)
+# Triangular window: the weights are k(s/S_T) = (w - 2|s|)/w with w = 2m + 1. The
+# unscaled sum y_t = ∑_{|s|≤h} (w - 2|s|) col[t+s] satisfies
+#
+#     y_{t+1} - y_t = P[t+h+1] + P[t+h+2] - 4P[t+1] + P[t-h+1] + P[t-h].
+#
+# For h < m the window covers every observation, and the terms whose coefficient
+# depends on m are zero. The recursion only accumulates rounding errors of the size of
+# the window sums. A prefix sum weighted by the observation index, ∑ i⋅col[i], grows
+# like n^1.5 and loses that many digits to cancellation.
+_bufferlength(k::TriangularSmoother, n) = n + 2min(k.m_T, n - 1) + 3
 
-        Pa = P[a]
-        Pt = P[t]
-        Pb1 = P[b + 1]
-
-        Wa = W[a]
-        Wt = W[t]
-        Wb1 = W[b + 1]
-
-        # Left contribution using muladd
-        left_sum = Pt - Pa
-        left_weighted = Wt - Wa
-        left = muladd(-scale * t, left_sum, left_sum + scale * left_weighted)
-
-        # Right contribution using muladd
-        right_sum = Pb1 - P[t + 1]
-        right_weighted = Wb1 - W[t + 1]
-        right = muladd(scale * t, right_sum, right_sum - scale * right_weighted)
-
-        dest[t] = left + col[t] + right
+function _smooth_column!(dest, col, kernel::TriangularSmoother, buffer)
+    n = length(col)
+    m = kernel.m_T
+    h = min(m, n - 1)
+    R = eltype(buffer)
+    _prefixsums!(buffer, col, h)
+    o = h + 1
+    w = 2m + 1
+    y = zero(R)
+    for i in 1:(h + 1)
+        y += (w - 2(i - 1)) * col[i]
     end
-
+    c = inv(R(w))
+    dest[1] = c * y
+    for t in 1:(n - 1)
+        y += (buffer[t + h + 1 + o] + buffer[t + h + 2 + o]) - 4buffer[t + 1 + o] +
+             (buffer[t - h + 1 + o] + buffer[t - h + o])
+        dest[t + 1] = c * y
+    end
     return dest
 end
 
 """
     avar(kernel::MomentSmoother, X::AbstractMatrix; prewhite::Bool=false) -> Matrix
 
-Compute the asymptotic variance matrix using Smith's smoothed moments HAC estimator.
+Compute the unscaled asymptotic variance matrix of the moments `X` (observations in
+rows) with Smith's smoothed-moments estimator. [`aVar`](@ref) calls this method after
+demeaning and divides the result by the number of observations.
 
-This estimator smooths moments first, then computes outer products, automatically yielding
-a positive semi-definite HAC covariance matrix. This is superior to traditional HAC estimators
-which can produce non-PSD matrices in finite samples.
+The estimator smooths the moments first and then takes outer products, so the estimate
+is positive semidefinite for every bandwidth.
 
 # Arguments
 - `kernel::MomentSmoother`: Smoother object (UniformSmoother or TriangularSmoother) specifying
@@ -362,29 +242,22 @@ which can produce non-PSD matrices in finite samples.
   finite sample performance for highly autocorrelated data)
 
 # Returns
-- k × k asymptotic variance matrix Ω̂
+- k × k matrix `G'G / k̂₂`
 
 # Algorithm
 1. Optionally prewhiten X using VAR(1) fit
-2. Smooth the (possibly prewhitened) moments using the specified kernel
-3. Compute variance as V = (1/k₂) * G'G where G is smoothed moments and k₂ is kernel constant
+2. Smooth the (possibly prewhitened) moments with `smooth_moments`
+3. Compute `V = G'G / k̂₂`, where `G` is the smoothed moments and
+   `k̂₂ = ∑_{|s|≤m_T} k(s/S_T)²`
 4. Transform back if prewhitened: V = (I - D')^(-1) V (I - D')^(-1)'
 
 # Examples
 ```julia
 using CovarianceMatrices
 
-# Generate moment data
-T, k = 500, 3
-X = randn(T, k)
-
-# Compute variance with uniform smoother
-smoother_u = UniformSmoother(5)
-Ω_u = aVar(smoother_u, X)
-
-# Compute variance with triangular smoother and prewhitening
-smoother_t = TriangularSmoother(5)
-Ω_t = aVar(smoother_t, X; prewhite=true)
+X = randn(500, 3)
+Ω_u = aVar(UniformSmoother(5), X)
+Ω_t = aVar(TriangularSmoother(5), X; prewhite=true)
 ```
 
 # References
@@ -397,20 +270,10 @@ Econometric Theory, 27(6), 1192-1235.
 function avar(
         k::MomentSmoother, X::AbstractMatrix{F}; prewhite::Bool = false) where {F <:
                                                                                 Real}
-    # Apply prewhitening if requested (using same approach as HAC)
     Z, D = finalize_prewhite(X, Val(prewhite))
-    T, m = size(Z)
-
-    # Smooth the (possibly prewhitened) moments using kernel-based approach
-    # Use threading automatically for large samples (T > 800) or if explicitly requested
-    G_smoothed = smooth_moments(Z, k)
-
-    ## The normaliation is k₂*S_T where
-    k₂ = k2hat(k)
-    #sT = S_T(k)
-    # Compute variance: Ω̂ = c * (G^T)' * G^T (scaling by T handled by aVar)
-    V = Matrix{float(F)}(undef, m, m)
-    mul!(V, G_smoothed', G_smoothed, 1 / (k₂), 0.0)
+    G = smooth_moments(Z, k)
+    V = G' * G
+    rdiv!(V, k2hat(k))
 
     # Transform back if prewhitened: V_final = (I - D')^(-1) * V * (I - D')^(-1)'
     if prewhite

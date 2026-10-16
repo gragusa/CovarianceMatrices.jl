@@ -400,6 +400,7 @@ function optimalbw(
         means::Union{Nothing, AbstractArray} = nothing,
         prewhite::Bool = false
 ) where {T <: Union{Andrews, NeweyWest}}
+    Base.require_one_based_indexing(m)
     X = demean ? demeaner(m; means = means, dims = dims) : m
     _, _, bw = workingoptimalbw(k, X; prewhite = prewhite)
     return bw
@@ -600,15 +601,14 @@ Fit AR(1) models separately for each column: yₜⱼ = ρⱼ yₜ₋₁ⱼ + ε�
 
 """
 function fit_ar(Z::AbstractMatrix{T}) where {T}
-    A = parent(Z)
-    n, p = size(A)
+    n, p = size(Z)
     rho = Vector{T}(undef, p)
     σ⁴ = similar(rho)
     xy = Vector{T}(undef, n - 1)
 
-    for j in axes(A, 2)
-        y = A[2:lastindex(A, 1), j]
-        x = A[1:(lastindex(A, 1) - 1), j]
+    for j in axes(Z, 2)
+        y = Z[2:lastindex(Z, 1), j]
+        x = Z[1:(lastindex(Z, 1) - 1), j]
 
         # Handle constant columns
         allequal(x) && (rho[j] = 0; σ⁴[j] = 0; continue)
@@ -645,7 +645,7 @@ function prewhiter(M::AbstractMatrix{T}, prewhite::Bool) where {T <: Real}
         return fit_var(M)
     else
         if eltype(M) ∈ (Float32, Float64)
-            return (M::Matrix{T}, Matrix{T}(undef, 0, 0))
+            return (M, Matrix{T}(undef, 0, 0))
         else
             return (float(M), zeros(0, 0))
         end

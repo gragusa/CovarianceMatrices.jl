@@ -28,6 +28,7 @@ include("test_show.jl")
 include("test_result_paths.jl")
 include("test_fail_fast.jl")
 include("test_generic_eltypes.jl")
+include("test_generic_axes.jl")
 include("test_regression_protocol.jl")
 
 println("\n" * "="^70)

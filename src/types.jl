@@ -1580,6 +1580,7 @@ end
 # Group codes follow the sort order of the identifiers, so that code `t` is the
 # `t`-th period in time: the kernel weights depend on the distance between codes.
 function _sorted_clustering(v::AbstractVector)
+    Base.require_one_based_indexing(v)
     u = sort!(unique(v))
     return Clustering(Int[searchsortedfirst(u, x) for x in v], length(u))
 end

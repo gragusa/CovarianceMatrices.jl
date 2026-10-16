@@ -14,6 +14,7 @@ using LinearAlgebra
 using Statistics
 using StableRNGs
 using Random
+using OffsetArrays
 
 # Direct O(T·m_T) smoothers, the reference for the prefix-sum implementations.
 """
@@ -203,11 +204,6 @@ end
             @test CovarianceMatrices.kernel_func(k, -2.0) == 1.0
             @test CovarianceMatrices.kernel_func(k, 3.1) == 0.0
             @test CovarianceMatrices.kernel_func(k, -3.1) == 0.0
-
-            # Test kernel constant k₂
-            @test CovarianceMatrices.kernel_k1(k) == 2.0
-            @test CovarianceMatrices.kernel_k2(k) == 2.0
-            @test CovarianceMatrices.kernel_k3(k) == 2.0
         end
 
         @testset "TriangularSmoother" begin
@@ -221,10 +217,6 @@ end
             @test CovarianceMatrices.kernel_func(k, -1.0) ≈ 1 - 1.0 / 2.5
             @test CovarianceMatrices.kernel_func(k, 3.1) == 0.0
             @test CovarianceMatrices.kernel_func(k, -3.1) == 0.0
-
-            @test CovarianceMatrices.kernel_k1(k) == 1.0
-            @test CovarianceMatrices.kernel_k2(k) == 2 / 3
-            @test CovarianceMatrices.kernel_k3(k) == 1 / 2
         end
     end
 
@@ -361,20 +353,22 @@ end
     end
 
     @testset "Smoothing aVar" begin
-        @testset "UniformSmoother" begin
-            X = randn(rng, 50000, 3)
-            A = aVar(Bartlett(12), X)  # Warm-up
-            B = aVar(CovarianceMatrices.UniformSmoother(11), X)  # Warm-up
-            @test A ≈ B atol=1e-1
+        # MA(1) moments, so that the autocovariances at lags 0 and 1 are nonzero.
+        e = randn(rng, 50001, 3)
+        X = e[2:end, :] .+ 0.6 .* e[1:(end - 1), :]
+        @testset "UniformSmoother matches Bartlett(2m_T + 1)" begin
+            for m_T in (2, 8)
+                A = aVar(Bartlett(2m_T + 1), X)
+                B = aVar(CovarianceMatrices.UniformSmoother(m_T), X)
+                @test B ≈ A rtol=1e-3
+            end
         end
-        @testset "TriangularSmoother" begin
-            X = randn(rng, 50000, 3)
-            A = aVar(Parzen(12), X)  # Warm-up
-            B = aVar(CovarianceMatrices.TriangularSmoother(11), X)  # Warm-up
-            @test A ≈ B atol=1e-1
-            ## Test inplace and out-of-place smoothing
-            ## THEY SHOULD GIVE THE SAME RESULTS EVEN WHEN RUNNED MULTIPLE TIMES
-            ## Using G̃triangular from previous test for which we know the smoothing
+        @testset "TriangularSmoother is close to Parzen(2m_T + 1)" begin
+            for m_T in (3, 8)
+                A = aVar(Parzen(2m_T + 1), X)
+                B = aVar(CovarianceMatrices.TriangularSmoother(m_T), X)
+                @test B ≈ A rtol=1e-2
+            end
         end
     end
 
@@ -640,48 +634,19 @@ end
     end
 
     @testset "Integer Input Dispatch" begin
-        # Test that Int matrices are properly converted to Float and processed correctly
-        # These tests cover the Int dispatch wrappers: uniform_sum!, uniform_sum,
-        # triangular_sum!, triangular_sum with Int input
-
-        @testset "uniform_sum with Int input" begin
-            # Create an Int matrix
+        @testset "smooth_moments! with Int input" begin
             G_int = [1 11; 2 12; 3 13; 4 14; 5 15; 6 16; 7 17; 8 18; 9 19; 10 20]
             G_float = Float64.(G_int)
-            m_T = 3
+            for k in (CovarianceMatrices.UniformSmoother(3),
+                CovarianceMatrices.TriangularSmoother(3))
+                result_int = CovarianceMatrices.smooth_moments(G_int, k)
+                @test result_int ≈ CovarianceMatrices.smooth_moments(G_float, k)
+                @test eltype(result_int) <: AbstractFloat
 
-            # Test out-of-place version
-            result_int = CovarianceMatrices.uniform_sum(G_int, m_T)
-            result_float = CovarianceMatrices.uniform_sum(G_float, m_T)
-            @test result_int ≈ result_float
-            @test eltype(result_int) <: AbstractFloat
-
-            # Test in-place version
-            dest_from_int = zeros(Float64, size(G_int))
-            dest_from_float = zeros(Float64, size(G_float))
-            CovarianceMatrices.uniform_sum!(dest_from_int, G_int, m_T)
-            CovarianceMatrices.uniform_sum!(dest_from_float, G_float, m_T)
-            @test dest_from_int ≈ dest_from_float
-        end
-
-        @testset "triangular_sum with Int input" begin
-            # Create an Int matrix
-            G_int = [1 11; 2 12; 3 13; 4 14; 5 15; 6 16; 7 17; 8 18; 9 19; 10 20]
-            G_float = Float64.(G_int)
-            m_T = 3
-
-            # Test out-of-place version
-            result_int = CovarianceMatrices.triangular_sum(G_int, m_T)
-            result_float = CovarianceMatrices.triangular_sum(G_float, m_T)
-            @test result_int ≈ result_float
-            @test eltype(result_int) <: AbstractFloat
-
-            # Test in-place version
-            dest_from_int = zeros(Float64, size(G_int))
-            dest_from_float = zeros(Float64, size(G_float))
-            CovarianceMatrices.triangular_sum!(dest_from_int, G_int, m_T)
-            CovarianceMatrices.triangular_sum!(dest_from_float, G_float, m_T)
-            @test dest_from_int ≈ dest_from_float
+                dest = zeros(Float64, size(G_int))
+                CovarianceMatrices.smooth_moments!(dest, G_int, k)
+                @test dest ≈ result_int
+            end
         end
 
         @testset "smooth_moments with Int input via smoother API" begin
@@ -704,8 +669,6 @@ end
     end
 
     @testset "Kernel Statistics Functions" begin
-        # Test k1hat, k2hat, k3hat for correctness
-
         @testset "k2hat" begin
             # k2hat is used in avar, verify it computes sum of squared kernel values
             k_uniform = CovarianceMatrices.UniformSmoother(2)
@@ -724,54 +687,78 @@ end
             # Total = 0.04 + 0.36 + 1.0 + 0.36 + 0.04 = 1.8
             @test CovarianceMatrices.k2hat(k_triangular) ≈ 1.8
         end
+    end
 
-        @testset "k1hat" begin
-            # k1hat returns kernel function values over extended range [-m_T-2, m_T+2]
-            k_uniform = CovarianceMatrices.UniformSmoother(2)
-            k_triangular = CovarianceMatrices.TriangularSmoother(2)
+    @testset "smooth_moments! argument checks" begin
+        G = randn(rng, 20, 3)
+        k = CovarianceMatrices.UniformSmoother(2)
+        @test_throws DimensionMismatch CovarianceMatrices.smooth_moments!(zeros(19, 3), G, k)
+        @test_throws "`dest` has size (19, 3) but `G` has size (20, 3)" CovarianceMatrices.smooth_moments!(
+            zeros(19, 3), G, k)
 
-            k1_uniform = CovarianceMatrices.k1hat(k_uniform)
-            k1_triangular = CovarianceMatrices.k1hat(k_triangular)
-
-            # For uniform with m_T=2, S_T=2.5, kernel is 1 for |s/S_T| <= 1
-            # Range is s in [-4, 4], so 9 values
-            @test length(k1_uniform) == 9  # -4,-3,-2,-1,0,1,2,3,4
-
-            # Kernel is 1 for |s| <= S_T = 2.5, i.e., s in {-2,-1,0,1,2}
-            # Expected: [0,0,1,1,1,1,1,0,0] for s=-4,-3,-2,-1,0,1,2,3,4
-            @test k1_uniform == [0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0]
-
-            # For triangular, similar range check
-            @test length(k1_triangular) == 9
-            # Kernel is (1 - |s|/S_T) for |s| <= S_T, 0 otherwise
-            # At s=0: 1.0, s=±1: 0.6, s=±2: 0.2, s=±3,±4: 0.0
-            @test k1_triangular[5] ≈ 1.0  # s=0
-            @test k1_triangular[4] ≈ 0.6  # s=-1
-            @test k1_triangular[6] ≈ 0.6  # s=1
-            @test k1_triangular[3] ≈ 0.2  # s=-2
-            @test k1_triangular[7] ≈ 0.2  # s=2
-            @test k1_triangular[1] == 0.0  # s=-4
-            @test k1_triangular[9] == 0.0  # s=4
+        # The destination may have a different element type than the moments.
+        for k in (CovarianceMatrices.UniformSmoother(2),
+            CovarianceMatrices.TriangularSmoother(2))
+            dest = zeros(Float32, size(G))
+            CovarianceMatrices.smooth_moments!(dest, G, k)
+            @test dest ≈ CovarianceMatrices.smooth_moments(G, k)
         end
 
-        @testset "k3hat" begin
-            # k3hat computes sum of cubed kernel values over extended range
-            k_uniform = CovarianceMatrices.UniformSmoother(2)
-            k_triangular = CovarianceMatrices.TriangularSmoother(2)
+        for k in (CovarianceMatrices.UniformSmoother(2),
+            CovarianceMatrices.TriangularSmoother(2))
+            @test size(CovarianceMatrices.smooth_moments(zeros(0, 3), k)) == (0, 3)
+        end
+    end
 
-            # For uniform kernel, k(s)^3 = 1 where kernel is 1, so same as counting
-            # s in [-4,4], kernel is 1 for s in [-2,2], so 5 values
-            @test CovarianceMatrices.k3hat(k_uniform) == 5.0
+    @testset "Bandwidth larger than the sample" begin
+        G = randn(rng, 6, 2)
+        for m_T in (5, 6, 50, 10^9)
+            @test CovarianceMatrices.smooth_moments(G, CovarianceMatrices.UniformSmoother(m_T)) ≈
+                  smooth_uniform(G, m_T)
+            @test CovarianceMatrices.smooth_moments(G, CovarianceMatrices.TriangularSmoother(m_T)) ≈
+                  smooth_triangular(G, m_T)
+        end
+    end
 
-            # For triangular: sum of (1 - |s|/S_T)^3 for s in [-4, 4] where kernel > 0
-            # Only s in [-2,2] contribute since |s|/S_T <= 1 means |s| <= 2.5
-            # s=-2: 0.2^3 = 0.008
-            # s=-1: 0.6^3 = 0.216
-            # s=0:  1.0^3 = 1.0
-            # s=1:  0.6^3 = 0.216
-            # s=2:  0.2^3 = 0.008
-            # Total = 0.008 + 0.216 + 1.0 + 0.216 + 0.008 = 1.448
-            @test CovarianceMatrices.k3hat(k_triangular) ≈ 1.448
+    @testset "Accuracy on long series" begin
+        # Float32 rounding must not grow faster than the prefix sums of the moments.
+        G32 = randn(rng, Float32, 10^6, 1)
+        G64 = Float64.(G32)
+        for k in (CovarianceMatrices.UniformSmoother(20),
+            CovarianceMatrices.TriangularSmoother(20))
+            ref = CovarianceMatrices.smooth_moments(G64, k)
+            err = maximum(abs, CovarianceMatrices.smooth_moments(G32, k) .- ref)
+            @test err / maximum(abs, ref) < 1e-3
+        end
+        # Float64 against the direct sum on the last rows of the sample.
+        k = CovarianceMatrices.TriangularSmoother(20)
+        tail = smooth_triangular(G64[(end - 200):end, :], 20)[(end - 50):end, :]
+        @test CovarianceMatrices.smooth_moments(G64, k)[(end - 50):end, :] ≈ tail rtol=1e-12
+    end
+
+    @testset "Array wrappers and offset axes" begin
+        G = randn(rng, 30, 3)
+        # The same moments inside a larger array, every other row, and as an adjoint.
+        big = randn(rng, 70, 5)
+        big[11:40, 2:4] = G
+        spaced = zeros(60, 3)
+        spaced[1:2:end, :] = G
+        wrapped = (view(big, 11:40, 2:4), view(spaced, 1:2:59, :), copy(G')')
+        for k in (UniformSmoother(3), TriangularSmoother(3))
+            ref = CovarianceMatrices.smooth_moments(G, k)
+            for A in wrapped
+                @test CovarianceMatrices.smooth_moments(A, k) ≈ ref
+                @test aVar(k, A) ≈ aVar(k, G)
+            end
+            D = zeros(40, 3)
+            CovarianceMatrices.smooth_moments!(view(D, 6:35, :), G, k)
+            @test D[6:35, :] ≈ ref
+
+            @test_throws "offset arrays are not supported" CovarianceMatrices.smooth_moments(
+                OffsetArray(G, -1, 0), k)
+            @test_throws "offset arrays are not supported" CovarianceMatrices.smooth_moments!(
+                OffsetArray(similar(G), 5, 0), G, k)
+            @test_throws "offset arrays are not supported" aVar(k, OffsetArray(G, -1, 0))
         end
     end
 

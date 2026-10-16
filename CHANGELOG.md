@@ -26,8 +26,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In the VARHAC lag search, the pseudo-inverse fallback for a cross-product
   matrix that is not positive definite was applied to the matrix after
   `cholesky!` had partly overwritten it. It now uses the original matrix.
+- `TriangularSmoother` lost precision on long series: its weighted prefix sum
+  grew like `T^1.5`. At `T = 10^6`, `Float32` results were meaningless and
+  `Float64` results lost about 8 digits. The smoothed moments are now computed
+  with ordinary prefix sums; the `Float32` relative error at `T = 10^6` is about
+  `1e-4`, as for `UniformSmoother`.
+- With an Andrews bandwidth and `demean = false`, `aVar` on a view fitted the
+  bandwidth's AR(1) models to the view's parent array. A view of a subset of rows
+  gave a wrong estimate; a view of a subset of columns threw a
+  `DimensionMismatch`.
+- `optimalbw` with an Andrews or Newey-West bandwidth threw a `TypeError` on a
+  view.
+- Cluster identifiers given as an `OffsetArray` were written out of bounds and
+  could crash Julia. `CR0`–`CR3`, `Cluster` and `DriscollKraay` now throw an
+  `ArgumentError` for offset identifiers, as `aVar` and `optimalbw` do for an
+  offset moment matrix.
+- The documentation stated that the quadratic spectral kernel can give an
+  estimate that is not positive semidefinite. It cannot; the truncated and
+  Tukey-Hanning kernels can.
 
 ### Changed
+
+- `UniformSmoother` and `TriangularSmoother` are faster. At `T = 200,000`,
+  `k = 10`, `aVar` takes 3.6 ms (uniform, `m_T = 117`) and 4.8 ms (triangular,
+  `m_T = 17`), compared with 4.9 ms and 9.1 ms before.
 
 - `CR2` and `CR3` compute each cluster's adjustment from `k × k` matrices
   (`k` coefficients) instead of an `n_g × n_g` one: an eigendecomposition for

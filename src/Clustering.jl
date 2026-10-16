@@ -49,6 +49,7 @@ cl.ngroups # 3
 ```
 """
 function Clustering(v::AbstractVector)
+    Base.require_one_based_indexing(v)
     n = length(v)
     groups = Vector{Int}(undef, n)
     groupmap = Dict{eltype(v), Int}()

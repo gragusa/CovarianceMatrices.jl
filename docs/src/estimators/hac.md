@@ -59,7 +59,7 @@ A smoother, higher-order kernel that is also positive semi-definite.
 k(x) = \frac{25}{12\pi^2 x^2}\left[\frac{\sin(6\pi x/5)}{6\pi x/5} - \cos(6\pi x/5)\right]
 ```
 
-Unbounded support; Andrews (1991) shows it minimizes the asymptotic mean squared error among kernels in its class.
+Unbounded support; Andrews (1991) shows it minimizes the asymptotic mean squared error among kernels in its class. Its spectral window is nonnegative, so the estimate is positive semi-definite.
 
 Every lag enters the estimate, so the package computes it as $Z' K Z$, where $K$ is
 the $T \times T$ Toeplitz matrix with entries $k(|s - t| / S_T)$. For `Float32` and
@@ -80,6 +80,8 @@ Equal weights up to the bandwidth. It does not guarantee a positive semi-definit
 ```math
 k(x) = \begin{cases} \frac{1 + \cos(\pi x)}{2} & |x| \leq 1 \\ 0 & \text{otherwise} \end{cases}
 ```
+
+Its spectral window takes negative values, so it does not guarantee a positive semi-definite estimate.
 
 ## Bandwidth Selection
 
