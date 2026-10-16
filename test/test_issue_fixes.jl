@@ -1,7 +1,7 @@
 ## Regression tests for three latent issues fixed together:
 ##
-##  1. `Uncorrelated()` had no `avar`/`residual_adjustment` methods and errored on
-##     both matrices and models. It now behaves like HC0/HR0 (White's estimator).
+##  1. `Uncorrelated()` works on both matrices and models: on a matrix it has the
+##     HR0 meat, on a model it is the iid variance.
 ##  2. `Cluster` is the clustering counterpart of `Uncorrelated` and equals `CR0`
 ##     on both matrices and models. On a bare matrix the CR variants carry no
 ##     finite-sample correction, so passing `CR1`–`CR3` with a matrix throws.
@@ -28,9 +28,9 @@ const CM = CovarianceMatrices
     clusters2 = repeat(1:4, outer = n ÷ 4)         # length n, second dimension
 
     # -----------------------------------------------------------------
-    # 1. `Uncorrelated` behaves like HC0 / HR0 (White's estimator)
+    # 1. `Uncorrelated` is HR0 on a matrix and the iid variance on a model
     # -----------------------------------------------------------------
-    @testset "Uncorrelated == HC0/HR0" begin
+    @testset "Uncorrelated: HR0 on a matrix, iid on a model" begin
         Z = randn(StableRNG(1), 120, 3)
 
         # Matrix interface: same meat as HC0/HR0 for every `scale` setting.
@@ -43,9 +43,10 @@ const CM = CovarianceMatrices
         @test aVar(Uncorrelated(), Z; scaleby = size(Z, 1) - 1) ≈
               aVar(Uncorrelated(), Z; scale = false) ./ (size(Z, 1) - 1)
 
-        # Model interface: identical to White's HC0.
-        @test vcov(Uncorrelated(), model) ≈ vcov(HC0(), model)
-        @test stderror(Uncorrelated(), model) ≈ stderror(HC0(), model)
+        # Model interface: the iid variance σ̂²(X'X)⁻¹, which is GLM's own vcov.
+        @test vcov(Uncorrelated(), model) ≈ vcov(model)
+        @test stderror(Uncorrelated(), model) ≈ stderror(model)
+        @test !(vcov(Uncorrelated(), model) ≈ vcov(HC0(), model))
     end
 
     # -----------------------------------------------------------------

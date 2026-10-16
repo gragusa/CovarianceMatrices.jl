@@ -946,6 +946,76 @@ end # Core Functionality Tests
         end
     end
 
+    @testset "Uncorrelated on a model against R vcov ✅" begin
+        # Reference values: R 4.x, vcov(m) of lm/glm on the same data, with
+        # glm.control(epsilon = 1e-14, maxit = 100); the R data steps mirror the
+        # Julia ones below.
+        pet = CSV.read(joinpath(datadir, "testdata/PetersenCl.csv"), DataFrame)
+        n = nrow(pet)
+        pet.w = 0.5 .+ mod.(1:n, 10) ./ 10
+        pet.yp = round.(exp.(0.3 .* pet.x) .* 2)
+        pet.yg = exp.(0.2 .* pet.x) .+ 0.1 .+ mod.(1:n, 7) ./ 7
+        pet.yb = Int.(pet.y .> 0)
+        tol = (; rtol = 1e-14, atol = 1e-14, maxiter = 200)
+        cases = [
+            (lm(@formula(y ~ x), pet),
+                [0.0008042508190560289 -4.3883655066649262e-06;
+                 -4.3883655066649262e-06 0.00081700434095932726]),
+            (lm(@formula(y ~ x), pet; wts = pet.w),
+                [0.0008030228233508644 -2.4024159743623338e-06;
+                 -2.4024159743623338e-06 0.00081305475276571457]),
+            (glm(@formula(yp ~ x), pet, Poisson(); tol...),
+                [0.0001045926542609654 -2.993820502570676e-05;
+                 -2.993820502570676e-05 9.8593837726224635e-05]),
+            (glm(@formula(yg ~ x), pet, Gamma(), LogLink(); tol...),
+                [7.1118000053945549e-06 -3.8805279515417797e-08;
+                 -3.8805279515417797e-08 7.2245763868313001e-06]),
+            (glm(@formula(yb ~ x), pet, Binomial(); tol...),
+                [0.00091496731289473034 8.4978197323365323e-07;
+                 8.4978197323365323e-07 0.001197888825560549]),
+            (glm(@formula(yg ~ x), pet, Gamma(), LogLink(); wts = pet.w, tol...),
+                [7.1370688746337519e-06 -2.1352080882329602e-08;
+                 -2.1352080882329602e-08 7.2262301899753039e-06])]
+        for (i, (model, R)) in enumerate(cases)
+            V = vcov(Uncorrelated(), model)
+            @test V isa CovarianceMatrix
+            @test V ≈ R rtol = 1e-10
+            @test stderror(Uncorrelated(), model) ≈ sqrt.(diag(R)) rtol = 1e-10
+            # dofadjust = false divides by n instead of n - K, except for families
+            # with a fixed dispersion (Poisson, Binomial), which have no divisor.
+            fixed = i in (3, 5)
+            @test vcov(Uncorrelated(), model; dofadjust = false) ≈
+                  (fixed ? 1 : (n - 2) / n) .* R rtol = 1e-10
+            # The meat reproduces the uncorrected variance through the sandwich.
+            B = CovarianceMatrices.bread(model)
+            @test n .* B * aVar(Uncorrelated(), model) * B ≈
+                  vcov(Uncorrelated(), model; dofadjust = false) rtol = 1e-10
+        end
+        # Unweighted, GLM.jl's vcov is the same estimator.
+        @test vcov(Uncorrelated(), cases[1][1]) ≈ vcov(cases[1][1]) rtol = 1e-12
+        @test vcov(Uncorrelated(), cases[4][1]) ≈ vcov(cases[4][1]) rtol = 1e-12
+        # Keywords that do not apply to the iid variance are rejected.
+        @test_throws "does not take the keyword(s) `prewhite`" vcov(
+            Uncorrelated(), cases[1][1]; prewhite = true)
+        @test_throws "does not take the keyword(s) `typo`" aVar(
+            Uncorrelated(), cases[1][1]; typo = 1)
+        @test_throws "`demean` and `prewhite` do not apply" aVar(
+            Uncorrelated(), cases[1][1]; demean = true)
+    end
+
+    @testset "Long-run variance estimators share the n/(n-K) correction ✅" begin
+        pet = CSV.read(joinpath(datadir, "testdata/PetersenCl.csv"), DataFrame)
+        m = lm(@formula(y ~ x), pet)
+        n, K = nrow(pet), 2
+        for k in (Bartlett(3), Parzen(5), EWC(5), VARHAC(), UniformSmoother(3),
+                  TriangularSmoother(3))
+            V0 = vcov(k, m; dofadjust = false)
+            @test vcov(k, m) ≈ n / (n - K) .* V0 rtol = 1e-12
+            @test V0 ≈ n .* CovarianceMatrices.bread(m) * aVar(k, m) *
+                       CovarianceMatrices.bread(m) rtol = 1e-12
+        end
+    end
+
     @testset "CR2/CR3 against R: unsorted clusters, weights, GLMs ✅" begin
         # Reference values: sandwich 3.1.1,
         # vcovCL(m, cluster = ~cl, type = "HC2") and type = "HC3".

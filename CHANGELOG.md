@@ -51,6 +51,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   estimate that is not positive semidefinite. It cannot; the truncated and
   Tukey-Hanning kernels can.
 
+### Breaking
+
+- `vcov(Uncorrelated(), model)` on a `RegressionModel` is the iid variance
+  `s² · bread(model)`, as the `Uncorrelated` docstring describes, instead of
+  White's HC0. For least squares `s² = RSS / (n - K)`, which equals R's
+  `vcov(lm(...))`, with or without weights; for a GLM the result equals R's
+  `vcov(glm(...))`. `dofadjust = false` divides by `n` instead of `n - K`.
+  `aVar(Uncorrelated(), model)` returns the matching meat. On a matrix,
+  `aVar(Uncorrelated(), X)` is unchanged.
+- `vcov` on a `RegressionModel` multiplies the `EWC`, `VARHAC`,
+  `UniformSmoother` and `TriangularSmoother` variances by `n / (n - K)`, as it
+  already did for the HAC kernels; `dofadjust = false` leaves the factor out.
+
 ### Changed
 
 - `UniformSmoother` and `TriangularSmoother` are faster. At `T = 200,000`,

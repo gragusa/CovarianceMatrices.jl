@@ -59,6 +59,22 @@ CM.bread(m::GLMGeneralizedLinearModel) = GLM.invchol(m.pp) .* _dispersion(m)
 CM.hessian_objective(m::GLMLinearModel) = Matrix(m.pp)
 CM.hessian_objective(m::GLMGeneralizedLinearModel) = Matrix(m.pp) ./ _dispersion(m)
 
+# `bread` of a GLM carries `_dispersion(m)`, which is not the dispersion of the iid
+# variance (for Bernoulli it is estimated, but the family fixes it at 1), so the iid
+# factor replaces it: the Pearson dispersion `sum(wrkwt .* wrkresid.^2) / (n - K)` for
+# families that estimate one, 1 for the others. This is R's `vcov(glm(...))`.
+function CM._iid_dispersion(m::GLMGeneralizedLinearModel, dofadjust::Bool)
+    rr = m.rr
+    φ = if GLM.dispersion_parameter(rr.d)
+        sum(i -> rr.wrkwt[i] * abs2(rr.wrkresid[i]), eachindex(rr.wrkwt, rr.wrkresid)) /
+        CM._iid_divisor(m, dofadjust)
+    else
+        1.0
+    end
+    return φ / _dispersion(m)
+end
+CM._iid_dispersion(m::GLMTableModel, dofadjust::Bool) = CM._iid_dispersion(m.model, dofadjust)
+
 ##=================================================
 ## momentresiduals: weighted working residuals
 ##=================================================

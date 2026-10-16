@@ -101,9 +101,6 @@ numobs(m) = size(modelmatrix(m), 1)
 @noinline residual_adjustment(k::VARHAC, r::RegressionModel) = 1.0
 @noinline residual_adjustment(k::MomentSmoother, r::RegressionModel) = 1.0
 
-# `Uncorrelated` behaves like HC0/HR0 on a fitted model (White's estimator).
-@noinline residual_adjustment(k::Uncorrelated, r::RegressionModel) = 1.0
-
 # HC0/HR0: No adjustment
 @noinline residual_adjustment(k::HR0, r::RegressionModel) = 1.0
 
@@ -370,6 +367,11 @@ Compute the asymptotic variance matrix for the parameters of a `RegressionModel`
 
 This is the generic implementation that works with any model implementing the RegressionModel protocol.
 
+For `Uncorrelated()` the result is the meat of the iid variance, `s² · inv(bread(model))`
+divided by `n`, with `s² = RSS / n` (see `vcov`); `n · bread · aVar · bread` then equals
+`vcov(Uncorrelated(), model; dofadjust = false)`. `demean` and `prewhite` do not apply
+and throw an `ArgumentError` when set.
+
 """
 function aVar(
         k::AbstractAsymptoticVarianceEstimator,
@@ -379,6 +381,8 @@ function aVar(
         scale = true,
         scaleby::Union{Nothing, Real} = nothing,
         kwargs...)
+    k isa Uncorrelated &&
+        return _iid_aVar(k, m; demean, prewhite, scale, scaleby, kwargs...)
     _check_resolved(k)
     # Get moment matrix with residual adjustment
     a = residual_adjustment(k, m)
@@ -425,10 +429,83 @@ function aVar(
     return CovarianceMatrix(Σ, k, (; nclusters = nclusters(k)))
 end
 
+#=========
+Uncorrelated on a RegressionModel: the iid (model-based) variance
+=========#
+
+# The factor `s²` with `vcov(Uncorrelated(), m) = s² · bread(m)`. For least squares
+# `bread(m)` carries no residual variance, so `s²` is `deviance / (n - K)`, or
+# `deviance / n` without the degrees-of-freedom correction. `n` is the number of rows
+# and `K` the number of estimable coefficients, as in R's `vcov(lm(...))` with or
+# without weights; `StatsAPI.dof_residual` is not used because GLM.jl counts weighted
+# observations as `sum(weights)`. A model whose `bread` already includes an estimated
+# dispersion (a GLM) defines its own method.
+_iid_divisor(m, dofadjust::Bool) =
+    dofadjust ? _residual_dof(numobs(m), sum(mask(m))) : numobs(m)
+
+_iid_dispersion(m::RegressionModel, dofadjust::Bool) =
+    StatsAPI.deviance(m) / _iid_divisor(m, dofadjust)
+
+# Meat of the iid variance, `s² · inv(bread(m))` with `s² = deviance / n`, so that
+# `n · bread · aVar · bread` equals the iid variance without the degrees-of-freedom
+# correction. The generic `aVar` and `vcov` branch to these two functions rather
+# than adding `Uncorrelated`-specific methods, so a package that defines `aVar` or
+# `vcov` for every estimator on its own model type does not get ambiguities.
+function _iid_aVar(
+        k::Uncorrelated,
+        m::RegressionModel;
+        demean = false,
+        prewhite = false,
+        scale = true,
+        scaleby::Union{Nothing, Real} = nothing,
+        kwargs...)
+    _check_iid_keywords(kwargs)
+    (demean || prewhite) && throw(ArgumentError(
+        "`Uncorrelated` on a fitted model is the iid variance; `demean` and `prewhite` " *
+        "do not apply to it"))
+    _checkscale(scale)
+    B = bread(m)
+    midx = mask(m)
+    Bm = all(midx) ? B : B[midx, midx]
+    Σ = _iid_dispersion(m, false) .* inv(Bm)
+    scalevar!(Σ, scale, scaleby, numobs(m))
+    return CovarianceMatrix(Σ, k)
+end
+
+function _check_iid_keywords(kwargs)
+    isempty(kwargs) || throw(ArgumentError(
+        "`Uncorrelated` on a fitted model does not take the keyword(s) " *
+        join(("`$(n)`" for n in keys(kwargs)), ", ")))
+    return nothing
+end
+
+# The iid variance `s² · bread(m)`, with `NaN` rows and columns for non-estimable
+# coefficients. `dofadjust` is its only keyword.
+function _iid_vcov(k::Uncorrelated, m::RegressionModel; dofadjust::Bool = true, kwargs...)
+    _check_iid_keywords(kwargs)
+    V = _iid_dispersion(m, dofadjust) .* bread(m)
+    midx = mask(m)
+    if !all(midx)
+        V[.!midx, :] .= NaN
+        V[:, .!midx] .= NaN
+    end
+    return CovarianceMatrix(V, k)
+end
+
 """
     vcov(estimator, model; dofadjust=true, kwargs...)
 
 Compute the sandwich variance-covariance matrix for a RegressionModel.
+
+For `Uncorrelated()` the result is the iid (non-robust) variance `s² · bread(model)`
+instead of a sandwich. For least squares `s² = RSS / (n - K)`, with `n` rows and `K`
+estimable coefficients, so the result equals R's `vcov(lm(...))`; with weights, RSS is
+the weighted sum of squares. For a GLM the result is the dispersion times `inv(X'WX)`,
+which equals R's `vcov(glm(...))`; the dispersion is the Pearson statistic divided by
+`n - K` for families that estimate one, and 1 for families with a fixed dispersion
+(Binomial, Bernoulli, Poisson). `dofadjust = false` divides by `n` instead of `n - K`;
+no other keyword applies. Unweighted, the result is also GLM.jl's `vcov`; with weights,
+GLM.jl divides by `sum(weights) - K` instead of `n - K`.
 
 """
 function StatsAPI.vcov(
@@ -437,6 +514,7 @@ function StatsAPI.vcov(
         dofadjust = true,
         kwargs...
 )
+    k isa Uncorrelated && return _iid_vcov(k, m; dofadjust, kwargs...)
     # Compute meat
     A = aVar(k, m; kwargs...)
 
@@ -541,13 +619,16 @@ Apply degrees-of-freedom correction to variance matrix.
 
 ## Note
 
-Only `HAC` estimators apply DOF correction by default. Other estimators
-(`HC`, `CR`) incorporate DOF adjustments in their residual adjustments.
+The long-run variance estimators (`HAC` kernels, `EWC`, `VARHAC`, and the moment
+smoothers `UniformSmoother` and `TriangularSmoother`) multiply the variance by
+`n / (n - K)`, with `K` the number of coefficients. `DriscollKraay` applies the factor
+selected by its `correction`. The other estimators (`HC`, `CR`) incorporate their
+corrections in their residual adjustments.
 
 """
 dofcorrect!(V, k::AbstractAsymptoticVarianceEstimator, m) = nothing
 
-function dofcorrect!(V, k::HAC, m::RegressionModel)
+function dofcorrect!(V, k::Union{HAC, EWC, VARHAC, MomentSmoother}, m::RegressionModel)
     n = numobs(m)
     dof = _residual_dof(n, length(coef(m)))
     rmul!(V, n / dof)

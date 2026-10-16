@@ -44,6 +44,14 @@ Use this estimator when the moment conditions are uncorrelated across observatio
 such as in correctly specified MLE or GMM models with iid errors. This provides
 the appropriate covariance matrix without unnecessary robust corrections.
 
+What it computes depends on the input:
+- On a matrix of moments, `aVar(Uncorrelated(), X)` is the contemporaneous variance
+  `X'X / n`, the same as `HR0`.
+- On a fitted `RegressionModel`, `vcov(Uncorrelated(), model)` is the iid variance
+  `s² · bread(model)`. For least squares `s² = RSS / (n - K)`, so the result is the
+  classical `σ̂² (X'X)⁻¹`, as R's `vcov(lm(...))`; for a GLM it equals R's
+  `vcov(glm(...))`. It is not a heteroskedasticity-robust estimator.
+
 # Usage
 ```julia
 using CovarianceMatrices
