@@ -4,28 +4,31 @@
 Grouping of observations into clusters. Cluster estimators (`CR0`–`CR3`,
 `Cluster`) store one `Clustering` per clustering dimension in their `g` field.
 
-Maps arbitrary cluster identifiers to contiguous integer indices 1:ngroups.
+Maps arbitrary cluster identifiers to contiguous integer group codes `1:G`, in the
+order the identifiers are first encountered.
 
-# Fields
-- `groups::Vector{Int}`: Integer cluster assignments for each observation (1:ngroups)
-- `ngroups::Int`: Total number of unique clusters
+# Accessors
+- [`groups`](@ref CovarianceMatrices.groups)`(c)`: the group code of each observation.
+- [`nclusters`](@ref)`(c)`: the number of groups `G`.
 
 # Usage
 ```julia
+using CovarianceMatrices: Clustering, groups, nclusters
+
 # Single clustering dimension
 cl = Clustering([1, 1, 2, 2, 3, 3])
-cl.groups  # [1, 1, 2, 2, 3, 3] - already contiguous
-cl.ngroups # 3
+groups(cl)     # [1, 1, 2, 2, 3, 3] - already contiguous
+nclusters(cl)  # 3
 
 # Works with any element type
 cl = Clustering(["A", "A", "B", "B", "C"])
-cl.groups  # [1, 1, 2, 2, 3]
-cl.ngroups # 3
+groups(cl)     # [1, 1, 2, 2, 3]
+nclusters(cl)  # 3
 
 # Multi-way clustering
 cl = Clustering([1, 1, 2, 2], ["A", "B", "A", "B"])
-cl.groups  # Unique combinations mapped to 1:ngroups
-cl.ngroups # Number of unique (id1, id2) combinations
+groups(cl)     # Unique combinations mapped to 1:G
+nclusters(cl)  # Number of unique (id1, id2) combinations
 ```
 """
 struct Clustering
@@ -44,8 +47,8 @@ Uses a Dict for O(n) grouping.
 # Example
 ```julia
 cl = Clustering([3, 3, 1, 1, 2])
-cl.groups  # [1, 1, 2, 2, 3] - mapped in encounter order
-cl.ngroups # 3
+groups(cl)     # [1, 1, 2, 2, 3] - mapped in encounter order
+nclusters(cl)  # 3
 ```
 """
 function Clustering(v::AbstractVector)
@@ -80,7 +83,7 @@ combination of values.
 firm_ids = [1, 1, 2, 2]
 year_ids = [2020, 2021, 2020, 2021]
 cl = Clustering(firm_ids, year_ids)
-cl.ngroups # 4 (one for each firm-year combination)
+nclusters(cl)  # 4 (one for each firm-year combination)
 ```
 """
 function Clustering(v1::AbstractVector, vs::AbstractVector...)
@@ -107,7 +110,7 @@ input Clustering objects.
 firms = Clustering([1, 1, 2, 2])
 years = Clustering([1, 2, 1, 2])
 cl = Clustering(firms, years)
-cl.ngroups # 4 (one for each firm-year combination)
+nclusters(cl)  # 4 (one for each firm-year combination)
 ```
 """
 function Clustering(c1::Clustering, cs::Clustering...)
@@ -137,6 +140,13 @@ function Clustering(c1::Clustering, cs::Clustering...)
     end
     return Clustering(groups, ngroups)
 end
+
+"""
+    groups(c::Clustering) -> Vector{Int}
+
+Return the group code of each observation, an integer in `1:nclusters(c)`.
+"""
+groups(c::Clustering) = c.groups
 
 Base.length(c::Clustering) = length(c.groups)
 

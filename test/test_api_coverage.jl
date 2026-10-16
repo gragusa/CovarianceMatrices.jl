@@ -300,10 +300,12 @@ end
     # Adding a name is a deliberate API extension; removing one is breaking.
     public_names = [
         :AICs, :BICs, :maxlags, :nclusters, :order, :order_aic, :order_bic,
+        :clusters, :groups, :cache, :timekernel, :timeindex, :unitindex,
         :BartlettKernel, :ParzenKernel, :QuadraticSpectralKernel,
         :TruncatedKernel, :TukeyHanningKernel,
         :BandwidthType, :LagSelector, :LagStrategy, :Clustering,
-        :bread, :leverage, :mask, :momentresiduals,
+        :bread, :leverage, :mask, :momentresiduals, :numobs, :residual_adjustment,
+        :bandwidthweights,
         :momentmatrix, :cross_score, :jacobian_momentfunction, :hessian_objective,
         :weight_matrix]
 

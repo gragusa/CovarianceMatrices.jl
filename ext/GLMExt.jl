@@ -73,7 +73,9 @@ function CM._iid_dispersion(m::GLMGeneralizedLinearModel, dofadjust::Bool)
     end
     return φ / _dispersion(m)
 end
-CM._iid_dispersion(m::GLMTableModel, dofadjust::Bool) = CM._iid_dispersion(m.model, dofadjust)
+function CM._iid_dispersion(m::GLMTableModel, dofadjust::Bool)
+    CM._iid_dispersion(m.model, dofadjust)
+end
 
 ##=================================================
 ## momentresiduals: weighted working residuals

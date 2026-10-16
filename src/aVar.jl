@@ -1,7 +1,7 @@
 """
 Asymptotic Variance Estimators
 
-aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhite::Bool=false, scale::Bool=true, scaleby::Union{Nothing, Real}=nothing)
+aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix{T}; demean::Bool=true, dims::Int=1, means::Union{Nothing, AbstractArray}=nothing, prewhite::Bool=false, scale::Bool=true, scaleby::Union{Nothing, Real}=nothing, weights=nothing)
 
 The asymptotic variance is the matrix `Σ` of the asymptotic approximation:
 
@@ -28,6 +28,13 @@ where `X̄` is the sample mean of the observations in `m` (averaged along `dims`
   estimates the spectral density at frequency zero, which already carries that scaling,
   so `scale = false` multiplies it by the number of observations rather than leaving it
   untouched.
+- `weights` gives the per-column weights of the data-driven bandwidth selection of a
+  `HAC` kernel with `Andrews` or `NeweyWest` bandwidth, alone or inside
+  `DriscollKraay`: one weight per column of `m`. By default they are
+  [`bandwidthweights`](@ref CovarianceMatrices.bandwidthweights)`(k, m)`, which gives a
+  constant column weight 0. A package that forms the moment matrix of a regression
+  passes `bandwidthweights(k, X)` of the design matrix `X`, so the intercept gets weight
+  0 although its moment column is not constant. Other estimators ignore `weights`.
 """
 function aVar(k::AbstractAsymptoticVarianceEstimator, m::AbstractMatrix{<:Real}; kwargs...)
     _check_matrix_path(_check_resolved(k))

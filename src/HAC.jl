@@ -44,7 +44,7 @@ function avar_with_info(
         weights = nothing) where {K <: HAC, F <: Real}
     Z, D = finalize_prewhite(X, Val(prewhite))
     T, p = size(Z)
-    kw = weights === nothing ? _kernelweights(k, X) : weights
+    kw = weights === nothing ? bandwidthweights(k, X) : weights
     bw = _optimalbandwidth(k, Z, kw, prewhite)
     V = zeros(F, p, p)
     Q = similar(V)
@@ -314,16 +314,31 @@ where z = 6πx/5. This kernel has infinite support.
     return 3 * (sz / z - cos(z)) / (z * z)
 end
 
-# Per-column weights entering the data-driven bandwidth selection for `X`. A constant
-# column carries no information about serial correlation and gets weight 0; every other
-# column gets weight 1. Estimators that select no bandwidth from the data use none.
-function _kernelweights(k::HAC{T}, m::RegressionModel) where {T <:
-                                                              Union{Andrews, NeweyWest}}
-    return _kernelweights(k, modelmatrix(m))
-end
+"""
+    bandwidthweights(k, X::AbstractMatrix) -> Union{Vector, Nothing}
 
-function _kernelweights(k::HAC{T}, X::AbstractMatrix) where {T <:
-                                                             Union{Andrews, NeweyWest}}
+Return the per-column weights that the data-driven bandwidth selection of `k` uses for
+the matrix `X`: `0` for a constant column, which carries no information about serial
+correlation, and `1` for every other column. Returns `nothing` for an estimator that
+selects no bandwidth from the data: a kernel with a fixed bandwidth, or any estimator
+other than a `HAC` kernel or a `DriscollKraay` estimator with one.
+
+`aVar(k, M)` computes the weights from the moment matrix `M` itself, unless they are
+passed as the `weights` keyword. For a regression, the moment matrix is the design
+matrix times the residuals, and its intercept column is not constant. A package that
+builds its own moment matrix passes the weights of the design matrix instead, as
+`vcov(k, model)` does:
+
+```julia
+X = modelmatrix(model)
+M = X .* CovarianceMatrices.momentresiduals(model)
+aVar(k, M; weights = CovarianceMatrices.bandwidthweights(k, X))
+```
+
+The result records the weights used: see [`kernelweights`](@ref).
+"""
+function bandwidthweights(k::HAC{T}, X::AbstractMatrix) where {T <:
+                                                               Union{Andrews, NeweyWest}}
     w = Vector{WFLOAT}(undef, size(X, 2))
     for (i, col) in zip(eachindex(w), eachcol(X))
         w[i] = allequal(col) ? 0.0 : 1.0
@@ -331,7 +346,7 @@ function _kernelweights(k::HAC{T}, X::AbstractMatrix) where {T <:
     return w
 end
 
-_kernelweights(k::AbstractAsymptoticVarianceEstimator, X) = nothing
+bandwidthweights(k::AbstractAsymptoticVarianceEstimator, X::AbstractMatrix) = nothing
 
 # -----------------------------------------------------------------------------
 # Optimal bandwidth
@@ -350,7 +365,7 @@ function workingoptimalbw(
         prewhite::Bool = false
 ) where {T <: Union{Andrews, NeweyWest}}
     X, D = prewhiter(A, prewhite)
-    kw = _kernelweights(k, X)
+    kw = bandwidthweights(k, X)
     bw = _optimalbandwidth(k, X, kw, prewhite)
     return X, D, bw
 end

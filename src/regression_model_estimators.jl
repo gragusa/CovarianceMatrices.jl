@@ -7,39 +7,39 @@ with RegressionModel.
 """
 
 """
-    residual_adjustment(estimator, model)
+    residual_adjustment(k::HR, model::RegressionModel) -> Real or AbstractVector
+    residual_adjustment(k, model::RegressionModel) -> Real
 
-Compute the residual adjustment factor for heteroskedasticity-robust estimators.
+Return the factor `a` that multiplies the residuals of `model` before the moments are
+formed: `aVar(k, model)` is computed from `modelmatrix(model) .* (a .* u)` with
+`u = momentresiduals(model)`. `a` is a scalar or a vector with one entry per
+observation.
 
-Returns a scalar or vector that multiplies the moment matrix rows to implement
-different HC/HR adjustments. The generic implementations use the protocol methods
-and work with any RegressionModel.
+A package that builds its own moment matrix calls this to apply the finite-sample
+adjustments of `HR1`–`HR5`, and then passes the moments to `aVar` with `HR0`, which is
+the estimator `aVar` accepts on a matrix:
 
-# HC/HR Estimators
+```julia
+a = CovarianceMatrices.residual_adjustment(HC3(), model)
+M = modelmatrix(model) .* (a .* CovarianceMatrices.momentresiduals(model))
+aVar(HC0(), M)
+```
 
-- `HC0/HR0`: No adjustment (returns 1.0)
-- `HC1/HR1`: DOF adjustment √(n/(n-p))
-- `HC2/HR2`: Leverage adjustment 1/√(1-h)
-- `HC3/HR3`: Squared leverage adjustment 1/(1-h)
-- `HC4/HR4`: Adaptive leverage adjustment with cutoff
-- `HC4m/HR4m`: Modified HC4 with different cutoff
-- `HC5/HR5`: Maximum leverage adjustment
+With `n = numobs(model)`, `K = length(coef(model))` and `h = leverage(model)`:
 
-# HAC Estimators
+- `HR0`/`HC0`: `1`.
+- `HR1`/`HC1`: `√(n / (n - K))`.
+- `HR2`/`HC2`: `1 ./ √(1 .- h)`.
+- `HR3`/`HC3`: `1 ./ (1 .- h)`.
+- `HR4`/`HC4`, `HR4m`/`HC4m`, `HR5`/`HC5`: `(1 .- h) .^ (-δ / 2)` with the exponents
+  `δ` of Cribari-Neto (2004), Cribari-Neto and da Silva (2011), and Cribari-Neto et
+  al. (2007).
+- `HAC` kernels, `EWC`, `VARHAC`, `DriscollKraay` and the moment smoothers: `1`.
+  Their degrees-of-freedom correction is a factor of `vcov`, not of the residuals.
 
-- Returns 1.0 (no per-observation adjustment for HAC)
-
-# CR Estimators
-
-- `CR0/CR1`: Cluster-level residual aggregation
-- `CR2/CR3`: Cluster-level leverage adjustments
-
-# Arguments
-- `estimator`: The variance estimator type (HC0, HAC, CR1, etc.)
-- `model`: A RegressionModel implementing the protocol
-
-# Returns
-- Scalar or vector of adjustment factors
+The leverage-based adjustments do not modify the vector `leverage(model)` returns, so
+a model may return a stored vector. For cluster estimators the return value is
+internal.
 """
 function residual_adjustment end
 
@@ -89,6 +89,16 @@ leverage-based estimators `HC2`–`HC5` (`HR2`–`HR5`). The fallback calls
 """
 leverage(m) = StatsAPI.leverage(m)
 
+"""
+    numobs(model::RegressionModel) -> Integer
+
+Return the number of observations `n` of `model`: the number of rows of its moment
+matrix, which divides the variance in `aVar` and enters the finite-sample corrections
+(`n / (n - K)` for `HR1` and the long-run estimators, `(n - 1) / (n - K)` for `CR1`).
+The fallback is `size(modelmatrix(model), 1)`. A model whose `modelmatrix` is
+expensive to form, or whose `StatsAPI.nobs` counts weighted observations, can define
+it.
+"""
 numobs(m) = size(modelmatrix(m), 1)
 
 @noinline residual_adjustment(k::HAC, r::RegressionModel) = 1.0
@@ -137,17 +147,13 @@ end
     return 1.0 ./ (1 .- h)
 end
 
-# HC4/HR4: Adaptive leverage adjustment
+# HC4/HR4: Adaptive leverage adjustment. HC4, HC4m and HC5 return new vectors:
+# `leverage(r)` may return an array the model stores.
 @noinline function residual_adjustment(k::HR4, r::RegressionModel)
     n = numobs(r)
     h = leverage(r)
     p = round(Int, sum(h))
-    delta = similar(h)
-    @inbounds for j in eachindex(h)
-        delta[j] = min(4.0, n * h[j] / p)
-        h[j] = 1 / (1 - h[j])^(delta[j] / 2)
-    end
-    return h
+    return @. 1 / (1 - h)^(min(4.0, n * h / p) / 2)
 end
 
 # HC4m/HR4m: Modified HC4
@@ -155,12 +161,7 @@ end
     n = numobs(r)
     h = leverage(r)
     p = round(Int, sum(h))
-    delta = similar(h)
-    @inbounds for j in eachindex(h)
-        delta[j] = min(1, n * h[j] / p) + min(1.5, n * h[j] / p)
-        h[j] = 1 / (1 - h[j])^(delta[j] / 2)
-    end
-    return h
+    return @. 1 / (1 - h)^((min(1, n * h / p) + min(1.5, n * h / p)) / 2)
 end
 
 # HC5/HR5: Maximum leverage adjustment
@@ -169,11 +170,7 @@ end
     h = leverage(r)
     p = round(Int, sum(h))
     mx = max(n * 0.7 * maximum(h) / p, 4.0)
-    @inbounds for j in eachindex(h)
-        alpha = min(n * h[j] / p, mx)
-        h[j] = 1 / (1 - h[j])^(alpha / 4)
-    end
-    return h
+    return @. 1 / (1 - h)^(min(n * h / p, mx) / 4)
 end
 
 """
@@ -399,7 +396,7 @@ function aVar(
     # Bandwidth selection weights come from the model matrix, not from the moment
     # matrix: they must give the intercept weight 0, and the intercept column of
     # the moment matrix is not constant.
-    kw = _kernelweights(k, X)
+    kw = bandwidthweights(k, X)
     kw === nothing || (kw = kw[midx])
     return _aVar(k, Mm; demean = demean, prewhite = prewhite, scale = scale,
         scaleby = scaleby, weights = kw)
@@ -440,11 +437,13 @@ Uncorrelated on a RegressionModel: the iid (model-based) variance
 # without weights; `StatsAPI.dof_residual` is not used because GLM.jl counts weighted
 # observations as `sum(weights)`. A model whose `bread` already includes an estimated
 # dispersion (a GLM) defines its own method.
-_iid_divisor(m, dofadjust::Bool) =
+function _iid_divisor(m, dofadjust::Bool)
     dofadjust ? _residual_dof(numobs(m), sum(mask(m))) : numobs(m)
+end
 
-_iid_dispersion(m::RegressionModel, dofadjust::Bool) =
+function _iid_dispersion(m::RegressionModel, dofadjust::Bool)
     StatsAPI.deviance(m) / _iid_divisor(m, dofadjust)
+end
 
 # Meat of the iid variance, `s² · inv(bread(m))` with `s² = deviance / n`, so that
 # `n · bread · aVar · bread` equals the iid variance without the degrees-of-freedom

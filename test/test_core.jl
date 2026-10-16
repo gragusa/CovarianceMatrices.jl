@@ -1008,11 +1008,12 @@ end # Core Functionality Tests
         m = lm(@formula(y ~ x), pet)
         n, K = nrow(pet), 2
         for k in (Bartlett(3), Parzen(5), EWC(5), VARHAC(), UniformSmoother(3),
-                  TriangularSmoother(3))
+            TriangularSmoother(3))
             V0 = vcov(k, m; dofadjust = false)
             @test vcov(k, m) ≈ n / (n - K) .* V0 rtol = 1e-12
-            @test V0 ≈ n .* CovarianceMatrices.bread(m) * aVar(k, m) *
-                       CovarianceMatrices.bread(m) rtol = 1e-12
+            @test V0 ≈
+                  n .* CovarianceMatrices.bread(m) * aVar(k, m) *
+                  CovarianceMatrices.bread(m) rtol = 1e-12
         end
     end
 

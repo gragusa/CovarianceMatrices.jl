@@ -1079,6 +1079,24 @@ end
 # Forward nclusters to underlying estimator
 nclusters(k::CachedCR) = nclusters(k.estimator)
 
+"""
+    estimator(k::CachedCR) -> CR
+
+Return the cluster-robust estimator that `k` wraps.
+"""
+estimator(k::CachedCR) = getfield(k, :estimator)
+
+"""
+    cache(k::CachedCR)
+
+Return the cache of `k`. Its type is internal; its use is to wrap the same cache with
+another estimator. A cache built by `CachedCR(k, ncols)` depends only on the clusters,
+so `CachedCR(CR0(clusters(k)), cache(k))` computes `CR0` on the clusters of `k` with
+the same buffers. A cache built by `CachedCR(k, model)` also holds adjustments for the
+type of `k`, and must stay with an estimator of that type.
+"""
+cache(k::CachedCR) = getfield(k, :cache)
+
 # Access underlying estimator's grouped arrays
 function Base.getproperty(k::CachedCR, s::Symbol)
     s === :g ? getfield(k, :estimator).g : getfield(k, s)

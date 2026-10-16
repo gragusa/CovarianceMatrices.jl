@@ -268,10 +268,13 @@ function _avar_tuple_impl(f::NTuple{N, Clustering}, X) where {N}
 end
 
 """
-    nclusters(k)
+    nclusters(k::CR) -> NTuple{N, Int}
+    nclusters(c::Clustering) -> Int
 
 Return the number of groups in each clustering dimension of a cluster-robust
-estimator, as a tuple with one entry per dimension.
+estimator, as a tuple with one entry per dimension, or the number of groups of a
+single [`Clustering`](@ref CovarianceMatrices.Clustering).
+`nclusters(k) == map(nclusters, clusters(k))`.
 
 ```julia
 nclusters(CR0(firm))         # (n_firms,)
@@ -279,6 +282,22 @@ nclusters(CR0(firm, year))   # (n_firms, n_years)
 ```
 """
 nclusters(k::CR) = _nclusters(_check_resolved(k).g)
+nclusters(c::Clustering) = c.ngroups
+
+"""
+    clusters(k::CR) -> Tuple
+
+Return the clustering dimensions of the cluster-robust estimator `k`, one entry per
+dimension: a [`Clustering`](@ref CovarianceMatrices.Clustering) for each, or the
+column names as `Symbol`s for an estimator that names its clusters by column, such as
+`CR1(:firm, :year)`. A `CachedCR` returns the clusters of the estimator it wraps.
+
+```julia
+clusters(CR1(firm, year))    # (Clustering(firm), Clustering(year))
+clusters(CR1(:firm, :year))  # (:firm, :year)
+```
+"""
+clusters(k::CR) = k.g
 @inline _nclusters(f::Tuple{Clustering}) = (f[1].ngroups,)
 @inline _nclusters(f::Tuple{Clustering, Clustering}) = (f[1].ngroups, f[2].ngroups)
 @inline _nclusters(f::Tuple{

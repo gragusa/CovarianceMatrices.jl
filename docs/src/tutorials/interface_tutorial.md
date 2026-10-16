@@ -436,9 +436,10 @@ the values.
 
 `CR0(:firm)`, `CR1(:firm, :year)`, `Cluster(:firm)` and `Cluster((:firm, :year))`
 are cluster estimators whose clusters are given by column name rather than by group
-identifiers. The field `g` holds the names as a tuple of `Symbol`s: `CR1(:firm,
-:year).g == (:firm, :year)`. One name means one-way clustering, and several names mean
-multi-way clustering, exactly as the corresponding tuple of vectors would.
+identifiers. [`CovarianceMatrices.clusters`](@ref) returns the names as a tuple of
+`Symbol`s: `clusters(CR1(:firm, :year)) == (:firm, :year)`. One name means one-way
+clustering, and several names mean multi-way clustering, exactly as the corresponding
+tuple of vectors would.
 
 CovarianceMatrices has no data table, so it cannot look up the names. `aVar`, `vcov`,
 `stderror`, `nclusters` and `CachedCR` throw an `ArgumentError` on a
@@ -446,13 +447,13 @@ column-named estimator. The modeling package resolves it first by rebuilding the
 estimator type from the columns:
 
 ```julia
-using CovarianceMatrices: CR0, CR1, CR2, CR3, Cluster
+using CovarianceMatrices: CR0, CR1, CR2, CR3, Cluster, clusters
 using Tables
 
 resolve(k, data) = k
 for E in (:CR0, :CR1, :CR2, :CR3, :Cluster)
     @eval function resolve(k::$E{<:Tuple{Vararg{Symbol}}}, data)
-        return $E(map(name -> Tables.getcolumn(data, name), k.g))
+        return $E(map(name -> Tables.getcolumn(data, name), clusters(k)))
     end
 end
 ```
@@ -485,6 +486,50 @@ function Base.:+(m::MyModel, v::VcovSpec)
     return with_vcov_estimator(m, k)   # package-specific
 end
 ```
+
+## Building Moment Matrices in a Modeling Package
+
+A package can form the moment matrix of its own models (to avoid materializing the
+design matrix, say) and pass it to `aVar` on a matrix. `aVar` on a matrix accepts
+only the estimators that need no fitted model: `HR0`/`HC0`, `CR0`, `Cluster`, the
+long-run estimators, and `DriscollKraay` with `correction = :HC0`. The package applies
+the model-based adjustments itself, with these public functions:
+
+| Function | Use |
+|----------|-----|
+| [`CovarianceMatrices.residual_adjustment`](@ref)`(k, model)` | the factor of `HR1`–`HR5` that multiplies the residuals |
+| [`CovarianceMatrices.numobs`](@ref)`(model)` | the `n` of the finite-sample corrections; define it if `modelmatrix` is expensive |
+| [`CovarianceMatrices.bandwidthweights`](@ref)`(k, X)` | the bandwidth-selection weights of the design matrix, passed as `aVar(...; weights)` |
+| [`CovarianceMatrices.clusters`](@ref)`(k)`, [`CovarianceMatrices.groups`](@ref), [`nclusters`](@ref) | the clusters of a cluster estimator, for building `CR0` on them |
+| [`CovarianceMatrices.timekernel`](@ref), [`CovarianceMatrices.timeindex`](@ref), [`CovarianceMatrices.unitindex`](@ref) | the parts of a `DriscollKraay` estimator, for rebuilding it without its correction |
+| [`estimator`](@ref CovarianceMatrices.estimator(::CachedCR))`(k)`, [`CovarianceMatrices.cache`](@ref)`(k)` | the parts of a `CachedCR` |
+
+For `HC3` on the least-squares model `ols` defined above, with the bread `inv(X'X)`:
+
+```@example iface
+using CovarianceMatrices: residual_adjustment, momentresiduals, bandwidthweights
+
+Xo = modelmatrix(ols)
+a = residual_adjustment(HC3(), ols)
+M = Xo .* (a .* momentresiduals(ols))
+B = inv(Xo' * Xo)
+n = size(Xo, 1)
+n .* B * aVar(HC0(), M; demean = false) * B ≈ vcov(HC3(), ols)
+```
+
+A data-driven HAC bandwidth is selected from the columns of the moment matrix, giving
+weight 0 to a constant column. The intercept column of a regression's moment matrix
+is the residuals, which are not constant, so the weights come from the design matrix:
+
+```@example iface
+k = Bartlett{Andrews}()
+M = Xo .* momentresiduals(ols)
+A = aVar(k, M; demean = false, weights = bandwidthweights(k, Xo))
+n .* B * A * B * n / (n - 2) ≈ vcov(k, ols)
+```
+
+The factor `n / (n - K)` is the degrees-of-freedom correction that `vcov` applies to
+the long-run estimators on a `RegressionModel`.
 
 ## Testing Your Implementation
 

@@ -36,4 +36,31 @@ _prewhitens(k::DriscollKraay) = _prewhitens(k.K)
 
 # Bandwidth selection weights come from the model matrix, as for the inner kernel
 # applied directly: the intercept column gets weight 0.
-_kernelweights(k::DriscollKraay, X::AbstractMatrix) = _kernelweights(k.K, X)
+bandwidthweights(k::DriscollKraay, X::AbstractMatrix) = bandwidthweights(k.K, X)
+
+"""
+    timekernel(k::DriscollKraay) -> HAC
+
+Return the HAC kernel that `k` applies to the series of period sums.
+"""
+timekernel(k::DriscollKraay) = k.K
+
+"""
+    timeindex(k::DriscollKraay) -> Clustering
+
+Return the time period of each observation as a [`Clustering`](@ref
+CovarianceMatrices.Clustering) whose group codes follow the chronological order of
+the periods.
+"""
+timeindex(k::DriscollKraay) = k.tis
+
+"""
+    unitindex(k::DriscollKraay) -> Clustering
+
+Return the unit of each observation as a [`Clustering`](@ref
+CovarianceMatrices.Clustering).
+
+`DriscollKraay(timekernel(k), timeindex(k), unitindex(k))` rebuilds `k` without its
+finite-sample correction, which is the estimator `aVar` accepts on a moment matrix.
+"""
+unitindex(k::DriscollKraay) = k.iis

@@ -27,7 +27,7 @@ The accessors below read those stored quantities. They take the result, not the
 estimator specification.
 
 ```@docs
-estimator
+estimator(::CovarianceMatrix)
 information
 bandwidth
 kernelweights
@@ -178,9 +178,17 @@ the result and estimator accessors documented above. `BartlettKernel`,
 [`Parzen`](@ref), [`QuadraticSpectral`](@ref), [`Truncated`](@ref) and
 [`TukeyHanning`](@ref) are aliases for them, and these are the names that appear
 when a kernel is displayed. `BandwidthType`, `LagSelector` and `LagStrategy` are abstract
-supertypes available for dispatch. `Clustering` is the grouping stored in the `g`
-field of cluster estimators. `bread`, `momentresiduals`, `leverage` and `mask` are the
-protocol a `RegressionModel` implements to work with `vcov(k, model)`.
+supertypes available for dispatch.
+
+`Clustering` is the grouping of one clustering dimension; `clusters(k)` returns those
+of a cluster estimator, and `groups` and `nclusters` read a `Clustering`. `cache` and
+the exported [`estimator`](@ref) read a `CachedCR`, and `timekernel`, `timeindex` and
+`unitindex` read a `DriscollKraay` estimator.
+
+`bread`, `momentresiduals`, `leverage`, `mask` and `numobs` are the protocol a
+`RegressionModel` implements to work with `vcov(k, model)`. `residual_adjustment` and
+`bandwidthweights` are for packages that form their own moment matrices; see
+[Building Moment Matrices in a Modeling Package](@ref).
 `momentmatrix`, `cross_score`, `hessian_objective`, `jacobian_momentfunction` and
 `weight_matrix` are the protocol an `MLikeModel` or `GMMLikeModel` implements; they are
 documented under [Model Interface Functions](@ref).
@@ -190,10 +198,20 @@ nclusters
 CovarianceMatrices.LagSelector
 CovarianceMatrices.LagStrategy
 CovarianceMatrices.Clustering
+CovarianceMatrices.clusters
+CovarianceMatrices.groups
+CovarianceMatrices.estimator(::CachedCR)
+CovarianceMatrices.cache
+CovarianceMatrices.timekernel
+CovarianceMatrices.timeindex
+CovarianceMatrices.unitindex
 CovarianceMatrices.bread
 CovarianceMatrices.momentresiduals
 CovarianceMatrices.leverage
 CovarianceMatrices.mask
+CovarianceMatrices.numobs
+CovarianceMatrices.residual_adjustment
+CovarianceMatrices.bandwidthweights
 ```
 
 ## Everything Else Is Internal

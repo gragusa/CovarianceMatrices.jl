@@ -7,7 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Public functions for packages that form their own moment matrices, declared
+  `public` and documented in the new tutorial section "Building Moment Matrices
+  in a Modeling Package":
+  - `residual_adjustment(k, model)`, the factor that `HR1`–`HR5` apply to the
+    residuals, and `numobs(model)`, the number of observations, which a model
+    can define.
+  - `bandwidthweights(k, X)`, the bandwidth-selection weights of a design
+    matrix, to pass as the `weights` keyword of `aVar(k, M)`. The keyword is now
+    documented.
+- Accessors for the parts of estimators: `clusters(k)` for a cluster estimator
+  (the `Clustering` of each dimension, or the column names); `groups(c)` and
+  `nclusters(c)` for a `Clustering`; `estimator(k)` and `cache(k)` for a
+  `CachedCR`; `timekernel(k)`, `timeindex(k)` and `unitindex(k)` for a
+  `DriscollKraay` estimator. The fields themselves remain internal.
+
 ### Fixed
+
+- `HC4`, `HC4m` and `HC5` on a `RegressionModel` overwrote the vector returned by
+  `leverage(model)`. For a model that returns a stored vector, the next call
+  used the overwritten values and gave a wrong result or a `DomainError`.
 
 - `CR1` on a fitted model applied the cluster correction `G/(G-1)` twice,
   inflating the variance by a further `G/(G-1)` (2.2% with 46 clusters, 11%

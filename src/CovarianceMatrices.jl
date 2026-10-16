@@ -112,6 +112,7 @@ export AbstractAsymptoticVarianceEstimator,
 # and may change in any release.
 # Result and estimator accessors
 public AICs, BICs, maxlags, nclusters, order, order_aic, order_bic,
+       clusters, groups, cache, timekernel, timeindex, unitindex,
 # Kernel struct names; the exported `Bartlett`, `Parzen`, `QuadraticSpectral`,
 # `Truncated` and `TukeyHanning` are aliases for these, and these are the names
 # that appear when a kernel's type is displayed.
@@ -119,10 +120,12 @@ public AICs, BICs, maxlags, nclusters, order, order_aic, order_bic,
        TukeyHanningKernel,
 # Abstract supertypes available for dispatch
        BandwidthType, LagSelector, LagStrategy,
-# Cluster identifiers stored in the `g` field of cluster estimators
+# Cluster identifiers of each clustering dimension of a cluster estimator
        Clustering,
 # Regression-model protocol
-       bread, leverage, mask, momentresiduals,
+       bread, leverage, mask, momentresiduals, numobs, residual_adjustment,
+# For packages that build their own moment matrices
+       bandwidthweights,
 # Moment-model protocol (`MLikeModel`, `GMMLikeModel`)
        momentmatrix, cross_score, jacobian_momentfunction, hessian_objective, weight_matrix
 end
