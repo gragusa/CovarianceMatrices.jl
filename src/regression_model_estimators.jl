@@ -184,7 +184,7 @@ end
 Compute residual adjustment for basic cluster-robust estimators.
 
     - CR0, Cluster: No adjustment (returns 1.0)
-    - CR1: DOF adjustment √((N-1)/(N-K)) * (G/(G-1))
+    - CR1: DOF adjustment √((N-1)/(N-K) * G/(G-1))
     - CR2: residuals of cluster g multiplied by (I - H_gg)^(-1/2)
     - CR3: residuals of cluster g multiplied by (I - H_gg)^(-1)
 """
@@ -202,7 +202,7 @@ function residual_adjustment(k::CR1, m::RegressionModel)
     N = numobs(m)
     K = length(coef(m))
     dof = _residual_dof(N, K)
-    map(g -> sqrt((N - 1) / dof) * (g / _cluster_dof(g)), G)
+    map(g -> sqrt((N - 1) / dof * g / _cluster_dof(g)), G)
 end
 
 # CR2 and CR3 replace the residuals `u_g` of each cluster by `(I - H_gg)^p * u_g`, with
@@ -578,7 +578,7 @@ function _compute_leverage_adjustments(k::CR1, m, grouped_arrays, cluster_indice
     # CR1: DOF adjustment - scalar per combination
     N, K = size(modelmatrix(m))
     dof = _residual_dof(N, K)
-    map(g -> sqrt((N - 1) / dof) * (g.ngroups / _cluster_dof(g.ngroups)), grouped_arrays)
+    map(g -> sqrt((N - 1) / dof * g.ngroups / _cluster_dof(g.ngroups)), grouped_arrays)
 end
 
 function _compute_leverage_adjustments(

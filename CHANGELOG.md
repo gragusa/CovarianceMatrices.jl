@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `CR1` on a fitted model applied the cluster correction `G/(G-1)` twice,
+  inflating the variance by a further `G/(G-1)` (2.2% with 46 clusters, 11%
+  with 10). It now scales the variance by `G/(G-1) * (N-1)/(N-K)`, per term for
+  multiway clustering, matching R's `sandwich::vcovCL(type = "HC1")`. This
+  changes every `CR1` result computed from a model, including through
+  `CachedCR`.
 - `CR2` and `CR3` on a model gave wrong results when the rows of a cluster were
   not contiguous, which includes every two-way clustering. They now match R's
   `sandwich::vcovCL` (`type = "HC2"`/`"HC3"`) for one-way and two-way

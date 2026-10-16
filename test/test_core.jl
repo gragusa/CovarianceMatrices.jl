@@ -436,16 +436,12 @@ df.y = Y;
         n = nrow(df)
         k = length(coef(lm_1))
         g = length(levels(df.cl))
-        scale_back = ((n - 1) / (n - k) * (g / (g - 1)))
-        scale_new = (n - 1) / (n - k)
 
         # CR0: no adjustment, matches V_0a
         @test V0 ≈ V_0a
         @test V0 ≈ V_0b / (g / (g - 1))
 
-        # CR1: different scaling convention between R and Julia
-        # R uses (n-1)/(n-k), Julia uses (n-1)/(n-k) * G/(G-1)
-        @test (V1 / scale_back) * scale_new ≈ V_1 rtol = 1e-6
+        @test V1 ≈ V_1 rtol = 1e-8
 
         # CR2 and CR3: leverage-based corrections
         @test V2 ≈ V_2
@@ -460,7 +456,7 @@ df.y = Y;
 
         @test Vw0 ≈ Vw_0a
         @test Vw0 ≈ Vw_0b / (g / (g - 1))
-        @test (Vw1 / scale_back) * scale_new ≈ Vw_1 rtol = 1e-6
+        @test Vw1 ≈ Vw_1 rtol = 1e-8
         # sandwich computes the weighted HC2 matrix power with a nonsymmetric
         # eigendecomposition, which for these clusters of up to 1000 observations is
         # accurate to about 3e-4; its HC3 uses a linear solve.
@@ -890,18 +886,8 @@ end # Core Functionality Tests
         R3 = [0.0045082022937877244 -6.7280836115793117e-05;
               -6.7280836115793117e-05 0.0025822624320339092]
         @test V0 ≈ R0 rtol=1e-6
-        @test V1 ≈ R1 atol=1e-3
-        # The reason for this larger tolerance is due to
-        # differences in the degrees of freedom adjustment.
-        # R scales CR2 by (N-1)/(N-K)
-        # instead we use (N - 1) / (N - K)) * (g / (g - 1))
-        # Applying the same scaling gives the same result
-        n = size(df, 1)
-        k = length(coef(m))
+        @test V1 ≈ R1 rtol=1e-8
         g = length(unique(df.firm))
-        scale_back = ((n - 1) / (n - k) * (g / (g - 1)))
-        scale_new = (n-1)/(n-k)
-        @test (V1/scale_back)*scale_new ≈ R1 rtol=1e-6
         @test V2 ≈ R2 rtol=1e-6
         @test V3 ≈ R3 rtol=1e-6
 
@@ -920,10 +906,44 @@ end # Core Functionality Tests
         R3 = [0.0049264936435635398 -9.8773895065056182e-05;
               -9.8773895065056168e-05 0.0030065617267332799]
         @test V0 ≈ R0
-        @test V1 ≈ R1 atol=1e-3
+        @test V1 ≈ R1 rtol=1e-8
         # R2 and R3 were computed with `cadjust = FALSE`, which scales them by (G - 1)/G.
         @test V2 * (g - 1) / g ≈ R2
         @test V3 * (g - 1) / g ≈ R3
+    end
+
+    @testset "CR1 against R: one-way, two-way, weights ✅" begin
+        # Reference values: sandwich 3.1.1, vcovCL(m, cluster = ..., type = "HC1"),
+        # which scales the variance by G/(G-1) * (N-1)/(N-K) (per term for two-way).
+        pet = CSV.read(joinpath(datadir, "testdata/PetersenCl.csv"), DataFrame)
+        pet.w = 0.5 .+ mod.(1:nrow(pet), 10) ./ 10
+        m = lm(@formula(y ~ x), pet)
+        mw = lm(@formula(y ~ x), pet, wts = pet.w)
+        gr = CSV.read(joinpath(datadir, "testdata/grunfeld.csv"), DataFrame)
+        mg = lm(@formula(Inv ~ Value), gr)
+        cases = [
+            (m, CR1(pet.firm),
+                [0.0044907024570195204 -6.4735166091279235e-05;
+                 -6.4735166091279249e-05 0.0025599274777318658]),
+            (m, CR1((pet.firm, pet.year)),
+                [0.0042333134514568275 -2.8453435502925396e-05;
+                 -2.8453435502925396e-05 0.0028684618217704868]),
+            (mw, CR1(pet.firm),
+                [0.0044881304057740193 -0.00010797857840251218;
+                 -0.00010797857840251218 0.0025247655003158686]),
+            (mw, CR1((pet.firm, pet.year)),
+                [0.0040186580243799152 -7.1935281657671356e-05;
+                 -7.1935281657671356e-05 0.0030002582786828194]),
+            (mg, CR1(gr.Firm),
+                [207.98373849954518 0.065068890583512062;
+                 0.065068890583512048 0.00018871045056174967]),
+            (mg, CR1((gr.Firm, gr.Year)),
+                [166.77180415943528 0.088030779855274827;
+                 0.088030779855274952 0.00020183311063599887])]
+        for (model, k, R) in cases
+            @test vcov(k, model) ≈ R rtol = 1e-8
+            @test vcov(CachedCR(k, model), model) ≈ R rtol = 1e-8
+        end
     end
 
     @testset "CR2/CR3 against R: unsorted clusters, weights, GLMs ✅" begin
