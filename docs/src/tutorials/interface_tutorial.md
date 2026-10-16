@@ -140,12 +140,12 @@ the model is correctly specified; `Misspecified` builds the sandwich:
 DataFrame(
     coef = ["(Intercept)", "RMRF"],
     information = stderror(Information(), model),
-    misspecified = stderror(HC3(), Misspecified(), model),
+    misspecified = stderror(HC0(), Misspecified(), model),
     misspecified_hac = stderror(Bartlett{Andrews}(), Misspecified(), model),
 )
 ```
 
-The sandwich standard errors are roughly twice the information-form ones. Under
+The sandwich standard errors are 1.5 to 2.1 times the information-form ones. Under
 correct specification the two agree, so a gap this size is evidence against the
 assumptions behind the information form.
 
@@ -213,12 +213,13 @@ DataFrame(
     estimate = coef(iv),
     information = stderror(HC0(), Information(), iv),
     misspecified = stderror(HC0(), Misspecified(), iv),
-    clustered = stderror(CR1(grunfeld.Firm), Misspecified(), iv),
+    clustered = stderror(CR0(grunfeld.Firm), Misspecified(), iv),
 )
 ```
 
-Clustering by firm widens the standard errors, as it did for the fitted models in
-the [GLM Integration Tutorial](glm_tutorial.md).
+Clustering by firm widens the intercept's standard error by about 40% and narrows
+the slope's by about 5%. The [GLM Integration Tutorial](glm_tutorial.md) clusters
+the same data for fitted models.
 
 ## Duck Typing
 
@@ -500,7 +501,7 @@ the model-based adjustments itself, with these public functions:
 | [`CovarianceMatrices.residual_adjustment`](@ref)`(k, model)` | the factor of `HR1`–`HR5` that multiplies the residuals |
 | [`CovarianceMatrices.numobs`](@ref)`(model)` | the `n` of the finite-sample corrections; define it if `modelmatrix` is expensive |
 | [`CovarianceMatrices.bandwidthweights`](@ref)`(k, X)` | the bandwidth-selection weights of the design matrix, passed as `aVar(...; weights)` |
-| [`CovarianceMatrices.clusters`](@ref)`(k)`, [`CovarianceMatrices.groups`](@ref), [`nclusters`](@ref) | the clusters of a cluster estimator, for building `CR0` on them |
+| [`CovarianceMatrices.clusters`](@ref)`(k)`, [`CovarianceMatrices.groups`](@ref), [`CovarianceMatrices.nclusters`](@ref) | the clusters of a cluster estimator, for building `CR0` on them |
 | [`CovarianceMatrices.timekernel`](@ref), [`CovarianceMatrices.timeindex`](@ref), [`CovarianceMatrices.unitindex`](@ref) | the parts of a `DriscollKraay` estimator, for rebuilding it without its correction |
 | [`estimator`](@ref CovarianceMatrices.estimator(::CachedCR))`(k)`, [`CovarianceMatrices.cache`](@ref)`(k)` | the parts of a `CachedCR` |
 
