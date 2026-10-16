@@ -209,6 +209,11 @@ end
 
 StatsBase.weights(m::GLMTableModel) = StatsBase.weights(m.model)
 
+# The CR2/CR3 hat matrix of a GLM, `X inv(X'WX) X'W`, uses the IRLS working weights,
+# which include the prior weights.
+CM._hatweights(m::GLMGeneralizedLinearModel) = m.rr.wrkwt
+CM._hatweights(m::GLMTableModel) = CM._hatweights(m.model)
+
 ##=================================================
 ## aVar for CR estimators (uses crmomentmatrix)
 ##=================================================

@@ -209,6 +209,39 @@ df.y = Y;
         end
     end
 
+    @testset "QuadraticSpectral as a Toeplitz quadratic form ✅" begin
+        # V = Γ₀ + Σⱼ κ(j/bw) (Γⱼ + Γⱼ') summed lag by lag over every lag.
+        function qs_lag_sum(Z, bw)
+            T = size(Z, 1)
+            V = Z' * Z
+            for j in 1:(T - 1)
+                Γ = view(Z, 1:(T - j), :)' * view(Z, (1 + j):T, :)
+                V .+= CM.kernel(QuadraticSpectral(bw), j / bw) .* (Γ .+ Γ')
+            end
+            return V
+        end
+        generic_toeplitz_mul(c, Z) = invoke(
+            CM._toeplitz_mul, Tuple{AbstractVector, AbstractMatrix}, c, Z)
+        rng = StableRNG(11)
+        # 513 and 1500 rows leave a partial last block in the blocked product.
+        for (T, p) in ((1, 2), (7, 3), (513, 4), (1500, 5))
+            Z = randn(rng, T, p)
+            c = [j == 0 ? 1.0 : CM.kernel(QuadraticSpectral(3.7), j / 3.7)
+                 for j in 0:(T - 1)]
+            K = [c[abs(s - t) + 1] for s in 1:T, t in 1:T]
+            @test CM._toeplitz_mul(c, Z) ≈ K * Z
+            @test generic_toeplitz_mul(c, Z) ≈ K * Z
+            @test aVar(QuadraticSpectral(3.7), Z; demean = false, scale = false) ≈
+                  qs_lag_sum(Z, 3.7)
+            @test issymmetric(parent(aVar(QuadraticSpectral(3.7), Z)))
+        end
+        Z32 = randn(rng, Float32, 300, 2)
+        c32 = Float32[CM.kernel(QuadraticSpectral(2.0f0), j / 2.0f0) for j in 0:299]
+        @test CM._toeplitz_mul(c32, Z32) isa Matrix{Float32}
+        @test CM._toeplitz_mul(c32, Z32) ≈ generic_toeplitz_mul(c32, Z32)
+        @test_throws DimensionMismatch CM._toeplitz_mul(c32[1:10], Z32)
+    end
+
     kernels = (HR0(), HR1(), HR2(), HR3(), HR4(), HR4m(), HR5())
 
     Σ₀ = [0.06415873470586395 -0.004015858202035743 -6.709834054283887e-5;
@@ -428,8 +461,11 @@ df.y = Y;
         @test Vw0 ≈ Vw_0a
         @test Vw0 ≈ Vw_0b / (g / (g - 1))
         @test (Vw1 / scale_back) * scale_new ≈ Vw_1 rtol = 1e-6
-        @test Vw2 ≈ Vw_2 rtol = 1e-2
-        @test Vw3 ≈ Vw_3 rtol = 1e-2
+        # sandwich computes the weighted HC2 matrix power with a nonsymmetric
+        # eigendecomposition, which for these clusters of up to 1000 observations is
+        # accurate to about 3e-4; its HC3 uses a linear solve.
+        @test Vw2 ≈ Vw_2 rtol = 1e-3
+        @test Vw3 ≈ Vw_3
 
         # CachedCR built from a model: cached == uncached
         # Unweighted regression
@@ -885,8 +921,98 @@ end # Core Functionality Tests
               -9.8773895065056168e-05 0.0030065617267332799]
         @test V0 ≈ R0
         @test V1 ≈ R1 atol=1e-3
-        @test V2 ≈ R2 atol=1e-5
-        @test V3 ≈ R3 atol=1e-5
+        # R2 and R3 were computed with `cadjust = FALSE`, which scales them by (G - 1)/G.
+        @test V2 * (g - 1) / g ≈ R2
+        @test V3 * (g - 1) / g ≈ R3
+    end
+
+    @testset "CR2/CR3 against R: unsorted clusters, weights, GLMs ✅" begin
+        # Reference values: sandwich 3.1.1,
+        # vcovCL(m, cluster = ~cl, type = "HC2") and type = "HC3".
+        # PetersenCl is sorted by firm, so the rows of a year cluster are not contiguous.
+        pet = CSV.read(joinpath(datadir, "testdata/PetersenCl.csv"), DataFrame)
+        m = lm(@formula(y ~ x), pet)
+        @test vcov(CR2(pet.year), m) ≈
+              [0.00054722375700168324 2.6183880264776127e-05;
+               2.6183880264776127e-05 0.001115298294020378]
+        @test vcov(CR3(pet.year), m) ≈
+              [0.00060849221667372982 3.0686442061271585e-05;
+               3.0686442061271585e-05 0.0012400402139919192]
+        # vcovCL(m, cluster = ~firm + year, type = ...)
+        R2w = [0.0042373851948428074 -2.8212597359390157e-05;
+               -2.8212597359390154e-05 0.0028769295924040272]
+        R3w = [0.0043120486795480409 -2.5043448242598323e-05;
+               -2.5043448242598323e-05 0.0030150551474243809]
+        @test vcov(CR2((pet.firm, pet.year)), m) ≈ R2w
+        @test vcov(CR3((pet.firm, pet.year)), m) ≈ R3w
+        @test vcov(CachedCR(CR2((pet.firm, pet.year)), m), m) ≈ R2w
+        @test vcov(CachedCR(CR3((pet.firm, pet.year)), m), m) ≈ R3w
+
+        # 40 clusters in random row order. The logit is fit in R with
+        # glm.control(epsilon = 1e-14).
+        gd = CSV.read(joinpath(datadir, "testdata/glm_cluster.csv"), DataFrame)
+        wls = lm(@formula(yc ~ x1 + x2), gd, wts = gd.w)
+        logit = glm(@formula(ybin ~ x1 + x2), gd, Binomial(); rtol = 1e-13)
+        refs = [
+            (wls, 1e-10,
+                [0.029380739243881921 0.0026842170317624182 -0.00040990423268373328;
+                 0.0026842170317624182 0.0038348676552185674 -0.00038206848019518397;
+                 -0.00040990423268373328 -0.00038206848019518397 0.0041524379712778838],
+                [0.030345002650042315 0.002823046874517782 -0.00046071981067196614;
+                 0.002823046874517782 0.0040238737834758032 -0.00040645948907962914;
+                 -0.00046071981067196614 -0.00040645948907962914 0.0043491006495151455]),
+            (logit, 1e-6,
+                [0.022760367199250838 0.0019552750932193682 -0.0004465411237605578;
+                 0.0019552750932193687 0.009646830090459222 -0.003976479557046305;
+                 -0.00044654112376055796 -0.003976479557046305 0.010216373411430918],
+                [0.023519601090963793 0.0020336761256865583 -0.0004505140450396132;
+                 0.0020336761256865583 0.009974373923046268 -0.004124780004195129;
+                 -0.0004505140450396135 -0.004124780004195128 0.01058924302980609])
+        ]
+        for (fit, tol, R2, R3) in refs
+            @test vcov(CR2(gd.cl), fit) ≈ R2 rtol = tol
+            @test vcov(CR3(gd.cl), fit) ≈ R3 rtol = tol
+            @test vcov(CachedCR(CR2(gd.cl), fit), fit) ≈ vcov(CR2(gd.cl), fit)
+            @test vcov(CachedCR(CR3(gd.cl), fit), fit) ≈ vcov(CR3(gd.cl), fit)
+        end
+    end
+
+    @testset "CR2/CR3 adjusted residuals match the dense formula ✅" begin
+        # Clusters of 1 to 8 rows (some smaller than the 6 coefficients) in random row
+        # order, crossed with a second clustering.
+        rng = StableRNG(7)
+        sizes = rand(rng, 1:8, 300)
+        n = sum(sizes)
+        cl = shuffle(rng, reduce(vcat, [fill(g, s) for (g, s) in enumerate(sizes)]))
+        cl2 = rand(rng, 1:40, n)
+        d = DataFrame(randn(rng, n, 5), :auto)
+        d.y = d.x1 .+ randn(rng, n)
+        d.w = 0.2 .+ rand(rng, n)
+        frm = @formula(y ~ x1 + x2 + x3 + x4 + x5)
+        # (I - H_gg)^p u_g = W_g^(-1/2) (I - W_g^(1/2) X_g A X_g' W_g^(1/2))^p W_g^(1/2) u_g
+        function dense_adjusted(fit, clusters, p)
+            X = modelmatrix(fit)
+            u = CM.momentresiduals(fit)
+            w = isempty(CM.weights(fit)) ? ones(n) : CM.weights(fit)
+            A = inv(X' * (w .* X))
+            adj = similar(u)
+            for ind in clusters
+                s = sqrt.(w[ind])
+                Xs = s .* X[ind, :]
+                adj[ind] = (Symmetric(I - Xs * A * Xs')^p * (s .* u[ind])) ./ s
+            end
+            return adj
+        end
+        for fit in (lm(frm, d), lm(frm, d, wts = d.w)), (K, p) in ((CR2, -1 / 2), (CR3, -1))
+
+            k = K((cl, cl2))
+            _, cluster_indices, _ = CM._cluster_combinations(k.g)
+            X = modelmatrix(fit)
+            u = CM.momentresiduals(fit)
+            for (h, clusters) in zip(CM.residual_adjustment(k, fit), cluster_indices)
+                @test CM._adjusted_residuals(h, X, u) ≈ dense_adjusted(fit, clusters, p)
+            end
+        end
     end
 
     @testset "GLM HAC ✅" begin

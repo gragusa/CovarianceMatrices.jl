@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `CR2` and `CR3` on a model gave wrong results when the rows of a cluster were
+  not contiguous, which includes every two-way clustering. They now match R's
+  `sandwich::vcovCL` (`type = "HC2"`/`"HC3"`) for one-way and two-way
+  clustering in any row order.
+- `CR2` and `CR3` on a weighted model applied a symmetrized version of
+  `I - H_gg`, which is not symmetric when there are weights. They now use
+  `(I - H_gg)^(-1/2)` and `(I - H_gg)^(-1)` exactly; weighted results change
+  by a fraction of a percent.
+- `CR2` and `CR3` on a GLM build the hat matrix `X (X'WX)^(-1) X'W` from the
+  IRLS working weights, matching `sandwich`. They previously used the prior
+  weights and a bread that included the dispersion.
+- `CR2` and `CR3` throw an `ArgumentError` when `I - H_gg` is singular for a
+  cluster (for example, with a cluster fixed effect) instead of returning
+  `Inf` or `NaN` entries.
+- In the VARHAC lag search, the pseudo-inverse fallback for a cross-product
+  matrix that is not positive definite was applied to the matrix after
+  `cholesky!` had partly overwritten it. It now uses the original matrix.
+
+### Changed
+
+- `CR2` and `CR3` compute each cluster's adjustment from `k × k` matrices
+  (`k` coefficients) instead of an `n_g × n_g` one: an eigendecomposition for
+  CR2, a Cholesky factorization for CR3, and the leverage itself for a
+  single-row cluster. Their cost grows linearly in the cluster sizes. With 150
+  clusters of 100 observations and 6 coefficients, `vcov(CR2(cl), model)` is
+  about 110× faster and allocates about 19× less memory; two-way clustering of
+  the same panel is about 100× faster.
+- `QuadraticSpectral` computes `Z' K Z` with the Toeplitz matrix of kernel
+  weights `K` instead of summing all `T - 1` lags one at a time. For `Float32`
+  and `Float64` data `K Z` is computed with FFTs in `O(T log T)` time; other
+  element types use a blocked matrix product. At `T = 15000`, `k = 6` this
+  takes 1.4 ms, compared with 640 ms before.
+- `VARHAC` forms the cross products of its lag-search regressions from a
+  single `Z'Z` and `Z'Y`: about 5× faster with `SameLags` and 20× faster with
+  `DifferentOwnLags` at `T = 15000`, `k = 6`.
+- FFTW.jl and AbstractFFTs.jl are dependencies; BlockDiagonals.jl is no longer
+  one.
+
 ## [0.33.0]
 
 ### Breaking

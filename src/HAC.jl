@@ -111,16 +111,15 @@ function kernelestimator!(
     # Pre-allocate kernel weights
     κ = Vector{F}(undef, length(idx))
     bw_inv = inv(bw)  # Compute once
-    @inbounds for j in eachindex(idx)
+    for j in eachindex(idx)
         κ[j] = kernel(k, idx[j] * bw_inv)
     end
 
     # Calculate the variance at lag 0
     mul!(V, Z', Z)
-    #copy!(V, Q)
 
     # Calculate Γ₁, Γ₂, ..., Γⱼ with symmetric contribution
-    @inbounds for j in eachindex(idx)
+    for j in eachindex(idx)
         Zₜ = view(Z, 1:(T - idx[j]), :)
         Zₜ₊ⱼ = view(Z, (1 + idx[j]):T, :)
         mul!(Q, Zₜ', Zₜ₊ⱼ)
@@ -131,6 +130,92 @@ function kernelestimator!(
     end
 
     return V
+end
+
+# Every lag enters a QuadraticSpectral estimate, so it is computed as V = Z' K Z with the
+# T × T symmetric Toeplitz matrix K[s, t] = κ(|s - t| / bw).
+function kernelestimator!(
+        k::QuadraticSpectralKernel, V::AbstractMatrix{F}, Q, Z, bw_in) where {F <: Real}
+    T = size(Z, 1)
+    bw_inv = inv(convert(F, bw_in))
+    c = Vector{F}(undef, T)
+    c[1] = one(F)
+    for j in 1:(T - 1)
+        c[j + 1] = kernel(k, j * bw_inv)
+    end
+    mul!(V, Z', _toeplitz_mul(c, Z))
+    V .= (V .+ V') ./ 2
+    return V
+end
+
+"""
+    _toeplitz_mul(c, Z)
+
+Return `K * Z` for the symmetric Toeplitz matrix `K[s, t] = c[abs(s - t) + 1]`, with
+`size(K) == (length(c), length(c))`.
+
+For `Float32` and `Float64` the product is computed with FFTs in `O(n log n)` time per
+column. For other element types (e.g. dual numbers), `K` is treated as block Toeplitz:
+the `b × b` block in block row `I` and block column `J` depends only on `I - J`, so each
+of the `2 * cld(n, b) - 1` distinct blocks is formed once and multiplies all the blocks
+of `Z` on its block diagonal in one matrix product.
+"""
+function _toeplitz_mul end
+
+# `K` is the leading `n × n` block of the circulant matrix of order `L ≥ 2n - 1` whose
+# first column is `[c[1], …, c[n], 0, …, 0, c[n], …, c[2]]`.
+function _toeplitz_mul(
+        c::AbstractVector{T}, Z::AbstractMatrix{T}) where {T <: Union{Float32, Float64}}
+    Base.require_one_based_indexing(c, Z)
+    n, p = size(Z)
+    length(c) == n || throw(DimensionMismatch(
+        "the Toeplitz matrix has $(length(c)) rows but Z has $n"))
+    L = nextprod((2, 3, 5, 7), 2n - 1)
+    col = zeros(T, L)
+    col[1:n] .= c
+    col[(L - n + 2):L] .= view(c, n:-1:2)
+    Zp = zeros(T, L, p)
+    Zp[1:n, :] .= Z
+    F = plan_rfft(Zp, 1) * Zp
+    F .*= rfft(col)
+    return irfft(F, L, 1)[1:n, :]
+end
+
+function _toeplitz_mul(c::AbstractVector, Z::AbstractMatrix)
+    Base.require_one_based_indexing(c, Z)
+    n, p = size(Z)
+    length(c) == n || throw(DimensionMismatch(
+        "the Toeplitz matrix has $(length(c)) rows but Z has $n"))
+    S = promote_type(eltype(c), eltype(Z))
+    b = min(n, 512)
+    nb = cld(n, b)
+    # Zb[:, :, J] is block J of Z, zero-padded to nb * b rows.
+    Zb = zeros(S, b, p, nb)
+    for J in 1:nb
+        rows = ((J - 1) * b + 1):min(J * b, n)
+        Zb[1:length(rows), :, J] .= view(Z, rows, :)
+    end
+    Yb = zeros(S, b, p, nb)
+    blk = Matrix{S}(undef, b, b)
+    for d in (1 - nb):(nb - 1)
+        # Block (J + d, J): entry (i, j) is c[abs(d * b + i - j) + 1]. Entries with
+        # abs(d * b + i - j) ≥ n meet only padding rows of Zb or Yb.
+        for j in 1:b, i in 1:b
+
+            l = abs(d * b + i - j)
+            blk[i, j] = l < n ? c[l + 1] : zero(S)
+        end
+        Js = max(1, 1 - d):min(nb, nb - d)
+        Zd = reshape(view(Zb, :, :, Js), b, p * length(Js))
+        Yd = reshape(view(Yb, :, :, Js .+ d), b, p * length(Js))
+        mul!(Yd, blk, Zd, true, true)
+    end
+    Y = Matrix{S}(undef, n, p)
+    for I in 1:nb
+        rows = ((I - 1) * b + 1):min(I * b, n)
+        Y[rows, :] .= view(Yb, 1:length(rows), :, I)
+    end
+    return Y
 end
 
 """

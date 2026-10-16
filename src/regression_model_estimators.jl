@@ -185,8 +185,8 @@ Compute residual adjustment for basic cluster-robust estimators.
 
     - CR0, Cluster: No adjustment (returns 1.0)
     - CR1: DOF adjustment √((N-1)/(N-K)) * (G/(G-1))
-    - CR2:
-    - CR3:
+    - CR2: residuals of cluster g multiplied by (I - H_gg)^(-1/2)
+    - CR3: residuals of cluster g multiplied by (I - H_gg)^(-1)
 """
 
 #residual_adjustment(k::CR, m::GLMTableModel) = residual_adjustment(k, m.model)
@@ -205,57 +205,163 @@ function residual_adjustment(k::CR1, m::RegressionModel)
     map(g -> sqrt((N - 1) / dof) * (g / _cluster_dof(g)), G)
 end
 
-# Leverage transform dispatch for CR2/CR3
-_leverage_transform(::CR2, M) = Symmetric(M)^(-1 / 2)
-_leverage_transform(::CR3, M) = inv(Symmetric(M))
-
-function _residual_adjustment_cr(k::Union{CR2, CR3}, m::RegressionModel)
-    X = modelmatrix(m)
-    XX = bread(m)
-    wts = weights(m)
-    f = k.g
-
-    # Fast path: single cluster variable
-    if length(f) == 1
-        g = f[1]  # Already a Clustering
-        cluster_indices = precompute_cluster_indices(g)
-        blocks = Vector{Matrix{eltype(X)}}(undef, g.ngroups)
-        @inbounds for gc in 1:g.ngroups
-            ind = cluster_indices[gc]
-            Xg = view(X, ind, :)
-            tmp = Xg * XX * Xg'
-            !isempty(wts) && (tmp .*= view(wts, ind)')
-            blocks[gc] = _leverage_transform(k, I - tmp)
-        end
-        return [BlockDiagonal(blocks)]
-    end
-
-    # Multi-way clustering: use inclusion-exclusion
-    # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
-    combs = Iterators.filter(!isempty, combinations(1:length(f)))
-    map(combs) do c
-        begin
-            if length(c) == 1
-                g = Clustering(f[c[1]])
-            else
-                g = Clustering((f[i] for i in c)...)
-            end
-            cluster_indices = precompute_cluster_indices(g)
-            blocks = Vector{Matrix{eltype(X)}}(undef, g.ngroups)
-            @inbounds for gc in 1:g.ngroups
-                ind = cluster_indices[gc]
-                Xg = view(X, ind, :)
-                tmp = Xg * XX * Xg'
-                !isempty(wts) && (tmp .*= view(wts, ind)')
-                blocks[gc] = _leverage_transform(k, I - tmp)
-            end
-            BlockDiagonal(blocks)
-        end
-    end
+# CR2 and CR3 replace the residuals `u_g` of each cluster by `(I - H_gg)^p * u_g`, with
+# `p = -1/2` (CR2) or `p = -1` (CR3). `H_gg = X_g A X_g' W_g` is the cluster's diagonal
+# block of the hat matrix, `A = inv(X'WX) = B B'`, and `W_g` holds the hat weights (see
+# `_hatweights`) of the cluster's rows.
+#
+# `I - H_gg = W_g^(-1/2) (I - C C') W_g^(1/2)` with `C = W_g^(1/2) X_g B`, and every
+# adjustment has the form
+#
+#     (I - H_gg)^p * u_g = u_g + X_g F (r .* (F' X_g' W_g u_g)),
+#
+# with a `k × k` factor `F` and a `k`-vector `r`; the `n_g × n_g` matrix `I - H_gg` is
+# never formed.
+#
+# - CR2: with the eigendecomposition `C'C = Q Λ Q'`, `F = B Q` and
+#   `r = ((1 .- λ).^(-1/2) .- 1) ./ λ`. An eigenvector with `λ = 0` has `C Q[:, j] = 0`,
+#   so its finite `r[j]` adds nothing.
+# - CR3: by the Woodbury identity, `(I - C C')^(-1) = I + C (I - C'C)^(-1) C'`. With the
+#   Cholesky factorization `I - C'C = R'R`, `F = B R⁻¹` and `r = 1`.
+#
+# A cluster with a single row `i` has `H_gg = h_i`, the row's leverage, and its residual
+# is multiplied by `(1 - h_i)^p`.
+#
+# `indices` holds the clusters with more than one row and `singles` the rows of the
+# single-row clusters. `factors[g]` is `F` with zero rows for the non-estimable
+# coefficients, so it multiplies the full model matrix.
+struct ClusterLeverage{T}
+    indices::Vector{Vector{Int}}
+    factors::Vector{Matrix{T}}
+    ratios::Vector{Vector{T}}
+    singles::Vector{Int}
+    single_scales::Vector{T}
+    weights::Vector{T}
 end
 
-residual_adjustment(k::CR2, m::RegressionModel) = _residual_adjustment_cr(k, m)
-residual_adjustment(k::CR3, m::RegressionModel) = _residual_adjustment_cr(k, m)
+# `(1 - h)^p`.
+_leverage_scale(::CR2, h) = 1 / sqrt(1 - h)
+_leverage_scale(::CR3, h) = 1 / (1 - h)
+
+# Weights `w` of the hat matrix `X inv(X'WX) X'W` of CR2 and CR3, empty for an unweighted
+# model.
+_hatweights(m) = weights(m)
+
+# An upper triangular `B` with `B B' = inv(X'WX)`.
+function _hat_bread_factor(X, w)
+    isempty(w) || length(w) == size(X, 1) ||
+        throw(DimensionMismatch(
+            "the model has $(length(w)) weights but $(size(X, 1)) observations"))
+    G = isempty(w) ? X' * X : X' * (w .* X)
+    return Matrix(inv(cholesky!(Symmetric(G)).U))
+end
+
+# `gap` is the smallest eigenvalue of `I - H_gg`, or a lower bound for it.
+function _check_leverage(k, gap, row, tol)
+    gap > tol || throw(ArgumentError(
+        "$(nameof(typeof(k))) needs I - H_gg to be nonsingular for every cluster, " *
+        "but the cluster containing row $row has a hat-matrix eigenvalue of 1 " *
+        "(to within $tol). This happens when a regressor is nonzero only within " *
+        "one cluster, as with a cluster fixed effect."))
+    return nothing
+end
+
+# Eigenvalues and eigenvectors of the symmetric matrix `G`. For the small matrices of CR2,
+# `syev!` is faster than the `syevr!` behind `eigen(::Symmetric)`.
+_symeigen(G::Matrix{<:Union{Float32, Float64}}) = LAPACK.syev!('V', 'U', copy(G))
+function _symeigen(G)
+    E = eigen(Symmetric(G))
+    return E.values, E.vectors
+end
+
+# The factor `P` with `F = B P`, and `r`, for the cross product `CC = C'C` of a cluster.
+function _cluster_factor(k::CR2, CC, row, tol)
+    λ, Q = _symeigen(CC)
+    _check_leverage(k, 1 - maximum(λ), row, tol)
+    r = map(λ) do λᵢ
+        s = sqrt(1 - λᵢ)
+        1 / (s * (1 + s))
+    end
+    return Q, r
+end
+
+function _cluster_factor(k::CR3, CC, row, tol)
+    ch = cholesky!(Symmetric(I - CC); check = false)
+    issuccess(ch) || _check_leverage(k, zero(eltype(CC)), row, tol)
+    Rinv = Matrix(inv(ch.U))
+    # `1 / sum(abs2, R⁻¹)` is a lower bound for the smallest eigenvalue of `R'R`, within a
+    # factor `size(R, 1)` of it.
+    _check_leverage(k, 1 / sum(abs2, Rinv), row, tol)
+    return Rinv, ones(eltype(Rinv), size(Rinv, 2))
+end
+
+# `Xm` holds the estimable columns `midx` of the model matrix, `B B' = inv(Xm'W Xm)`.
+function ClusterLeverage(
+        k::Union{CR2, CR3}, Xm::AbstractMatrix, B::AbstractMatrix, w::AbstractVector,
+        midx::AbstractVector{Bool}, indices::Vector{Vector{Int}})
+    Base.require_one_based_indexing(Xm, w)
+    T = float(promote_type(eltype(Xm), eltype(B), eltype(w)))
+    tol = sqrt(eps(real(T)))
+
+    singles = [first(ind) for ind in indices if length(ind) == 1]
+    h = vec(sum(abs2, Xm[singles, :] * B; dims = 2))
+    isempty(w) || (h .*= view(w, singles))
+    for (i, hi) in zip(singles, h)
+        _check_leverage(k, 1 - hi, i, tol)
+    end
+    single_scales = _leverage_scale.(Ref(k), h)
+
+    multi = filter(ind -> length(ind) > 1, indices)
+    factors = Vector{Matrix{T}}(undef, length(multi))
+    ratios = Vector{Vector{T}}(undef, length(multi))
+    for (gc, ind) in pairs(multi)
+        Xg = Xm[ind, :]
+        isempty(w) || (Xg .*= sqrt.(view(w, ind)))
+        C = Xg * B
+        P, r = _cluster_factor(k, C' * C, first(ind), tol)
+        if all(midx)
+            factors[gc] = B * P
+        else
+            Fg = zeros(T, length(midx), size(B, 2))
+            Fg[midx, :] = B * P
+            factors[gc] = Fg
+        end
+        ratios[gc] = r
+    end
+    return ClusterLeverage{T}(multi, factors, ratios, singles, single_scales, w)
+end
+
+# One `ClusterLeverage` per clustering in `cluster_indices`.
+function _cluster_leverage(k::Union{CR2, CR3}, m::RegressionModel, cluster_indices)
+    midx = mask(m)
+    Xm = modelmatrix(m)[:, midx]
+    w = _hatweights(m)
+    B = _hat_bread_factor(Xm, w)
+    return [ClusterLeverage(k, Xm, B, w, midx, ind) for ind in cluster_indices]
+end
+
+function residual_adjustment(k::Union{CR2, CR3}, m::RegressionModel)
+    _, cluster_indices, _ = _cluster_combinations(k.g)
+    return _cluster_leverage(k, m, cluster_indices)
+end
+
+# The residuals `u` after the adjustment `h` of one clustering: a scalar for CR0/CR1, a
+# `ClusterLeverage` for CR2/CR3.
+_adjusted_residuals(h::Number, X, u) = h * u
+
+function _adjusted_residuals(h::ClusterLeverage, X, u)
+    Base.require_one_based_indexing(X, u)
+    adj = copyto!(similar(u, promote_type(eltype(u), eltype(h.single_scales))), u)
+    view(adj, h.singles) .*= h.single_scales
+    wu = isempty(h.weights) ? u : h.weights .* u
+    for (gc, ind) in pairs(h.indices)
+        Xg = X[ind, :]
+        F = h.factors[gc]
+        c = h.ratios[gc] .* (F' * (Xg' * wu[ind]))
+        view(adj, ind) .+= Xg * (F * c)
+    end
+    return adj
+end
 
 """
     aVar(estimator, model::RegressionModel; kwargs...)
@@ -308,7 +414,7 @@ function aVar(
     H = residual_adjustment(k, m)
     X = modelmatrix(m)
     u = momentresiduals(m)
-    M = map(h->X .* (h*u), H)
+    M = map(h -> X .* _adjusted_residuals(h, X, u), H)
     V = avar_tuple(k, M)
     # Filter out empty combinations (Combinatorics.jl < 1.1 includes empty set)
     combs = Iterators.filter(!isempty, combinations(1:length(k.g)))
@@ -454,9 +560,8 @@ CachedCR on a RegressionModel
 function CachedCR(k::CR, m::RegressionModel)
     _check_resolved(k)
     X = modelmatrix(m)
-    XX = bread(m)
     grouped_arrays, cluster_indices, signs = _cluster_combinations(k.g)
-    H = _compute_leverage_adjustments(k, X, XX, weights(m), grouped_arrays, cluster_indices)
+    H = _compute_leverage_adjustments(k, m, grouped_arrays, cluster_indices)
     cache = CRModelCache{typeof(H)}(
         grouped_arrays, cluster_indices, signs, H, size(X, 2), numobs(m))
     return CachedCR(k, cache)
@@ -464,34 +569,21 @@ end
 
 # Dispatch on CR type to compute appropriate leverage adjustments
 function _compute_leverage_adjustments(
-        k::Union{CR0, Cluster}, X, XX, wts, grouped_arrays, cluster_indices)
+        k::Union{CR0, Cluster}, m, grouped_arrays, cluster_indices)
     # CR0: No adjustment, just return vector of 1s (one per combination)
     [1 for _ in grouped_arrays]
 end
 
-function _compute_leverage_adjustments(k::CR1, X, XX, wts, grouped_arrays, cluster_indices)
+function _compute_leverage_adjustments(k::CR1, m, grouped_arrays, cluster_indices)
     # CR1: DOF adjustment - scalar per combination
-    N = size(X, 1)
-    K = size(X, 2)
+    N, K = size(modelmatrix(m))
     dof = _residual_dof(N, K)
     map(g -> sqrt((N - 1) / dof) * (g.ngroups / _cluster_dof(g.ngroups)), grouped_arrays)
 end
 
 function _compute_leverage_adjustments(
-        k::Union{CR2, CR3}, X, XX, wts, grouped_arrays, cluster_indices)
-    # Precompute BlockDiagonal leverage adjustments using type-dispatched transform
-    T = eltype(X)
-    map(zip(grouped_arrays, cluster_indices)) do (g, indices)
-        blocks = Vector{Matrix{T}}(undef, g.ngroups)
-        @inbounds for gc in 1:g.ngroups
-            ind = indices[gc]
-            Xg = view(X, ind, :)
-            tmp = Xg * XX * Xg'
-            !isempty(wts) && (tmp .*= view(wts, ind)')
-            blocks[gc] = _leverage_transform(k, I - tmp)
-        end
-        BlockDiagonal(blocks)
-    end
+        k::Union{CR2, CR3}, m, grouped_arrays, cluster_indices)
+    return _cluster_leverage(k, m, cluster_indices)
 end
 
 residual_adjustment(k::CachedCR, m::RegressionModel) = residual_adjustment(k.estimator, m)
@@ -527,7 +619,7 @@ function aVar(
     u = momentresiduals(m)
 
     # Compute moment matrices using cached leverage adjustments
-    M = map(h -> X .* (h * u), H)
+    M = map(h -> X .* _adjusted_residuals(h, X, u), H)
 
     # Use cached cluster indices for aggregation
     V = _avar_cached(cache, M)

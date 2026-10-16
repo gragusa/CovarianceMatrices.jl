@@ -134,6 +134,16 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
         @test_nowarn vcov(CR2(df.g), model)
     end
 
+    @testset "CR2/CR3 with a cluster fixed effect" begin
+        # A regressor that is nonzero only within one cluster gives that cluster's
+        # hat-matrix block an eigenvalue of 1, so I - H_gg is singular.
+        dfe = DataFrame(y = df.y, x = df.x, g = df.g, fe = string.(df.g))
+        mfe = lm(@formula(y ~ x + fe), dfe)
+        @test_throws "CR2 needs I - H_gg to be nonsingular" vcov(CR2(dfe.g), mfe)
+        @test_throws "as with a cluster fixed effect" vcov(CR3(dfe.g), mfe)
+        @test_throws "CR3 needs I - H_gg to be nonsingular" CachedCR(CR3(dfe.g), mfe)
+    end
+
     @testset "export tiers" begin
         @test Base.isexported(CovarianceMatrices, :CR)
         @test Cluster <: CR

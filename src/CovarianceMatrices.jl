@@ -9,11 +9,13 @@ These use cases utilize different parts of this package, make sure you read the 
 
 module CovarianceMatrices
 
-using BlockDiagonals: BlockDiagonals, BlockDiagonal
+using AbstractFFTs: irfft, plan_rfft, rfft
 using Combinatorics: Combinatorics, combinations
-using LinearAlgebra: LinearAlgebra, BLAS, Diagonal, I, PosDefException, Symmetric,
-                     UniformScaling, axpy!, cholesky, cholesky!, diag, dot, isdiag,
-                     ldiv!, lmul!, lu, mul!, pinv, rdiv!, rmul!, svd
+# FFTW provides the `rfft` plans for `Float32` and `Float64` used by `_toeplitz_mul`.
+import FFTW
+using LinearAlgebra: LinearAlgebra, BLAS, Diagonal, I, LAPACK, PosDefException, Symmetric,
+                     UniformScaling, axpy!, cholesky, cholesky!, diag, dot, eigen,
+                     isdiag, issuccess, ldiv!, lmul!, lu, mul!, pinv, rdiv!, rmul!, svd
 using NaNStatistics: NaNStatistics
 using Statistics: Statistics
 using StatsAPI: StatsAPI, vcov, stderror

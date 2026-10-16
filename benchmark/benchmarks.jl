@@ -1,120 +1,141 @@
-using CovarianceMatrices
-using Random
-using GLM
-using DataFrames
+# AirspeedVelocity.jl benchmark suite. The `Benchmark` workflow runs this script
+# against both the pull request and the base branch, so it may use only API that
+# exists on both. Run locally with `julia benchmark/run_asv.jl`.
+
 using BenchmarkTools
+using CovarianceMatrices
+using DataFrames
+using GLM
+using Random
 
-Random.seed!(1234)
+const SUITE = BenchmarkGroup()
 
-u = zeros(6000*50)
-for j in 1:2999
-    u[j + 1] = 0.97*u[j] + randn()
+# Each benchmark gets at most `SECONDS` of sampling.
+const SECONDS = 1.0
+
+rng = Xoshiro(20261016)
+
+# AR(1) moment matrix, T × k.
+function ar1_matrix(rng, T, k; ρ = 0.6)
+    X = randn(rng, T, k)
+    for t in 2:T
+        X[t, :] .+= ρ .* X[t - 1, :]
+    end
+    return X
 end
 
-y = randn(300*50) .+ u[15001:30000]
-df = DataFrame(randn(length(y), 5), :auto)
-df[!, :y] .= y
-df[!, :cluster] = repeat(1:150, inner = [100])
+# ---------------------------------------------------------------------------
+# HAC on a moment matrix
+# ---------------------------------------------------------------------------
+X = ar1_matrix(rng, 10_000, 6)
 
-y = sqrt(2) .* randn(250)
-df2 = DataFrame(randn(length(y), 5), :auto)
-for j in Symbol.("x" .* string.(collect(1:5)))
-    df2[!, j] = randn(250)
+SUITE["HAC"] = BenchmarkGroup()
+for (name, k) in (
+    "Bartlett(10)" => Bartlett(10),
+    "Parzen(10)" => Parzen(10),
+    "Truncated(10)" => Truncated(10),
+    "QuadraticSpectral(10)" => QuadraticSpectral(10),
+    "Bartlett{NeweyWest}" => Bartlett{NeweyWest}(),
+    "Parzen{NeweyWest}" => Parzen{NeweyWest}(),
+    "Bartlett{Andrews}" => Bartlett{Andrews}(),
+    "Parzen{Andrews}" => Parzen{Andrews}(),
+    "QuadraticSpectral{Andrews}" => QuadraticSpectral{Andrews}()
+)
+    SUITE["HAC"][name] = @benchmarkable aVar($k, $X) seconds=SECONDS
 end
-df2[!, :cluster] = repeat(1:50, inner = [5])
-df2[!, :y] .= y
+SUITE["HAC"]["Bartlett{Andrews} prewhite"] = @benchmarkable aVar(
+    $(Bartlett{Andrews}()), $X; prewhite = true) seconds=SECONDS
 
+# ---------------------------------------------------------------------------
+# Other long-run variance estimators on a moment matrix
+# ---------------------------------------------------------------------------
+SUITE["LRV"] = BenchmarkGroup()
+for (name, k) in (
+    "EWC(10)" => EWC(10),
+    "VARHAC()" => VARHAC(),
+    "VARHAC(FixedLags(4))" => VARHAC(FixedLags(4)),
+    "VARHAC DifferentOwnLags([4, 4])" => VARHAC(AICSelector(), DifferentOwnLags([4, 4])),
+    "UniformSmoother(5)" => UniformSmoother(5),
+    "TriangularSmoother(5)" => TriangularSmoother(5)
+)
+    SUITE["LRV"][name] = @benchmarkable aVar($k, $X) seconds=SECONDS
+end
+
+# Driscoll-Kraay on a balanced panel: 50 units observed over 200 periods.
+tis = repeat(1:200, outer = 50)
+iis = repeat(1:50, inner = 200)
+dk = DriscollKraay(Bartlett(5), tis = tis, iis = iis)
+SUITE["LRV"]["DriscollKraay(Bartlett(5))"] = @benchmarkable aVar($dk, $X) seconds=SECONDS
+
+# ---------------------------------------------------------------------------
+# Regression models: 150 firms observed over 100 periods, sorted by firm, so the
+# rows of a period cluster are not contiguous.
+# ---------------------------------------------------------------------------
+nfirm, nper = 150, 100
+n = nfirm * nper
+firm = repeat(1:nfirm, inner = nper)
+period = repeat(1:nper, outer = nfirm)
+df = DataFrame(ar1_matrix(rng, n, 5), :auto)
+df.firm = firm
+df.period = period
+df.w = 0.5 .+ rand(rng, n)
+df.y = df.x1 .- 0.5 .* df.x2 .+ randn(rng, nfirm)[firm] .+ randn(rng, n)
+df.ybin = Float64.(df.y .> 0)
 frm = @formula(y ~ x1 + x2 + x3 + x4 + x5)
-lm1 = glm(frm, df, Normal(), IdentityLink())
-lm2 = glm(frm, df2, Normal(), IdentityLink())
+ols = lm(frm, df)
+wls = lm(frm, df, wts = df.w)
+logit = glm(@formula(ybin ~ x1 + x2 + x3 + x4 + x5), df, Binomial())
 
-SUITE = BenchmarkGroup()
-SUITE["HAC Andrews"] = BenchmarkGroup()
-SUITE["HAC Newey"] = BenchmarkGroup()
-SUITE["HAC Fixed(10)"] = BenchmarkGroup()
-SUITE["HAC Fixed(30)"] = BenchmarkGroup()
+SUITE["HC"] = BenchmarkGroup()
+for (name, k) in ("HC0" => HC0(), "HC1" => HC1(), "HC3" => HC3())
+    SUITE["HC"][name] = @benchmarkable vcov($k, $ols) seconds=SECONDS
+end
 
-SUITE["CRHC (large)"] = BenchmarkGroup()
-SUITE["CRHC (small)"] = BenchmarkGroup()
+SUITE["CR"] = BenchmarkGroup()
+for (name, K) in ("CR0" => CR0, "CR1" => CR1, "CR2" => CR2, "CR3" => CR3)
+    k = K(firm)
+    SUITE["CR"]["$name firm"] = @benchmarkable vcov($k, $ols) seconds=SECONDS
+end
+for (name, K) in ("CR2" => CR2, "CR3" => CR3)
+    k1 = K(period)
+    k2 = K((firm, period))
+    kf = K(firm)
+    SUITE["CR"]["$name period"] = @benchmarkable vcov($k1, $ols) seconds=SECONDS
+    SUITE["CR"]["$name firm+period"] = @benchmarkable vcov($k2, $ols) seconds=SECONDS
+    SUITE["CR"]["$name firm weighted"] = @benchmarkable vcov($kf, $wls) seconds=SECONDS
+    SUITE["CR"]["$name firm logit"] = @benchmarkable vcov($kf, $logit) seconds=SECONDS
+end
+cr2 = CR2(firm)
+cached_cr2 = CachedCR(cr2, ols)
+SUITE["CR"]["CachedCR(CR2) build"] = @benchmarkable CachedCR($cr2, $ols) seconds=SECONDS
+SUITE["CR"]["CachedCR(CR2) vcov"] = @benchmarkable vcov($cached_cr2, $ols) seconds=SECONDS
+cr0 = CR0(firm)
+Xn = ar1_matrix(rng, n, 6)
+SUITE["CR"]["CR0 firm matrix"] = @benchmarkable aVar($cr0, $Xn) seconds=SECONDS
 
-SUITE["HAC Andrews"]["Parzen"] = @benchmarkable vcov($Parzen{Andrews}(), lm1)
-SUITE["HAC Andrews"]["Truncated"] = @benchmarkable vcov($Truncated{Andrews}(), lm1)
-SUITE["HAC Andrews"]["Bartlett"] = @benchmarkable vcov($Bartlett{Andrews}(), lm1)
+# Small model: 50 clusters of 5 observations.
+small = DataFrame(ar1_matrix(rng, 250, 5), :auto)
+small.cl = repeat(1:50, inner = 5)
+small.y = small.x1 .+ randn(rng, 250)
+ols_small = lm(frm, small)
+for (name, K) in ("CR0" => CR0, "CR2" => CR2, "CR3" => CR3)
+    k = K(small.cl)
+    SUITE["CR"]["$name small"] = @benchmarkable vcov($k, $ols_small) seconds=SECONDS
+end
 
-SUITE["HAC Newey"]["Parzen"] = @benchmarkable vcov($Parzen{NeweyWest}(), lm1)
-SUITE["HAC Newey"]["Bartlett"] = @benchmarkable vcov($Bartlett{NeweyWest}(), lm1)
-
-SUITE["HAC Fixed(10)"]["Parzen"] = @benchmarkable vcov($Parzen(10), lm1)
-SUITE["HAC Fixed(10)"]["Truncated"] = @benchmarkable vcov($Truncated(10), lm1)
-SUITE["HAC Fixed(10)"]["Bartlett"] = @benchmarkable vcov($Bartlett(10), lm1)
-
-SUITE["HAC Fixed(30)"]["Parzen"] = @benchmarkable vcov($Parzen(30), lm1)
-SUITE["HAC Fixed(30)"]["Truncated"] = @benchmarkable vcov($Truncated(30), lm1)
-SUITE["HAC Fixed(30)"]["Bartlett"] = @benchmarkable vcov($Bartlett(30), lm1)
-
-k0 = CR0(df[!, :cluster])
-k2 = CR2(df[!, :cluster])
-k3 = CR3(df[!, :cluster])
-
-k20 = CR0(df2[!, :cluster])
-k22 = CR2(df2[!, :cluster])
-k23 = CR3(df2[!, :cluster])
-
-SUITE["CRHC (large)"]["CRHC0"] = @benchmarkable vcov($k0, lm1)
-SUITE["CRHC (large)"]["CRHC2"] = @benchmarkable vcov($k2, lm1)
-SUITE["CRHC (large)"]["CRHC3"] = @benchmarkable vcov($k3, lm1)
-
-SUITE["CRHC (small)"]["CRHC0"] = @benchmarkable vcov($k20, lm2)
-SUITE["CRHC (small)"]["CRHC2"] = @benchmarkable vcov($k22, lm2)
-SUITE["CRHC (small)"]["CRHC3"] = @benchmarkable vcov($k23, lm2)
-
-# ========================================
-# Smoothing Benchmarks
-# ========================================
-
-# Create benchmark data for smoothing
-T_sizes = [100, 1000, 5000]
-k_sizes = [3, 10, 50]
-m_T_values = [2, 5, 10]
-
+# ---------------------------------------------------------------------------
+# Moment smoothing
+# ---------------------------------------------------------------------------
 SUITE["Smoothing"] = BenchmarkGroup()
-SUITE["Smoothing"]["Uniform"] = BenchmarkGroup()
-SUITE["Smoothing"]["Triangular"] = BenchmarkGroup()
-SUITE["Smoothing"]["Uniform In-place"] = BenchmarkGroup()
-SUITE["Smoothing"]["Triangular In-place"] = BenchmarkGroup()
-SUITE["Smoothing"]["aVar Uniform"] = BenchmarkGroup()
-SUITE["Smoothing"]["aVar Triangular"] = BenchmarkGroup()
-
-# Generate test data for each configuration
-for T in T_sizes
-    for k in k_sizes
-        for m_T in m_T_values
-            # Create test data
-            G_data = randn(T, k)
-            G_dest = similar(G_data)
-
-            # Create smoothers
-            smoother_u = CovarianceMatrices.UniformSmoother(m_T)
-            smoother_t = CovarianceMatrices.TriangularSmoother(m_T)
-
-            # Label for this configuration
-            label = "T=$(T)_k=$(k)_m=$(m_T)"
-
-            # Out-of-place smoothing benchmarks
-            SUITE["Smoothing"]["Uniform"][label] = @benchmarkable CovarianceMatrices.smooth_moments(
-                $G_data, $smoother_u)
-            SUITE["Smoothing"]["Triangular"][label] = @benchmarkable CovarianceMatrices.smooth_moments(
-                $G_data, $smoother_t)
-
-            # In-place smoothing benchmarks
-            SUITE["Smoothing"]["Uniform In-place"][label] = @benchmarkable CovarianceMatrices.smooth_moments!(
-                $G_dest, $G_data, $smoother_u)
-            SUITE["Smoothing"]["Triangular In-place"][label] = @benchmarkable CovarianceMatrices.smooth_moments!(
-                $G_dest, $G_data, $smoother_t)
-
-            # aVar benchmarks (full HAC estimation)
-            SUITE["Smoothing"]["aVar Uniform"][label] = @benchmarkable aVar($smoother_u, $G_data)
-            SUITE["Smoothing"]["aVar Triangular"][label] = @benchmarkable aVar($smoother_t, $G_data)
-        end
+for (T, k, m) in ((1_000, 5, 5), (10_000, 5, 5), (10_000, 20, 10))
+    G = randn(rng, T, k)
+    dest = similar(G)
+    label = "T=$(T)_k=$(k)_m=$(m)"
+    for (name, s) in ("Uniform" => UniformSmoother(m), "Triangular" =>
+        TriangularSmoother(m))
+        SUITE["Smoothing"]["$name $label"] = @benchmarkable CovarianceMatrices.smooth_moments(
+            $G, $s) seconds=SECONDS
+        SUITE["Smoothing"]["$name in-place $label"] = @benchmarkable CovarianceMatrices.smooth_moments!(
+            $dest, $G, $s) seconds=SECONDS
     end
 end

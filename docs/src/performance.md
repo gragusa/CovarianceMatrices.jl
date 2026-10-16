@@ -15,9 +15,10 @@ same estimator on the same data.
 
 !!! note "Measurement environment"
     Apple M3 Max, macOS 26.5, single-threaded. Julia 1.12 with
-    CovarianceMatrices.jl 0.31; R 4.6 with sandwich 3.1.1. Absolute numbers are
-    machine-dependent; the *ratios* are the portable takeaway. Run the scripts
-    below to get figures for your own hardware.
+    CovarianceMatrices.jl 0.31; R 4.6 with sandwich 3.1.1. The Quadratic
+    Spectral rows use Julia 1.13 and CovarianceMatrices.jl 0.33. Absolute numbers are machine-dependent; the *ratios* are the
+    portable takeaway. Run the scripts below to get figures for your own
+    hardware.
 
 ### HAC (long-run variance, Andrews bandwidth)
 
@@ -29,14 +30,15 @@ prewhitening (`aVar(Bartlett{Andrews}(), Z; prewhite = false)` against
 |--------|---|---|----------------------:|---------:|--------:|
 | Bartlett           | 1000  | 10 | 0.032 ms  | 8.62 ms   | ~270× |
 | Parzen             | 1000  | 10 | 0.049 ms  | 8.65 ms   | ~175× |
-| Quadratic Spectral | 1000  | 10 | 4.37 ms   | 67.5 ms   | ~15×  |
+| Quadratic Spectral | 1000  | 10 | 0.147 ms  | 67.5 ms   | ~460× |
 | Bartlett           | 10000 | 10 | 0.314 ms  | 66.2 ms   | ~210× |
 | Parzen             | 10000 | 10 | 0.495 ms  | 66.6 ms   | ~135× |
-| Quadratic Spectral | 10000 | 10 | 470.8 ms  | 761.9 ms  | ~1.6× |
+| Quadratic Spectral | 10000 | 10 | 1.42 ms   | 761.9 ms  | ~540× |
 
-The compactly supported kernels (Bartlett, Parzen) are two orders of magnitude
-faster. The Quadratic Spectral kernel has unbounded support, so it sums over all
-lags; its advantage over `sandwich` narrows as `T` grows.
+The Quadratic Spectral kernel has unbounded support, so every lag enters the
+estimate. CovarianceMatrices.jl computes it as `Z' K Z` with the `T × T`
+Toeplitz matrix of kernel weights `K`, and computes `K Z` with FFTs in
+`O(T log T)` time.
 
 ### Heteroskedasticity-robust (HC) standard errors
 
@@ -81,22 +83,28 @@ microbenchmark(lrvar(Z, type = "Andrews", kernel = "Bartlett", adjust = FALSE),
 ## The benchmark suite
 
 The repository ships an [AirspeedVelocity.jl](https://github.com/MilesCranmer/AirspeedVelocity.jl)
-suite at `benchmark/benchmarks.jl` covering HAC (Andrews, Newey-West, fixed
-bandwidth), cluster-robust, and smoothed-moment estimators. The runner script
-`benchmark/run_asv.jl` benchmarks a baseline revision against a candidate and
-writes a markdown summary table:
+suite at `benchmark/benchmarks.jl` covering HAC kernels (fixed, Newey-West and
+Andrews bandwidths), the other long-run variance estimators (EWC, VARHAC, the
+smoothers, Driscoll-Kraay), HC and cluster-robust estimators on fitted models
+(one-way and two-way clustering, weights, a logit, `CachedCR`), and moment
+smoothing. Its dependencies are listed in `benchmark/Project.toml`. The runner
+script `benchmark/run_asv.jl` benchmarks a baseline revision against a candidate
+and writes a markdown summary table. It needs AirspeedVelocity.jl in the default
+environment:
 
 ```sh
 # from a clone of the repository; compares HEAD against the working tree
+julia -e 'using Pkg; Pkg.add("AirspeedVelocity")'
 julia benchmark/run_asv.jl
 ```
 
 Set `ASV_BASELINE` / `ASV_CANDIDATE` to compare specific revisions; the table is
 written under `benchmark/results/`.
 
-The `Benchmark` GitHub workflow runs the same suite on every pull request and
-posts a table comparing the PR against the base branch, so performance
-regressions are caught in review. The suite is the source of truth for the
+The `Benchmark` GitHub workflow runs the pull request's `benchmark/benchmarks.jl`
+against both the base branch and the pull request, and posts a table comparing
+them, so performance regressions are caught in review. Because the same script
+runs against the base branch, it may use only API that exists there. The suite is the source of truth for the
 relative performance of the package's own estimators; extend
 `benchmark/benchmarks.jl` when adding new ones.
 
@@ -133,7 +141,8 @@ Two patterns dominate the cost of HAC estimation:
   bandwidths altogether.
 - **Kernel support.** Compactly supported kernels (Bartlett, Parzen, Truncated,
   Tukey-Hanning) only sum lags up to the bandwidth. The Quadratic Spectral
-  kernel sums all lags and is the slowest, especially for large `T`.
+  kernel uses all lags; its cost grows as `T log T` because the lag sum is
+  computed with FFTs.
 
 ## Numerical stability
 

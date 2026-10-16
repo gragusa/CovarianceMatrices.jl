@@ -1,4 +1,17 @@
 #!/usr/bin/env julia
+#
+# Runs benchmark/benchmarks.jl for a baseline and a candidate revision of the
+# package and writes a markdown comparison table. From the repository root:
+#
+#     julia benchmark/run_asv.jl
+#
+# Environment variables: ASV_BASELINE (default "HEAD"), ASV_CANDIDATE (default
+# "dirty", the working tree), ASV_OUTPUT_DIR (default benchmark/results),
+# ASV_TUNE (default "false"), ASV_LOAD_SAMPLES (default 5).
+
+Base.find_package("AirspeedVelocity") === nothing && error(
+    "benchmark/run_asv.jl needs AirspeedVelocity.jl in the active or default " *
+    "environment: julia -e 'using Pkg; Pkg.add(\"AirspeedVelocity\")'")
 
 using AirspeedVelocity
 using Dates

@@ -8,18 +8,21 @@ on:
 permissions:
   pull-requests: write
 
+concurrency:
+  group: benchmark-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   benchmark:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v2
-        with:
-          version: '1'
-      - uses: julia-actions/cache@v2
+      # The action checks out the repository, installs Julia and caches packages.
+      # The benchmark environment is benchmark/Project.toml.
       - name: Run benchmarks
         uses: MilesCranmer/AirspeedVelocity.jl@action-v1
         with:
           julia-version: '1'
           tune: 'false'
-          extra_pkgs: Random, GLM, DataFrames
+          # Run the pull request's benchmark/benchmarks.jl against both the base
+          # branch and the pull request.
+          bench-on: ${{ github.event.pull_request.head.sha }}

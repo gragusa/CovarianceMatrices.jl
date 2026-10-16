@@ -3,10 +3,12 @@
 # This benchmark compares the performance of the cached cluster-robust
 # variance estimator (CachedCR) against the standard implementation.
 #
-# Run with: julia --project benchmark/benchmark_cached_cr.jl
+# Run with: julia --project=benchmark benchmark/benchmark_cached_cr.jl
 
 using CovarianceMatrices
 using BenchmarkTools
+using DataFrames
+using GLM
 using Random
 using Printf
 
@@ -163,7 +165,7 @@ function benchmark_varying_sizes()
 end
 
 function benchmark_cr_variants()
-    print_header("CR Variants (CR0, CR1, CR2, CR3)")
+    print_header("CR Variants on a Fitted Model (CR0, CR1, CR2, CR3)")
 
     n_obs = 5_000
     n_cols = 5
@@ -171,23 +173,26 @@ function benchmark_cr_variants()
 
     Random.seed!(42)
     cluster_ids = repeat(1:n_clusters, inner = n_obs ÷ n_clusters)
-    X = randn(n_obs, n_cols)
+    df = DataFrame(randn(n_obs, n_cols - 1), :auto)
+    df.y = df.x1 .+ randn(n_clusters)[cluster_ids] .+ randn(n_obs)
+    model = lm(@formula(y ~ x1 + x2 + x3 + x4), df)
 
     println("Configuration:")
     println("  Observations: $n_obs")
-    println("  Columns: $n_cols")
+    println("  Coefficients: $n_cols")
     println("  Clusters: $n_clusters")
 
+    # CR1-CR3 corrections need the fitted model, so the cache is built from it.
     for (name, CR) in [("CR0", CR0), ("CR1", CR1), ("CR2", CR2), ("CR3", CR3)]
         k = CR(cluster_ids)
-        cached_k = CachedCR(k, n_cols)
+        cached_k = CachedCR(k, model)
 
         # Warmup
-        aVar(k, X)
-        aVar(cached_k, X)
+        vcov(k, model)
+        vcov(cached_k, model)
 
-        t_standard = @benchmark aVar($k, $X) samples=50
-        t_cached = @benchmark aVar($cached_k, $X) samples=50
+        t_standard = @benchmark vcov($k, $model) samples=50
+        t_cached = @benchmark vcov($cached_k, $model) samples=50
 
         print_comparison(name, t_standard, t_cached)
     end

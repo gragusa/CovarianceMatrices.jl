@@ -118,28 +118,31 @@ function _var_selection_samelag(
     AICs = Array{R}(undef, m, K)
     BICs = similar(AICs)
     ## ---------------------------------------------------------
-    ## Preallocate matrices for better performance
+    ## Cross products. The regressors at lag order k are the first k*m
+    ## columns of Z, so their cross products are leading blocks of Z'Z
+    ## and Z'𝕐.
     ## ---------------------------------------------------------
-    max_size = K * m
-    𝕏𝕏 = Matrix{R}(undef, max_size, max_size)
-    𝕏𝕐 = Vector{R}(undef, max_size)
-    β = Vector{R}(undef, max_size)
+    ZZ = Z' * Z
+    ZY = Z' * 𝕐
+    𝕏𝕏 = similar(ZZ)
+    β = Vector{R}(undef, K * m)
     nsingular = 0
 
     ## ---------------------------------------------------------
     ## Calculate AIC & BIC for each variable at lags 1,2,...,K
     ## ---------------------------------------------------------
-    @inbounds for k in 1:K
-        𝕏 = view(Z, :, 1:(k * m))
-        # Resize views of preallocated matrices
-        𝕏𝕏_k = view(𝕏𝕏, 1:(k * m), 1:(k * m))
-        𝕏𝕐_k = view(𝕏𝕐, 1:(k * m))
-        β_k = view(β, 1:(k * m))
+    for k in 1:K
+        km = k * m
+        𝕏 = view(Z, :, 1:km)
+        ZZ_k = view(ZZ, 1:km, 1:km)
+        # `cholesky!` overwrites its argument, so it factors a copy of ZZ_k.
+        𝕏𝕏_k = view(𝕏𝕏, 1:km, 1:km)
+        β_k = view(β, 1:km)
 
         for j in axes(Y, 2)
-            𝕐 = view(Y, (K + 1):T, j)
-            mul!(𝕏𝕏_k, 𝕏', 𝕏)
-            mul!(𝕏𝕐_k, 𝕏', 𝕐)
+            𝕐ⱼ = view(𝕐, :, j)
+            𝕏𝕐_k = view(ZY, 1:km, j)
+            copyto!(𝕏𝕏_k, ZZ_k)
             ## -----------------------
             ## Perform OLS coefficient
             ## -----------------------
@@ -148,13 +151,13 @@ function _var_selection_samelag(
             catch e
                 e isa PosDefException || rethrow()
                 nsingular += 1
-                β_k .= pinv(𝕏𝕏_k) * 𝕏𝕐_k
+                β_k .= pinv(ZZ_k) * 𝕏𝕐_k
             end
             ## -----------------------
             ## Calculate the residuals
             ## -----------------------
             mul!(𝕏β, 𝕏, β_k)
-            ε .= 𝕐 .- 𝕏β
+            ε .= 𝕐ⱼ .- 𝕏β
             ## -----------------------
             ## Calculate the AIC&BIC
             ## -----------------------
@@ -181,13 +184,13 @@ function _var_selection_samelag(
 
     A = zeros(R, m, m, K)
     ε = Array{R}(undef, T, m)
-    @inbounds for h in 1:m
+    for h in 1:m
         ε[1:order[h], h] .= NaN
     end
-    @inbounds for j in axes(Y, 2)
+    for j in axes(Y, 2)
         if order[j] > 0
             𝕐 = view(Y, (order[j] + 1):T, j)
-            𝕏 = delag(X, order[j])
+            𝕏 = delag(Y, order[j])
             β = cholesky!(Symmetric(𝕏'𝕏)) \ 𝕏'𝕐
             𝕏β = 𝕏 * β
             ε[(order[j] + 1):end, j] .= 𝕐 .- 𝕏β
@@ -242,7 +245,7 @@ function _var_selection_ownlag(
     ## ---------------------------------------------------------
     ## Calculate the AIC & BIC for each variable at lag 0
     ## ---------------------------------------------------------
-    𝕐 = view(Y, (K + 1):T, :)
+    𝕐 = view(Y, (maxK + 1):T, :)
     RSS = sum(abs2, 𝕐; dims = 1)
     AIC = vec(log.(RSS / T))
     BIC = copy(AIC)
@@ -251,20 +254,21 @@ function _var_selection_ownlag(
     ## ---------------------------------------------------------
     ## Calculate AIC & BIC for each variable at lags 1,2,...,K
     ## ---------------------------------------------------------
-    @inbounds for kₓ in 0:Kₓ
+    # Every regression's regressors are columns of Z, so its cross products are
+    # submatrices of Z'Z and Z'Y.
+    ZZ = Z' * Z
+    ZY = Z' * view(Y, (maxK + 1):T, :)
+    # The fitted values Z * β_Z, with β_Z zero outside the selected columns, keep the
+    # product on strided memory.
+    β_Z = zeros(R, size(Z, 2))
+    for kₓ in 0:Kₓ
         for k in 0:K
-            #- `m::Int`: The number of columns in the original matrix X.
-            #- `K::Int`: The maximum number of lags used to create matrix Z.
-            #- `position_own::Int`: The index of the column (1 ≤ position_own ≤ m) for which a different number of lags will be selected.
-            #- `lags_others::Int`: The number of lags to select for all columns except the 'position_own' column (1 ≤ lags_others ≤ K).
-            #- `lags_own::Int`: The number of lags to select for the 'position_own' column (1 ≤ lags_own ≤ K).
-            𝕏𝕏 = Matrix{R}(undef, kₓ * (m - 1) + k, kₓ * (m - 1) + k)
-            𝕏𝕐 = Vector{R}(undef, kₓ * (m - 1) + k)
             for j in axes(Y, 2)
                 𝕐 = view(Y, (maxK + 1):T, j)
                 𝕏 = select_lags(Z, m, maxK, j, k, kₓ)
-                mul!(𝕏𝕏, 𝕏', 𝕏)
-                mul!(𝕏𝕐, 𝕏', 𝕐)
+                cols = parentindices(𝕏)[2]
+                𝕏𝕏 = ZZ[cols, cols]
+                𝕏𝕐 = ZY[cols, j]
                 ## -----------------------
                 ## Perform OLS coefficient
                 ## -----------------------
@@ -272,7 +276,9 @@ function _var_selection_ownlag(
                 ## -----------------------
                 ## Calculate the residuals
                 ## -----------------------
-                mul!(𝕏β, 𝕏, β)
+                fill!(β_Z, zero(R))
+                β_Z[cols] .= β
+                mul!(𝕏β, Z, β_Z)
                 ε .= 𝕐 .- 𝕏β
                 ## -----------------------
                 ## Calculate the AIC&BIC
@@ -297,16 +303,16 @@ function _var_selection_ownlag(
         order = order_bic
     end
     ε = Array{R}(undef, T, m)
-    @inbounds for h in 1:m
+    for h in 1:m
         ε[1:sum(order[h, :]), h] .= NaN
     end
     maxK = maximum(sum(order, dims = 2))
     A = zeros(R, m, m * maxK)
 
-    @inbounds for j in axes(Y, 2)
+    for j in axes(Y, 2)
         kk = sum(order[j, :])
         if kk > 0
-            ℤ = delag(X, kk)
+            ℤ = delag(Y, kk)
             𝕐 = view(Y, (kk + 1):T, j)
             𝕏 = select_lags(ℤ, m, kk, j, order[j, :]...)
             β = cholesky!(Symmetric(𝕏'𝕏)) \ 𝕏'𝕐
@@ -381,12 +387,9 @@ function delag(X::Matrix{R}, K::Int) where {R <: Real}
     end
 
     Z = Matrix{R}(undef, T - K, n * K)  # Use same type as input for type stability
-    @inbounds for j in 1:n
-        for t in (K + 1):T
-            for k in 1:K
-                Z[t - K, (k - 1) * n + j] = X[t - k, j]
-            end
-        end
+    # Columns (k - 1) * n + 1 : k * n hold lag k.
+    for k in 1:K
+        Z[:, ((k - 1) * n + 1):(k * n)] .= view(X, (K + 1 - k):(T - k), :)
     end
     return Z
 end

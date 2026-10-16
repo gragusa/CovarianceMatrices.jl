@@ -995,13 +995,13 @@ variance calculations (e.g., wild bootstrap) where only residuals change between
 iterations.
 
 # Type Parameters
-- `H`: Type of leverage adjustments (Vector of BlockDiagonal for CR2/CR3, Vector of scalars for CR0/CR1)
+- `H`: Type of leverage adjustments (Vector of `ClusterLeverage` for CR2/CR3, Vector of scalars for CR0/CR1)
 
 # Fields
 - `grouped_arrays`: Precomputed Clusterings for each clustering combination
 - `cluster_indices`: Precomputed observation indices [combination][cluster] -> obs indices
 - `signs`: Precomputed signs for inclusion-exclusion formula
-- `leverage_adjustments`: Precomputed leverage adjustments (BlockDiagonal for CR2/CR3)
+- `leverage_adjustments`: Precomputed leverage adjustments, one per clustering combination
 - `ncols`: Number of model coefficients (for validation)
 - `nobs`: Number of observations (for validation)
 

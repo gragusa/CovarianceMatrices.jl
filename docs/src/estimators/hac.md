@@ -61,6 +61,12 @@ k(x) = \frac{25}{12\pi^2 x^2}\left[\frac{\sin(6\pi x/5)}{6\pi x/5} - \cos(6\pi x
 
 Unbounded support; Andrews (1991) shows it minimizes the asymptotic mean squared error among kernels in its class.
 
+Every lag enters the estimate, so the package computes it as $Z' K Z$, where $K$ is
+the $T \times T$ Toeplitz matrix with entries $k(|s - t| / S_T)$. For `Float32` and
+`Float64` data, $K Z$ is computed with FFTs in $O(T \log T)$ time. Other element
+types, such as the dual numbers of automatic differentiation, use a blocked matrix
+product that takes $O(T^2)$ time.
+
 ### Truncated (Uniform)
 
 ```math

@@ -85,17 +85,27 @@ stderror(CR1(grunfeld.Firm), model)
 
 ### CR2 and CR3: Leverage-Based Corrections
 
+CR2 and CR3 replace the residuals $u_g$ of cluster $g$ by $A_g u_g$, with
+
 **CR2:**
 ```math
-\phi_2(g) = \frac{1}{1-h_g}
+A_g = (I - H_{gg})^{-1/2}
 ```
 
 **CR3:**
 ```math
-\phi_3(g) = \frac{1}{(1-h_g)^2}
+A_g = (I - H_{gg})^{-1}
 ```
 
-where $h_g$ represents cluster-level leverage values.
+where $H_{gg} = X_g (X'WX)^{-1} X_g' W_g$ is the diagonal block of the hat matrix for
+cluster $g$ and $W$ holds the observation weights (the IRLS working weights for a
+GLM; the identity for an unweighted model). $H_{gg}$ has rank at most $k$, the number
+of coefficients, so $A_g u_g$ is computed from $k \times k$ matrices per cluster: an
+eigendecomposition for CR2 and a Cholesky factorization for CR3. The rows of a cluster need not be contiguous.
+
+$I - H_{gg}$ must be nonsingular for every cluster. A regressor that is nonzero only
+within one cluster, such as a cluster fixed effect, makes it singular, and `vcov`
+throws an `ArgumentError`.
 
 **Properties:**
 - Account for cluster-specific leverage effects
