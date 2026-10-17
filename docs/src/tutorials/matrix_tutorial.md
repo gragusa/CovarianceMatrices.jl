@@ -11,7 +11,8 @@ The matrix interface follows this pattern:
 
 1. Prepare your data matrix (moment conditions, residuals, etc.)
 2. Choose an estimator
-3. Compute the covariance matrix with `aVar`
+3. Compute the covariance matrix with `aVar`, which returns a
+   [`CovarianceMatrix`](@ref) (see [The Returned CovarianceMatrix](@ref))
 4. Extract standard errors if needed
 
 ```@example matrix

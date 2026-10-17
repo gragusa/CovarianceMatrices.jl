@@ -18,6 +18,7 @@ aVar
 
 `aVar` and `vcov` return a [`CovarianceMatrix`](@ref): the estimate together with
 the estimator that produced it and any quantities selected along the way.
+[The Returned CovarianceMatrix](@ref) lists what each estimator stores.
 
 ```@docs
 CovarianceMatrix

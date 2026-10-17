@@ -16,6 +16,7 @@ makedocs(
     pages = [
         "Home" => "index.md",
         "Introduction & Mathematical Foundation" => "introduction.md",
+        "The Returned CovarianceMatrix" => "result.md",
         "Estimators" => [
             "HAC Estimators" => "estimators/hac.md",
             "Heteroskedasticity-Robust (HC/HR)" => "estimators/hc.md",
