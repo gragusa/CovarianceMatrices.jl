@@ -1542,6 +1542,7 @@ irrespective of the number of units.
 # Constructor
     DriscollKraay(K::HAC; tis, iis, correction = :HC0)
     DriscollKraay(K::HAC, tis::AbstractVector, iis::AbstractVector; correction = :HC0)
+    DriscollKraay(K::HAC, tis::Symbol, iis::Symbol; correction = :HC0)
 
 where
 
@@ -1556,6 +1557,11 @@ where
 
 Both index arrays are required, must have the same length, and may hold identifiers
 of any sortable type; the two arrays need not share an element type.
+
+With `tis` and `iis` given as `Symbol`s, the estimator names the time and unit columns
+instead of holding them, as `CR1(:firm)` does for clusters. A modeling package that owns
+the data table replaces the names with the indices before any variance is computed;
+CovarianceMatrices itself throws an `ArgumentError` if asked to use it.
 
 # Mathematical Foundation
 With ``g_t`` the sum of the moments of the observations in period ``t = 1, …, T``
@@ -1580,6 +1586,9 @@ ve = DriscollKraay(Bartlett{Andrews}(), tis=time_ids, iis=unit_ids)
 
 # With fixed bandwidth and the Stata-style small-sample correction
 ve = DriscollKraay(Parzen(4), tis=years, iis=countries, correction=:sss)
+
+# Time and unit named by column, for a package that resolves them against its data
+ve = DriscollKraay(Bartlett(4), tis=:year, iis=:country)
 ```
 """
 struct DriscollKraay{K, D, I} <: Correlated
@@ -1604,8 +1613,15 @@ function DriscollKraay(K::HAC, tis, iis; correction = :HC0)
         throw(ArgumentError("DriscollKraay requires time indices; pass `tis`."))
     iis === nothing &&
         throw(ArgumentError("DriscollKraay requires entity indices; pass `iis`."))
+    (tis isa Symbol || iis isa Symbol) && throw(ArgumentError(
+        "DriscollKraay: name both index columns (`tis = :t, iis = :id`) or pass both " *
+        "index vectors; got `tis` of type $(typeof(tis)) and `iis` of type $(typeof(iis))"))
     ct, ci = _sorted_clustering(tis), Clustering(iis)
     return DriscollKraay{typeof(K), typeof(ct), typeof(ci)}(K, ct, ci, correction)
+end
+
+function DriscollKraay(K::HAC, tis::Symbol, iis::Symbol; correction = :HC0)
+    return DriscollKraay{typeof(K), Symbol, Symbol}(K, tis, iis, correction)
 end
 
 # Group codes follow the sort order of the identifiers, so that code `t` is the
@@ -1625,6 +1641,17 @@ function _check_dk_correction(correction)
     return nothing
 end
 
+# Time and unit named by column; see `_check_resolved(::_UnresolvedClusterEstimator)`.
+function _check_resolved(k::DriscollKraay{<:Any, Symbol, Symbol})
+    throw(ArgumentError(
+        "$(sprint(show, k)) names its time and unit indices by column " *
+        "($(repr(k.tis)), $(repr(k.iis))), which CovarianceMatrices cannot look up. " *
+        "Pass the indices instead, e.g. `DriscollKraay(K; tis = df.$(k.tis), " *
+        "iis = df.$(k.iis))`, or use a modeling package that resolves column names " *
+        "against its data."))
+end
+
+_check_dk_panel(::Symbol, ::Symbol) = nothing
 function _check_dk_panel(tis::Clustering, iis::Clustering)
     length(tis.groups) == length(iis.groups) || throw(DimensionMismatch(
         "DriscollKraay: `tis` has $(length(tis.groups)) observations but `iis` has $(length(iis.groups))"))

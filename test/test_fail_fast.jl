@@ -185,6 +185,25 @@ StatsAPI.coef(::FailFastThrowingCoef) = throw(DomainError(-1, "coef failed"))
         @test Cluster(:g, :h) == Cluster((:g, :h))
     end
 
+    @testset "Driscoll-Kraay indices named by column" begin
+        msg = "names its time and unit indices by column (:t, :id)"
+        for k in (DriscollKraay(Bartlett(3), tis = :t, iis = :id),
+            DriscollKraay(Bartlett(3), :t, :id; correction = :HC1))
+            @test CovarianceMatrices.timeindex(k) === :t
+            @test CovarianceMatrices.unitindex(k) === :id
+            @test_throws msg aVar(k, X)
+            @test_throws msg vcov(k, model)
+            @test_throws msg stderror(k, model)
+            @test vcov(k) isa VcovSpec
+        end
+        @test_throws "e.g. `DriscollKraay(K; tis = df.t, iis = df.id)`" aVar(
+            DriscollKraay(Bartlett(3), tis = :t, iis = :id), X)
+        @test_throws "name both index columns" DriscollKraay(Bartlett(3), tis = :t, iis = df.g)
+        @test_throws "name both index columns" DriscollKraay(Bartlett(3), df.g, :id)
+        @test_throws "unsupported Driscoll-Kraay correction" DriscollKraay(
+            Bartlett(3), :t, :id; correction = :HC3)
+    end
+
     @testset "String on estimator types" begin
         @test_throws MethodError String(HC0)
     end

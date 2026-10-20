@@ -24,6 +24,8 @@ roundtrip(x) = Core.eval(ShowRoundTrip, Meta.parse(repr(x)))
             VARHAC(AICSelector(), AutoLags()),
             DriscollKraay(Bartlett(3), tis = [1, 2, 1, 2], iis = [1, 1, 2, 2]),
             DriscollKraay(Parzen{Andrews}(), tis = [1, 2, 1, 2], iis = [1, 1, 2, 2]),
+            DriscollKraay(Bartlett(3), tis = :t, iis = :id),
+            DriscollKraay(Bartlett(3), :t, :id; correction = :sss),
             UniformSmoother(3), TriangularSmoother(0)
         ]
         for x in estimators
@@ -35,6 +37,8 @@ roundtrip(x) = Core.eval(ShowRoundTrip, Meta.parse(repr(x)))
         @test repr(Bartlett(5)) == "Bartlett(5.0)"
         @test repr(Bartlett{Andrews}()) == "Bartlett{Andrews}()"
         @test repr(CR0([1, 1, 2, 2])) == "CR0([1, 1, 2, 2])"
+        @test repr(DriscollKraay(Bartlett(3), tis = :t, iis = :id)) ==
+              "DriscollKraay(Bartlett(3.0), tis = :t, iis = :id)"
         @test repr(VARHAC(AICSelector(), SameLags(4))) ==
               "VARHAC(AICSelector(), SameLags(4))"
         @test repr(VARHAC(FixedLags(3))) == "VARHAC(FixedLags(3))"

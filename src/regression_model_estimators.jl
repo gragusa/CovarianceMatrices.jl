@@ -564,6 +564,7 @@ end
 # The correction is a `vcov` factor, so the meat on the model path is uncorrected;
 # the result still records the estimator as given.
 function aVar(k::DriscollKraay, m::RegressionModel; kwargs...)
+    _check_resolved(k)
     k0 = DriscollKraay{typeof(k.K), typeof(k.tis), typeof(k.iis)}(k.K, k.tis, k.iis)
     V = invoke(aVar, Tuple{AbstractAsymptoticVarianceEstimator, RegressionModel}, k0, m;
         kwargs...)
