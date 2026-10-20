@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.1]
+
+### Added
+
+- `DriscollKraay(K; tis = :t, iis = :id)` and `DriscollKraay(K, :t, :id)` store
+  column names, as `CR1(:id)` does for clusters, so a modeling package can
+  resolve them against its own data. Using the unresolved form, or mixing a
+  name with an index vector, throws an `ArgumentError`.
+- `correction(k)` returns the finite-sample correction of a `DriscollKraay`
+  estimator (`:HC0`, `:HC1` or `:sss`). It is public and not exported.
+
 ## [0.33.0]
 
 ### Breaking

@@ -301,6 +301,7 @@ end
     public_names = [
         :AICs, :BICs, :maxlags, :nclusters, :order, :order_aic, :order_bic,
         :clusters, :groups, :cache, :CRModelCache, :timekernel, :timeindex, :unitindex,
+        :correction,
         :BartlettKernel, :ParzenKernel, :QuadraticSpectralKernel,
         :TruncatedKernel, :TukeyHanningKernel,
         :BandwidthType, :LagSelector, :LagStrategy, :Clustering,

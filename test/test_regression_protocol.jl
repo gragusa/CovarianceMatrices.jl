@@ -151,7 +151,7 @@ end
 
     @testset "names are public and not exported" begin
         for s in (:residual_adjustment, :numobs, :bandwidthweights, :clusters, :groups,
-            :cache, :timekernel, :timeindex, :unitindex)
+            :cache, :timekernel, :timeindex, :unitindex, :correction)
             @test Base.ispublic(CovarianceMatrices, s)
             @test !Base.isexported(CovarianceMatrices, s)
         end
@@ -218,6 +218,10 @@ end
         @test CMRP.groups(CMRP.timeindex(dk)) == df.period
         @test CMRP.nclusters(CMRP.timeindex(dk)) == 16
         @test CMRP.groups(CMRP.unitindex(dk)) == df.unit
+        @test CMRP.correction(dk) === :HC1
+        @test CMRP.correction(DriscollKraay(kernel, df.period, df.unit)) === :HC0
+        @test CMRP.correction(DriscollKraay(kernel; tis = :t, iis = :id,
+            correction = :sss)) === :sss
         # Rebuilt without the correction, which `aVar` on a matrix requires.
         dk0 = DriscollKraay(CMRP.timekernel(dk), CMRP.timeindex(dk), CMRP.unitindex(dk))
         @test dk0.correction === :HC0

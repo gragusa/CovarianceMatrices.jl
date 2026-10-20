@@ -64,3 +64,11 @@ CovarianceMatrices.Clustering).
 finite-sample correction, which is the estimator `aVar` accepts on a moment matrix.
 """
 unitindex(k::DriscollKraay) = k.iis
+
+"""
+    correction(k::DriscollKraay) -> Symbol
+
+Return the finite-sample correction that `vcov(k, model)` applies: `:HC0` (none),
+`:HC1` or `:sss`. See [`vcov(::DriscollKraay, ::RegressionModel)`](@ref).
+"""
+correction(k::DriscollKraay) = k.correction
