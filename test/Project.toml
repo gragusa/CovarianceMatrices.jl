@@ -27,7 +27,7 @@ path = ".."
 
 [compat]
 Aqua = "0.8"
-CSV = "0.10"
+CSV = "0.10, 1"
 CategoricalArrays = "1"
 CovarianceMatrices = "0.33"
 DataFrames = "1.0"
