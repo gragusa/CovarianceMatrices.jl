@@ -55,7 +55,8 @@ information(V)
 | `Bartlett`, `Parzen`, `QuadraticSpectral`, `Truncated`, `TukeyHanning`; `DriscollKraay` | `bandwidth`, `kernelweights` | [`bandwidth`](@ref)`(V)`, [`kernelweights`](@ref)`(V)` |
 | `VARHAC` | `AICs`, `BICs`, `order_aic`, `order_bic`, `order` | [`CovarianceMatrices.order`](@ref)`(V)` and the functions of the same names |
 | `CR0`–`CR3`, `Cluster` | `nclusters` | `information(V).nclusters` |
-| `HR0`–`HR5` (`HC0`–`HC5`), `HC4m`, `Uncorrelated`, `EWC`, `UniformSmoother`, `TriangularSmoother` | none | — |
+| `EWC` | `B` | `information(V).B` |
+| `HR0`–`HR5` (`HC0`–`HC5`), `HC4m`, `Uncorrelated`, `UniformSmoother`, `TriangularSmoother` | none | — |
 
 For a HAC kernel, `bandwidth(V)` is the bandwidth the estimate used: the one given
 to a fixed-bandwidth kernel such as `Bartlett(5)`, or the one selected by a
@@ -84,9 +85,11 @@ For a cluster estimator, `nclusters` holds the number of clusters in each
 clustering dimension, one entry per dimension. `bandwidth(V)` and
 `kernelweights(V)` return `nothing` for an estimator that does not store them.
 
-`EWC`, `UniformSmoother` and `TriangularSmoother` select nothing during
-estimation: their tuning parameter is part of the estimator, so `estimator(V)`
-shows it.
+For `EWC`, `B` is the number of cosine basis functions the estimate used: the one
+given to `EWC(B)`, or the one `EWC()` chose from the number of observations.
+
+`UniformSmoother` and `TriangularSmoother` select nothing during estimation:
+their tuning parameter is part of the estimator, so `estimator(V)` shows it.
 
 For a model built on `MLikeModel` or `GMMLikeModel`, `vcov(ve, form, model)`
 stores the estimator `ve` and the quantities of its estimate of the moment

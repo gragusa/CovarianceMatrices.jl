@@ -562,9 +562,25 @@ The number of basis functions ``B`` is the single tuning parameter; it plays the
 role the bandwidth plays in a HAC estimator. Because the estimate is a sum of
 outer products, it is positive semi-definite by construction.
 
-# Constructor
-    EWC(B::Integer)
+With ``B`` held fixed as ``T`` grows, the t-statistic built from this estimate has
+a Student-t distribution with ``B`` degrees of freedom, whatever value ``B``
+takes, and for ``m`` restrictions the Wald statistic ``F`` rescaled as
+``(B - m + 1) F / B`` has an ``F(m, B - m + 1)`` distribution (Lazarus, Lewis,
+Stock and Watson 2018, eq. 14). The choice of ``B`` trades size against power: a
+larger ``B`` gives a less variable estimate but more bias when the moments are
+persistent.
 
+# Constructors
+    EWC(B::Integer)
+    EWC()
+
+`EWC(B)` uses `B` basis functions. `EWC()` chooses
+``B = \\lfloor 0.4\\, T^{2/3} \\rfloor`` (at least 1) from the number of
+observations ``T``, the rule of Lazarus, Lewis, Stock and Watson (2018, eq. 4 and
+footnote 3). Either way the estimate stores the `B` it used in
+[`information`](@ref)`(V).B`. `B` must be smaller than the number of
+observations: the cosine weights are all zero at ``j = T`` and repeat lower
+frequencies beyond it.
 
 # Examples
 ```julia
@@ -573,20 +589,56 @@ ve = EWC(10)
 
 # Compute covariance matrix
 Ω = aVar(ve, moment_matrix)
+
+# B from the Lazarus-Lewis-Stock-Watson rule
+V = aVar(EWC(), moment_matrix)
+information(V).B
 ```
+
+# References
+- Lazarus, E., Lewis, D.J., Stock, J.H., and Watson, M.W. (2018). "HAR Inference:
+  Recommendations for Practice". *Journal of Business & Economic Statistics*, 36(4),
+  541-559.
 """
 struct EWC <: Correlated
-    B::Int
+    B::Union{Int, Nothing}
     function EWC(B::Integer)
         B > 0 || throw(ArgumentError("B must be positive"))
         return new(B)
     end
+    EWC() = new(nothing)
 end
 
 function EWC(B::Real)
     B == round(B) ? EWC(round(Int, B)) :
     throw(ArgumentError("B must be an integer or parsable as integer"))
 end
+
+Base.show(io::IO, k::EWC) = k.B === nothing ? print(io, "EWC()") : print(io, "EWC(", k.B, ")")
+
+"""
+    ewc_nbasis(T::Integer) -> Int
+
+The number of basis functions `EWC()` uses with `T` observations:
+``\\lfloor 0.4\\, T^{2/3} \\rfloor``, and at least 1. The floor is computed exactly,
+as the largest integer `B` with ``125 B^3 \\le 8 T^2``, so that it is not lost to
+rounding where ``0.4\\, T^{2/3}`` is an integer (``T = 125`` gives 10).
+"""
+function ewc_nbasis(T::Integer)
+    T > 0 || throw(ArgumentError("the number of observations must be positive, got $T"))
+    bound = 8 * widen(T)^2
+    B = floor(Int, 0.4 * cbrt(Float64(T)^2))
+    while 125 * widen(B + 1)^3 <= bound
+        B += 1
+    end
+    while B > 0 && 125 * widen(B)^3 > bound
+        B -= 1
+    end
+    return max(B, 1)
+end
+
+# The number of basis functions `k` uses with `T` observations.
+_nbasis(k::EWC, T::Integer) = k.B === nothing ? ewc_nbasis(T) : k.B
 
 #=========
 HC

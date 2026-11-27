@@ -22,11 +22,22 @@ function Λ(j::Integer, m::AbstractMatrix{F}) where {F <: Real}
     return Λ!(L, j, m)
 end
 
-function avar(k::EWC, X::AbstractMatrix{F}; prewhite = false) where {F <: Real}
-    Z, D = finalize_prewhite(X, Val(prewhite))
+avar(k::EWC, X::AbstractMatrix; kwargs...) = first(avar_with_info(k, X; kwargs...))
 
-    B = k.B
+"""
+    avar_with_info(k::EWC, X::AbstractMatrix; prewhite=false)
+
+Compute the EWC estimate and the number of basis functions `B` it used, given by
+`k` or, for `EWC()`, by [`ewc_nbasis`](@ref) of the number of rows of `X`.
+"""
+function avar_with_info(k::EWC, X::AbstractMatrix{F}; prewhite = false,
+        weights = nothing) where {F <: Real}
+    B = _nbasis(k, size(X, 1))
+    Z, D = finalize_prewhite(X, Val(prewhite))
     T, p = size(Z)
+    B < T || throw(ArgumentError(
+        "EWC needs fewer basis functions than observations, got B = $B with T = $T " *
+        "observations"))
     Ω = zeros(F, p, p)
     L = Vector{F}(undef, p)
 
@@ -44,7 +55,7 @@ function avar(k::EWC, X::AbstractMatrix{F}; prewhite = false) where {F <: Real}
 
     # Transform back if prewhitened
     v = inv(one(F) * I - D')
-    return v * Ω * v'
+    return v * Ω * v', (; B)
 end
 
 # Ω += α·L·L' on the upper triangle. BLAS handles Float32 and Float64; any other

@@ -111,6 +111,35 @@ using Random
         # Real that parses to Int should work
         @test EWC(3.0).B == 3
         @test EWC(5).B == 5
+        @test EWC().B === nothing
+        @test EWC() == EWC()
+        @test EWC() != EWC(5)
+    end
+
+    @testset "EWC() number of basis functions" begin
+        # floor(0.4 T^(2/3)), exact where 0.4 T^(2/3) is an integer
+        for (T, B) in ((1, 1), (2, 1), (8, 1), (27, 3), (100, 8), (125, 10), (200, 13),
+                (1000, 40), (8000, 160), (10^6, 4000), (10^9, 400000))
+            @test CovarianceMatrices.ewc_nbasis(T) == B
+        end
+        for T in 1:5000
+            B = CovarianceMatrices.ewc_nbasis(T)
+            @test B == max(1, floor(Int, 2 * cbrt(big(T)^2) / 5))
+        end
+        @test_throws "must be positive" CovarianceMatrices.ewc_nbasis(0)
+
+        X = randn(StableRNG(3), 200, 2)
+        V = aVar(EWC(), X)
+        @test information(V).B == 13
+        @test estimator(V) == EWC()
+        @test parent(V) == parent(aVar(EWC(13), X))
+        @test information(aVar(EWC(7), X)).B == 7
+        @test information(aVar(EWC(), X; prewhite = true)).B == 13
+
+        # B must be smaller than the number of observations
+        @test_throws "fewer basis functions than observations" aVar(EWC(5), X[1:5, :])
+        @test size(aVar(EWC(4), X[1:5, :])) == (2, 2)
+        @test_throws "fewer basis functions than observations" aVar(EWC(), X[1:1, :])
     end
 
     @testset "CR constructors" begin

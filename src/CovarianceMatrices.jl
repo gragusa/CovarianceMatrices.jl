@@ -111,7 +111,7 @@ export AbstractAsymptoticVarianceEstimator,
 # package's compatibility guarantees; every other non-exported name is internal
 # and may change in any release.
 # Result and estimator accessors
-public AICs, BICs, maxlags, nclusters, order, order_aic, order_bic,
+public AICs, BICs, maxlags, nclusters, order, order_aic, order_bic, ewc_nbasis,
        clusters, groups, cache, timekernel, timeindex, unitindex, correction,
 # Type of the cache that `CachedCR(k, model)` builds, available for dispatch
        CRModelCache,

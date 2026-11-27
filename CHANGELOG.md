@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `EWC()` chooses the number of cosine basis functions from the number of
+  observations `T` with the rule of Lazarus, Lewis, Stock and Watson (2018),
+  `B = floor(0.4 T^(2/3))`, and at least 1. `ewc_nbasis(T)` returns that number;
+  it is public and not exported.
+- An `EWC` estimate records the number of basis functions it used, given or
+  chosen, in `information(V).B`.
+
+### Changed
+
+- `EWC` throws an `ArgumentError` when `B` is not smaller than the number of
+  observations. The cosine weights are all zero at `j = T` and repeat lower
+  frequencies beyond it, so such an estimate averaged duplicated or zero terms.
+
 ## [0.33.1]
 
 ### Added

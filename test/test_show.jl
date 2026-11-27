@@ -16,7 +16,7 @@ roundtrip(x) = Core.eval(ShowRoundTrip, Meta.parse(repr(x)))
         estimators = Any[
             Bartlett(5), Bartlett{Andrews}(), Parzen(NeweyWest), CovarianceMatrices.Truncated(3.0),
             QuadraticSpectral{Andrews}(), TukeyHanning(2), Parzen{Andrews}(),
-            HC0(), HC1(), HR3(), HC4m(), HC5(), Uncorrelated(), EWC(4),
+            HC0(), HC1(), HR3(), HC4m(), HC5(), Uncorrelated(), EWC(4), EWC(),
             CR0([1, 1, 2, 2]), CR1(([1, 2, 1, 2], [1, 1, 2, 2])), CR2(["a", "b", "a"]),
             CR3([1, 2, 3]), CR0(:firm), CR2((:a, :b)),
             Cluster([1, 1, 2]), Cluster((:a, :b)), Cluster(([1, 2], [3, 3])),

@@ -16,12 +16,15 @@ The EWC estimator is the equally weighted average of their outer products,
 \hat{\Omega}_{EWC} = \frac{1}{B} \sum_{j=1}^{B} \Lambda_j \Lambda_j'.
 ```
 
-The single tuning parameter $B$ is the number of basis functions. It plays the role the bandwidth plays in a HAC estimator: a smaller $B$ smooths more. The estimate is a sum of outer products, so it is positive semi-definite by construction, and the implied inference uses a $t$ (or $F$) reference distribution with degrees of freedom tied to $B$.
+The single tuning parameter $B$ is the number of basis functions. It plays the role the bandwidth plays in a HAC estimator. The estimate is a sum of outer products, so it is positive semi-definite by construction.
+
+With $B$ held fixed as $T$ grows, the t-statistic built from $\hat{\Omega}_{EWC}$ has a Student-t distribution with $B$ degrees of freedom, for any $B$. For $m$ restrictions, the Wald statistic $F$ rescaled as $(B - m + 1) F / B$ has an $F(m, B - m + 1)$ distribution (Lazarus, Lewis, Stock, and Watson, 2018, eq. 14). `EWC()` chooses $B = \lfloor 0.4\, T^{2/3} \rfloor$, the rule those authors recommend (eq. 4 and footnote 3).
 
 ## Core Type
 
 ```@docs
 EWC
+CovarianceMatrices.ewc_nbasis
 ```
 
 ## Usage
@@ -36,7 +39,14 @@ model = lm(@formula(PSavert ~ Unemploy), econ)
 stderror(EWC(8), model)
 ```
 
-The number of basis functions trades bias against variance. Few basis functions give a smoother, lower-variance estimate; more basis functions track the spectrum more closely at the cost of variance:
+`EWC()` takes $B$ from the number of observations, and the estimate records the $B$ it used:
+
+```@example ewc
+V = vcov(EWC(), model)
+(T = nobs(model), B = information(V).B)
+```
+
+The number of basis functions trades bias against variance. Each projection $\Lambda_j$ measures the spectral density at frequency $\pi j / T$, so a larger $B$ averages more of them: the estimate varies less but moves further from frequency zero, which biases it when the moments are persistent. Few basis functions give a less biased but more variable estimate:
 
 ```@example ewc
 using DataFrames
