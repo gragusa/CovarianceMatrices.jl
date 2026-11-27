@@ -614,7 +614,9 @@ function EWC(B::Real)
     throw(ArgumentError("B must be an integer or parsable as integer"))
 end
 
-Base.show(io::IO, k::EWC) = k.B === nothing ? print(io, "EWC()") : print(io, "EWC(", k.B, ")")
+function Base.show(io::IO, k::EWC)
+    k.B === nothing ? print(io, "EWC()") : print(io, "EWC(", k.B, ")")
+end
 
 """
     ewc_nbasis(T::Integer) -> Int

@@ -119,7 +119,7 @@ using Random
     @testset "EWC() number of basis functions" begin
         # floor(0.4 T^(2/3)), exact where 0.4 T^(2/3) is an integer
         for (T, B) in ((1, 1), (2, 1), (8, 1), (27, 3), (100, 8), (125, 10), (200, 13),
-                (1000, 40), (8000, 160), (10^6, 4000), (10^9, 400000))
+            (1000, 40), (8000, 160), (10^6, 4000), (10^9, 400000))
             @test CovarianceMatrices.ewc_nbasis(T) == B
         end
         for T in 1:5000
